@@ -1,7 +1,8 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import App from './App'
 import * as useSessionStatusModule from './features/cockpit/hooks/useSessionStatus'
+import { OTHER_PROJECT_ID, PROJECT_ID, idleWire, wireFor } from './features/cockpit/workspaceExecutionFixture'
 
 vi.mock('./features/cockpit/hooks/useSessionStatus')
 
@@ -373,5 +374,151 @@ describe('App project GitHub origin composition', () => {
     expect(screen.getByRole('button', { name: 'Show project GitHub origin' })).toBeInTheDocument()
     expect(getProjectGitHubOrigin).toHaveBeenCalledTimes(1)
     expect(getProjectGitHubOrigin).toHaveBeenCalledWith('project-a')
+  })
+})
+
+function deferredAnswer() {
+  let resolve!: (value: unknown) => void
+  const promise = new Promise<unknown>((res) => {
+    resolve = res
+  })
+  return { promise, resolve }
+}
+
+describe('App workspace execution composition (ADR-0057)', () => {
+  type RegionProps = {
+    projectId?: string
+    runId?: string
+    workspaceExecution?: { reading: { projectId: string; status: string } | null; loading: boolean; failure: string | null; refresh: () => void }
+    onEvidenceRefreshRequested?: () => void
+  }
+
+  const describeState = (props: RegionProps) => {
+    const state = props.workspaceExecution
+    return state === undefined
+      ? 'absent'
+      : state.failure !== null
+        ? `failed ${state.failure}`
+        : state.reading !== null
+          ? `${state.reading.status} for ${state.reading.projectId}`
+          : state.loading
+            ? 'pending'
+            : 'none'
+  }
+
+  async function renderTwoProjects(read: (projectId: string) => Promise<unknown>) {
+    const readWorkspaceExecutionStatus = vi.fn(read)
+    vi.resetModules()
+    vi.doMock('./features/cockpit/hooks/useSessionStatus', () => ({ useSessionStatus: () => 'ready' }))
+    vi.doMock('./features/cockpit/hooks/useProjectSummaries', () => ({
+      useProjectSummaries: () => ({
+        projects: [
+          { projectId: PROJECT_ID, projectName: 'Alpha', runId: 'run-a', lifecycle: 'Running', capabilities: [] },
+          { projectId: OTHER_PROJECT_ID, projectName: 'Beta', runId: 'run-b', lifecycle: 'Running', capabilities: [] },
+        ],
+        loading: false,
+        error: null,
+        refresh: vi.fn(),
+      }),
+    }))
+    vi.doMock('./features/cockpit/hooks/useProviderRuntimePreflight', () => ({
+      useProviderRuntimePreflight: () => ({ providers: [], loading: false, error: null, refresh: vi.fn() }),
+    }))
+    vi.doMock('./features/cockpit/hooks/useHostCapabilityRefresh', () => ({
+      useHostCapabilityRefresh: () => ({ refreshingCapability: null, requestRefresh: vi.fn() }),
+    }))
+    vi.doMock('./features/cockpit/components/CandidateWorkspacePanel', () => ({
+      CandidateWorkspacePanel: (props: RegionProps) => (
+        <>
+          <p>{`workspace panel ${props.projectId}: ${describeState(props)}`}</p>
+          <button type="button" onClick={props.onEvidenceRefreshRequested}>
+            refresh evidence
+          </button>
+        </>
+      ),
+    }))
+    vi.doMock('./features/cockpit/components/RunCockpitView', () => ({
+      RunCockpitView: (props: RegionProps) => <p>{`cockpit ${props.runId}: ${describeState(props)}`}</p>,
+    }))
+    vi.doMock('./api/clients', async (importOriginal) => ({
+      ...(await importOriginal<typeof import('./api/clients')>()),
+      workspaceExecutionStatusClient: () => ({ readWorkspaceExecutionStatus }),
+    }))
+    const { default: FreshApp } = await import('./App')
+    return { ...render(<FreshApp />), readWorkspaceExecutionStatus }
+  }
+
+  it('reads the selected project once and hands the same coherent status to both regions, withheld until it is read', async () => {
+    const release = deferredAnswer()
+    const { readWorkspaceExecutionStatus } = await renderTwoProjects(() => release.promise)
+
+    expect(readWorkspaceExecutionStatus).toHaveBeenCalledTimes(1)
+    expect(readWorkspaceExecutionStatus).toHaveBeenCalledWith(PROJECT_ID)
+    expect(screen.getByText(`workspace panel ${PROJECT_ID}: pending`)).toBeInTheDocument()
+    expect(screen.getByText('cockpit run-a: pending')).toBeInTheDocument()
+
+    await act(async () => release.resolve(idleWire(PROJECT_ID)))
+
+    expect(await screen.findByText(`workspace panel ${PROJECT_ID}: Idle for ${PROJECT_ID}`)).toBeInTheDocument()
+    expect(screen.getByText(`cockpit run-a: Idle for ${PROJECT_ID}`)).toBeInTheDocument()
+    expect(readWorkspaceExecutionStatus).toHaveBeenCalledTimes(1)
+  })
+
+  it('hands a blocking status to both regions, and a failed read as a failure, never as Idle', async () => {
+    const { readWorkspaceExecutionStatus, unmount } = await renderTwoProjects(() => Promise.resolve(wireFor('VerificationActive')))
+
+    expect(await screen.findByText(`workspace panel ${PROJECT_ID}: VerificationActive for ${PROJECT_ID}`)).toBeInTheDocument()
+    expect(screen.getByText(`cockpit run-a: VerificationActive for ${PROJECT_ID}`)).toBeInTheDocument()
+    expect(readWorkspaceExecutionStatus).toHaveBeenCalledTimes(1)
+    unmount()
+
+    await renderTwoProjects(() => Promise.reject(new Error('down')))
+
+    expect(await screen.findByText(`workspace panel ${PROJECT_ID}: failed read`)).toBeInTheDocument()
+    expect(screen.getByText('cockpit run-a: failed read')).toBeInTheDocument()
+  })
+
+  it('refuses the answer of another project as invalid for both regions', async () => {
+    await renderTwoProjects(() => Promise.resolve(idleWire(OTHER_PROJECT_ID)))
+
+    expect(await screen.findByText(`workspace panel ${PROJECT_ID}: failed invalid`)).toBeInTheDocument()
+    expect(screen.getByText('cockpit run-a: failed invalid')).toBeInTheDocument()
+  })
+
+  it('reads again for another project, never shows the previous status for it, and starts a fresh lifetime on A-B-A', async () => {
+    const answers: Record<string, ReturnType<typeof deferredAnswer>[]> = {
+      [PROJECT_ID]: [deferredAnswer(), deferredAnswer()],
+      [OTHER_PROJECT_ID]: [deferredAnswer()],
+    }
+    const calls: Record<string, number> = { [PROJECT_ID]: 0, [OTHER_PROJECT_ID]: 0 }
+    const { readWorkspaceExecutionStatus } = await renderTwoProjects((projectId) => answers[projectId][calls[projectId]++].promise)
+    await act(async () => answers[PROJECT_ID][0].resolve(idleWire(PROJECT_ID)))
+    expect(await screen.findByText(`cockpit run-a: Idle for ${PROJECT_ID}`)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /^Beta/ }))
+
+    expect(screen.getByText(`workspace panel ${OTHER_PROJECT_ID}: pending`)).toBeInTheDocument()
+    expect(screen.getByText('cockpit run-b: pending')).toBeInTheDocument()
+    expect(readWorkspaceExecutionStatus).toHaveBeenLastCalledWith(OTHER_PROJECT_ID)
+
+    fireEvent.click(screen.getByRole('button', { name: /^Alpha/ }))
+
+    expect(screen.getByText(`workspace panel ${PROJECT_ID}: pending`)).toBeInTheDocument()
+    expect(screen.getByText('cockpit run-a: pending')).toBeInTheDocument()
+    expect(readWorkspaceExecutionStatus).toHaveBeenCalledTimes(3)
+    await act(async () => answers[OTHER_PROJECT_ID][0].resolve(idleWire(OTHER_PROJECT_ID)))
+    expect(screen.getByText('cockpit run-a: pending')).toBeInTheDocument()
+    await act(async () => answers[PROJECT_ID][1].resolve(wireFor('AgentAttemptActive')))
+    expect(await screen.findByText(`cockpit run-a: AgentAttemptActive for ${PROJECT_ID}`)).toBeInTheDocument()
+  })
+
+  it('reads the status again on an explicit evidence refresh, which is a durable hint', async () => {
+    const { readWorkspaceExecutionStatus } = await renderTwoProjects(() => Promise.resolve(idleWire(PROJECT_ID)))
+    await screen.findByText(`cockpit run-a: Idle for ${PROJECT_ID}`)
+    expect(readWorkspaceExecutionStatus).toHaveBeenCalledTimes(1)
+
+    fireEvent.click(screen.getByRole('button', { name: 'refresh evidence' }))
+
+    await waitFor(() => expect(readWorkspaceExecutionStatus).toHaveBeenCalledTimes(2))
   })
 })

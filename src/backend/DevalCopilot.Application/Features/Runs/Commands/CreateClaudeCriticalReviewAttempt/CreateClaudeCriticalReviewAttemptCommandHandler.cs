@@ -3,6 +3,7 @@ using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Application.Features.Projects.Policies.WorkspaceExecutions;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Application.Features.Runs.Commands.CreateCodexPlanningAttempt;
@@ -208,6 +209,13 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
             return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(earlyRefusal);
         }
 
+        // ADR-0057: no other Agent attempt, verification execution or local-commit reservation may own this workspace, decided before
+        // any provider observation, Git work or manifest sealing and again at each write-locked commit seam below.
+        if (await WorkspaceExecutionFence.CheckClaimAsync(dbContext, run.ProjectId, workspace.Id, cancellationToken) is { } workspaceBusy)
+        {
+            return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(workspaceBusy);
+        }
+
 
         var claudeSnapshot = await dbContext.HostCapabilitySnapshots
             .SingleOrDefaultAsync(candidate => candidate.Capability == Capability.ClaudeCli, cancellationToken);
@@ -338,6 +346,52 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
         // policy this claim decided against (see CurrentTokenStopPolicy).
         CurrentTokenStopPolicy.Guard(dbContext, run);
 
+        // ADR-0057: the claim's commit seam is one short explicit transaction, opened only now after every external step and every late
+        // read. It takes the database write lock, the workspace's ownership is read afresh under it, and only then is anything added, so
+        // ownership cannot change before this claim's own save commits. A refusal disposes it uncommitted and consumes nothing.
+        IDbContextTransaction fenceTransaction;
+        try
+        {
+            fenceTransaction = await dbContext.BeginTransactionAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+            throw;
+        }
+        catch (DbException)
+        {
+            artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+            return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(
+                Error.Failure("attempts.persistence_failed", "The attempt could not be durably recorded."));
+        }
+
+        await using var fenceScope = fenceTransaction;
+        // A failed or cancelled fresh read under the write lock leaves nothing persisted by this claim: the uncommitted transaction is
+        // disposed, only this operation's own sealed manifest is removed, and a cancellation propagates unchanged.
+        Error? workspaceBusyAtSeam;
+        try
+        {
+            workspaceBusyAtSeam = await WorkspaceExecutionFence.CheckClaimAsync(dbContext, run.ProjectId, workspace.Id, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+            throw;
+        }
+        catch (DbException)
+        {
+            artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+            return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(
+                Error.Failure("attempts.persistence_failed", "The attempt could not be durably recorded."));
+        }
+
+        if (workspaceBusyAtSeam is not null)
+        {
+            artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+            return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(workspaceBusyAtSeam);
+        }
+
         var attempt = Attempt.ClaimAgentCriticalReviewWithModelRequest(
             attemptId,
             run.Id,
@@ -384,9 +438,13 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
         try
         {
             await dbContext.SaveChangesAsync(cancellationToken);
+            await fenceTransaction.CommitAsync(cancellationToken);
         }
-        catch (DbUpdateException exception)
+        catch (Exception exception) when (exception is DbUpdateException or DbException)
         {
+            // The explicit commit seam is released first, so the readback below sees only what actually committed.
+            await RollbackBestEffortAsync(fenceTransaction, CancellationToken.None);
+
             // The exception means this DbContext's change tracker no longer reliably reflects
             // what actually committed — the cause is never inferred from what this request
             // attempted, only from a fresh, untracked read of what the database actually holds
@@ -616,10 +674,14 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
             return eligibilityError;
         }
 
-        return await dbContext.Attempts.AsNoTracking().AnyAsync(
-            candidate => candidate.RunId == run.Id && candidate.Status == AttemptStatus.Running, cancellationToken)
-            ? Error.Conflict("attempts.run_has_active_attempt", "This run already has an attempt in progress.")
-            : null;
+        if (await dbContext.Attempts.AsNoTracking().AnyAsync(
+                candidate => candidate.RunId == run.Id && candidate.Status == AttemptStatus.Running, cancellationToken))
+        {
+            return Error.Conflict("attempts.run_has_active_attempt", "This run already has an attempt in progress.");
+        }
+
+        // ADR-0057, under the same write lock as every read above.
+        return await WorkspaceExecutionFence.CheckClaimAsync(dbContext, run.ProjectId, workspace.Id, cancellationToken);
     }
 
     /// <summary>
@@ -997,6 +1059,10 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
                                 candidate => candidate.RunId == run.Id && candidate.Status == AttemptStatus.Running, cancellationToken)
                                 ? Error.Conflict("attempts.run_has_active_attempt", "This run already has an attempt in progress.")
                                 : null);
+
+                        // ADR-0057, under the write lock the step's compare-and-set already holds.
+                        revalidationError ??= await WorkspaceExecutionFence.CheckClaimAsync(
+                            dbContext, run.ProjectId, workspace.Id, cancellationToken);
                         if (revalidationError is null)
                         {
                             // Read afresh inside the transaction and guarded for the commit, like the model request.

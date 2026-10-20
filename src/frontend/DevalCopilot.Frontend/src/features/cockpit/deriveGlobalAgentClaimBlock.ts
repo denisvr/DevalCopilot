@@ -1,5 +1,6 @@
 import type { GetRunCockpitResponse } from '../../api/clients'
 import { PLANNING_SEQUENCE_CLAIM_BLOCK_MESSAGES } from './planningSequenceCopy'
+import { WORKSPACE_EXECUTION_WITHHELD_POINTER } from './workspaceExecution'
 
 /**
  * The exact, distinct reason a new Agent claim is known to be blocked by a run-wide budget
@@ -21,6 +22,9 @@ export type GlobalAgentClaimBlockReason =
   | 'PlanningSequenceAutomaticAuthority'
   /** ADR-0055: whether a planning sequence holds that authority could not be established (loading, failed or invalid status). */
   | 'PlanningSequenceStatusUnknown'
+  /** ADR-0057: the workspace execution status of the project is not a validated, current Idle (pending, failed, replaced, or an owner is
+   * recorded). An additional veto only; its one fixed guidance is shown once by the region, not by each control. */
+  | 'WorkspaceExecutionWithheld'
 
 export interface GlobalAgentClaimBlock {
   reason: GlobalAgentClaimBlockReason
@@ -150,6 +154,7 @@ export function deriveGlobalAgentClaimBlock(
 
 const BLOCK_MESSAGE: Record<GlobalAgentClaimBlockReason, string> = {
   ...PLANNING_SEQUENCE_CLAIM_BLOCK_MESSAGES,
+  WorkspaceExecutionWithheld: WORKSPACE_EXECUTION_WITHHELD_POINTER,
   CountBudgetExhausted: 'Blocked by the run-wide Agent claim budget: no further Agent attempt can be claimed for this run.',
   TimeBudgetExhausted:
     'Blocked by the run-wide Agent invocation-time budget: no reserved invocation time remains for this run.',

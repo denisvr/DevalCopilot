@@ -21,6 +21,7 @@ import {
   VerificationExecutionResponse,
 } from '../../../api/generated/api-client'
 import { CandidateWorkspacePanel } from './CandidateWorkspacePanel'
+import { idleStateFor } from '../workspaceExecutionFixture'
 
 vi.mock('../../../api/clients', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../api/clients')>()),
@@ -123,7 +124,7 @@ const runButton = () => within(verification()).getByRole('button', { name: 'Run'
 const refreshButton = () => screen.getByRole('button', { name: 'Refresh evidence' })
 
 async function renderReady(projectId = 'project-a') {
-  const view = render(<CandidateWorkspacePanel projectId={projectId} />)
+  const view = render(<CandidateWorkspacePanel projectId={projectId} workspaceExecution={idleStateFor(projectId)} />)
   await waitFor(() => expect(source()).toHaveTextContent(/Checkpoint #\d+/))
   await waitFor(() => expect(within(verification()).getByText(`#1 ${projectId} check`)).toBeInTheDocument())
   return view
@@ -138,7 +139,7 @@ describe('CandidateWorkspacePanel evidence refresh', () => {
     let latest: GetProjectGitEvidenceResponse = new GetProjectGitEvidenceResponse({ changedFileCount: 0 })
     const clients = installClients({ read: () => Promise.resolve(latest) })
 
-    render(<CandidateWorkspacePanel projectId="project-a" />)
+    render(<CandidateWorkspacePanel projectId="project-a" workspaceExecution={idleStateFor('project-a')} />)
     await waitFor(() => expect(within(source()).getByText('No source checkpoint has been captured yet.')).toBeInTheDocument())
     expect(runButton()).toBeDisabled()
 
@@ -159,7 +160,7 @@ describe('CandidateWorkspacePanel evidence refresh', () => {
     const latest = evidenceOf('project-a', 1)
     const clients = installClients({ read: () => Promise.resolve(latest) })
     const onEvidenceRefreshRequested = vi.fn()
-    render(<CandidateWorkspacePanel projectId="project-a" onEvidenceRefreshRequested={onEvidenceRefreshRequested} />)
+    render(<CandidateWorkspacePanel projectId="project-a" onEvidenceRefreshRequested={onEvidenceRefreshRequested} workspaceExecution={idleStateFor('project-a')} />)
     await waitFor(() => expect(source()).toHaveTextContent('Checkpoint #1'))
     expect(onEvidenceRefreshRequested).not.toHaveBeenCalled()
 
@@ -360,7 +361,7 @@ describe('CandidateWorkspacePanel evidence refresh', () => {
     fireEvent.click(refreshButton())
     await waitFor(() => expect(runButton()).toBeDisabled())
 
-    view.rerender(<CandidateWorkspacePanel projectId="project-b" />)
+    view.rerender(<CandidateWorkspacePanel projectId="project-b" workspaceExecution={idleStateFor('project-b')} />)
     await waitFor(() => expect(source()).toHaveTextContent('Checkpoint #5'))
     await act(async () => lateA.resolve(evidenceOf('project-a', 2)))
     expect(source()).toHaveTextContent('Checkpoint #5')
@@ -368,7 +369,7 @@ describe('CandidateWorkspacePanel evidence refresh', () => {
 
     holdA = false
     latestByProject['project-a'] = evidenceOf('project-a', 3)
-    view.rerender(<CandidateWorkspacePanel projectId="project-a" />)
+    view.rerender(<CandidateWorkspacePanel projectId="project-a" workspaceExecution={idleStateFor('project-a')} />)
     await waitFor(() => expect(source()).toHaveTextContent('Checkpoint #3'))
     await waitFor(() => expect(runButton()).toBeEnabled())
     fireEvent.click(runButton())

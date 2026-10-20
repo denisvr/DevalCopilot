@@ -342,6 +342,25 @@ public sealed partial class VerificationDiagnosisHostedTests : IDisposable
 
     private static string StdinOf(ProcessExecutionRequest request) => Encoding.UTF8.GetString(request.StandardInput!);
 
+    /// <summary>ADR-0057 makes a verification claim impossible while a diagnosis attempt owns the workspace, so a newer execution that
+    /// "lands" during an attempt is planted directly as the finished row it would have become (same command and checkpoint, failed).</summary>
+    private async Task PlantNewerFailedVerificationAsync(Host host, Lineage lineage)
+    {
+        await using var scope = host.Provider.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        var project = await db.Projects.SingleAsync(p => p.Id == lineage.ProjectId);
+        var workspace = await db.GitWorkspaces.SingleAsync(w => w.Id == lineage.WorkspaceId);
+        var command = await db.VerificationCommands.SingleAsync(c => c.ProjectId == lineage.ProjectId);
+        var checkpoint = await db.GitCheckpoints.Where(c => c.WorkspaceId == lineage.WorkspaceId)
+            .OrderByDescending(c => c.CheckpointNumber).FirstAsync();
+        var execution = VerificationExecution.Claim(
+            Guid.NewGuid(), project.Id, project.ReserveVerificationExecutionNumber(), workspace, checkpoint, command, DateTimeOffset.UtcNow);
+        execution.MarkDispatched(DateTimeOffset.UtcNow);
+        execution.Complete(VerificationExecutionOutcome.Exited, 1, checkpoint.FingerprintSha256, DateTimeOffset.UtcNow);
+        db.VerificationExecutions.Add(execution);
+        await db.SaveChangesAsync();
+    }
+
     private async Task<T> InDbAsync<T>(Host host, Func<DevalCopilotDbContext, Task<T>> read)
     {
         await using var scope = host.Provider.CreateAsyncScope();
@@ -893,8 +912,8 @@ public sealed partial class VerificationDiagnosisHostedTests : IDisposable
         var claim = await SendAsync(host, new CreateVerificationDiagnosisAttemptCommand(lineage.RunId, report.Id));
         Assert.True(claim.IsSuccess);
 
-        // A newer execution of the same command lands between the claim and the dispatch.
-        await VerifyAsync(host, lineage, exitCode: 1);
+        // A newer execution of the same command lands between the claim and the dispatch (planted: ADR-0057 refuses the claim itself).
+        await PlantNewerFailedVerificationAsync(host, lineage);
         await RunAttemptSupervisorAsync(host, DiagnosisSupervisorFor(host), claim.Value.AttemptId);
 
         var attempt = await InDbAsync(host, db => db.Attempts.AsNoTracking().SingleAsync(a => a.Id == claim.Value.AttemptId));
@@ -917,7 +936,7 @@ public sealed partial class VerificationDiagnosisHostedTests : IDisposable
         Assert.True(claim.IsSuccess);
 
         host.Diagnosis.FinalResponseJson = FindingsJson(1);
-        host.Diagnosis.DuringInvocation = async () => await VerifyAsync(host, lineage, exitCode: 1);
+        host.Diagnosis.DuringInvocation = async () => await PlantNewerFailedVerificationAsync(host, lineage);
         await RunAttemptSupervisorAsync(host, DiagnosisSupervisorFor(host), claim.Value.AttemptId);
 
         var attempt = await InDbAsync(host, db => db.Attempts.AsNoTracking().SingleAsync(a => a.Id == claim.Value.AttemptId));
@@ -929,7 +948,9 @@ public sealed partial class VerificationDiagnosisHostedTests : IDisposable
             await InDbAsync(host, db => db.Artifacts.Where(a => a.AttemptId == attempt.Id).Select(a => a.Purpose).ToListAsync()),
             purpose => purpose == ArtifactPurpose.AgentFinalResponse);
         host.Diagnosis.DuringInvocation = null;
-        // The changed verification can be diagnosed afresh: it is a different exact identity.
+        // The planted row carries no captured output, so the attempt is over and a real newer verification supplies the evidence that
+        // is diagnosed afresh: it is a different exact identity.
+        await VerifyAsync(host, lineage, exitCode: 1);
         var fresh = await DiagnoseAsync(host, lineage, report.Id, FindingsJson(1), AgentOutcome.DiagnosisFindingsRecorded);
         Assert.NotEqual(attempt.Id, fresh);
     }

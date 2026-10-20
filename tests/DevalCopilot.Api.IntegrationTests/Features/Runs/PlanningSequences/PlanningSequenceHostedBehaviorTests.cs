@@ -103,6 +103,47 @@ public sealed class PlanningSequenceHostedBehaviorTests
     }
 
     [Fact]
+    public async Task A_competing_Agent_attempt_of_the_workspace_refuses_the_coordinated_preparation_and_invokes_no_provider_ADR_0057()
+    {
+        await using var harness = new PlanningSequenceHostedHarness();
+        var scene = await harness.SeedSceneAsync();
+        var armed = await harness.ArmAsync(scene);
+        await using (var context = harness.OpenContext())
+        {
+            // Another run of the same project holds the workspace with an unresolved attempt (the sequence's own database guard scopes
+            // only its run, a verification and a local commit, so this owner can exist beside an armed sequence).
+            var number = 1 + await context.Runs.AsNoTracking().Where(candidate => candidate.ProjectId == scene.ProjectId)
+                .Select(candidate => candidate.ExecutionNumber).MaxAsync();
+            var other = Run.RecordClassifiedIntent(
+                Guid.NewGuid(), scene.ProjectId, number, RunExecutionMode.ManualAgent, "A competing run", DateTimeOffset.UtcNow);
+            other.Claim(DateTimeOffset.UtcNow);
+            context.Runs.Add(other);
+            await context.SaveChangesAsync();
+            var competing = Attempt.ClaimAgentImplementation(
+                Guid.NewGuid(), other.Id, 1, scene.WorkspaceId, scene.CheckpointId, scene.Fingerprint, Guid.NewGuid(),
+                TimeSpan.FromMinutes(10), 1024, 2048, DateTimeOffset.UtcNow, 1);
+            competing.MarkAgentDispatched(DateTimeOffset.UtcNow);
+            context.Attempts.Add(competing);
+            await context.SaveChangesAsync();
+        }
+
+        await harness.StartHostsAsync();
+        var ended = await harness.WaitForEndAsync(armed.SequenceId);
+
+        // The sequence's own existing refused-preparation rule decides: nothing was claimed, no provider was invoked, the reserved step
+        // is revoked and the original stable reason is kept as the detail.
+        Assert.Equal(PlanningSequenceState.NeedsAttention, ended.State);
+        Assert.Equal(PlanningSequenceReason.PreparationRefused, ended.ReasonCode);
+        Assert.Equal("workspace_execution.agent_attempt_active", ended.DetailCode);
+        Assert.Equal(0, harness.Planner.InvocationCount);
+        await using var verify = harness.OpenContext();
+        Assert.Empty(await verify.Attempts.AsNoTracking().Where(attempt => attempt.RunId == scene.RunId).ToListAsync());
+        var step = Assert.Single(await verify.PlanningSequenceSteps.AsNoTracking().Where(candidate => candidate.SequenceId == armed.SequenceId).ToListAsync());
+        Assert.Equal(PlanningSequenceStepState.Revoked, step.State);
+        Assert.Empty(await verify.Artifacts.AsNoTracking().Where(artifact => artifact.RunId == scene.RunId).ToListAsync());
+    }
+
+    [Fact]
     public async Task A_manual_planning_request_for_an_armed_run_is_refused_through_the_real_pipeline_and_creates_nothing()
     {
         await using var harness = new PlanningSequenceHostedHarness();

@@ -1,5 +1,6 @@
 using Devalente.Shared.Cqrs;
 using DevalCopilot.Application.Data;
+using DevalCopilot.Application.Features.Projects.Policies.WorkspaceExecutions;
 using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
@@ -129,7 +130,9 @@ public sealed class GetEligibleImplementationAttemptsQueryHandler(IDevalCopilotD
                 PlanningImplementationAuthorizationAttempt.ToFact(planning)));
         }
 
-        return eligible;
+        // Advisory (ADR-0057): an attempt that something else owns its workspace beside is not proposed; the dispatch gate decides.
+        return await WorkspaceExecutionFeed.WithoutKnownWorkspaceConflictsAsync(
+            dbContext, eligible, candidate => (candidate.RunId, candidate.GitWorkspaceId, candidate.AttemptId), cancellationToken);
     }
 
     private async Task<Dictionary<Guid, Guid>> GetCurrentCheckpointByWorkspaceAsync(

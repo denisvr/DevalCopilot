@@ -20,6 +20,7 @@ import {
   VerificationExecutionResponse,
 } from '../../../api/generated/api-client'
 import { CandidateWorkspacePanel } from './CandidateWorkspacePanel'
+import { idleStateFor } from '../workspaceExecutionFixture'
 
 // The manual checkpoint review's evidence follows the project's explicit Refresh evidence generation: a decided action needs
 // settled, successful source AND verification-execution reads of the displayed generation, a cached Passed execution is never
@@ -127,7 +128,7 @@ const button = (name: string) => within(review()).getByRole('button', { name })
 const refreshButton = () => screen.getByRole('button', { name: 'Refresh evidence' })
 
 async function renderSettled(projectId = 'project-a') {
-  const view = render(<CandidateWorkspacePanel projectId={projectId} />)
+  const view = render(<CandidateWorkspacePanel projectId={projectId} workspaceExecution={idleStateFor(projectId)} />)
   await waitFor(() => expect(button('Approve')).toBeEnabled())
   return view
 }
@@ -150,7 +151,7 @@ describe('CheckpointReviewPanel evidence refresh generation', () => {
     const source = deferred<GetProjectGitEvidenceResponse>()
     clients.getProjectGitEvidence.mockImplementation(() => source.promise)
 
-    render(<CandidateWorkspacePanel projectId="project-a" />)
+    render(<CandidateWorkspacePanel projectId="project-a" workspaceExecution={idleStateFor('project-a')} />)
     await waitFor(() => expect(within(review()).getByText('Reading the current source checkpoint…')).toBeInTheDocument())
     for (const name of ['Pending', 'Changes requested', 'Escalate', 'Approve']) {
       expect(within(review()).queryByRole('button', { name })).not.toBeInTheDocument()
@@ -382,13 +383,13 @@ describe('CheckpointReviewPanel evidence refresh generation', () => {
     fireEvent.click(refreshButton())
     await waitFor(() => expect(button('Approve')).toBeDisabled())
 
-    view.rerender(<CandidateWorkspacePanel projectId="project-b" />)
+    view.rerender(<CandidateWorkspacePanel projectId="project-b" workspaceExecution={idleStateFor('project-b')} />)
     await waitFor(() => expect(button('Approve')).toBeEnabled())
     await act(async () => lateA.resolve([executionOf('project-a', 1, 'Failed')]))
     expect(button('Approve')).toBeEnabled()
 
     holdA = false
-    view.rerender(<CandidateWorkspacePanel projectId="project-a" />)
+    view.rerender(<CandidateWorkspacePanel projectId="project-a" workspaceExecution={idleStateFor('project-a')} />)
     await waitFor(() => expect(button('Approve')).toBeEnabled())
     expect(within(review()).queryByText('Reading verification evidence…')).not.toBeInTheDocument()
   })
@@ -402,10 +403,10 @@ describe('CheckpointReviewPanel evidence refresh generation', () => {
     })
     const view = await renderSettled('project-a')
 
-    view.rerender(<CandidateWorkspacePanel projectId="project-b" />)
+    view.rerender(<CandidateWorkspacePanel projectId="project-b" workspaceExecution={idleStateFor('project-b')} />)
     await waitFor(() => expect(button('Approve')).toBeEnabled())
     holdA = true
-    view.rerender(<CandidateWorkspacePanel projectId="project-a" />)
+    view.rerender(<CandidateWorkspacePanel projectId="project-a" workspaceExecution={idleStateFor('project-a')} />)
 
     await waitFor(() => expect(within(review()).getByText('Reading verification evidence…')).toBeInTheDocument())
     expect(button('Approve')).toBeDisabled()
@@ -512,7 +513,7 @@ describe('CheckpointReviewPanel evidence refresh generation', () => {
       executions: (projectId) =>
         mode === 'held' ? poll.promise : Promise.resolve(mode === 'running' ? [executionOf(projectId, 1, 'Passed'), running(projectId)] : [executionOf(projectId, 1, 'Passed')]),
     })
-    render(<CandidateWorkspacePanel projectId="project-a" />)
+    render(<CandidateWorkspacePanel projectId="project-a" workspaceExecution={idleStateFor('project-a')} />)
     await waitFor(() => expect(button('Approve')).toBeEnabled())
 
     // The next poll (one second later) is held pending: the older Passed execution is cached history, not authority.
@@ -536,7 +537,7 @@ describe('CheckpointReviewPanel evidence refresh generation', () => {
     const clients = installClients({
       executions: (projectId) => Promise.resolve([executionOf(projectId, 2, 'Failed'), executionOf(projectId, 1, 'Passed')]),
     })
-    render(<CandidateWorkspacePanel projectId="project-a" />)
+    render(<CandidateWorkspacePanel projectId="project-a" workspaceExecution={idleStateFor('project-a')} />)
     await waitFor(() => expect(button('Changes requested')).toBeEnabled())
     fireEvent.change(within(review()).getByLabelText('Reviewer'), { target: { value: 'FutureAgent' } })
 

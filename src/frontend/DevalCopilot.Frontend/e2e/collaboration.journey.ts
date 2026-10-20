@@ -137,6 +137,15 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   const sourceBefore = repositorySnapshot(repository.path)
 
   await injectJourneySession(page)
+  // ADR-0057: every read of the selected project's workspace execution status the page makes, to judge afterwards that each was a
+  // bodyless, queryless GET and that the last one recovered to Idle for exactly the selected workspace after the actual completion.
+  const workspaceStatusReads: { method: string; search: string; body: string | null }[] = []
+  page.on('request', (request) => {
+    const url = new URL(request.url())
+    if (/^\/api\/projects\/[^/]+\/workspace-execution-status$/i.test(url.pathname)) {
+      workspaceStatusReads.push({ method: request.method(), search: url.search, body: request.postData() })
+    }
+  })
   await page.goto('/')
   await expect(page.getByText('No launch session is available')).toHaveCount(0)
 
@@ -3198,6 +3207,33 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   expect(sourceAfterHistory.status).toBe(sourceBefore.status)
   expect(sourceAfterHistory.candidate).toBe(sourceBefore.candidate)
   expect(sourceAfterHistory.branches).toBe(sourceAfterCommit.branches)
+
+  // ADR-0057: the selected project's status was read only as bodyless, queryless GETs, and after the actual completion of the Agent
+  // attempts, the verifications and the explicit local commit it reads Idle for exactly the selected project's one workspace, with the
+  // closed four-member shape and an explicit null reason. Nothing it disclosed started, cancelled or released anything.
+  expect(workspaceStatusReads.length).toBeGreaterThan(0)
+  for (const read of workspaceStatusReads) {
+    expect(read).toEqual({ method: 'GET', search: '', body: null })
+  }
+
+  const selectedProjectId = data.projectId()
+  const selectedWorkspaceId = data.workspace().Id
+  const idleRead = await page.waitForResponse(
+    async (response) => {
+      if (new URL(response.url()).pathname.toLowerCase() !== `/api/projects/${selectedProjectId.toLowerCase()}/workspace-execution-status` || response.status() !== 200) {
+        return false
+      }
+
+      return ((await response.json()) as { status?: string }).status === 'Idle'
+    },
+    { timeout: 30_000 },
+  )
+  const idle = (await idleRead.json()) as Record<string, unknown>
+  expect(Object.keys(idle).sort()).toEqual(['projectId', 'reasonCode', 'status', 'workspaceId'])
+  expect(sameId(idle.projectId as string, selectedProjectId)).toBe(true)
+  expect(sameId(idle.workspaceId as string, selectedWorkspaceId)).toBe(true)
+  expect(idle.reasonCode).toBeNull()
+  expect(idle.status).toBe('Idle')
 
   // The launch secret never reached the page URL, browser storage, or any file under the owned root.
   expect(page.url()).not.toContain(journeySecret())

@@ -106,9 +106,15 @@ public sealed class PlanningLineageIntegrityTests : IAsyncLifetime
             .ExecuteUpdateAsync(set => set.SetProperty(m => m.ActorAgentProvider, provider));
     }
 
-    private static void AssertFixedRefusal(Devalente.Shared.Results.Error error)
+    /// <summary>A lineage refusal is a fixed, non-echoing code. An attempt row whose stored status this build does not recognize is
+    /// potentially active, so the workspace exclusion (ADR-0057) refuses a claim into that workspace even earlier, with its own fixed code;
+    /// both refuse before any external work and neither echoes the stored value.</summary>
+    private static void AssertFixedRefusal(Devalente.Shared.Results.Error error, Corruption corruption)
     {
-        Assert.Contains(error.Code, FixedLineageCodes);
+        string[] allowed = corruption == Corruption.UnreadableParticipatingRow
+            ? [.. FixedLineageCodes, DevalCopilot.Application.Features.Projects.Policies.WorkspaceExecutions.WorkspaceExecutionErrors.AgentAttemptActiveCode]
+            : FixedLineageCodes;
+        Assert.Contains(error.Code, allowed);
         Assert.DoesNotContain(Garbage, error.Description);
         Assert.DoesNotContain("99", error.Description);
         Assert.DoesNotContain("Exception", error.Description);
@@ -148,12 +154,12 @@ public sealed class PlanningLineageIntegrityTests : IAsyncLifetime
                 CancellationToken.None);
 
         Assert.True(review.IsFailure);
-        AssertFixedRefusal(Assert.Single(review.Errors));
+        AssertFixedRefusal(Assert.Single(review.Errors), corruption);
         Assert.Equal(0, reviewEvidence.Captures);
         Assert.Equal(0, reviewStore.Seals);
 
         Assert.True(implementation.IsFailure);
-        AssertFixedRefusal(Assert.Single(implementation.Errors));
+        AssertFixedRefusal(Assert.Single(implementation.Errors), corruption);
         Assert.Equal(0, implementationEvidence.Captures);
         Assert.Equal(0, implementationStore.Seals);
 
@@ -180,7 +186,7 @@ public sealed class PlanningLineageIntegrityTests : IAsyncLifetime
             .HandleAsync(new CreateChallengeResolutionAttemptCommand(lineage.Scene.Run.Id, lineage.SecondReview.Attempt.Id), CancellationToken.None);
 
         Assert.True(result.IsFailure);
-        AssertFixedRefusal(Assert.Single(result.Errors));
+        AssertFixedRefusal(Assert.Single(result.Errors), corruption);
         Assert.Equal(0, store.Seals);
         await using var verification = _fixture.CreateContext();
         Assert.Empty(verification.Attempts.Where(a => a.AgentRole == AgentRole.Resolver && a.Status == AttemptStatus.Running));
@@ -234,7 +240,7 @@ public sealed class PlanningLineageIntegrityTests : IAsyncLifetime
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
-        AssertFixedRefusal(Assert.Single(result.Errors));
+        AssertFixedRefusal(Assert.Single(result.Errors), corruption);
         await using var verification = _fixture.CreateContext();
         Assert.Empty(verification.CollaborationMessages.Where(m => m.AttemptId == running.Id));
         Assert.Empty(verification.CollaborationMessages.Where(m => m.Type == CollaborationMessageType.Escalation));

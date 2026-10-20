@@ -242,6 +242,30 @@ bounded sweep records the first attention of an open observation even while a su
 blocked. The observation never claims, dispatches, retries, cancels or terminalizes an attempt, never releases ownership or admits a
 writer, and an observation fault never suppresses an original safety check or discards a known result.
 
+### Workspace execution exclusion
+
+Who may execute in a project's workspace ([ADR-0057](../decisions/0057-serialize-agent-and-verification-execution-within-an-owned-workspace.md))
+is derived, never stored: there is no ownership table, lease, counter or migration. A fresh, untracked read counts the workspace's
+unresolved Agent attempts (Agent kind with a status outside the recognized terminal set, so a stored status this build does not recognize
+is never finished), its unresolved verification executions (same rule) and ADR-0029's reservation (a Committing workspace, or a
+NeedsAttention one while its own nonterminal operation is open). More than one coherent owner is Conflicted without a winner; an Agent
+attempt of the project that names no workspace or a workspace of another project, a verification execution or open local-commit operation
+whose project differs from its workspace's (read from both sides: another project's row naming this workspace, and this project's row
+naming a workspace of another project), a nonterminal operation of a workspace that is not reserved, a workspace that is not Ready, or a missing lease is Unavailable, never Idle. A
+historical owner of an older workspace of the project does not block the current one, and another project never interacts. Every Agent
+claim path (including repairs and coordinated planning steps) and the verification claim read it before their expensive preparation and
+again after taking the existing short write lock immediately before the claim commits; claims that previously committed through one
+implicit save now open that short explicit transaction after their last read, so their existing concurrency-token guards still decide
+drift before the lock. The refusal records nothing: no attempt, execution, claim number, budget slot, input, artifact row, event or
+authorization is consumed, and the sealed manifest is removed unless the existing independent durability probe says it is referenced. The
+single-use Agent and verification dispatch gates read the same policy under their write lock and exclude exactly their own attempt or
+execution (an identifier in the other table is never excluded), and the explicit local commit's authority reader requires an Idle
+workspace at admission and the reservation as its only owner at its locked and execution seams. A refused dispatch leaves the attempt or
+execution as recorded (never a workspace loss, provider failure or new outcome); the eligibility feeds do not propose an operation known
+to conflict, so a supervisor neither captures Git nor reaches the gate for it on every poll. Recording a known result or observation is
+unchanged. Startup reconciliation remains the only recovery authority: nothing here terminalizes an attempt, cancels a process, clears a
+marker or releases a lease.
+
 ## Retention and deletion
 
 MVP retention is explicit even for a local tool:

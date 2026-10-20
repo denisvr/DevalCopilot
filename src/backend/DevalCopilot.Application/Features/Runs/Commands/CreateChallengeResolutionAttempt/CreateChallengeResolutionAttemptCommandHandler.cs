@@ -3,6 +3,7 @@ using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Application.Features.Projects.Policies.WorkspaceExecutions;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Application.Features.Runs.Ports;
@@ -222,6 +223,13 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
             challengedReviewAttemptId = repairTarget.ChallengedReviewAttemptId;
         }
 
+        // ADR-0057: no other Agent attempt, verification execution or local-commit reservation may own this workspace, decided before
+        // any Git work or manifest sealing and again at the write-locked commit seam below.
+        if (await WorkspaceExecutionFence.CheckClaimAsync(dbContext, run.ProjectId, workspace.Id, cancellationToken) is { } workspaceBusy)
+        {
+            return Result<CreateChallengeResolutionAttemptCommandResult>.Failure(workspaceBusy);
+        }
+
         var codexSnapshot = await dbContext.HostCapabilitySnapshots
             .SingleOrDefaultAsync(candidate => candidate.Capability == Capability.CodexCli, cancellationToken);
         if (codexSnapshot is null || codexSnapshot.ReasonCode != CapabilityProbeReason.None || string.IsNullOrWhiteSpace(codexSnapshot.ResolvedExecutablePath))
@@ -391,6 +399,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
             bool modeStillAdmitted;
             bool runStillActive;
             Error? lateEligibilityError;
+            Error? workspaceExecutionError = null;
             Error? stepSeamError = null;
             PlanningSequenceStepLink? stepLink = null;
             try
@@ -433,6 +442,10 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
                         run.Id, repairSourceAtCommit, challengedReviewAttemptId, workspace.Id, checkpoint, challengeMessageIds, cancellationToken)
                     : await RecheckEligibilityAsync(
                         run.Id, challengedReviewAttemptId, workspace.Id, checkpoint, challengeMessageIds, cancellationToken);
+
+                // ADR-0057: decided under the same write lock, immediately before the claim's own insert, from fresh untracked reads.
+                workspaceExecutionError = await WorkspaceExecutionFence.CheckClaimAsync(
+                    dbContext, run.ProjectId, workspace.Id, cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -520,6 +533,23 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
                 await RollbackBestEffortAsync(claimTransaction, cancellationToken);
                 artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
                 return Result<CreateChallengeResolutionAttemptCommandResult>.Failure(lateEligibilityError);
+            }
+
+            if (workspaceExecutionError is not null)
+            {
+                // Another owner of the workspace appeared (or the ownership is not trustworthy): rolled back before any insert, so no
+                // attempt, input, artifact, budget, claim number or step link is consumed, and the sealed manifest is removed.
+                await RollbackBestEffortAsync(claimTransaction, cancellationToken);
+                if (ticket is null)
+                {
+                    artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                }
+                else
+                {
+                    await DeleteManifestUnlessAnotherWorkerClaimedAsync(run.Id, attemptId, ticket);
+                }
+
+                return Result<CreateChallengeResolutionAttemptCommandResult>.Failure(workspaceExecutionError);
             }
 
             dbContext.Attempts.Add(attempt);

@@ -154,6 +154,30 @@ public sealed partial class CreateReviewCorrectionAttemptCommandHandlerTests
         Assert.Equal(12, await ClaudeMutationTurnLimitTestSupport.ReadAttemptLimitAsync(_fixture, created.AttemptId));
     }
 
+    [Theory]
+    [InlineData(CompetingOwner.Verification)]
+    [InlineData(CompetingOwner.AgentOfAnotherRun)]
+    public async Task A_competing_workspace_owner_at_the_claim_commit_leaves_an_available_authorization_unconsumed_ADR_0057(CompetingOwner owner)
+    {
+        var (seed, authorizationId) = await SeedAuthorizedAsync();
+        var attemptsBefore = await StopAttemptCountAsync(seed.Run.Id);
+        var eventsBefore = await ClaudeMutationTurnLimitTestSupport.CountEventsAsync(_fixture, seed.Run.Id);
+        var store = new TestArtifactStore();
+        await using var context = _fixture.CreateContext(new BeforeFirstSaveInterceptor(
+            () => WorkspaceExecutionRaceSupport.AddAsync(_fixture, seed.Run.Id, owner)));
+
+        var result = await StopHandler(context, new RecordingEvidenceReader(seed.Evidence), store, Now.AddMinutes(2))
+            .HandleAsync(Command(seed), CancellationToken.None);
+
+        AssertCode(result, WorkspaceExecutionRaceSupport.CodeOf(owner));
+        Assert.Single(store.DeletedSealedFiles);
+        await AssertNoCorrectionClaimPersistedAsync(seed, attemptsBefore, eventsBefore);
+        await using var verify = _fixture.CreateContext();
+        var authorization = await verify.ReviewCorrectionAuthorizations.AsNoTracking().SingleAsync(a => a.Id == authorizationId);
+        Assert.Null(authorization.ConsumedByAttemptId);
+        Assert.True(authorization.IsAvailable);
+    }
+
     [Fact]
     public async Task A_successful_claim_with_a_turn_limit_consumes_the_authorization_exactly_once()
     {

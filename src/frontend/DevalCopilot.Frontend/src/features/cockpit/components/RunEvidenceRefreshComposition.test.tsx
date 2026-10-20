@@ -54,6 +54,7 @@ import { resultFor } from '../agentSupervisionFixture'
 import { armableStatusFor, hookResultFor } from '../planningSequenceFixture'
 import { CandidateWorkspacePanel } from './CandidateWorkspacePanel'
 import { RunCockpitView } from './RunCockpitView'
+import { idleStateFor } from '../workspaceExecutionFixture'
 
 // The run-scoped hooks whose reads are NOT under test, and the children that fetch on their own, are replaced; the two statuses that
 // depend on verification (diagnosis, code review), their requests, the project evidence consumers and the connection are real.
@@ -120,8 +121,8 @@ function Composition({ projectId, runId }: { projectId: string; runId: string })
   const refresh = useEvidenceRefreshConnection(projectId, runId)
   return (
     <>
-      <CandidateWorkspacePanel key={projectId} projectId={projectId} onEvidenceRefreshRequested={refresh.request} />
-      <RunCockpitView key={runId} runId={runId} evidenceRefreshGeneration={refresh.generation} />
+      <CandidateWorkspacePanel key={projectId} projectId={projectId} onEvidenceRefreshRequested={refresh.request} workspaceExecution={idleStateFor(projectId)} />
+      <RunCockpitView key={runId} runId={runId} evidenceRefreshGeneration={refresh.generation} workspaceExecution={idleStateFor('project')} />
     </>
   )
 }

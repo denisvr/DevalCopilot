@@ -4,24 +4,39 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace DevalCopilot.Application.Tests.Features.Runs;
 
-/// <summary>Runs one caller-supplied action immediately before the first <c>SaveChangesAsync</c>
-/// of the context this interceptor is attached to — after the handler has already read and guarded
-/// its state, and before its own transaction starts — to deterministically simulate a competing
-/// transaction committing in exactly that window.</summary>
-public sealed class BeforeFirstSaveInterceptor(Func<Task> action) : SaveChangesInterceptor
+/// <summary>Runs one caller-supplied action once, immediately before the first <c>SaveChangesAsync</c> or the first explicit
+/// transaction of the context this interceptor is attached to, whichever comes first — after the handler has already read and guarded
+/// its state, and before it holds the database write lock — to deterministically simulate a competing transaction committing in
+/// exactly that window. A claim whose commit seam opens its own short transaction (ADR-0057) takes the write lock at that point, so a
+/// competing connection can only commit before it; hooking the save instead would wait on the lock held by the handler itself.</summary>
+public sealed class BeforeFirstSaveInterceptor(Func<Task> action) : SaveChangesInterceptor, IDbTransactionInterceptor
 {
     private bool _ran;
 
     public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
         DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default)
     {
+        await RunOnceAsync();
+        return result;
+    }
+
+    public async ValueTask<InterceptionResult<System.Data.Common.DbTransaction>> TransactionStartingAsync(
+        System.Data.Common.DbConnection connection,
+        TransactionStartingEventData eventData,
+        InterceptionResult<System.Data.Common.DbTransaction> result,
+        CancellationToken cancellationToken = default)
+    {
+        await RunOnceAsync();
+        return result;
+    }
+
+    private async Task RunOnceAsync()
+    {
         if (!_ran)
         {
             _ran = true;
             await action();
         }
-
-        return result;
     }
 }
 

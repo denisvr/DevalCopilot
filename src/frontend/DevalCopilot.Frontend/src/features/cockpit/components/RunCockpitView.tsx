@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { useRunCockpit } from '../hooks/useRunCockpit'
 import { useAgentSupervision } from '../hooks/useAgentSupervision'
 import { useReadingAgeSeconds } from '../hooks/useReadingAge'
@@ -27,6 +27,9 @@ import { useVerificationDiagnosisStatus } from '../hooks/useVerificationDiagnosi
 import { useRequestVerificationDiagnosis } from '../hooks/useRequestVerificationDiagnosis'
 import { useRequestDiagnosisCorrection } from '../hooks/useRequestDiagnosisCorrection'
 import { deriveGlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
+import type { GlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
+import { WORKSPACE_EXECUTION_WITHHELD_POINTER, deriveWorkspaceExecutionStartGate } from '../workspaceExecution'
+import type { WorkspaceExecutionState } from '../workspaceExecution'
 import { deriveAgentClaimPathTimeFit } from '../deriveAgentClaimPathTimeFit'
 import { deriveRunExecutionModeDisclosure } from '../deriveRunExecutionModeDisclosure'
 import type { PlanningSequenceControl } from '../planningSequence'
@@ -76,6 +79,7 @@ import { RunHeader } from './RunHeader'
 import { RunTokenUsageSummary } from './RunTokenUsageSummary'
 import { UsageEvidenceRail } from './UsageEvidenceRail'
 import { WorkflowRail } from './WorkflowRail'
+import { WorkspaceExecutionGuidance } from './WorkspaceExecutionGuidance'
 
 interface RunCockpitViewProps {
   runId: string
@@ -89,6 +93,14 @@ interface RunCockpitViewProps {
    * Run controls withhold themselves from it. A run that is left or unmounted reports `unknown`, so a stale value never enables anything.
    */
   onPlanningSequenceControlChange?: (runId: string, control: PlanningSequenceControl) => void
+  /**
+   * The selected project's workspace execution status (ADR-0057), owned by the project's lifetime and shared with the candidate workspace
+   * panel. It is only ever an additional veto: anything but a validated, current Idle withholds starting an Agent, a repair, a planning
+   * sequence or a local commit, and Idle enables nothing by itself. App always passes it. Only a composition that does not read the status
+   * at all (a test) may omit it, and omitting it applies no hint.
+   */
+  /** The selected project's workspace execution status (ADR-0057). Required: null is an explicit "no state" that withholds starting. */
+  workspaceExecution: WorkspaceExecutionState | null
 }
 
 const AUTHORIZED_REQUEST_LABEL = 'Implement the human-authorized final plan with Claude'
@@ -96,8 +108,29 @@ const ABANDONED_ACTIONS_NOTE = 'This run was abandoned, so no further requests a
 const AUTHORIZATION_SPENT_NOTE =
   'The human authorization for this final plan was already used by an implementation claim. It cannot be reused, so no new implementation of this plan can be requested through it.'
 
-export function RunCockpitView({ runId, evidenceRefreshGeneration = 0, onProjectChanged, onPlanningSequenceControlChange }: RunCockpitViewProps) {
+export function RunCockpitView({
+  runId,
+  evidenceRefreshGeneration = 0,
+  onProjectChanged,
+  onPlanningSequenceControlChange,
+  workspaceExecution,
+}: RunCockpitViewProps) {
   const { cockpit, cards, connection, loading, error, syncError, refresh } = useRunCockpit(runId)
+  // A run event is a durable hint that the workspace's owner may have changed: the project's status is read again (coalesced by its own
+  // lifetime). The first sequence this view sees is not a change.
+  const refreshWorkspaceExecution = workspaceExecution?.refresh
+  const seenSequence = useRef<number | undefined>(undefined)
+  const latestSequence = cockpit?.latestSequence
+  useEffect(() => {
+    if (latestSequence === undefined) {
+      return
+    }
+
+    if (seenSequence.current !== undefined && seenSequence.current !== latestSequence) {
+      refreshWorkspaceExecution?.()
+    }
+    seenSequence.current = latestSequence
+  }, [latestSequence, refreshWorkspaceExecution])
   // Who holds automatic authority over this run: read once, re-read on every run event and, while a sequence can advance, by bounded
   // polling. Anything not established withholds every manual mutation below.
   const planningSequence = usePlanningSequence(runId, cockpit?.latestSequence)
@@ -251,7 +284,12 @@ export function RunCockpitView({ runId, evidenceRefreshGeneration = 0, onProject
   // is not established, no manual claim is offered. Released and none lift only this fence.
   const planningSequenceClaimBlock = derivePlanningSequenceClaimBlock(planningSequenceControl)
   const planningSequenceWithheld = describePlanningSequenceWithholding(planningSequenceControl)
-  const globalClaimBlock = planningSequenceClaimBlock ?? deriveGlobalAgentClaimBlock(cockpit, runId)
+  // The workspace execution status is a second, additional veto of the same shape (ADR-0057): only a validated, current Idle of exactly this
+  // run's project lets the ordinary gates decide. Its one guidance is shown once below; each control shows only a short pointer to it.
+  const workspaceGate = deriveWorkspaceExecutionStartGate(workspaceExecution, cockpit.runId === runId ? (cockpit.projectId ?? null) : null)
+  const workspaceWithheld = !workspaceGate.allowsExecutionStart
+  const workspaceClaimBlock: GlobalAgentClaimBlock | null = workspaceWithheld ? { reason: 'WorkspaceExecutionWithheld' } : null
+  const globalClaimBlock = planningSequenceClaimBlock ?? workspaceClaimBlock ?? deriveGlobalAgentClaimBlock(cockpit, runId)
   // A separate, additive per-claim-path signal: whether THIS SPECIFIC claim path's own
   // configured invocation timeout fits the run's remaining reserved time. Computed synchronously
   // during render from the same currently selected `runId`, for the exact same stale-projection
@@ -352,8 +390,15 @@ export function RunCockpitView({ runId, evidenceRefreshGeneration = 0, onProject
           {supervisionRunId !== null && (
             <AgentSupervisionPanel supervision={agentSupervision} readingAgeSeconds={supervisionReadingAge} stale={supervisionStale} />
           )}
+          {(agentActionsAllowed || executionMode.kind === 'ManualAgent') && (
+            <WorkspaceExecutionGuidance gate={workspaceGate} state={workspaceExecution ?? null} region="run cockpit" />
+          )}
           {cockpit.runId === runId && executionMode.kind === 'ManualAgent' && (
-            <PlanningSequencePanel runId={runId} planningSequence={planningSequence} />
+            <PlanningSequencePanel
+              runId={runId}
+              planningSequence={planningSequence}
+              armWithheldReason={workspaceWithheld ? WORKSPACE_EXECUTION_WITHHELD_POINTER : null}
+            />
           )}
           {agentActionsAllowed ? (
           <>
@@ -550,7 +595,7 @@ export function RunCockpitView({ runId, evidenceRefreshGeneration = 0, onProject
               projectId={cockpit.projectId}
               latestSequence={cockpit.latestSequence}
               evidenceRefreshGeneration={evidenceRefreshGeneration}
-              withheldReason={planningSequenceWithheld}
+              withheldReason={planningSequenceWithheld ?? (workspaceWithheld ? WORKSPACE_EXECUTION_WITHHELD_POINTER : null)}
               onSaved={refresh}
             />
           )}

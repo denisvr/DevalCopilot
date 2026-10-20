@@ -1,4 +1,5 @@
 using DevalCopilot.Application.Data;
+using DevalCopilot.Application.Features.Projects.Policies.WorkspaceExecutions;
 using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Application.Features.Runs.Commands.RecordCodexAccountUsageStop;
 using DevalCopilot.Application.Features.Runs.Errors;
@@ -431,6 +432,15 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
                         InputAlreadyCodeReviewedCode,
                         "Another code-review attempt already completed a successful review of this exact input identity."));
             }
+        }
+
+        // ADR-0057: the single-use marker commits only while nothing but this exact Agent attempt owns its workspace. This command runs in
+        // its own write-locked transaction, so the reading cannot change before the marker commits. A refusal is neither a workspace
+        // loss nor a terminal outcome: the attempt stays as recorded, undispatched, and no adapter is ever invoked for it.
+        if (await WorkspaceExecutionFence.CheckAgentDispatchAsync(
+                dbContext, run.ProjectId, workspace.Id, attempt.Id, cancellationToken) is { } workspaceBusy)
+        {
+            return Result<DateTimeOffset>.Failure(workspaceBusy);
         }
 
         var nowUtc = timeProvider.GetUtcNow();

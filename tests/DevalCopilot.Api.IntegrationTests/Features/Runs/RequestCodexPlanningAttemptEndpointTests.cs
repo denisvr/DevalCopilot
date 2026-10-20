@@ -381,6 +381,58 @@ public sealed class RequestCodexPlanningAttemptEndpointTests : IDisposable
         Assert.Single(verifyContext.Attempts.Where(a => a.RunId == runId));
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Returns_a_stable_conflict_without_disclosure_when_another_owner_holds_the_workspace(bool verification)
+    {
+        var (runId, workspaceId, checkpointId) = await SeedEligibleRunAsync(claimRun: true, codexObserved: true);
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+            var now = DateTimeOffset.UtcNow;
+            var run = await db.Runs.AsNoTracking().SingleAsync(candidate => candidate.Id == runId);
+            if (verification)
+            {
+                var project = await db.Projects.SingleAsync(candidate => candidate.Id == run.ProjectId);
+                var recipe = VerificationCommand.Configure(
+                    Guid.NewGuid(), project.Id, project.ReserveVerificationCommandNumber(), "Unit", @"C:\dotnet.exe", ["test"], 60, true, now);
+                db.VerificationCommands.Add(recipe);
+                await db.SaveChangesAsync();
+                var workspace = await db.GitWorkspaces.AsNoTracking().SingleAsync(candidate => candidate.Id == workspaceId);
+                var checkpoint = await db.GitCheckpoints.AsNoTracking().SingleAsync(candidate => candidate.Id == checkpointId);
+                db.VerificationExecutions.Add(VerificationExecution.Claim(Guid.NewGuid(), project.Id, 1, workspace, checkpoint, recipe, now));
+            }
+            else
+            {
+                var other = Run.RecordIntent(Guid.NewGuid(), run.ProjectId, 2, "Another run", now);
+                other.Claim(now);
+                db.Runs.Add(other);
+                await db.SaveChangesAsync();
+                var competing = Attempt.ClaimAgentImplementation(
+                    Guid.NewGuid(), other.Id, 1, workspaceId, checkpointId, MatchingFingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(10),
+                    1024, 2048, now, 1);
+                competing.MarkAgentDispatched(now);
+                db.Attempts.Add(competing);
+            }
+
+            await db.SaveChangesAsync();
+        }
+
+        using var client = CreateAuthenticatedClient();
+
+        var response = await client.PostAsync($"/api/runs/{runId}/agent-attempts/codex-plan", content: null);
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Contains(
+            verification ? "workspace_execution.verification_active" : "workspace_execution.agent_attempt_active", body, StringComparison.Ordinal);
+        AssertNoDisclosure(body);
+        using var verifyScope = _factory.Services.CreateScope();
+        var verifyContext = verifyScope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        Assert.Empty(verifyContext.Attempts.Where(a => a.RunId == runId));
+    }
+
     private static void AssertNoDisclosure(string body)
     {
         Assert.DoesNotContain("C:\\", body, StringComparison.OrdinalIgnoreCase);

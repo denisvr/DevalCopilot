@@ -1,281 +1,283 @@
 # Planner/reviewer handoff
 
 [AGENTS.md](../../AGENTS.md) and the [workflow](development-workflow.md) apply.
-Codex remains planner/reviewer; Claude remains executor. Codex performed planning
-and judgment without delegation. AGENT-SUP-01 correction 1 is reviewed GO below.
-Only the exact content identified in the accompanying publication prompt may be
-committed and pushed from its current Claude executor chat. No other slice is
-selected or dispatched.
+Codex remains planner/reviewer and performed planning and judgment itself.
+WORKSPACE-EXCL-01 correction 1 is reviewed GO below for the exact recorded
+content. Continue publication in its current Claude executor chat, following
+the external approval identity. Codex implemented no product fix; publication
+and independent verification are still pending.
 
 ## Verified baseline and prior publication
 
-Startup on 2026-10-19 independently reconciled main; HEAD, local origin/main
-and a fresh live refs/heads/main all equal
-`a78e572c84e2e7a9a86ac90c1e1b286e6001973e`, tree
-`2c62b12ffa69be55017dbe2b92a8fad224840420`, sole parent
-`1f22a3738976f6b0df0ec59321016be8f5df6115`, divergence 0/0. The real index,
-tracked working tree and nonignored untracked inventory were empty. The first
-sandbox remote query failed with getaddrinfo() thread failed to start; a
-permitted fresh query succeeded. No cause is inferred from that later success.
+AGENT-SUP-01 is published and independently verified. On 2026-10-19, main,
+HEAD, local origin/main and a fresh live refs/heads/main all equal
+`f95e337484d6d50f502647b4abf725be2d7ae184`, tree
+`9171fa7dd286329c1f7f342fd5b33c0a087cafd0`, sole parent
+`a78e572c84e2e7a9a86ac90c1e1b286e6001973e`, divergence 0/0. Exact GO path set:
+141 files, 43 modified and 98 added. The real index, tracked worktree and
+nonignored untracked inventory were clean at independent verification.
+`logs/planner-review/agent-sup-01/publication-verification.json` and `.md`
+retain the independent tree/parent/path/live-ref comparisons. The approval
+inventory bytes still match their original hash; the executor's reported
+line-ending comparison difference affects no approval identity.
 
-PLAN-COORD-01 is published and independently verified. Its retained
-`logs/planner-review/plan-coord-01/publication-verification.json` and `.md`
-record the exact 176 GO-approved paths (66 M, 110 A), parent and tree. Startup
-inspected those records and independently confirmed the live baseline; it did
-not rerun the historical review or product tests. Committed review-phase
-checkpoint wording reopens nothing and requires no closure commit. PCO-R1
-through R5 are resolved; PCO-C1 remains accepted/nonblocking. The review,
-validation acceptance adjustment, original/lost/reported/retained provenance
-and all prior restrictions remain as recorded in this file and current-work.md
-at `a78e572` and ignored per-slice evidence. No missing output is authenticated
-or unexplained failure attributed by this selection.
+ASUP-R1 through R5 are resolved. ASUP-C1 is accepted nonblocking: duplicate-key
+journey counts rose, with no proven cause; pre-existing sibling keys were
+identified, not proven to explain the increase. Review 1/2, validation
+adjustments, temporary-probe removal, full-suite failures and isolated passes,
+negative-control provenance, tooling failures and missing original evidence
+remain as recorded in this file at `f95e337` and its ignored review records.
+The committed current-work remains an implementation-for-review record, not a
+request for a closure commit. Publication reopens no completed slice.
 
-Current chat context percentage is unavailable. The prior publication record's
-27.16% session-metadata ratio and older 61.0% report are historical, not current
-usage. The owner explicitly continued this planner chat. No new publication
-event or context-threshold transition is claimed.
+PLAN-COORD-01 remains independently verified at `a78e572c` (176 exact approved
+paths, 66 M and 110 A), with its records under
+`logs/planner-review/plan-coord-01/`. PCO-R1 through R5 remain resolved;
+PCO-C1 remains accepted nonblocking. All earlier restrictions and evidence
+losses remain; later checks establish no missing original output or cause.
 
-Selection changes only this handoff, the decision index and new ADR-0056.
-Executor preflight: the same main/HEAD/local/live baseline, empty index, these
-two tracked documentation modifications and one untracked ADR, no other
-nonignored paths. Preserve these planner documents as part of the slice's
-review. Codex changed no source, test, dependency, commit or push.
+Continuity at publication: **CONTINUE_THIS_CHAT**. Current-session metadata at
+2026-10-19T21:50:21.154Z reported last total tokens 141294 and context window
+475000 (29.75%). This is an observed local metadata ratio, not an asserted UI
+meter reading; prior 27.16% and 61% figures remain historical. No transition
+threshold above 60% was observed. The completed AGENT-SUP-01 executor chat is
+not reused for a different slice.
+
+This selection changes only this handoff, the decision index and new ADR-0057.
+Executor preflight: the same main/HEAD/local/live baseline, empty real index,
+these two tracked documentation modifications and one untracked ADR, with no
+other nonignored paths. Codex created no commit or push and implemented no
+product fix. Preserve the three planner documents for review with the slice.
 
 ## Remaining MVP critical path against code
 
-Increments 4/5/6 remain incomplete. ADR-0050 stays Proposed, P9 unproven and AI
-Memory deferred. No completion percentage or delivery date is defensible.
+Increments 4/5/6 remain incomplete. ADR-0050 stays Proposed, P9 unproven and
+AI Memory deferred; no delivery percentage or date is claimed.
 
 | Front | Actual baseline and remaining dependency |
 |---|---|
-| Planning | PlanningSequenceCoordinator and its three claim/result paths join the complete bounded read-only lineage under ADR-0055. Acceptance or Human escalation ends that grant; it selects no mutating successor. |
-| Local execution | ImplementationSupervisor, VerificationExecutionSupervisor, ImplementationReviewSupervisor, ReviewCorrectionSupervisor and VerificationDiagnosisSupervisor execute existing explicit work. LocalCommitSupervisor has its separate exact-checkpoint authority/recovery. They do not form the full automatic delivery loop. |
-| Current execution truth | Claims set Attempt.Running; MarkAgentAttemptDispatched records a single-use marker. AgentProcessExecutionEvidence arrives after the adapter returns. Seven Agent supervisors await their own work without a common durable current observer/heartbeat/phase record. PlanningSequencePolicy deadlines cover its own sequence only. RunHeader distinguishes coordinated lifecycle, but its ordinary Running treatment/ticking duration can still imply activity. ProviderRuntimePreflight reports version evidence and unknown controls, not current execution; the target runtime strip is not a delivered liveness surface. |
-| Increment 5 autonomy | Mutation grants, verification-recipe/execution-set identity, correction routing, repository/global scheduling, finite execution leases, process-aware controls and ambiguous-write recovery remain separate unresolved contracts. Observation cannot authorize them. |
-| Increment 4 gaps | Claude account usage, eligible session resume, live context capacity, manual compaction and other permission profiles need contracts/evidence. Deterministic doubles do not qualify real providers; experiments are unauthorized. Raw Git observation and non-Windows containment limits remain. |
-| Increment 6 | GitHub observations/binding/consent establish neither branch permission nor push readiness. Source-write denial/P9 and separate Git/GitHub/GCM qualification block the proposed publication path. CI monitoring, diagnosis/correction, rerun and reconciliation remain. |
-| Self-hosting | The stable packaged end-to-end demonstration depends on those capabilities and qualification; local tests/read-only coordination cannot establish it. |
+| Planning | ADR-0055 coordinates at most five existing read-only planning attempts. Accepted planning or Human escalation ends that grant; no mutating successor is authorized. |
+| Operational evidence | ADR-0056 now records current host Agent phases, heartbeat and absolute deadlines for all seven contracts. It proves neither provider progress nor liveness and supplies no execution authority. Verification, standalone Process and local commit retain separate lifecycles. |
+| Existing workspace exclusion | Running Agent attempts are unique per run; Running verification is unique per workspace. These separate sets permit concurrent claim/dispatch on one Ready leased workspace. The selected slice closes that reciprocal safety gap under existing explicit requests. |
+| Local execution loop | Existing implementation, verification, review, diagnosis/correction and local-commit commands execute explicit requests; no complete stage coordinator exists. A single authorization for automatic workspace mutation requires a new owner authority decision and resolved contracts, not inference from ADR-0055/0056. |
+| Scheduling and recovery | Global two-mutating-run capacity, visible queue, finite execution leases and process-aware recovery remain undelivered. This slice adds no queue, slot, takeover, lease release or ambiguous-write resolution. |
+| Provider controls | Claude account usage, eligible resume, live context capacity, manual compaction and other permission profiles require contracts/evidence. Raw Git and non-Windows boundaries remain. Real-provider qualification/experiments are unauthorized. |
+| Remote/self-hosting | GitHub access/binding/consent are neither branch-push authority nor publication. P9/source-write denial and separate Git/GitHub/GCM qualification remain open. The stable packaged complete demonstration depends on the remaining local and remote capabilities. |
 
-## Selected slice: AGENT-SUP-01 current Agent supervision observations
+## Selected slice: WORKSPACE-EXCL-01 reciprocal workspace execution exclusion
 
-Implement accepted [ADR-0056](../decisions/0056-observe-agent-supervision-without-granting-execution-authority.md).
-The cockpit shows the phase the host last reported for its current Agent
-attempt, the observer's last report and absolute deadline. A stale or hung
-observation becomes attention independently of the blocked role worker. It
-never represents provider progress or execution authority.
+Implement accepted
+[ADR-0057](../decisions/0057-serialize-agent-and-verification-execution-within-an-owned-workspace.md).
+An existing explicit Agent request and an existing explicit verification request
+cannot acquire or dispatch competing execution on the same owned workspace.
+Both cockpit and workspace controls explain the same recorded blocker. A
+terminal actual owner returns control only through unchanged workspace,
+source, budget and approval gates; an observation never releases it.
 
-**Sizing judgment.** All seven Agent contracts, repairs and manual/coordinated
-paths share Attempt identity and the same observation semantics. Splitting by
-provider/role or shipping the backend without truthful cockpit composition
-leaves the outcome incomplete. Verification, standalone Process and local commit
-cross different identity/recovery lifecycles. Automatic implementation,
-verification, correction and commit require broader mutation authority absent
-here; provider work has experiment restrictions. These are concrete authority
-and validation boundaries, not a file-count limit. Observation is a prerequisite
-for safely judging future coordination, not a substitute for the missing loop.
+**Sizing judgment.** A one-way verification guard still permits the reverse
+race. A claim-only or UI-only check leaves stale dispatch and direct API gaps.
+All seven Agent contracts, repairs and coordinated claims intentionally share
+this exclusion; splitting by role/provider leaves another entrance. Include
+verification, local-commit interoperability, protected disclosure and both UI
+regions in one functional outcome. Full scheduling/automatic local delivery
+requires different authority and recovery contracts. Legacy Process attempts
+lack an owned-workspace association, so including them requires an identity
+and effect decision rather than deriving ownership from a path string. These
+are concrete authority/lifecycle boundaries, not arbitrary file limits.
 
-**Resolved architecture.** One non-authoritative AgentSupervision receipt per
-observed Agent attempt; immutable association/original host/observer, guarded
-revision and short independent writes. Forward-only Preparing and RecordingResult
-phases each get two minutes; AwaitingAdapterResult gets the reserved invocation
-timeout plus two minutes. Five-second heartbeats, stale at thirty seconds,
-independent bounded sweep and immediate effective-attention reads. A heartbeat
-cannot extend a phase or clear first attention. Actual terminal Attempt facts
-win current display while attention history remains. No process liveness,
-execution lease, retry, cancel, takeover, ownership release or new eligibility.
-Observation faults cannot suppress the original safety gates/result recorder.
-The complete resolved contract is ADR-0056; challenge it with evidence rather
-than silently redesigning it.
+**Independent baseline evidence.** The production verification claim and
+single-use dispatch both succeeded beside a persisted dispatched Running
+Implementer on the exact same owned Ready workspace. One focused SQLite
+assertion failed for that gap (2 s test duration). No provider/process/hosted
+worker or Git command was started; the Agent was seeded with Domain factories,
+not through a complete implementation lineage. Evidence and the source hash:
+`logs/planner-review/workspace-exclusion-01/selection-evidence.md`,
+`baseline-probe.cs` and `baseline-probe-02.log`. The original compiler attempt
+failed MSB3026/CS2012 before testing. After a recorded build-server shutdown,
+serial build with shared compilation disabled reached the intended assertion;
+that later result does not establish a cause of the original lock. The probe
+was copied with matching hashes, removed and the API test project rebuilt
+with zero warnings/errors; no reviewer test remains in sources or binaries.
 
-**Scope.** Feature-owned Domain receipt/policy; DbContext/EF configuration and
-additive migration/constraints; internal commands/query/events; one small host
-observation-lifetime collaborator across the seven existing Agent supervisors;
-independent sweep and startup closure after existing attempt reconciliation.
-One protected bodyless/queryless GET /api/runs/{runId}/agent-supervision with
-API-owned DTOs, NSwag output, operation-scoped raw-wire validation, owned
-hook/panel and current header/supervision/duration composition. Preserve the
-version-only ProviderRuntimePreflight and historical collaboration cards; add
-no target model/context/permission runtime controls or active-card machinery. Update
-engineering-context, system-overview, data-and-recovery, cockpit specification,
-MVP plan and executor current-work only for this exact partial capability.
-Historical readers, invocation/process contracts, provider permissions,
-artifacts/source admission, claim/dispatch/result rules and ADR-0055 authority
-remain unchanged. No accepted historical ADR or frozen snapshot is rewritten.
+**Resolved architecture.** One Application-owned policy under
+Projects/Policies/WorkspaceExecutions derives competing ownership from existing
+Agent/verification rows and ADR-0029's reservation. No new table or migration.
+Fresh early checks plus final write-locked checks in every claim; final dispatch
+excludes only the exact operation kind/ID, never its whole run. Verification's
+SourceChanged pre-dispatch decision retains the same authority check. Existing
+local commit may execute its own valid Committing reservation and no other.
+Conflicting/malformed owners fail closed without choosing, terminalizing or
+releasing anything. Result recording and AgentSupervision keep their contracts.
+
+One protected bodyless/queryless project GET, owned DTOs and closed whole-wire
+validation disclose only project, exact latest workspace, status and reason.
+Selected-project owned state with bounded refresh/cancellation feeds both UI
+regions as an additional withholding hint; Idle grants no action. Stop after
+current step, evidence inspection, refresh and metadata-only abandonment keep
+their existing controls. Full tuples and timing behavior are in ADR-0057.
+
+**Allowed changes.** Affected claim/dispatch/feed operations across all seven
+Agent contracts and repair variants, verification and its pre-dispatch
+SourceChanged check; local-commit admission/execution only for the same
+exclusion contract while preserving complete approval identity; new project
+query/MVC/API-owned graph/client/decoder/hook and cockpit/workspace composition;
+feature-owned tests and narrow factual architecture/product/roadmap/current-work
+updates. Adapt a claim's final transaction if necessary, preserving its external
+preparation outside transactions and all existing atomic associations. Do not
+merge supervisors, result contracts, generic pipelines or unrelated readers.
 
 ## Proportional validation matrix
 
-New .NET class/file names contain AgentSupervision for focused filters. Build
-once per stable inputs, use --no-build --no-restore only against current binaries.
-Retain original outputs, commands, source/diff identity, results and elapsed
-times in concise ignored logs/executor/agent-sup-01 evidence. Separate fresh,
-retained and not-run evidence; keep failures without reconstructing losses.
+First add permanent named regressions for the reproduced direction, the
+reciprocal direction and final-seam races, using production claim lineage
+where it is under test. Then fix at the narrowest shared boundary. Retain
+commands, filters, original failures, elapsed times and source identity under
+`logs/executor/workspace-excl-01/`; distinguish fresh/retained/not-run evidence.
 
-- Domain/Application: AgentSupervision filter, plus full
-  GetRunEventHistoryQueryHandlerTests when constants change. Identity/replay,
-  foreign/stale writers, forward phases, exact deadlines/staleness, overflow/
-  clock refusal, hung phase with fresh heartbeat, effective/recorded attention,
-  timely/late terminal outcomes, uncertainty/rollback. Full projects only if
-  shared admission/dispatch/lifecycle/result semantics change, also a scope stop.
-- Infrastructure: AgentSupervision OR Migration name filters; real file-backed
-  SQLite empty/upgrade/legacy/reopen/constraints, independent-connection races,
-  revision/identity protection and receipt/event atomicity. No fixture caching.
-- API: new AgentSupervision plus existing AgentAttemptSupervisor,
-  ClaudeCriticalReviewSupervisor, ChallengeResolutionSupervisor,
-  SecondChallengeRoundSupervisor, ImplementationSupervisor,
-  ImplementationReviewSupervisor, ReviewCorrectionSupervisor,
-  VerificationDiagnosis, PlanningSequence and LaunchSessionAuthentication
-  substrings; real MVC authorization inventory and affected startup/side-effect-
-  free tests. Retain the expanded actual FullyQualifiedName filter. Hosted new
-  cases exercise every production supervisor, repairs/coordinated paths, blocked
-  preparation/adapter/recorder, observation faults/disposal/restart, unchanged
-  provider cardinality/budgets/results and exclusion. Broaden to full API when
-  shared host/pipeline effects exceed bounded registration/startup wiring or
-  affected consumers cannot be enumerated; stop for authority changes.
-- Frontend: focused decoder/hook/panel, RunHeader and cockpit/
-  selection cases; final whole Vitest once, lint and production build including
-  tsc -b because shared composition changes. Closed wire UTC/Int64/tuple rules,
-  freshness, terminal/attention precedence, A-B-A/remount/pending/stale callbacks
-  and no observation-based action grant. Reproducible NSwag after API build.
-- Browser: extend planning-sequence.journey.ts through the authenticated host
-  and existing deterministic executables; run it and collaboration.journey.ts
-  serially on stable binaries. Prove one real persisted observation for the
-  exact linked attempt and truthful terminal display; no need to catch every
-  transient phase in a fast fixture. Hung/freshness permutations stay at hosted/
-  UI boundaries. Strict e2e TypeScript uses explicitly expanded files. Shared
-  harness/fixture invocation contract changes require planner reassessment.
-- Full architecture; affected format/build/analyzers, existing dependency/
-  security checks without dependency changes, links/inbound fragments, sensitive
-  data and full diff. Three serial compiling controls: heartbeat masks deadline,
-  foreign observer update, stale UI response; hash-verify source restoration.
-  No real provider, P9, packaged-shell or release qualification is claimed.
+- Application: new WorkspaceExecution tests plus each affected claim, repair,
+  dispatch, eligibility, planning-step and local-commit class. Real file-backed
+  SQLite and independent connections prove one winner across the two families,
+  stale tracked-state refusal, old conflicting rows, exact self-exclusion,
+  different-run/same-workspace blocking, unrelated-repository progress, no
+  losing budget/counter/grant/artifact/link consumption, and known-result
+  persistence despite a conflict. Run the complete Application project once
+  on stable sources: shared admission semantics change in this slice.
+- API: protected MVC auth/body/query/404/wire and authorization inventory;
+  all seven real supervisor compositions, repairs/coordinated paths and held
+  verifier/Agent overlap with unchanged invocation counts; verification and
+  local-commit reciprocal claim/dispatch races. Run the complete API project
+  once on stable sources because affected shared admission consumers are broad.
+  Preserve all original failures and any isolated diagnostic passes. Neither
+  untouched tests nor later passes explain failures or prove irrelevance.
+- Infrastructure/Domain: real SQLite proofs above exercise the actual new
+  persistence boundary. Retain unchanged migration/provider evidence; run
+  affected policy/mapping/transaction tests only if their inputs change. A need
+  for a new schema or generic transaction pipeline is a scope stop, not an
+  automatic full-infrastructure expansion. Full architecture remains required.
+- Frontend: new whole-answer wire/decoder/hook plus both UI regions, global
+  claim withholding, existing planning/commit controls and project A-B-A/remount,
+  pending/stale/invalid/timeouts and actual transport cancellation. Run whole
+  Vitest once, lint and production build (including tsc -b) because selected
+  project/cockpit composition changes. Strict e2e TypeScript expands its input
+  files explicitly. Regenerate NSwag after a successful API build and prove
+  byte-identical reproduction; do not change generator configuration.
+- Browser: collaboration.journey.ts and planning-sequence.journey.ts, serial on
+  stable binaries, retaining explicit stage requests, provider cardinality,
+  approval/local-commit and coordinator fences. Extend selected-workspace
+  disclosure/Idle recovery through the real authenticated host. Held hosted
+  and UI tests prove the transient busy cases; do not modify shared fixture
+  invocation contracts to stretch a fast browser phase. Other nine journeys
+  stay retained unless an actual shared input change invalidates them.
+- Two serial compiling negative controls: omit the Agent-side final fence,
+  omit the verification-side final fence. The focused independent-connection
+  regressions must fail; hash-verify restoration and rebuild before the final
+  matrix. Compile failures/no-ops do not count as kills. No broad campaign.
+- Affected formatting/analyzers/build, dependency/security checks without new
+  dependencies, local/inbound Markdown links, sensitive-data scan and full
+  diff. One writer to shared build/generation outputs; no routine clean builds
+  or server shutdown without a demonstrated reason. A prior observed compiler
+  lock permits the documented serial/shared-compilation workaround, not an
+  assertion that every future failure has that cause.
 
-Broaden only for changed dependencies, failures or unresolved impact under the
-validation policy. Keep unaffected provider/process/Git/artifact/history and
-other-journey evidence at its actual scope; rerun only invalidated checks after
-correction. No product tests ran for this documentation-only planner selection.
+## WORKSPACE-EXCL-01 review 2: GO
 
-Planner selection checks passed: 73 local Markdown paths/fragments across the
-three selected documents, affected current inbound handoff fragments,
-git diff --check and a selected-document sensitive-pattern scan (lexical only).
-Historical missing-fragment statements remain historical. Final Git recheck
-confirmed the same HEAD/local/live main, 0/0 and empty index, with only the
-three expected planner paths changed. The unavailable WindowsApps Python
-launcher rejected an initial handoff-write attempt before writing; the native
-PowerShell write then succeeded. This is tooling history, not a product failure
-or validation pass.
+Codex independently reviewed the correction on 2026-10-20. Main, HEAD/local
+origin/main/fresh live main remain `f95e337484d6d50f502647b4abf725be2d7ae184`,
+divergence 0/0, real index empty. The complete reviewed delivery has **110
+paths: 64 modified and 46 new**. The exact paths, full judgment, checks and
+external publication identity are under
+`logs/planner-review/workspace-exclusion-01/review-02/` (`reviewed-paths.txt`,
+`review-02.md`, `approval.json`). Review 1 remains retained under `review-01/`;
+its NO-GO is superseded by this GO for the exact final reviewed content only.
+Codex implemented no product correction and created no real staging, commit or
+push. The isolated temporary-index tree preparation leaves the real index empty.
 
-## AGENT-SUP-01 review 2: GO after correction 1
+- **WEX-R1 [P2], resolved:** verification and open-commit ownership now check
+  both foreign association directions. Permanent policy, admission and real
+  endpoint regressions preserve older same-project workspaces, unrelated
+  repositories, terminal history and exact typed self-exclusion. Four
+  Application cases have red evidence; the endpoint cases were first run green.
+- **WEX-R2 [P2], resolved:** both state props are required, the two gates always
+  apply, and null/omitted/unknown input withholds starts. Explicit Idle test
+  compositions replace the runtime test exception. Refresh, inspection, Stop
+  after current step and abandonment retain their controls. The changed
+  transient-selection expectation observes the earlier pending workspace veto.
+- **WEX-R3 [P2], resolved:** the three ordinary final reads now clean up their
+  own manifest on cancellation/database failure before inserting anything;
+  cancellation propagates, existing persistence errors remain, and disposal
+  rolls back the transaction. Authorized implementation retains its existing
+  durable settlement and original exception. Other seams remain inside their
+  catches; ambiguous-save readback/retention is unchanged. Eight regressions
+  inject the fault at the final policy read. Tests followed the fix; the
+  compiling six-kill cleanup control supplies sensitivity, not red-first history.
+- **WEX-R4 [P3], resolved:** WorkspaceExecutionScene and CompetingOwner have
+  matching files; the two new fault types also satisfy one top-level type per
+  file, with no unrelated split or fixture-cache change.
 
-Codex independently reviewed the correction and decides **GO for the exact
-reviewed substantive diff**. Review 1 was NO-GO; ASUP-R1 through R5 are now
-resolved. The detailed first review and pre-update handoff remain under
-`logs/planner-review/agent-sup-01/`, alongside the second review. This decision
-accepts no new execution, provider, dependency or product-publication authority.
-The only authorized repository action is publication of this reviewed slice
-under the content identity in the accompanying executor prompt.
+**Independent checks:** forced Application/API test project rebuilds from
+restored sources, zero warnings/errors (12.09 s / 14.01 s); complete enumerated
+affected Application classes 940/940 (2 m 5 s); API protected status, all seven
+hosted exclusion paths, verification supervisor, planning and complete diagnosis
+classes 114/114 (55 s); architecture with build 185/185 (2 s); affected frontend
+wire/decoder/hook/transport/both regions/App 669/669 (9.93 s). No new reviewer
+probes, product edits, provider/mutation/journey/generation campaign or full
+project repeat by Codex. Nine current mutation-target hashes match the recorded
+originals; generated client hash remains `978e2c30...14dd9`.
 
-Review preflight independently confirmed main, HEAD/local origin/main/fresh
-live main `a78e572c84e2e7a9a86ac90c1e1b286e6001973e`, divergence 0/0 and an empty
-index. There are **141 distinct paths: 43 M and 98 new**, equivalent to 95
-directory-grouped status entries. Eight new correction files account for the
-increase from review 1's 133 files; no unrelated work was identified. The
-approved path inventory is `logs/planner-review/agent-sup-01/review-02/reviewed-paths.txt`.
-The expected parent and tree are external to the content they identify and
-will be supplied in the publication prompt; never insert them into this file.
+**Executor evidence and challenge accepted:** correction full Application
+6818/6818 and API 2944/2944, whole Vitest 6386/6386, lint/build/strict e2e tsc,
+changed-C# format and both serial journeys pass at their recorded scope.
+Repeating the full backend projects was justified by the shared authority-read
+change and discovered binary-provenance defect. Touching restored sources fixes
+the control harness's stale-timestamp problem. The two compiling aggregate
+controls have 36 Agent and four verification kills; the Agent aggregate covers
+all eight handler classes, not an independent mutant per file. R3's six-kill
+control and its earlier noncompiling attempts retain their actual limits.
 
-- **ASUP-R1 [P2], resolved.** Task.Run isolates synchronous provider work before
-  the caller's two-second wait. Each pending operation owns its scope until
-  settled. The observer serializes phase/closure writes and drops heartbeat
-  ticks while a write is pending; the sweep similarly retains pending work
-  without replacing it. The real SQLite registration/phase/closure/shutdown
-  contention cases pass. An additional independent noncooperative async
-  notifier probe also passes: bounded phase/disposal waits, one active write,
-  no queued heartbeats across a real five-second tick, ordered eventual
-  phases/closure, exactly one closure and an unchanged Running attempt. This
-  closes the async evidence requirement without a production-code correction
-  or a new executor dispatch.
-- **ASUP-R2 [P2], resolved.** The operation-owned AbortSignal reaches the actual
-  authenticated fetch through the existing generated operation. Timeout,
-  selection and unmount abort it; the hook waits for actual transport
-  settlement before starting another request of that lifetime. The real
-  hook/wire/generated-client cancellation-aware transport tests pass, including
-  A-B-A and a transport that ignores abort. Existing stale-owner fences remain.
-- **ASUP-R3 [P2], resolved.** Current chronology is validated before historical
-  terminal assessment; future attention, closure and completion are refused,
-  never clamped. The three reviewer cases now return Unavailable. The decoder
-  mirrors successful-answer chronology, while timely results read late, exact
-  boundaries, terminal precedence and attention history remain covered.
-- **ASUP-R4 [P2], resolved.** Registration, each phase entry and every actual
-  closure now append bounded fixed-schema events atomically with the receipt.
-  Heartbeats stay silent. Exact ordering, idempotence and SQLite-trigger
-  rollback tests pass; all seven hosted compositions and the planning journey
-  assert the material events instead of zero. The original executor choice
-  remains rejected and is superseded by this correction.
-- **ASUP-R5 [P3], resolved.** The four supporting types were split into matching
-  feature-owned files; AgentSupervisionHostedSupport retains only its own type.
-  The locus is the API integration test project. Compilation and the retained
-  hosted behavior pass, with no fixture cache or isolation redesign.
+The initial full API 2938/2940 and repaired class 22/22 remain historical with
+possible mutant-assembly provenance, superseded as current evidence by the
+fresh correction full run. Review 1's results are not retrospectively
+binary-authenticated by later builds. The executor reports an early correction
+run's six stale-mutant failures, but overwrote that log; accept this evidence
+loss explicitly, without reconstructing or independently certifying the missing
+output or cause. The initial 32-failure Application run is development evidence
+on slice inputs, not a pristine `f95e337` baseline comparison. Initial Vitest
+failures/fixture adjustment and format failures in 20 unchanged paths remain.
 
-**Independent validation.** Rebuilt Application feature plus complete event
-history class: 201/201 (42 s test duration). Rebuilt API observation feature,
-all three naming spellings and all seven production supervisors: 77/77 (32 s),
-including real SQLite contention/startup/endpoint cases. Eight frontend
-wire/decoder/hook/panel/header/event suites: 292/292 (4.24 s). The extra async
-probe: 1/1 (10 s); its source was copied with matching SHA-256
-`22029c8e2264edf321d54470fe4740a619a3d24a5b44fb9fa76a3ab51c051bc5`, removed
-from the test project and the project rebuilt with zero warnings/errors.
-No reviewer probe remains in returned sources or binaries. Codex implemented
-no product correction. Exact commands/results and probe source are retained
-under `logs/planner-review/agent-sup-01/review-02/`.
+Review 1's direct planted diagnosis evidence, narrow busy-error precedence and
+transaction-or-save test seam remain accepted with their original limits. No
+concurrent-verification authority, lineage bypass or fixture cache follows.
+**WEX-C1, accepted nonblocking:** two obsolete prop JSDoc paragraphs still
+describe the removed test exception; required signatures, actual gates and
+tests enforce withholding. Those comments grant no exception. Preserve the
+approved content during publication. The project-owned latest-workspace hint
+still has no independent workspace-metadata/source binding; Idle grants nothing.
+Existing console/lint/build warnings, ASUP-C1, PCO-C1, unexplained failures,
+missing original evidence and all earlier restrictions remain.
 
-**Inspected executor evidence.** Correction final logs support Domain 40/40,
-Application 201/201, API matrix 315/315, Infrastructure 290/290, Architecture
-179/179, frontend focused 518/518 and full 5950/5950, lint/build (including
-typecheck), strict e2e tsc and both serial journeys 1/1. The generated client's
-current SHA-256 matches its retained generation proof. Initial red and
-intermediate development failures remain retained, including the file-delete
-race with an abandoned write before the test's settlement wait was added.
-The e2e log summarizes the initial TS6053 tooling failure in its header; it
-is not complete original failure output. Independent review tooling also
-encountered a restricted remote lookup failure (the permitted live lookup
-passed), an invalid PowerShell pipeline and an unexpanded rg path glob; none
-is a product result or an inferred product cause.
-
-**ASUP-C1, accepted nonblocking limitation.** The journey logs contain 136
-and 244 duplicate-key warnings, versus the earlier 72 and 160, plus the
-reported negotiation stops. Contrary to the correction record's singular
-wording, collaboration has two distinct repeated keys, planning one. Source
-inspection confirms LocalCommitPanel and AbandonRunPanel already have the same
-sibling key={runId} in the published baseline. That is pre-existing UI debt;
-it does not establish the cause of the increased counts. The selected
-supervision regressions and journeys pass, with no demonstrated new
-supervision failure. No warning-free journey claim, causal attribution,
-regression-rate conclusion or unrelated UI fix is accepted by this GO.
-
-**Retained evidence limits.** The negative controls are historical passes
-against the first implementation, not fresh passes against this correction:
-their source files changed, although the original guards are preserved and
-fresh named regressions cover the correction. This clarifies current-work's
-"targets did not change" wording. No routine repeat or broad campaign is
-required. The original complete Application/API failures and isolated passes
-remain unexplained; no clean complete rerun is claimed. Review 1's tooling
-failures, control 3's aborted first run/restoration, earlier evidence losses,
-PCO-C1 and the unchanged dev-only source-map-js advisory all remain. Mandatory
-CI, security, real-provider fidelity and release gates are not waived.
-Increments 4/5/6 remain incomplete, ADR-0050 Proposed, P9 unproven and AI Memory
-deferred. No real-provider experiment, native-shell or release proof is added.
+The executor's current-work retains its implementation-for-review wording.
+This does not reopen review, require a closure edit or prove publication.
+No next slice is selected. Publication is the sole next action; independent
+verification and current-context assessment follow the actual push.
 
 ## Stop boundaries and next action
 
-The same Claude executor chat may publish only the reviewed 141-path outcome,
-including these review documents and the executor's review-phase current-work.
-Verify the exact parent, path set and expected tree supplied in the GO prompt
-before committing. Stage only approved paths, compare the staged and committed
-content identity, commit and push main normally, then query the live remote.
-A material diff, identity mismatch, changed baseline, failed push or diverged
-remote stops publication; no force-push, history reconciliation, closure-document
-edit or new slice is authorized. Codex independently verifies publication next;
-executor-reported success does not establish that verification.
+In the existing WORKSPACE-EXCL-01 Claude executor chat, verify the exact GO
+identity and parent, stage only its approved paths, commit, verify tree/sole
+parent/path set, push main normally to origin/main, and verify the live ref.
+Stop on any mismatch, intervening change, failed push or remote divergence; no
+force-push or history reconciliation. Do not change reviewed content or select
+a next slice. Return the publication report for Codex's independent verification.
+The AGENT-SUP-01 executor chat is done.
+
+A material Git discrepancy, missing/contradictory architecture, inability to
+preserve existing claim/result/commit authority, new schema or generic pipeline,
+shared fixture/cache/invocation change, provider/credential/permission operation,
+lease release, automatic claim/retry/cancel/takeover or broader mutation stops
+dependent work for a bounded evidence-based discussion. Independent authorized
+work may continue. An executor proposal is evidence, never architecture
+acceptance. Codex decides any material challenge itself before dispatch changes.
+
 
 ## Retained review and evidence limits
 
@@ -338,8 +340,9 @@ Their old GO/pending statements are not current instructions.
   hung submissions; retention beside disposal failure is unproven.
 - Increments 4/5/6 incomplete. Account/context, raw Git read, non-Windows limits:
   [current-work](current-work.md#open-risks). Production code and necessary
-  tests are selected only for AGENT-SUP-01 under ADR-0056; PLAN-COORD-01 is published.
-  This adds observations only, not broader mutation authority. No dependency, experiment,
+  tests are selected only for WORKSPACE-EXCL-01 under ADR-0057; PLAN-COORD-01 and
+  AGENT-SUP-01 are published. This strengthens existing exclusion only, not
+  broader mutation or automatic coordination authority. No dependency, experiment,
   capture-limit or standards edits; the old documentation-only production/test
   exclusion is superseded, not the other restrictions.
 

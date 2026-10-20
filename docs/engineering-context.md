@@ -95,8 +95,17 @@ durable observation of what the host's own observer last reported (phase, last
 report, absolute deadline, first attention) for the current attempt, an independent
 bounded sweep and the startup closure of a previous host's observations. It is not
 provider progress, process liveness or an execution lease, retries, cancels or
-takes over nothing, and is never an eligibility input. Increments 4 to
-6 stay incomplete; no MVP completion is implied. Text-delivery controls
+takes over nothing, and is never an eligibility input. ADR-0057 /
+WORKSPACE-EXCL-01 makes one shared Application policy the single reading of who
+may execute in a project's owned workspace: an unresolved Agent attempt of any
+run (all seven contracts, repairs and coordinated planning claims), an
+unresolved verification execution, or ADR-0029's local-commit reservation. A
+claim is admitted only into an Idle workspace and a single-use dispatch gate
+only beside no owner other than its exact operation; conflicting or
+untrustworthy ownership fails closed and nothing is terminalized, cancelled,
+retried or released. It adds no table, queue, slot or scheduler and no
+standalone Process ownership. Increments 4 to 6 stay incomplete; no MVP
+completion is implied. Text-delivery controls
 (ADR-0021, 0022, 0024, 0027) close named routes, not every filesystem read;
 their physical proofs are Windows-only. Token and account-usage controls are
 local guards, not account, cost or capacity budgets. Execution limits:

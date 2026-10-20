@@ -230,6 +230,13 @@ first attention) with an independent bounded sweep and startup closure of a prev
 only, not Increment 5's executor lease, guardian, retry, resume, cancel, takeover or ownership release, not process liveness and not
 provider progress; observation status never gates an action, and every provider-contract boundary below stays open.
 
+**Workspace execution exclusion (partial).** ADR-0057 / WORKSPACE-EXCL-01 closes the reciprocal gap between the existing Agent and
+verification claims: one shared policy over existing rows admits a claim only into an Idle workspace (all seven Agent contracts, repairs
+and coordinated planning claims, verification and the explicit local commit), re-decides at each claim's write-locked commit seam and at
+both single-use dispatch gates, and a protected status lets the cockpit and workspace panel withhold execution-start actions. It adds no
+table, queue, slot, scheduler, takeover or lease release, does not cover standalone Process attempts, and is not Increment 5's global
+two-mutating-run scheduler or process-aware recovery.
+
 **Partial delivery, not completion.** Explicit Human-requested capabilities,
 each bounded by its [ADR](../decisions/README.md):
 

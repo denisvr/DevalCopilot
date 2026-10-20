@@ -133,6 +133,8 @@ public sealed class VerificationExecutionSupervisorHostedTests : IDisposable
         "timeout changed",
         "execution fingerprint changed",
         "execution recipe identity changed",
+        "agent attempt of another run appears",
+        "second execution appears",
     };
 
     [Theory]
@@ -191,6 +193,8 @@ public sealed class VerificationExecutionSupervisorHostedTests : IDisposable
     [InlineData("executable changed")]
     [InlineData("arguments reordered")]
     [InlineData("execution fingerprint changed")]
+    [InlineData("agent attempt of another run appears")]
+    [InlineData("second execution appears")]
     public async Task An_obsolete_drift_observation_records_nothing_for_an_execution_it_did_not_describe(string change)
     {
         await using var host = await BuildHostAsync();
@@ -202,6 +206,68 @@ public sealed class VerificationExecutionSupervisorHostedTests : IDisposable
 
         Assert.Empty(host.Process.Requests);
         await AssertStillPendingAsync(scene.ExecutionId);
+    }
+
+    // ---- ADR-0057: one owner of the workspace -------------------------------------------------------------------------------
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task A_pending_execution_beside_an_Agent_attempt_waits_without_a_capture_or_a_process_and_launches_once_it_ends(bool dispatched)
+    {
+        await using var host = await BuildHostAsync();
+        var scene = await SeedClaimAsync(host, ["wait"], timeoutSeconds: 60);
+        Guid attemptId;
+        await using (var other = CreateContext())
+        {
+            await PlantAgentAttemptAsync(other, scene, dispatched);
+            attemptId = (await other.Attempts.SingleAsync()).Id;
+        }
+
+        await RunForAWhileAsync(host);
+
+        // The feed does not propose it, so the supervisor neither captures Git nor reaches the dispatch gate for it, and the claim is
+        // neither terminalized nor launched.
+        Assert.Equal(0, host.Evidence.Captures);
+        Assert.Empty(host.Process.Requests);
+        await AssertStillPendingAsync(scene.ExecutionId);
+
+        await using (var other = CreateContext())
+        {
+            await other.Attempts.Where(attempt => attempt.Id == attemptId)
+                .ExecuteUpdateAsync(set => set.SetProperty(attempt => attempt.Status, DevalCopilot.Domain.Features.Runs.AttemptStatus.Interrupted));
+        }
+
+        host.Process.Results.Enqueue((0, "out", "err"));
+        await RunUntilTerminalAsync(host, scene.ExecutionId);
+
+        Assert.Single(host.Process.Requests);
+        await using var verify = CreateContext();
+        Assert.Equal(VerificationExecutionStatus.Passed, (await verify.VerificationExecutions.SingleAsync()).Status);
+    }
+
+    [Fact]
+    public async Task A_claim_made_through_the_real_mediator_is_refused_beside_an_Agent_attempt_before_any_capture_and_launches_nothing()
+    {
+        await using var host = await BuildHostAsync();
+        var scene = await SeedClaimAsync(host, ["claimed"], timeoutSeconds: 60, claim: false);
+        await using (var other = CreateContext())
+        {
+            await PlantAgentAttemptAsync(other, scene, dispatched: true);
+        }
+
+        await using var scope = host.Provider.CreateAsyncScope();
+        var claimed = await scope.ServiceProvider.GetRequiredService<IApplicationMediator>().SendAsync(
+            new ClaimVerificationExecutionCommand(scene.ProjectId, scene.Recipe.Id, scene.CheckpointId), CancellationToken.None);
+
+        Assert.True(claimed.IsFailure);
+        Assert.Equal("workspace_execution.agent_attempt_active", Assert.Single(claimed.Errors).Code);
+        Assert.Equal(0, host.Evidence.Captures);
+        await RunForAWhileAsync(host);
+        Assert.Empty(host.Process.Requests);
+        await using var verify = CreateContext();
+        Assert.Empty(await verify.VerificationExecutions.ToListAsync());
+        Assert.Equal(1, await verify.Projects.Where(project => project.Id == scene.ProjectId).Select(project => project.NextVerificationExecutionNumber).SingleAsync());
     }
 
     // ---- Single use and restart --------------------------------------------------------------------------------------
@@ -337,9 +403,36 @@ public sealed class VerificationExecutionSupervisorHostedTests : IDisposable
                 await other.SaveChangesAsync(CancellationToken.None);
                 await other.VerificationExecutions.ExecuteUpdateAsync(set => set.SetProperty(execution => execution.VerificationCommandId, second.Id));
                 break;
+            case "agent attempt of another run appears":
+                await PlantAgentAttemptAsync(other, scene, dispatched: true);
+                break;
+            case "second execution appears":
+                var checkpoint = await other.GitCheckpoints.AsNoTracking().SingleAsync(candidate => candidate.Id == scene.CheckpointId);
+                var secondRecipe = await other.VerificationCommands.AsNoTracking().SingleAsync(candidate => candidate.Id == scene.Recipe.Id);
+                other.VerificationExecutions.Add(VerificationExecution.Claim(Guid.NewGuid(), scene.ProjectId, 2, scene.Workspace, checkpoint, secondRecipe, Now));
+                await other.SaveChangesAsync(CancellationToken.None);
+                break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(change), change, null);
         }
+    }
+
+    /// <summary>An unresolved Agent attempt of another run of the same project on the scene's workspace: an existing owner of the workspace.</summary>
+    private static async Task PlantAgentAttemptAsync(DevalCopilotDbContext other, Scene scene, bool dispatched)
+    {
+        var run = DevalCopilot.Domain.Features.Runs.Run.RecordIntent(Guid.NewGuid(), scene.ProjectId, 1, "Another run", Now);
+        run.Claim(Now);
+        other.Runs.Add(run);
+        await other.SaveChangesAsync(CancellationToken.None);
+        var attempt = DevalCopilot.Domain.Features.Runs.Attempt.ClaimAgentImplementation(
+            Guid.NewGuid(), run.Id, 1, scene.Workspace.Id, scene.CheckpointId, Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(10), 1024, 2048, Now, 1);
+        if (dispatched)
+        {
+            attempt.MarkAgentDispatched(Now);
+        }
+
+        other.Attempts.Add(attempt);
+        await other.SaveChangesAsync(CancellationToken.None);
     }
 
     private async Task AssertStillPendingAsync(Guid executionId)
@@ -423,6 +516,8 @@ public sealed class VerificationExecutionSupervisorHostedTests : IDisposable
         public Func<int, CancellationToken, Task>? OnCapture { get; set; }
 
         private int captures;
+
+        public int Captures => Volatile.Read(ref captures);
 
         public async Task<GitWorkspaceEvidenceResult> CaptureAsync(string workspacePath, CancellationToken cancellationToken)
         {

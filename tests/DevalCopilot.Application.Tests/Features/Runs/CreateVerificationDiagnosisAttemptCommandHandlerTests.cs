@@ -484,7 +484,9 @@ public sealed class CreateVerificationDiagnosisAttemptCommandHandlerTests : IAsy
     {
         var scene = await SceneAsync(Spec.Failed(), new Spec(Kind.Running));
 
-        await AssertRefusedBeforeSealAsync(scene, VerificationDiagnosisEvidence.EvidenceRunningCode);
+        // ADR-0057: a Running execution owns the workspace, so the exclusion refuses first, before the evidence is even read.
+        await AssertRefusedBeforeSealAsync(
+            scene, DevalCopilot.Application.Features.Projects.Policies.WorkspaceExecutions.WorkspaceExecutionErrors.VerificationActiveCode);
     }
 
     [Theory]

@@ -1,5 +1,6 @@
 using Devalente.Shared.Cqrs;
 using DevalCopilot.Application.Data;
+using DevalCopilot.Application.Features.Projects.Policies.WorkspaceExecutions;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
@@ -99,9 +100,13 @@ public sealed class GetEligibleReviewCorrectionAttemptsQueryHandler(IDevalCopilo
             .ToListAsync(cancellationToken);
         var inputByAttempt = inputRows.GroupBy(row => row.AttemptId)
             .ToDictionary(group => group.Key, group => (IReadOnlyList<Guid>)group.Skip(1).Select(row => row.CollaborationMessageId).ToArray());
-        return eligible.Select(candidate => candidate with
+        var withInputs = eligible.Select(candidate => candidate with
         {
             OrderedInputMessageIds = inputByAttempt.TryGetValue(candidate.AttemptId, out var ids) ? ids : [],
         }).ToArray();
+
+        // Advisory (ADR-0057): an attempt that something else owns its workspace beside is not proposed; the dispatch gate decides.
+        return await WorkspaceExecutionFeed.WithoutKnownWorkspaceConflictsAsync(
+            dbContext, withInputs, candidate => (candidate.RunId, candidate.GitWorkspaceId, candidate.AttemptId), cancellationToken);
     }
 }

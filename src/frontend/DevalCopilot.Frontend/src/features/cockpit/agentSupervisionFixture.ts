@@ -159,7 +159,7 @@ export function resultFor(reading: AgentSupervisionReading | null, overrides: Pa
     reading,
     loading: false,
     failure: null,
-    receivedAtMilliseconds: reading === null ? null : 0,
+    receivedAtMilliseconds: reading === null ? null : performance.now(),
     polling: reading !== null,
     refresh: () => undefined,
     ...overrides,

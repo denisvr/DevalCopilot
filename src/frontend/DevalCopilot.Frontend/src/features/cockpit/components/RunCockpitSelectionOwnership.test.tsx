@@ -9,6 +9,7 @@ import {
   StageMapEntryResponse,
 } from '../../../api/generated/api-client'
 import { RunCockpitView } from './RunCockpitView'
+import { idleStateFor } from '../workspaceExecutionFixture'
 
 // Every other client of the cockpit is unreachable here: its panels settle into their own error
 // states, which is irrelevant to which run the header, stages and actions describe.
@@ -70,7 +71,7 @@ function view(id: RunId) {
   return (
     <>
       <Profiler id="cockpit" onRender={recordFrame}>
-        <RunCockpitView runId={id} />
+        <RunCockpitView runId={id} workspaceExecution={idleStateFor('project-1')} />
       </Profiler>
     </>
   )

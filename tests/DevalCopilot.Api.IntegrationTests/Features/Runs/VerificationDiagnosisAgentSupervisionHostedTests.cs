@@ -51,6 +51,10 @@ public sealed partial class VerificationDiagnosisHostedTests
     }
 
     [Fact]
+    public Task A_claimed_verification_diagnosis_attempt_waits_for_an_existing_workspace_owner_without_being_terminalized_and_then_runs_once() =>
+        WorkspaceExecutionHostedScenarios.AClaimedAttemptWaitsForAnExistingOwnerAndThenRunsOnceAsync(AgentSupervisionComposition());
+
+    [Fact]
     public Task Agent_supervision_spans_the_diagnosis_through_its_terminal_result() =>
         AgentSupervisionHostedScenarios.ObservedThroughToItsTerminalResultAsync(AgentSupervisionComposition());
 

@@ -4,6 +4,9 @@ import { useOwnedLifetime, useOwnedState } from '../hooks/useOwnedLifetime'
 import { WorkspaceEvidencePanel } from './WorkspaceEvidencePanel'
 import { VerificationCommandsPanel } from './VerificationCommandsPanel'
 import { CheckpointReviewPanel } from './CheckpointReviewPanel'
+import { WorkspaceExecutionGuidance } from './WorkspaceExecutionGuidance'
+import { WORKSPACE_EXECUTION_WITHHELD_POINTER, deriveWorkspaceExecutionStartGate } from '../workspaceExecution'
+import type { WorkspaceExecutionState } from '../workspaceExecution'
 
 interface CandidateWorkspacePanelProps {
   projectId: string
@@ -11,6 +14,13 @@ interface CandidateWorkspacePanelProps {
   onEvidenceRefreshRequested?: () => void
   /** The fixed reason a planning sequence withholds verification Run for this project's run (ADR-0055); null or absent withholds nothing. */
   runWithheldReason?: string | null
+  /**
+   * The selected project's workspace execution status (ADR-0057), shared with the run cockpit. Anything but a validated, current Idle
+   * withholds verification Run and shows one fixed guidance here; Idle enables nothing by itself. App always passes it. Only a composition
+   * that does not read the status at all (a test) may omit it, and omitting it applies no hint.
+   */
+  /** The selected project's workspace execution status (ADR-0057). Required: null is an explicit "no state" that withholds starting. */
+  workspaceExecution: WorkspaceExecutionState | null
 }
 
 function abbreviate(sha: string | undefined): string {
@@ -33,7 +43,12 @@ function createEvidenceRefresh(): EvidenceRefresh {
  * (the user's stable checkout vs. a tool-owned, isolated candidate) that must never be shown in
  * a way that could be confused with one another.
  */
-export function CandidateWorkspacePanel({ projectId, onEvidenceRefreshRequested, runWithheldReason = null }: CandidateWorkspacePanelProps) {
+export function CandidateWorkspacePanel({
+  projectId,
+  onEvidenceRefreshRequested,
+  runWithheldReason = null,
+  workspaceExecution,
+}: CandidateWorkspacePanelProps) {
   const { workspace, loading, preparing, rechecking, error, prepare, recheckIdentity } = useProjectWorkspace(projectId)
   const refreshOwner = useOwnedLifetime(projectId)
   const [{ generation }, commitRefresh] = useOwnedState(refreshOwner, createEvidenceRefresh)
@@ -53,6 +68,10 @@ export function CandidateWorkspacePanel({ projectId, onEvidenceRefreshRequested,
   }
 
   const needsIdentityRecheck = workspace.physicalIdentityStatus !== 'Resolved'
+  // The workspace execution status is an additional veto of verification Run (ADR-0057): the planning-sequence fence keeps its own
+  // reason first, and the region's one guidance is shown below, so the Run control only points to it.
+  const workspaceGate = deriveWorkspaceExecutionStartGate(workspaceExecution, projectId)
+  const effectiveRunWithheldReason = runWithheldReason ?? (workspaceGate.allowsExecutionStart ? null : WORKSPACE_EXECUTION_WITHHELD_POINTER)
 
   return (
     <div className="dc-candidate-workspace" aria-label="Candidate workspace">
@@ -101,6 +120,8 @@ export function CandidateWorkspacePanel({ projectId, onEvidenceRefreshRequested,
         </button>
       ) : null}
 
+      <WorkspaceExecutionGuidance gate={workspaceGate} state={workspaceExecution ?? null} region="candidate workspace" />
+
       <WorkspaceEvidencePanel
         key={`evidence:${projectId}`}
         projectId={projectId}
@@ -112,7 +133,7 @@ export function CandidateWorkspacePanel({ projectId, onEvidenceRefreshRequested,
         key={`commands:${projectId}`}
         projectId={projectId}
         refreshGeneration={generation}
-        runWithheldReason={runWithheldReason}
+        runWithheldReason={effectiveRunWithheldReason}
       />
       <CheckpointReviewPanel key={`reviews:${projectId}`} projectId={projectId} refreshGeneration={generation} />
 

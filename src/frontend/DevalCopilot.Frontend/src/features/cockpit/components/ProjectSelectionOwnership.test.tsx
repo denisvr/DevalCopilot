@@ -28,6 +28,7 @@ import {
 } from '../../../api/generated/api-client'
 import { CandidateWorkspacePanel } from './CandidateWorkspacePanel'
 import { WorkspaceEvidencePanel } from './WorkspaceEvidencePanel'
+import { idleStateFor } from '../workspaceExecutionFixture'
 
 vi.mock('../../../api/clients', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../api/clients')>()),
@@ -176,7 +177,7 @@ const recordFrame = () => {
 
 const probed = (id: ProjectId) => (
   <Profiler id="panel" onRender={recordFrame}>
-    <CandidateWorkspacePanel projectId={id} />
+    <CandidateWorkspacePanel projectId={id} workspaceExecution={idleStateFor(id)} />
   </Profiler>
 )
 
@@ -268,9 +269,9 @@ describe('CandidateWorkspacePanel project selection ownership', () => {
 
   it('targets the selected project and checkpoint with the literal arguments of the selected command', async () => {
     const world = createWorld()
-    const { rerender } = render(<CandidateWorkspacePanel projectId="project-a" />)
+    const { rerender } = render(<CandidateWorkspacePanel projectId="project-a" workspaceExecution={idleStateFor('project-a')} />)
     await flush()
-    rerender(<CandidateWorkspacePanel projectId="project-b" />)
+    rerender(<CandidateWorkspacePanel projectId="project-b" workspaceExecution={idleStateFor('project-b')} />)
     await flush()
 
     expect(screen.getByText('C:\\tools\\b.exe --only b literal')).toBeInTheDocument()
@@ -300,14 +301,14 @@ describe('CandidateWorkspacePanel project selection ownership', () => {
     const world = createWorld()
     const accepted = deferred<VerificationExecutionResponse>()
     world.claimVerificationExecution.mockReturnValueOnce(accepted.promise)
-    const { rerender } = render(<CandidateWorkspacePanel projectId="project-a" />)
+    const { rerender } = render(<CandidateWorkspacePanel projectId="project-a" workspaceExecution={idleStateFor('project-a')} />)
     await flush()
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Run' }))
     })
     expect(screen.getByRole('button', { name: 'Starting…' })).toBeInTheDocument()
 
-    rerender(<CandidateWorkspacePanel projectId="project-b" />)
+    rerender(<CandidateWorkspacePanel projectId="project-b" workspaceExecution={idleStateFor('project-b')} />)
     await flush()
     expect(screen.queryByRole('button', { name: 'Starting…' })).toBeNull()
     const reads = world.getProjectVerificationExecutions.mock.calls.length
@@ -330,7 +331,7 @@ describe('CandidateWorkspacePanel project selection ownership', () => {
     const world = createWorld()
     const accepted = deferred<unknown>()
     world.configureVerificationCommand.mockReturnValueOnce(accepted.promise)
-    const { rerender } = render(<CandidateWorkspacePanel projectId="project-a" />)
+    const { rerender } = render(<CandidateWorkspacePanel projectId="project-a" workspaceExecution={idleStateFor('project-a')} />)
     await flush()
     fireEvent.change(screen.getByLabelText('Verification command name'), { target: { value: 'Draft for A' } })
     fireEvent.change(screen.getByLabelText('Verification executable path'), { target: { value: 'C:\\tools\\a-new.exe' } })
@@ -342,7 +343,7 @@ describe('CandidateWorkspacePanel project selection ownership', () => {
     expect(projectId).toBe('project-a')
     expect(request).toMatchObject({ name: 'Draft for A', executablePath: 'C:\\tools\\a-new.exe', arguments: ['--one', '--two words'] })
 
-    rerender(<CandidateWorkspacePanel projectId="project-b" />)
+    rerender(<CandidateWorkspacePanel projectId="project-b" workspaceExecution={idleStateFor('project-b')} />)
     await flush()
     // The form of project B starts empty and receives its own draft.
     expect(screen.getByLabelText('Verification command name')).toHaveValue('')
@@ -363,7 +364,7 @@ describe('CandidateWorkspacePanel project selection ownership', () => {
     const world = createWorld()
     const accepted = deferred<unknown>()
     world.configureVerificationCommand.mockReturnValueOnce(accepted.promise)
-    render(<CandidateWorkspacePanel projectId="project-a" />)
+    render(<CandidateWorkspacePanel projectId="project-a" workspaceExecution={idleStateFor('project-a')} />)
     await flush()
     fireEvent.change(screen.getByLabelText('Verification command name'), { target: { value: 'Saved name' } })
     fireEvent.change(screen.getByLabelText('Verification executable path'), { target: { value: 'C:\\tools\\saved.exe' } })
@@ -389,7 +390,7 @@ describe('CandidateWorkspacePanel project selection ownership', () => {
 
   it('shows no verification output, selected stream or selected evidence of the previous project', async () => {
     const world = createWorld()
-    const { rerender } = render(<CandidateWorkspacePanel projectId="project-a" />)
+    const { rerender } = render(<CandidateWorkspacePanel projectId="project-a" workspaceExecution={idleStateFor('project-a')} />)
     await flush()
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Inspect stdout' }))
@@ -398,7 +399,7 @@ describe('CandidateWorkspacePanel project selection ownership', () => {
     expect(screen.getByText('stdout of the execution')).toBeInTheDocument()
     expect(world.getVerificationExecutionOutput.mock.calls[0].slice(0, 3)).toEqual(['project-a', 'execution-a', 'stdout'])
 
-    rerender(<CandidateWorkspacePanel projectId="project-b" />)
+    rerender(<CandidateWorkspacePanel projectId="project-b" workspaceExecution={idleStateFor('project-b')} />)
     expect(screen.queryByText('stdout of the execution')).toBeNull()
     await flush()
     expect(screen.queryByText('stdout of the execution')).toBeNull()
@@ -413,14 +414,14 @@ describe('CandidateWorkspacePanel project selection ownership', () => {
     )
     const accepted = deferred<unknown>()
     world.prepareRepositoryWorkspace.mockReturnValueOnce(accepted.promise)
-    const { rerender } = render(<CandidateWorkspacePanel projectId="project-a" />)
+    const { rerender } = render(<CandidateWorkspacePanel projectId="project-a" workspaceExecution={idleStateFor('project-a')} />)
     await flush()
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Prepare workspace' }))
     })
     expect(screen.getByRole('button', { name: 'Preparing…' })).toBeDisabled()
 
-    rerender(<CandidateWorkspacePanel projectId="project-b" />)
+    rerender(<CandidateWorkspacePanel projectId="project-b" workspaceExecution={idleStateFor('project-b')} />)
     await flush()
     expect(screen.getByRole('button', { name: 'Prepare workspace' })).toBeEnabled()
     const reads = world.getProjectWorkspace.mock.calls.length
@@ -440,9 +441,9 @@ describe('CandidateWorkspacePanel project selection ownership', () => {
       await failure.promise
       throw new Error('A evidence failed')
     })
-    const { rerender } = render(<CandidateWorkspacePanel projectId="project-a" />)
+    const { rerender } = render(<CandidateWorkspacePanel projectId="project-a" workspaceExecution={idleStateFor('project-a')} />)
     await flush()
-    rerender(<CandidateWorkspacePanel projectId="project-b" />)
+    rerender(<CandidateWorkspacePanel projectId="project-b" workspaceExecution={idleStateFor('project-b')} />)
     await flush()
     expect(screen.getByText(/Checkpoint #22 · 22 changed files/)).toBeInTheDocument()
     await act(async () => {
@@ -525,7 +526,7 @@ describe('verification draft identity', () => {
     const world = createWorld()
     const accepted = deferred<unknown>()
     world.configureVerificationCommand.mockReturnValueOnce(accepted.promise)
-    render(<CandidateWorkspacePanel projectId="project-a" />)
+    render(<CandidateWorkspacePanel projectId="project-a" workspaceExecution={idleStateFor('project-a')} />)
     await flush()
     fireEvent.change(screen.getByLabelText('Verification command name'), { target: { value: 'Saved recipe' } })
     fireEvent.change(screen.getByLabelText('Verification executable path'), { target: { value: 'C:\\tools\\saved.exe' } })

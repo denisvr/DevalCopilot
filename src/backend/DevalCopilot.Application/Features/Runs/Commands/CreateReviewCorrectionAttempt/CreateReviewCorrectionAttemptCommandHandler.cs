@@ -1,8 +1,10 @@
+using System.Data.Common;
 using System.Text;
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Application.Features.Projects.Policies.WorkspaceExecutions;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Application.Features.Runs.Errors;
@@ -13,6 +15,7 @@ using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace DevalCopilot.Application.Features.Runs.Commands.CreateReviewCorrectionAttempt;
 
@@ -151,6 +154,13 @@ public sealed class CreateReviewCorrectionAttemptCommandHandler(
         if (checkpoint is null)
         {
             return Failure(Error.Conflict("agent_attempts.checkpoint_missing", "A current Git checkpoint is required."));
+        }
+
+        // ADR-0057: no other Agent attempt, verification execution or local-commit reservation may own this workspace, decided before
+        // any Git work or manifest sealing and again at the write-locked commit seam below.
+        if (await WorkspaceExecutionFence.CheckClaimAsync(dbContext, run.ProjectId, workspace.Id, cancellationToken) is { } workspaceBusy)
+        {
+            return Failure(workspaceBusy);
         }
 
         var evidence = await evidenceReader.CaptureForAgentContextAsync(
@@ -329,6 +339,52 @@ public sealed class CreateReviewCorrectionAttemptCommandHandler(
         // The token stop's own commit-time guard: the claim's Run UPDATE also requires the exact stop
         // policy this claim decided against (see CurrentTokenStopPolicy).
         CurrentTokenStopPolicy.Guard(dbContext, run);
+
+        // ADR-0057: the claim's commit seam is one short explicit transaction, opened only now after every external step and every late
+        // read. It takes the database write lock, the workspace's ownership is read afresh under it, and only then is anything added or
+        // consumed, so ownership cannot change before this claim's own save commits. A refusal disposes it uncommitted and consumes
+        // nothing, including a correction authorization.
+        IDbContextTransaction fenceTransaction;
+        try
+        {
+            fenceTransaction = await dbContext.BeginTransactionAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+            throw;
+        }
+        catch (DbException)
+        {
+            artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+            return Failure(Error.Failure("attempts.persistence_failed", "The correction attempt could not be durably recorded."));
+        }
+
+        await using var fenceScope = fenceTransaction;
+        // A failed or cancelled fresh read under the write lock leaves nothing persisted by this claim: the uncommitted transaction is
+        // disposed, only this operation's own sealed manifest is removed, and a cancellation propagates unchanged.
+        Error? workspaceBusyAtSeam;
+        try
+        {
+            workspaceBusyAtSeam = await WorkspaceExecutionFence.CheckClaimAsync(dbContext, run.ProjectId, workspace.Id, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+            throw;
+        }
+        catch (DbException)
+        {
+            artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+            return Failure(Error.Failure("attempts.persistence_failed", "The correction attempt could not be durably recorded."));
+        }
+
+        if (workspaceBusyAtSeam is not null)
+        {
+            artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+            return Failure(workspaceBusyAtSeam);
+        }
+
         var attempt = Attempt.ClaimAgentReviewCorrectionWithModelRequest(
             attemptId,
             run.Id,
@@ -376,9 +432,13 @@ public sealed class CreateReviewCorrectionAttemptCommandHandler(
         try
         {
             await dbContext.SaveChangesAsync(cancellationToken);
+            await fenceTransaction.CommitAsync(cancellationToken);
         }
-        catch (DbUpdateException exception)
+        catch (Exception exception) when (exception is DbUpdateException or DbException)
         {
+            // The explicit commit seam is released first, so the readback below sees only what actually committed.
+            await RollbackBestEffortAsync(fenceTransaction);
+
             var thisAttemptPersisted = await dbContext.Attempts
                 .AsNoTracking()
                 .AnyAsync(candidate => candidate.Id == attemptId, cancellationToken);
@@ -591,6 +651,19 @@ public sealed class CreateReviewCorrectionAttemptCommandHandler(
                 && candidate.PayloadJson.Contains(messageId.ToString()))
             .Select(candidate => (long?)candidate.Sequence)
             .SingleOrDefaultAsync(cancellationToken);
+
+    /// <summary>Brings the release of an explicit commit seam forward; a disposed, uncommitted transaction rolls back on its own.</summary>
+    private static async Task RollbackBestEffortAsync(IDbContextTransaction transaction)
+    {
+        try
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+        }
+        catch (Exception exception) when (exception is DbException or InvalidOperationException or ObjectDisposedException)
+        {
+            // The enclosing scope disposes the transaction again as a safe no-op.
+        }
+    }
 
     private static Result<CreateReviewCorrectionAttemptCommandResult> Failure(Error error) =>
         Result<CreateReviewCorrectionAttemptCommandResult>.Failure(error);

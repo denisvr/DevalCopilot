@@ -1,5 +1,6 @@
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
+using DevalCopilot.Application.Features.Projects.Policies.WorkspaceExecutions;
 using DevalCopilot.Domain.Features.Projects;
 using Microsoft.EntityFrameworkCore;
 
@@ -44,13 +45,19 @@ internal static class VerificationDispatchAuthority
             cancellationToken);
         var leaseActive = await dbContext.RepositoryMutationLeases.AsNoTracking().AnyAsync(
             lease => lease.WorkspaceId == execution.GitWorkspaceId && lease.Status == LeaseStatus.Active, cancellationToken);
-        return latest is not null
+        if (!(latest is not null
             && latest.Id == execution.GitWorkspaceId
             && latest.Status == WorkspaceStatus.Ready
             && string.Equals(latest.WorkspacePath, execution.WorkspacePath, StringComparison.Ordinal)
             && leaseActive
-            && checkpointCurrent
-                ? null
-                : Error.Conflict("verification.execution_not_current", "This verification execution is no longer eligible to run.");
+            && checkpointCurrent))
+        {
+            return Error.Conflict("verification.execution_not_current", "This verification execution is no longer eligible to run.");
+        }
+
+        // ADR-0057: the one dispatch authority of both pre-launch decisions also requires that nothing but this exact execution owns its
+        // workspace (another Agent attempt, a second execution, a local-commit reservation or untrustworthy ownership refuses both).
+        return await WorkspaceExecutionFence.CheckVerificationDispatchAsync(
+            dbContext, execution.ProjectId, execution.GitWorkspaceId, execution.Id, cancellationToken);
     }
 }

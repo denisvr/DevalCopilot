@@ -3,6 +3,7 @@ using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Application.Features.Projects.Policies.WorkspaceExecutions;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Application.Features.Runs.Errors;
@@ -267,6 +268,13 @@ public sealed class CreateImplementationAttemptCommandHandler(
             return Result<CreateImplementationAttemptCommandResult>.Failure(earlyRefusal);
         }
 
+        // ADR-0057: no other Agent attempt, verification execution or local-commit reservation may own this workspace, decided before
+        // any provider observation, Git work or manifest sealing and again at the write-locked commit seam below.
+        if (await WorkspaceExecutionFence.CheckClaimAsync(dbContext, run.ProjectId, workspace.Id, cancellationToken) is { } workspaceBusy)
+        {
+            return Result<CreateImplementationAttemptCommandResult>.Failure(workspaceBusy);
+        }
+
         var claudeSnapshot = await dbContext.HostCapabilitySnapshots
             .SingleOrDefaultAsync(candidate => candidate.Capability == Capability.ClaudeCli, cancellationToken);
         if (claudeSnapshot is null || claudeSnapshot.ReasonCode != CapabilityProbeReason.None || string.IsNullOrWhiteSpace(claudeSnapshot.ResolvedExecutablePath))
@@ -468,6 +476,57 @@ public sealed class CreateImplementationAttemptCommandHandler(
         // policy this claim decided against (see CurrentTokenStopPolicy).
         CurrentTokenStopPolicy.Guard(dbContext, run);
 
+        // ADR-0057: an ordinary claim's commit seam is likewise one short explicit transaction, opened only now after every external step
+        // and every late read (an authorized claim already holds its own). It takes the database write lock, the workspace's ownership
+        // is read afresh under it, and only then is anything added, so ownership cannot change before this claim's own save commits. A
+        // refusal disposes it uncommitted and consumes nothing, including a spent grant.
+        IDbContextTransaction? fenceTransaction = null;
+        if (claimTransaction is null)
+        {
+            try
+            {
+                fenceTransaction = await dbContext.BeginTransactionAsync(cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                throw;
+            }
+            catch (DbException)
+            {
+                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                return Result<CreateImplementationAttemptCommandResult>.Failure(
+                    Error.Failure("attempts.persistence_failed", "The attempt could not be durably recorded."));
+            }
+        }
+
+        await using var fenceScope = fenceTransaction;
+        // A failed or cancelled fresh read under the write lock leaves nothing persisted by this claim: the uncommitted transaction is
+        // disposed, only this operation's own sealed manifest is removed, and a cancellation propagates unchanged (an authorized claim
+        // holds its own transaction and is settled from durable state by the outer handler).
+        Error? workspaceBusyAtSeam;
+        try
+        {
+            workspaceBusyAtSeam = await WorkspaceExecutionFence.CheckClaimAsync(dbContext, run.ProjectId, workspace.Id, cancellationToken);
+        }
+        catch (OperationCanceledException) when (fenceTransaction is not null)
+        {
+            artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+            throw;
+        }
+        catch (DbException) when (fenceTransaction is not null)
+        {
+            artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+            return Result<CreateImplementationAttemptCommandResult>.Failure(
+                    Error.Failure("attempts.persistence_failed", "The attempt could not be durably recorded."));
+        }
+
+        if (workspaceBusyAtSeam is not null)
+        {
+            artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+            return Result<CreateImplementationAttemptCommandResult>.Failure(workspaceBusyAtSeam);
+        }
+
         var attempt = Attempt.ClaimAgentImplementationWithAssignment(
             attemptId,
             run.Id,
@@ -528,6 +587,10 @@ public sealed class CreateImplementationAttemptCommandHandler(
             {
                 await claimTransaction.CommitAsync(cancellationToken);
             }
+            else if (fenceTransaction is not null)
+            {
+                await fenceTransaction.CommitAsync(cancellationToken);
+            }
         }
         catch (DbException) when (claimTransaction is not null)
         {
@@ -552,8 +615,14 @@ public sealed class CreateImplementationAttemptCommandHandler(
             return Result<CreateImplementationAttemptCommandResult>.Failure(
                 Error.Failure("attempts.persistence_failed", "The attempt could not be durably recorded."));
         }
-        catch (DbUpdateException exception)
+        catch (Exception exception) when (exception is DbUpdateException or DbException)
         {
+            // An ordinary claim's explicit commit seam is released first, so the readback below sees only what actually committed.
+            if (fenceTransaction is not null)
+            {
+                await RollbackBestEffortAsync(fenceTransaction);
+            }
+
             // The exception means this DbContext's change tracker no longer reliably reflects what actually committed — the
             // cause is never inferred from what this request attempted, only from a fresh, untracked read of what the
             // database actually holds now. An authorized claim's transaction is rolled back and released first and is then

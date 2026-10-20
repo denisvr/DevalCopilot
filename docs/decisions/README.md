@@ -150,7 +150,10 @@ under [Proposed decisions](#proposed-decisions).
   (accepted, delivered in published PLAN-COORD-01; one explicit single-use authorization joins at most five existing read-only planning/critique/resolution attempts with exact input identity, atomic step linkage, stop-after-current-step, bounded attention deadlines and restart interruption; narrowly supersedes ADR-0014's per-stage request rule and extends ADR-0009's ordering only for this sequence, with no automatic source mutation, verification, commit or publication)
 
 - [ADR-0056: Observe Agent supervision without granting execution authority](0056-observe-agent-supervision-without-granting-execution-authority.md)
-  (accepted, selected for AGENT-SUP-01, not implemented; durable current host-supervision observations across all seven existing Agent contracts, independent stale/deadline attention and truthful cockpit disclosure; no provider-progress proof, execution lease, dispatch authority, cancellation, retry, takeover, ownership release, automatic mutation or publication)
+  (accepted, delivered in published AGENT-SUP-01; durable current host-supervision observations across all seven existing Agent contracts, independent stale/deadline attention and truthful cockpit disclosure; no provider-progress proof, execution lease, dispatch authority, cancellation, retry, takeover, ownership release, automatic mutation or publication)
+
+- [ADR-0057: Serialize Agent and verification execution within an owned workspace](0057-serialize-agent-and-verification-execution-within-an-owned-workspace.md)
+  (accepted, implemented in WORKSPACE-EXCL-01 and reviewed GO; publication must be reconciled with Git and the planner record; reciprocal atomic claim/dispatch exclusion across the seven Agent contracts, verification and the existing local-commit reservation, with a protected project-owned disclosure and consistent cockpit withholding; strengthens existing writer exclusion without a scheduler, new execution grant, observation-based authority, lease release, automatic stage advancement or publication)
 
 ## Partially superseded decisions
 

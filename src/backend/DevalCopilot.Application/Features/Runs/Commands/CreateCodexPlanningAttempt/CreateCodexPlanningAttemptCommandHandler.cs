@@ -3,6 +3,7 @@ using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Application.Features.Projects.Policies.WorkspaceExecutions;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs.Errors;
 using DevalCopilot.Application.Features.Runs.Policies;
@@ -189,6 +190,13 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
             return Result<CreateCodexPlanningAttemptCommandResult>.Failure(tokenStopError);
         }
 
+        // ADR-0057: no other Agent attempt, verification execution or local-commit reservation may own this workspace, decided before
+        // any provider observation, Git work or manifest sealing and again at the write-locked commit seam below.
+        if (await WorkspaceExecutionFence.CheckClaimAsync(dbContext, run.ProjectId, workspace.Id, cancellationToken) is { } workspaceBusy)
+        {
+            return Result<CreateCodexPlanningAttemptCommandResult>.Failure(workspaceBusy);
+        }
+
         // The run-scoped Codex account-usage stop (ADR-0025), after the budgets and the token stop and before any provider
         // probe, Git work, or manifest sealing. The strict observation happens here, outside any EF transaction; a refusal commits
         // nothing. Unconfigured, it makes no observation. The commit seam below re-confirms the setting, the launch tuple and freshness.
@@ -343,6 +351,7 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
             bool modeStillAdmitted;
             bool runStillActive;
             Error? repairSourceError = null;
+            Error? workspaceExecutionError = null;
             Error? stepSeamError = null;
             PlanningSequenceStepLink? stepLink = null;
             try
@@ -388,6 +397,10 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
                         dbContext, run.Id, repairSourceAtCommit, workspace.Id, checkpoint.Id,
                         checkpoint.FingerprintSha256, cancellationToken);
                 }
+
+                // ADR-0057: decided under the same write lock, immediately before the claim's own insert, from fresh untracked reads.
+                workspaceExecutionError = await WorkspaceExecutionFence.CheckClaimAsync(
+                    dbContext, run.ProjectId, workspace.Id, cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -476,6 +489,23 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
                 await RollbackBestEffortAsync(claimTransaction, cancellationToken);
                 artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
                 return Result<CreateCodexPlanningAttemptCommandResult>.Failure(repairSourceError);
+            }
+
+            if (workspaceExecutionError is not null)
+            {
+                // Another owner of the workspace appeared (or the ownership is not trustworthy): rolled back before any insert, so no
+                // attempt, artifact, budget, claim number or step link is consumed, and the sealed manifest is removed.
+                await RollbackBestEffortAsync(claimTransaction, cancellationToken);
+                if (ticket is null)
+                {
+                    artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                }
+                else
+                {
+                    await DeleteManifestUnlessAnotherWorkerClaimedAsync(run.Id, attemptId, ticket);
+                }
+
+                return Result<CreateCodexPlanningAttemptCommandResult>.Failure(workspaceExecutionError);
             }
 
             dbContext.Attempts.Add(attempt);

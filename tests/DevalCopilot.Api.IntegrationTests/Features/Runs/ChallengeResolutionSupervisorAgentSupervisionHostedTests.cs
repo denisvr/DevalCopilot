@@ -27,6 +27,10 @@ public sealed partial class ChallengeResolutionSupervisorHostedTests
     };
 
     [Fact]
+    public Task A_claimed_resolver_attempt_waits_for_an_existing_workspace_owner_without_being_terminalized_and_then_runs_once() =>
+        WorkspaceExecutionHostedScenarios.AClaimedAttemptWaitsForAnExistingOwnerAndThenRunsOnceAsync(AgentSupervisionComposition());
+
+    [Fact]
     public Task Agent_supervision_spans_the_resolver_through_its_terminal_result() =>
         AgentSupervisionHostedScenarios.ObservedThroughToItsTerminalResultAsync(AgentSupervisionComposition());
 

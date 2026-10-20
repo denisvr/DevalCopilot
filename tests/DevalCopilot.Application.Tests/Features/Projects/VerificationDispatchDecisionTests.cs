@@ -250,6 +250,107 @@ public sealed class VerificationDispatchDecisionTests : IAsyncLifetime
         await AssertPendingAsync(scene);
     }
 
+    // ---- ADR-0057: nothing but this exact execution may own its workspace --------------------------------------------------
+
+    public static TheoryData<string, string> CompetingOwners() => new()
+    {
+        { "agent attempt", "workspace_execution.agent_attempt_active" },
+        { "undispatched agent attempt", "workspace_execution.agent_attempt_active" },
+        { "second execution", "workspace_execution.verification_active" },
+    };
+
+    [Theory]
+    [MemberData(nameof(CompetingOwners))]
+    public async Task A_competing_owner_that_appears_after_the_feed_refuses_the_dispatch_and_leaves_the_execution_pending(string owner, string code)
+    {
+        await using var dbContext = fixture.CreateContext();
+        var scene = await SeedAsync(dbContext);
+
+        var outcome = await MarkAsync(dbContext, scene, scene.Expected, other => PlantOwnerAsync(other, scene, owner));
+
+        Assert.Equal(code, Assert.Single(outcome.Result.Errors).Code);
+        await AssertPendingAsync(scene);
+    }
+
+    [Theory]
+    [MemberData(nameof(CompetingOwners))]
+    public async Task A_competing_owner_that_appears_after_the_feed_records_no_pre_dispatch_source_change(string owner, string code)
+    {
+        await using var dbContext = fixture.CreateContext();
+        var scene = await SeedAsync(dbContext);
+
+        var outcome = await SourceChangedAsync(dbContext, scene, scene.Expected, other => PlantOwnerAsync(other, scene, owner));
+
+        Assert.Equal(code, Assert.Single(outcome.Errors).Code);
+        await AssertPendingAsync(scene);
+    }
+
+    [Fact]
+    public async Task Terminal_owners_and_owners_of_another_repository_never_refuse_the_dispatch()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var scene = await SeedAsync(dbContext);
+
+        var outcome = await MarkAsync(dbContext, scene, scene.Expected, async other =>
+        {
+            await PlantOwnerAsync(other, scene, "agent attempt");
+            await other.Attempts.ExecuteUpdateAsync(set => set.SetProperty(attempt => attempt.Status, DevalCopilot.Domain.Features.Runs.AttemptStatus.Completed));
+            await PlantOwnerAsync(other, scene, "second execution");
+            await other.VerificationExecutions.Where(execution => execution.Id != scene.ExecutionId)
+                .ExecuteUpdateAsync(set => set.SetProperty(execution => execution.Status, VerificationExecutionStatus.Passed));
+            await PlantOwnerAsync(other, scene, "other repository");
+        });
+
+        Assert.True(outcome.Result.IsSuccess);
+        await using var verify = fixture.CreateContext();
+        Assert.NotNull((await verify.VerificationExecutions.SingleAsync(execution => execution.Id == scene.ExecutionId)).DispatchedAtUtc);
+    }
+
+    [Fact]
+    public async Task Another_attempt_with_the_same_identifier_in_another_table_is_not_the_exact_execution_and_is_not_excluded()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var scene = await SeedAsync(dbContext);
+
+        var outcome = await MarkAsync(dbContext, scene, scene.Expected, other =>
+            PlantOwnerAsync(other, scene, "agent attempt", attemptId: scene.ExecutionId));
+
+        Assert.Equal("workspace_execution.agent_attempt_active", Assert.Single(outcome.Result.Errors).Code);
+        await AssertPendingAsync(scene);
+    }
+
+    private static async Task PlantOwnerAsync(DevalCopilotDbContext other, Scene scene, string owner, Guid? attemptId = null)
+    {
+        if (owner == "second execution")
+        {
+            var workspace = await other.GitWorkspaces.AsNoTracking().SingleAsync(candidate => candidate.Id == scene.Workspace.Id);
+            var checkpoint = await other.GitCheckpoints.AsNoTracking().SingleAsync(candidate => candidate.Id == scene.CheckpointId);
+            var recipe = await other.VerificationCommands.AsNoTracking().SingleAsync(candidate => candidate.ProjectId == scene.ProjectId);
+            other.VerificationExecutions.Add(VerificationExecution.Claim(Guid.NewGuid(), scene.ProjectId, 2, workspace, checkpoint, recipe, Now));
+            await other.SaveChangesAsync(CancellationToken.None);
+            return;
+        }
+
+        var projectId = owner == "other repository"
+            ? await other.Projects.AsNoTracking().Where(project => project.Id != scene.ProjectId).Select(project => project.Id).FirstAsync()
+            : scene.ProjectId;
+        var workspaceId = owner == "other repository" ? scene.OtherWorkspaceId : scene.Workspace.Id;
+        var run = DevalCopilot.Domain.Features.Runs.Run.RecordIntent(Guid.NewGuid(), projectId, 1, "Objective", Now);
+        run.Claim(Now);
+        other.Runs.Add(run);
+        await other.SaveChangesAsync(CancellationToken.None);
+        var attempt = DevalCopilot.Domain.Features.Runs.Attempt.ClaimAgentImplementation(
+            attemptId ?? Guid.NewGuid(), run.Id, 1, workspaceId, scene.CheckpointId, Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(10), 1024, 2048,
+            Now, 1);
+        if (owner != "undispatched agent attempt")
+        {
+            attempt.MarkAgentDispatched(Now);
+        }
+
+        other.Attempts.Add(attempt);
+        await other.SaveChangesAsync(CancellationToken.None);
+    }
+
     // ---- Harness ------------------------------------------------------------------------------------------------------
 
     private sealed record Scene(Guid ProjectId, Guid ExecutionId, Guid CheckpointId, GitWorkspace Workspace, Guid OtherWorkspaceId, VerificationDispatchSnapshot Expected);

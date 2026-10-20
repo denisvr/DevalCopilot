@@ -1,6 +1,7 @@
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
+using DevalCopilot.Application.Features.Projects.Policies.WorkspaceExecutions;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs.Errors;
 using DevalCopilot.Application.Features.Runs.Policies.PlanningSequences;
@@ -132,6 +133,13 @@ public sealed class ClaimVerificationExecutionCommandHandler(
         {
             return new AuthorityRead(
                 Error.Conflict("verification.already_running", "This workspace already has a verification execution in progress."), null);
+        }
+
+        // ADR-0057: an Agent attempt, a local-commit reservation, conflicting or untrustworthy ownership also refuses the claim. Like the
+        // read above, it runs before the Git capture and again under the claim transaction's write lock.
+        if (await WorkspaceExecutionFence.CheckClaimAsync(dbContext, command.ProjectId, workspace.Id, cancellationToken) is { } busy)
+        {
+            return new AuthorityRead(busy, null);
         }
 
         return new AuthorityRead(null, new Authority(recipe, workspace, checkpoint));

@@ -3,6 +3,7 @@ using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Application.Features.Projects.Policies.WorkspaceExecutions;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Application.Features.Runs.Ports;
@@ -208,6 +209,13 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
             }
 
             executionReportMessageId = repairTarget.ExecutionReportMessageId;
+        }
+
+        // ADR-0057: no other Agent attempt, verification execution or local-commit reservation may own this workspace, decided before
+        // any Git work or manifest sealing and again at the write-locked commit seam below.
+        if (await WorkspaceExecutionFence.CheckClaimAsync(dbContext, run.ProjectId, workspace.Id, cancellationToken) is { } workspaceBusy)
+        {
+            return Result<CreateCodeReviewAttemptCommandResult>.Failure(workspaceBusy);
         }
 
         var codexSnapshot = await dbContext.HostCapabilitySnapshots
@@ -427,6 +435,7 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
             bool modeStillAdmitted;
             bool runStillActive;
             Error? repairRevalidationError = null;
+            Error? workspaceExecutionError = null;
             try
             {
                 // One atomic UPDATE ... WHERE statement requiring the Run's requested model/effort
@@ -460,6 +469,10 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
                     repairRevalidationError = await RevalidateRepairAsync(
                         run, repairSourceAtCommit, workspace.Id, checkpoint, executionReportMessage.Id, orderedVerificationExecutions, cancellationToken);
                 }
+
+                // ADR-0057: decided under the same write lock, immediately before the claim's own insert, from fresh untracked reads.
+                workspaceExecutionError = await WorkspaceExecutionFence.CheckClaimAsync(
+                    dbContext, run.ProjectId, workspace.Id, cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -539,6 +552,15 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
                 await RollbackBestEffortAsync(claimTransaction, cancellationToken);
                 artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
                 return Result<CreateCodeReviewAttemptCommandResult>.Failure(repairRevalidationError);
+            }
+
+            if (workspaceExecutionError is not null)
+            {
+                // Another owner of the workspace appeared (or the ownership is not trustworthy): rolled back before any insert, so no
+                // attempt, input, verification evidence, artifact, budget or claim number is consumed, and the sealed manifest is removed.
+                await RollbackBestEffortAsync(claimTransaction, cancellationToken);
+                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                return Result<CreateCodeReviewAttemptCommandResult>.Failure(workspaceExecutionError);
             }
 
             dbContext.Attempts.Add(attempt);

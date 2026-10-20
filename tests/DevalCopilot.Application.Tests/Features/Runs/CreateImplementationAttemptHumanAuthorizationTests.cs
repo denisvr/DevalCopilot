@@ -484,6 +484,53 @@ public sealed class CreateImplementationAttemptHumanAuthorizationTests : IAsyncL
         Assert.Single(verify.Attempts.Where(attempt => attempt.AgentRole == AgentRole.Implementer));
     }
 
+    /// <summary>ADR-0057: another owner of the workspace refuses the human-authorized claim too, and the one Human grant it would have
+    /// spent stays available.</summary>
+    [Theory]
+    [InlineData(CompetingOwner.Verification)]
+    [InlineData(CompetingOwner.AgentOfAnotherRun)]
+    public async Task A_competing_workspace_owner_refuses_the_authorized_claim_early_and_leaves_the_grant_unconsumed(CompetingOwner owner)
+    {
+        var (lineage, _, _) = await SeedAuthorizedAsync();
+        await WorkspaceExecutionRaceSupport.AddAsync(_fixture, lineage.RunId, owner);
+        await using var dbContext = _fixture.CreateContext();
+        var evidence = new CountingEvidenceReader();
+        var store = new RecordingArtifactStore();
+
+        var result = await ClaimAsync(dbContext, lineage, evidence, store);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(WorkspaceExecutionRaceSupport.CodeOf(owner), Assert.Single(result.Errors).Code);
+        Assert.Equal(0, evidence.Captures);
+        Assert.Equal(0, store.Seals);
+        await AssertGrantUnconsumedAsync(lineage.RunId);
+    }
+
+    [Theory]
+    [InlineData(CompetingOwner.Verification)]
+    [InlineData(CompetingOwner.AgentOfAnotherRun)]
+    public async Task A_competing_owner_that_wins_before_the_claim_transaction_refuses_it_and_leaves_the_grant_unconsumed(CompetingOwner owner)
+    {
+        var (lineage, _, _) = await SeedAuthorizedAsync();
+        await using var dbContext = _fixture.CreateContext();
+        var faulting = new FaultInjectingDbContext(dbContext)
+        {
+            BeforeBeginTransaction = _ => WorkspaceExecutionRaceSupport.AddAsync(_fixture, lineage.RunId, owner),
+        };
+        var store = new RecordingArtifactStore();
+
+        var result = await ClaimHandler(faulting, store: store, probe: Probe).HandleAsync(
+            new CreateImplementationAttemptCommand(lineage.RunId, lineage.FinalProposal.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(WorkspaceExecutionRaceSupport.CodeOf(owner), Assert.Single(result.Errors).Code);
+        Assert.Single(store.DeletedSealedFiles);
+        await AssertGrantUnconsumedAsync(lineage.RunId);
+        await using var verify = _fixture.CreateContext();
+        Assert.Empty(verify.Artifacts.Where(artifact => artifact.RunId == lineage.RunId && artifact.Purpose == ArtifactPurpose.AgentContextManifest
+            && verify.Attempts.Any(attempt => attempt.Id == artifact.AttemptId && attempt.AgentRole == AgentRole.Implementer)));
+    }
+
     [Theory]
     [InlineData("planner-root")]
     [InlineData("checkpoint")]
@@ -785,5 +832,37 @@ public sealed class CreateImplementationAttemptHumanAuthorizationTests : IAsyncL
 
         Assert.Equal("agent_attempts.plan_challenged", Assert.Single(parent.Errors).Code);
         await AssertGrantUnconsumedAsync(lineage.RunId);
+    }
+
+    /// <summary>WEX-R3: the authorized claim already holds its own transaction, so a cancelled or failed final workspace read is settled
+    /// from durable state by the outer handler: the uncommitted transaction is rolled back, the manifest this operation sealed is
+    /// removed, the grant stays unconsumed and the original exception propagates unchanged.</summary>
+    [Theory]
+    [InlineData(FenceReadFault.Cancel)]
+    [InlineData(FenceReadFault.DatabaseFailure)]
+    public async Task A_failed_or_cancelled_final_workspace_read_of_an_authorized_claim_cleans_the_manifest_and_leaves_the_grant_unconsumed(FenceReadFault fault)
+    {
+        var (lineage, _, _) = await SeedAuthorizedAsync();
+        using var cancellation = new CancellationTokenSource();
+        var interceptor = new FenceReadFaultInterceptor(fault, cancellation);
+        await using var dbContext = _fixture.CreateContext(interceptor);
+        var store = new RecordingArtifactStore();
+        var handler = ClaimHandler(dbContext, store: store, probe: Probe);
+        var command = new CreateImplementationAttemptCommand(lineage.RunId, lineage.FinalProposal.Id);
+
+        if (fault == FenceReadFault.Cancel)
+        {
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => handler.HandleAsync(command, cancellation.Token));
+        }
+        else
+        {
+            await Assert.ThrowsAsync<Microsoft.Data.Sqlite.SqliteException>(() => handler.HandleAsync(command, CancellationToken.None));
+        }
+
+        Assert.True(interceptor.Fired);
+        Assert.Single(store.DeletedSealedFiles);
+        await AssertGrantUnconsumedAsync(lineage.RunId);
+        await using var verify = _fixture.CreateContext();
+        Assert.Empty(verify.Attempts.Where(attempt => attempt.AgentRole == AgentRole.Implementer));
     }
 }

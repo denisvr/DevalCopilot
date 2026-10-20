@@ -1,5 +1,6 @@
 using Devalente.Shared.Cqrs;
 using DevalCopilot.Application.Data;
+using DevalCopilot.Application.Features.Projects.Policies.WorkspaceExecutions;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
@@ -72,7 +73,7 @@ public sealed class GetEligibleCodeReviewAttemptsQueryHandler(IDevalCopilotDbCon
         var currentCheckpointByWorkspace = await GetCurrentCheckpointByWorkspaceAsync(
             candidates.Select(candidate => candidate.GitWorkspaceId), cancellationToken);
 
-        return candidates
+        var eligible = candidates
             .Where(candidate =>
                 currentCheckpointByWorkspace.TryGetValue(candidate.GitWorkspaceId, out var currentCheckpointId)
                 && currentCheckpointId == candidate.GitCheckpointId)
@@ -93,6 +94,10 @@ public sealed class GetEligibleCodeReviewAttemptsQueryHandler(IDevalCopilotDbCon
                 candidate.AgentRequestedModel,
                 candidate.AgentRequestedEffort))
             .ToArray();
+
+        // Advisory (ADR-0057): an attempt that something else owns its workspace beside is not proposed; the dispatch gate decides.
+        return await WorkspaceExecutionFeed.WithoutKnownWorkspaceConflictsAsync(
+            dbContext, eligible, candidate => (candidate.RunId, candidate.GitWorkspaceId, candidate.AttemptId), cancellationToken);
     }
 
     private async Task<Dictionary<Guid, Guid>> GetCurrentCheckpointByWorkspaceAsync(

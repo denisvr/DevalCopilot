@@ -311,6 +311,24 @@ attention never proves that earlier authorized work stopped. Observation
 status is never an eligibility input for any claim, dispatch, source,
 provider, budget, result or recovery rule. Increment 5 stays incomplete.
 
+**Delivered partial slice: workspace execution exclusion (WORKSPACE-EXCL-01).**
+[ADR-0057](../decisions/0057-serialize-agent-and-verification-execution-within-an-owned-workspace.md)
+closes the existing one-writer-per-worktree gap between the Agent and
+verification claims, which serialized only within their own sets. One shared
+Application policy reads existing durable rows (an unresolved Agent attempt of the
+workspace, an unresolved verification execution of the workspace, ADR-0029's
+local-commit reservation) and admits a claim only into an Idle workspace: once
+before its Git, provider or artifact preparation and again under the existing
+short write lock immediately before the claim commits. Both single-use dispatch
+gates re-read it under their own write lock and exclude only the exact attempt or
+execution being dispatched. A conflicting or untrustworthy reading is refused
+with a stable Conflict; nothing is terminalized, cancelled, retried or released,
+and recording an already known result is never gated. A protected read discloses
+the closed reading to the cockpit and workspace panel, which use it only to
+withhold execution-start actions. It adds no table, lease, queue, slot or
+scheduler, does not include standalone Process attempts, and does not implement
+the global two-mutating-run scheduler. Increment 5 stays incomplete.
+
 ### Cross-project scheduling
 
 The supervisor may claim eligible work for multiple runs up to the configured

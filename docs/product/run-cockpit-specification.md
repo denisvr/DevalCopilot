@@ -1895,6 +1895,24 @@ the header shows the lifecycle exactly as recorded and its duration as lifecycle
 Agent activity; only a simulated demo run keeps the live treatment. The provider runtime preflight remains version evidence only. See
 [ADR-0056](../decisions/0056-observe-agent-supervision-without-granting-execution-authority.md).
 
+### Workspace execution status (WORKSPACE-EXCL-01)
+
+The selected project reads one protected, bodyless and queryless status of who may execute in its latest workspace
+([ADR-0057](../decisions/0057-serialize-agent-and-verification-execution-within-an-owned-workspace.md)): `NoWorkspace`, `Idle`,
+`AgentAttemptActive`, `VerificationActive`, `CommitReserved`, `Conflicted` or `Unavailable`, with exactly the project, the exact latest
+workspace, the status and a fixed reason code (no path, payload, owner list or liveness). The browser accepts an answer only as a whole
+and only for the selected project; anything else is shown as not coherent. The candidate workspace region and the run cockpit receive the
+same reading, as a required input of both regions, and use it only as an additional veto: while it is absent, pending, failed, timed out,
+not coherent, replaced, of an unknown status, or anything but
+`Idle`, starting an Agent, a repair, a planning sequence, a verification or a local commit is withheld and one fixed guidance sentence per
+region says why, with a control that only reads the status again. `Idle` states only what that read found and enables nothing by itself:
+every existing eligibility rule still applies. Historical evidence, Refresh, Stop after current step, recording an already known result,
+metadata-only abandonment and the readiness displays are never withheld, and nothing here cancels, retries or releases anything. The
+status is read when the project is selected, when the evidence refreshes or a durable run event arrives, and every five seconds while the
+project is selected (verification transitions emit no run event). Reads never overlap, a request is aborted after ten seconds and when the
+selection or view ends, polling stops after three consecutive failures until an explicit refresh, remount or hint, a response for another
+selection or visit is dropped, a failed or timed-out read masks an earlier `Idle`, and nothing is stored in the browser.
+
 ## Evidence surface
 
 The right rail provides contextual evidence categories:

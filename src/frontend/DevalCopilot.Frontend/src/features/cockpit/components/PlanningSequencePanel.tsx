@@ -32,6 +32,11 @@ interface PlanningSequencePanelProps {
   runId: string
   /** The run's planning-sequence read (ADR-0055); everything shown, and every control, derives from this one validated status. */
   planningSequence: UsePlanningSequenceResult
+  /**
+   * The fixed reason the workspace execution status (ADR-0057) withholds arming, or null/absent when it withholds nothing. It is only a
+   * veto of Arm: reading the status, Stop after current step and every recorded fact stay as they are.
+   */
+  armWithheldReason?: string | null
 }
 
 // What the run's visit owns beyond the status: the receipt of an arming and the answer of a stop that this window sent.
@@ -139,7 +144,7 @@ function FinalReferences({ sequence }: { sequence: PlanningSequenceDetails }) {
  * bookkeeping and is never worded as a live provider process. Unknown, loading or failed status offers neither arming nor Stop. The
  * panel has no resume, rearm, retry or cancel control, and it shows no transcript or artifact body; every host text is literal text.
  */
-export function PlanningSequencePanel({ runId, planningSequence }: PlanningSequencePanelProps) {
+export function PlanningSequencePanel({ runId, planningSequence, armWithheldReason = null }: PlanningSequencePanelProps) {
   const { status, loading, failure, control, refresh } = planningSequence
   const sequence = status?.sequence ?? null
   const candidate = tupleOf(status)
@@ -152,7 +157,7 @@ export function PlanningSequencePanel({ runId, planningSequence }: PlanningSeque
   const armAction = useArmPlanningSequence(runId, candidate, refresh, onReceipt)
   const stopAction = useStopPlanningSequence(runId, sequence?.sequenceId ?? null, refresh, onStopAnswer)
 
-  const canArm = control === 'none' && candidate !== null && !armAction.requesting
+  const canArm = control === 'none' && candidate !== null && !armAction.requesting && armWithheldReason === null
   const stoppable = sequence !== null && control !== 'unknown' && ['Armed', 'PreparingStep', 'AwaitingStepResult'].includes(sequence.state)
   const alreadyStopping = sequence !== null && control !== 'unknown' && sequence.state === 'Stopping'
 
@@ -206,6 +211,11 @@ export function PlanningSequencePanel({ runId, planningSequence }: PlanningSeque
             >
               {armAction.requesting ? 'Arming…' : PLANNING_SEQUENCE_ARM_LABEL}
             </button>
+            {armWithheldReason !== null && (
+              <p className="dc-planning-sequence-note" role="status">
+                {armWithheldReason}
+              </p>
+            )}
           </>
         ) : (
           <p className="dc-planning-sequence-refusal">

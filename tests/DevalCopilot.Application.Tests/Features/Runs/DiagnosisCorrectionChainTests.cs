@@ -305,7 +305,8 @@ public sealed class DiagnosisCorrectionChainTests : IAsyncLifetime
     [Theory]
     [InlineData("TimedOut", "agent_attempts.verification_evidence_not_passed")]
     [InlineData("Failed", "agent_attempts.verification_evidence_not_passed")]
-    [InlineData("Running", "agent_attempts.verification_evidence_running")]
+    // ADR-0057: a Running execution owns the workspace, so the exclusion refuses the claim before the evidence is read.
+    [InlineData("Running", "workspace_execution.verification_active")]
     public async Task The_review_of_a_corrected_report_requires_every_enabled_command_to_have_passed_for_the_new_checkpoint(
         string newKind, string expectedCode)
     {

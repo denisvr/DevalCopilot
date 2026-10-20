@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
+using DevalCopilot.Application.Features.Projects.Policies.WorkspaceExecutions;
 using DevalCopilot.Application.Features.Runs.Errors;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
@@ -93,6 +94,17 @@ internal sealed class LocalCommitAuthorityReader(IDevalCopilotDbContext dbContex
             || await dbContext.VerificationExecutions.AsNoTracking().AnyAsync(
                 execution => execution.GitWorkspaceId == workspace.Id && execution.Status == VerificationExecutionStatus.Running,
                 cancellationToken))
+        {
+            return Fail(LocalCommitErrors.ActiveWork(), checkpoint.Id);
+        }
+
+        // ADR-0057: the same shared reading of workspace ownership. Admission and status require an Idle workspace; the locked
+        // reservation and execution seams require the reservation to be the only owner, so a commit may execute its own Committing
+        // reservation but never ignore another Agent attempt, verification execution, conflicting or untrustworthy ownership.
+        var ownership = await WorkspaceExecutionPolicy.AssessAsync(dbContext, run.ProjectId, workspace.Id, null, null, cancellationToken);
+        if (ownership.Status != (requiredWorkspaceStatus == WorkspaceStatus.Committing
+                ? WorkspaceExecutionStatus.CommitReserved
+                : WorkspaceExecutionStatus.Idle))
         {
             return Fail(LocalCommitErrors.ActiveWork(), checkpoint.Id);
         }

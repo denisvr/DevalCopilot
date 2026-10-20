@@ -2,6 +2,7 @@ using System.Data.Common;
 using System.Text;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Application.Features.Projects.Policies.WorkspaceExecutions;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs.Commands.CreateReviewCorrectionAttempt;
 using DevalCopilot.Application.Features.Runs.Errors;
@@ -121,6 +122,13 @@ public sealed class CreateDiagnosisCorrectionAttemptCommandHandler(
             return Failure(Error.Conflict("agent_attempts.checkpoint_missing", "A current Git checkpoint is required."));
         }
 
+        // ADR-0057: no other Agent attempt, verification execution or local-commit reservation may own this workspace, decided before
+        // any Git work or manifest sealing and again at the write-locked commit seam below.
+        if (await WorkspaceExecutionFence.CheckClaimAsync(dbContext, run.ProjectId, workspace.Id, cancellationToken) is { } workspaceBusy)
+        {
+            return Failure(workspaceBusy);
+        }
+
         var evidence = await evidenceReader.CaptureForAgentContextAsync(
             workspace.WorkspacePath, includeUntrackedPreviews: true, cancellationToken);
         if (evidence.Outcome != GitWorkspaceEvidenceOutcome.Success
@@ -229,6 +237,7 @@ public sealed class CreateDiagnosisCorrectionAttemptCommandHandler(
             ClaudeModelRequestSnapshot requestedClaude = default!;
             Result<int?> requestedTurnLimit = default!;
             Error? authorityError = null;
+            Error? workspaceExecutionError = null;
             Authority? authority = null;
             try
             {
@@ -244,6 +253,10 @@ public sealed class CreateDiagnosisCorrectionAttemptCommandHandler(
                             run, workspace.Id, checkpoint, sealedDiagnosisId, sealedReportId, sealedFindingIds, cancellationToken);
                     }
                 }
+
+                // ADR-0057: decided under the same write lock, immediately before the claim's own insert, from fresh untracked reads.
+                workspaceExecutionError = await WorkspaceExecutionFence.CheckClaimAsync(
+                    dbContext, run.ProjectId, workspace.Id, cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -276,6 +289,11 @@ public sealed class CreateDiagnosisCorrectionAttemptCommandHandler(
             if (authorityError is not null)
             {
                 return await RefuseAsync(claimTransaction, run.Id, attemptId, authorityError, cancellationToken);
+            }
+
+            if (workspaceExecutionError is not null)
+            {
+                return await RefuseAsync(claimTransaction, run.Id, attemptId, workspaceExecutionError, cancellationToken);
             }
 
             if (authority!.AllowanceSpent && directGuidance is not null)
