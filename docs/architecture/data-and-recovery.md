@@ -270,7 +270,11 @@ marker or releases a lease.
 
 How many potentially mutating owners are recorded across the database ([ADR-0058](../decisions/0058-bound-global-admission-of-existing-workspace-mutators.md)) is derived, never stored: a fresh, untracked reading
 counts unresolved Agent attempts of a coherent WorkspaceMutating contract-role pair (Domain's table, never the provider), unresolved
-verification executions and coherent local-commit reservations, each excluding only the recognized terminal statuses. The ceiling is two.
+verification executions and coherent local-commit reservations, each excluding only the recognized terminal statuses. The ceiling is the
+latest immutable row of `execution_capacity_configurations` ([ADR-0059](../decisions/0059-configure-the-recorded-mutating-admission-limit.md)): revision one seeds limit two, an explicit operator change appends exactly the next
+revision (limit one or two) in one short write-locked transaction and is refused while more owners are recorded than the requested limit allows,
+and a missing or malformed latest revision makes the reading Unavailable (never an older row or a default). The limit is read fresh and untracked
+at every check, never cached.
 A missing or incoherent contract-role pair, an owner whose run, project or workspace association cannot be attested, an orphan open
 operation or reservation, or two owners on one workspace make the reading Unavailable instead of a convenient count. Claims check it
 before preparation and again under the existing write lock; dispatch and execution gates read it again and ignore exactly their own

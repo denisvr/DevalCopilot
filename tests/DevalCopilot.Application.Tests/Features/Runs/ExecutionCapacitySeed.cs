@@ -118,6 +118,15 @@ internal static class ExecutionCapacitySeed
         return placed;
     }
 
+    /// <summary>Appends the next configuration revision with <paramref name="limit"/> through its own connection, exactly as the explicit
+    /// operator command would, so an admission under test sees the persisted limit without depending on that command.</summary>
+    public static async Task SetLimitAsync(SqliteDatabaseFixture fixture, int limit)
+    {
+        await using var db = fixture.CreateContext();
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"INSERT INTO execution_capacity_configurations (Revision, \"Limit\") SELECT MAX(Revision) + 1, {limit} FROM execution_capacity_configurations");
+    }
+
     /// <summary>A genuine terminal transition of the owner's own row, which is what frees a place.</summary>
     public static async Task FinishAsync(SqliteDatabaseFixture fixture, PlacedOwner owner)
     {

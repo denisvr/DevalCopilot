@@ -118,4 +118,75 @@ public sealed partial class CreateReviewCorrectionAttemptCommandHandlerTests
             .HandleAsync(Command(seed), CancellationToken.None);
         Assert.True(admitted.IsSuccess);
     }
+
+    /// <summary>ADR-0059: at limit one a single other recorded owner refuses the correction before any external work, the one place taken
+    /// before the commit seam refuses it with its manifest removed, and a lone correction is admitted.</summary>
+    [Theory]
+    [InlineData(OwnerFamily.Agent)]
+    [InlineData(OwnerFamily.Verification)]
+    [InlineData(OwnerFamily.LocalCommit)]
+    public async Task At_limit_one_a_single_other_owner_refuses_the_claim_before_any_external_work_and_consumes_nothing(OwnerFamily other)
+    {
+        await using var seedContext = _fixture.CreateContext();
+        var seed = await SeedAsync(seedContext);
+        await ExecutionCapacitySeed.SetLimitAsync(_fixture, 1);
+        await ExecutionCapacitySeed.AddAsync(_fixture, other);
+        var before = await WorkspaceExecutionRaceSupport.TakeAsync(_fixture, seed.Run.Id);
+        var captures = 0;
+        var store = new TestArtifactStore();
+        await using var handlerContext = _fixture.CreateContext();
+
+        var result = await new CreateReviewCorrectionAttemptCommandHandler(
+            handlerContext,
+            new RecordingEvidenceReader(
+                seed.Evidence,
+                _ =>
+                {
+                    captures++;
+                    return Task.CompletedTask;
+                }),
+            store,
+            new FixedTimeProvider(Now)).HandleAsync(Command(seed), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(CapacityLimitReachedCode, Assert.Single(result.Errors).Code);
+        Assert.Equal(0, captures);
+        Assert.Empty(store.DeletedSealedFiles);
+        await WorkspaceExecutionRaceSupport.AssertUnchangedAsync(_fixture, seed.Run.Id, before);
+    }
+
+    [Fact]
+    public async Task At_limit_one_the_place_taken_before_the_commit_seam_refuses_the_claim_and_removes_its_manifest()
+    {
+        await using var seedContext = _fixture.CreateContext();
+        var seed = await SeedAsync(seedContext);
+        await ExecutionCapacitySeed.SetLimitAsync(_fixture, 1);
+        var before = await WorkspaceExecutionRaceSupport.TakeAsync(_fixture, seed.Run.Id);
+        var store = new TestArtifactStore();
+        await using var handlerContext = _fixture.CreateContext(new BeforeFirstSaveInterceptor(
+            () => ExecutionCapacitySeed.AddAsync(_fixture, OwnerFamily.Verification)));
+
+        var result = await new CreateReviewCorrectionAttemptCommandHandler(
+            handlerContext, new RecordingEvidenceReader(seed.Evidence), store, new FixedTimeProvider(Now)).HandleAsync(Command(seed), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(CapacityLimitReachedCode, Assert.Single(result.Errors).Code);
+        Assert.Single(store.DeletedSealedFiles);
+        await WorkspaceExecutionRaceSupport.AssertUnchangedAsync(_fixture, seed.Run.Id, before);
+    }
+
+    [Fact]
+    public async Task At_limit_one_a_lone_correction_is_admitted()
+    {
+        await using var seedContext = _fixture.CreateContext();
+        var seed = await SeedAsync(seedContext);
+        await ExecutionCapacitySeed.SetLimitAsync(_fixture, 1);
+        await using var handlerContext = _fixture.CreateContext();
+
+        var result = await new CreateReviewCorrectionAttemptCommandHandler(
+            handlerContext, new RecordingEvidenceReader(seed.Evidence), new TestArtifactStore(), new FixedTimeProvider(Now))
+            .HandleAsync(Command(seed), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+    }
 }

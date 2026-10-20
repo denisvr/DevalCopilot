@@ -169,6 +169,92 @@ public sealed class LocalCommitGlobalAdmissionTests : LocalCommitTestBase
         Assert.Equal(WorkspaceStatus.Ready, (await WorkspaceRowAsync(ids.WorkspaceId)).Status);
     }
 
+    // ---- ADR-0059: the persisted limit decides the same boundaries ---------------------------------------------------------------
+
+    private Task LowerLimitToOneAsync() => ExecuteSqlAsync(
+        "INSERT INTO execution_capacity_configurations (Revision, \"Limit\") SELECT MAX(Revision) + 1, 1 FROM execution_capacity_configurations;");
+
+    [Fact]
+    public async Task At_limit_one_a_single_other_owner_refuses_admission_before_any_preparation_and_persists_nothing()
+    {
+        var preparer = new ScriptedLocalCommitPreparer();
+        var (host, script) = StartScripted(supervisor: false, decoratePreparer: inner => preparer.Attach(inner));
+        var ids = await LocalCommitLineage.SeedAsync(host, Scene);
+        await LowerLimitToOneAsync();
+        await PlantVerificationOwnerAsync(host);
+
+        var response = await PostAsync(host, ids.RunId, ids);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal(LimitReached, await ErrorCodeAsync(response));
+        Assert.Equal(0, preparer.Entered);
+        Assert.Empty(script.Calls);
+        await AssertNothingAdmittedAsync(host, ids);
+    }
+
+    [Fact]
+    public async Task At_limit_one_the_lone_approved_commit_is_admitted_and_reserved()
+    {
+        var (host, _) = StartScripted(supervisor: false);
+        var ids = await LocalCommitLineage.SeedAsync(host, Scene);
+        await LowerLimitToOneAsync();
+
+        var response = await PostAsync(host, ids.RunId, ids);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(WorkspaceStatus.Committing, (await WorkspaceRowAsync(ids.WorkspaceId)).Status);
+        Assert.Equal(LocalCommitStatus.Prepared, (await OperationRowAsync(ids.RunId)).Status);
+    }
+
+    [Fact]
+    public async Task At_limit_one_an_owner_that_takes_the_one_place_after_preparation_refuses_the_locked_admission()
+    {
+        var preparer = new ScriptedLocalCommitPreparer();
+        LocalCommitHost? hostForCallback = null;
+        preparer.AfterPrepare = async completion =>
+        {
+            Assert.True(completion.IsPrepared);
+            await PlantVerificationOwnerAsync(hostForCallback!);
+        };
+        var (host, script) = StartScripted(supervisor: false, decoratePreparer: inner => preparer.Attach(inner));
+        hostForCallback = host;
+        var ids = await LocalCommitLineage.SeedAsync(host, Scene);
+        await LowerLimitToOneAsync();
+
+        var response = await PostAsync(host, ids.RunId, ids);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal(LimitReached, await ErrorCodeAsync(response));
+        Assert.Equal(1, preparer.Entered);
+        Assert.Empty(script.Calls);
+        await AssertNothingAdmittedAsync(host, ids);
+    }
+
+    [Fact]
+    public async Task At_limit_one_execution_ignores_only_its_own_reservation_and_refuses_beside_a_single_other_owner()
+    {
+        var (host, script) = StartScripted(supervisor: false);
+        var ids = await LocalCommitLineage.SeedAsync(host, Scene);
+        Assert.Equal(HttpStatusCode.OK, (await PostAsync(host, ids.RunId, ids)).StatusCode);
+        var operationId = (await OperationRowAsync(ids.RunId)).Id;
+        await LowerLimitToOneAsync();
+        var other = await PlantVerificationOwnerAsync(host);
+
+        var refused = await ExecuteAsync(host, operationId);
+
+        Assert.True(refused.IsFailure);
+        Assert.Equal(LimitReached, Assert.Single(refused.Errors).Code);
+        Assert.Empty(script.Calls);
+        Assert.Equal(LocalCommitStatus.Prepared, (await OperationRowAsync(ids.RunId)).Status);
+        Assert.Equal(WorkspaceStatus.Committing, (await WorkspaceRowAsync(ids.WorkspaceId)).Status);
+
+        await FinishVerificationOwnerAsync(host, other);
+        var executed = await ExecuteAsync(host, operationId);
+
+        Assert.True(executed.IsSuccess, executed.IsFailure ? executed.Errors[0].Code : string.Empty);
+        Assert.Equal(LocalCommitStatus.Completed, (await OperationRowAsync(ids.RunId)).Status);
+    }
+
     private static async Task<Devalente.Shared.Results.Result<LocalCommitOperationView>> ExecuteAsync(LocalCommitHost host, Guid operationId)
     {
         await using var scope = host.Services.CreateAsyncScope();

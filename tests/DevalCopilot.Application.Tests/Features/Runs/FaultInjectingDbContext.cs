@@ -133,6 +133,8 @@ public sealed class FaultInjectingDbContext(DevalCopilotDbContext inner) : IDeva
 
     public DbSet<AgentSupervision> AgentSupervisions => inner.AgentSupervisions;
 
+    public DbSet<ExecutionCapacityConfigurationRevision> ExecutionCapacityConfigurations => inner.ExecutionCapacityConfigurations;
+
     public Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<TEntity> Entry<TEntity>(TEntity entity) where TEntity : class => inner.Entry(entity);
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken)

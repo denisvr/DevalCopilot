@@ -462,6 +462,52 @@ public sealed class VerificationDispatchDecisionTests : IAsyncLifetime
 
     private sealed record DecisionOutcome(Result Result, List<string> Log);
 
+    // ---- ADR-0059: the persisted limit decides the same gate -----------------------------------------------------------------
+
+    [Theory]
+    [InlineData(OwnerFamily.Agent)]
+    [InlineData(OwnerFamily.Verification)]
+    [InlineData(OwnerFamily.LocalCommit)]
+    public async Task At_limit_one_a_single_other_recorded_owner_refuses_the_dispatch_and_leaves_the_execution_pending(OwnerFamily other)
+    {
+        await using var dbContext = fixture.CreateContext();
+        var scene = await SeedAsync(dbContext);
+        await ExecutionCapacitySeed.SetLimitAsync(fixture, 1);
+
+        var outcome = await MarkAsync(dbContext, scene, scene.Expected, _ => ExecutionCapacitySeed.AddAsync(fixture, other));
+
+        Assert.Equal("execution_capacity.limit_reached", Assert.Single(outcome.Result.Errors).Code);
+        await AssertPendingAsync(scene);
+    }
+
+    [Fact]
+    public async Task At_limit_one_the_exact_execution_alone_still_dispatches_by_excluding_exactly_itself()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var scene = await SeedAsync(dbContext);
+        await ExecutionCapacitySeed.SetLimitAsync(fixture, 1);
+
+        var outcome = await MarkAsync(dbContext, scene, scene.Expected, _ => Task.CompletedTask);
+
+        Assert.True(outcome.Result.IsSuccess);
+        await using var verify = fixture.CreateContext();
+        Assert.NotNull((await verify.VerificationExecutions.SingleAsync(execution => execution.Id == scene.ExecutionId)).DispatchedAtUtc);
+    }
+
+    [Fact]
+    public async Task At_limit_one_a_single_other_recorded_owner_also_refuses_the_pre_dispatch_source_change()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var scene = await SeedAsync(dbContext);
+        await ExecutionCapacitySeed.SetLimitAsync(fixture, 1);
+
+        var outcome = await SourceChangedAsync(
+            dbContext, scene, scene.Expected, _ => ExecutionCapacitySeed.AddAsync(fixture, OwnerFamily.Agent));
+
+        Assert.Equal("execution_capacity.limit_reached", Assert.Single(outcome.Errors).Code);
+        await AssertPendingAsync(scene);
+    }
+
     private async Task<DecisionOutcome> MarkAsync(
         DevalCopilotDbContext dbContext,
         Scene scene,

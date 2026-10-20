@@ -40,6 +40,38 @@
   border-bottom: 1px solid var(--dc-border);
 }
 
+.dc-capacity-control {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  padding: 0.4rem 1rem;
+  border-bottom: 1px solid var(--dc-border);
+}
+
+.dc-capacity-control-choice {
+  display: flex;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.dc-capacity-control-feedback,
+.dc-capacity-control-note {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.dc-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
 .dc-nav-toggle {
   border: 1px solid var(--dc-border);
   background: var(--dc-surface);

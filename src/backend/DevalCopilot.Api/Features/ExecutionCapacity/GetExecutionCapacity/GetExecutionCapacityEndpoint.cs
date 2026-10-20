@@ -7,7 +7,7 @@ namespace DevalCopilot.Api.Features.ExecutionCapacity.GetExecutionCapacity;
 
 /// <summary>
 /// Protected, read-only, bodyless and queryless reading of how many potentially mutating execution owners the host records across its
-/// database (ADR-0058). It reads only existing durable rows through the shared capacity policy: never Git, a provider, a process table
+/// database (ADR-0058) against the persisted limit (ADR-0059). It reads only existing durable rows through the shared capacity policy: never Git, a provider, a process table
 /// or AgentSupervision, and it writes nothing. Unsafe or unrecognized ownership is the closed Unavailable answer, never a fabricated count.
 /// </summary>
 public sealed class GetExecutionCapacityEndpoint(IApplicationMediator mediator, IResultProblemDetailsFactory problemDetails)

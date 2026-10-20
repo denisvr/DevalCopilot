@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import App from './App'
 import * as useSessionStatusModule from './features/cockpit/hooks/useSessionStatus'
@@ -550,16 +550,23 @@ describe('App execution capacity composition (ADR-0058)', () => {
             : 'none'
   }
 
-  async function renderApp(read: () => Promise<unknown>, sessionStatus = 'ready') {
+  async function renderApp(
+    read: () => Promise<unknown>,
+    sessionStatus = 'ready',
+    options: { noProjects?: boolean; change?: (limit: number) => Promise<unknown> } = {},
+  ) {
     const readExecutionCapacity = vi.fn(read)
+    const changeExecutionCapacityLimit = vi.fn(options.change ?? (() => Promise.reject(new Error('no write scripted'))))
     vi.resetModules()
     vi.doMock('./features/cockpit/hooks/useSessionStatus', () => ({ useSessionStatus: () => sessionStatus }))
     vi.doMock('./features/cockpit/hooks/useProjectSummaries', () => ({
       useProjectSummaries: () => ({
-        projects: [
-          { projectId: PROJECT_ID, projectName: 'Alpha', runId: 'run-a', lifecycle: 'Running', capabilities: [] },
-          { projectId: OTHER_PROJECT_ID, projectName: 'Beta', runId: 'run-b', lifecycle: 'Running', capabilities: [] },
-        ],
+        projects: options.noProjects
+          ? []
+          : [
+              { projectId: PROJECT_ID, projectName: 'Alpha', runId: 'run-a', lifecycle: 'Running', capabilities: [] },
+              { projectId: OTHER_PROJECT_ID, projectName: 'Beta', runId: 'run-b', lifecycle: 'Running', capabilities: [] },
+            ],
         loading: false,
         error: null,
         refresh: vi.fn(),
@@ -590,9 +597,10 @@ describe('App execution capacity composition (ADR-0058)', () => {
     vi.doMock('./api/clients', async (importOriginal) => ({
       ...(await importOriginal<typeof import('./api/clients')>()),
       executionCapacityClient: () => ({ readExecutionCapacity }),
+      executionCapacityLimitClient: () => ({ changeExecutionCapacityLimit }),
     }))
     const { default: FreshApp } = await import('./App')
-    return { ...render(<FreshApp />), readExecutionCapacity }
+    return { ...render(<FreshApp />), readExecutionCapacity, changeExecutionCapacityLimit }
   }
 
   it('reads the host capacity once and hands the same state to both regions, withheld until it is read', async () => {
@@ -663,5 +671,77 @@ describe('App execution capacity composition (ADR-0058)', () => {
 
     expect(screen.getByText(/starting the local host/i)).toBeInTheDocument()
     expect(readExecutionCapacity).not.toHaveBeenCalled()
+  })
+
+  describe('the global recorded-execution limit control (ADR-0059)', () => {
+    const control = () => screen.getByRole('region', { name: 'Recorded-execution limit' })
+
+    it('is shown near the top without any selected project and offers the one-or-two choice, Apply and Refresh', async () => {
+      await renderApp(() => Promise.resolve(availableCapacityWire()), 'ready', { noProjects: true })
+
+      await within(control()).findByText('Current limit: two')
+      expect(within(control()).getByRole('radio', { name: 'One' })).toBeInTheDocument()
+      expect(within(control()).getByRole('button', { name: 'Apply limit' })).toBeInTheDocument()
+      expect(within(control()).getByRole('button', { name: 'Refresh limit' })).toBeInTheDocument()
+      expect(screen.queryByText(/workspace panel|cockpit run/)).toBeNull()
+    })
+
+    it('masks the old reading in both regions from the change until a later read confirms it, then shows the new limit in both', async () => {
+      const write = deferredAnswer()
+      const reads = [Promise.resolve(availableCapacityWire()), Promise.resolve(availableCapacityWire(0, 1))]
+      const { readExecutionCapacity, changeExecutionCapacityLimit } = await renderApp(
+        () => reads.shift() ?? Promise.resolve(availableCapacityWire(0, 1)),
+        'ready',
+        { change: () => write.promise },
+      )
+      await screen.findByText('cockpit run-a: Available with 0')
+      await within(control()).findByText('Current limit: two')
+
+      fireEvent.click(within(control()).getByRole('radio', { name: 'One' }))
+      fireEvent.click(within(control()).getByRole('button', { name: 'Apply limit' }))
+
+      expect(changeExecutionCapacityLimit).toHaveBeenCalledTimes(1)
+      expect(changeExecutionCapacityLimit).toHaveBeenCalledWith(1)
+      expect(await screen.findByText(`workspace panel ${PROJECT_ID}: none`)).toBeInTheDocument()
+      expect(screen.getByText('cockpit run-a: none')).toBeInTheDocument()
+      expect(within(control()).getByRole('status')).toHaveTextContent('Applying')
+
+      await act(async () => write.resolve(availableCapacityWire(0, 1)))
+
+      expect(await screen.findByText('cockpit run-a: Available with 0')).toBeInTheDocument()
+      expect(screen.getByText(`workspace panel ${PROJECT_ID}: Available with 0`)).toBeInTheDocument()
+      expect(await within(control()).findByText('Current limit: one')).toBeInTheDocument()
+      expect(readExecutionCapacity.mock.calls.length).toBeGreaterThanOrEqual(2)
+    })
+
+    it('shows the lower-limit refusal truthfully and keeps the current limit', async () => {
+      // The host module graph is re-imported by renderApp, so the refusal is built from that same graph.
+      const refusal = async () => {
+        const { ApiProblemDetails: Fresh } = await import('./api/generated/api-client')
+        throw Fresh.fromJS({ status: 409, errors: [{ code: 'execution_capacity.limit_below_recorded_owners' }] })
+      }
+      const { changeExecutionCapacityLimit } = await renderApp(
+        () => Promise.resolve(capacityWireFor('AtCapacity', {}, 2)),
+        'ready',
+        { change: refusal },
+      )
+      await within(control()).findByText('Current limit: two')
+
+      fireEvent.click(within(control()).getByRole('radio', { name: 'One' }))
+      fireEvent.click(within(control()).getByRole('button', { name: 'Apply limit' }))
+
+      expect(await within(control()).findByText(/nothing was changed/i)).toBeInTheDocument()
+      expect(changeExecutionCapacityLimit).toHaveBeenCalledTimes(1)
+      expect(within(control()).getByText('Current limit: two')).toBeInTheDocument()
+    })
+
+    it('changing projects applies nothing', async () => {
+      const { changeExecutionCapacityLimit } = await renderApp(() => Promise.resolve(availableCapacityWire()))
+      await screen.findByText('cockpit run-a: Available with 0')
+
+      fireEvent.click(screen.getByRole('button', { name: /^Beta/ }))
+
+      expect(changeExecutionCapacityLimit).not.toHaveBeenCalled()
+    })
   })
 })

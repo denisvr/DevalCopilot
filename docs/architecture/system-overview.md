@@ -330,7 +330,7 @@ scheduler, does not include standalone Process attempts, and does not implement
 the global two-mutating-run scheduler. Increment 5 stays incomplete.
 
 **Delivered partial slice: global mutating admission (GLOBAL-ADMIT-01).**
-[ADR-0058](../decisions/0058-bound-global-admission-of-existing-workspace-mutators.md) adds one fixed ceiling of two recorded potentially mutating execution owners per authoritative database, derived only from
+[ADR-0058](../decisions/0058-bound-global-admission-of-existing-workspace-mutators.md) adds one ceiling of recorded potentially mutating execution owners per authoritative database (fixed at two there; ADR-0059 makes it the operator's durable choice of one or two, default two, read fresh at every check), derived only from
 existing rows: unresolved Agent attempts whose coherent contract and role Domain classifies WorkspaceMutating (implementation and
 both correction origins), unresolved verification executions and ADR-0029's local-commit reservation. Recognized ReadOnly attempts,
 simulated and standalone Process attempts, approval waits and idle prepared workspaces consume nothing, and an unknown or malformed

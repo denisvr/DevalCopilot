@@ -3294,6 +3294,73 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   expect(stageInvocations()).toHaveLength(invocationsBeforeDisclosure)
   expect(verificationRowCounts()).toEqual(rowsBeforeDisclosure)
 
+  // ADR-0059: the global recorded-execution limit control, shown without regard to the selected project. The operator explicitly chooses
+  // one, applies it, and the host answers the closed four-member reading under the new limit after exactly one authenticated PUT of the
+  // one `limit` member; the control then states the limit that was read back. Both cockpit regions word a full database from the same
+  // validated limit, and changing the limit starts no work: no provider is invoked and no row is added.
+  const limitWrites: { method: string; search: string; body: string | null }[] = []
+  page.on('request', (request) => {
+    if (/^\/api\/execution-capacity\/limit$/i.test(new URL(request.url()).pathname)) {
+      limitWrites.push({ method: request.method(), search: new URL(request.url()).search, body: request.postData() })
+    }
+  })
+  const invocationsBeforeLimit = stageInvocations().length
+  const rowsBeforeLimit = verificationRowCounts()
+  const limitControl = page.getByRole('region', { name: 'Recorded-execution limit' })
+  await expect(limitControl.getByText('Current limit: two')).toBeVisible()
+  await expect(limitControl).toContainText('starts no work')
+
+  const lowered = page.waitForResponse(
+    (response) => response.request().method() === 'PUT' && /\/api\/execution-capacity\/limit$/i.test(new URL(response.url()).pathname),
+  )
+  await limitControl.getByRole('radio', { name: 'One' }).check()
+  expect(limitWrites).toHaveLength(0)
+  await limitControl.getByRole('button', { name: 'Apply limit' }).click()
+  const loweredResponse = await lowered
+  expect(loweredResponse.status()).toBe(200)
+  expect(await loweredResponse.json()).toEqual({ limit: 1, recordedOwners: 0, status: 'Available', reasonCode: null })
+  await expect(limitControl.getByText('Current limit: one')).toBeVisible({ timeout: 30_000 })
+  await expect(limitControl.getByRole('status')).toContainText('The recorded-execution limit is now one.')
+  expect(limitWrites).toEqual([{ method: 'PUT', search: '', body: '{"limit":1}' }])
+
+  // The same validated limit is worded by both regions when the database is full at limit one (a host answer the page cannot cause
+  // here, so it is supplied at the wire and removed again); neither region says two.
+  await page.route('**/api/execution-capacity', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ limit: 1, recordedOwners: 1, status: 'AtCapacity', reasonCode: 'execution_capacity_limit_reached' }),
+    }),
+  )
+  await limitControl.getByRole('button', { name: 'Refresh limit' }).click()
+  const workspaceGuidance = page.getByRole('status', { name: 'Execution capacity: candidate workspace' })
+  const cockpitGuidance = page.getByRole('status', { name: 'Execution capacity: run cockpit' })
+  for (const guidance of [workspaceGuidance, cockpitGuidance]) {
+    await expect(guidance).toBeVisible({ timeout: 30_000 })
+    await expect(guidance).toContainText('One potentially mutating execution is already recorded')
+    await expect(guidance).not.toContainText('Two potentially mutating executions')
+  }
+
+  await page.unroute('**/api/execution-capacity')
+  await limitControl.getByRole('button', { name: 'Refresh limit' }).click()
+  await expect(workspaceGuidance).toHaveCount(0, { timeout: 30_000 })
+  await expect(cockpitGuidance).toHaveCount(0, { timeout: 30_000 })
+
+  const raised = page.waitForResponse(
+    (response) => response.request().method() === 'PUT' && /\/api\/execution-capacity\/limit$/i.test(new URL(response.url()).pathname),
+  )
+  await limitControl.getByRole('radio', { name: 'Two' }).check()
+  await limitControl.getByRole('button', { name: 'Apply limit' }).click()
+  expect((await raised).status()).toBe(200)
+  await expect(limitControl.getByText('Current limit: two')).toBeVisible({ timeout: 30_000 })
+  await expect(limitControl.getByRole('status')).toContainText('The recorded-execution limit is now two.')
+  expect(limitWrites).toEqual([
+    { method: 'PUT', search: '', body: '{"limit":1}' },
+    { method: 'PUT', search: '', body: '{"limit":2}' },
+  ])
+  expect(stageInvocations()).toHaveLength(invocationsBeforeLimit)
+  expect(verificationRowCounts()).toEqual(rowsBeforeLimit)
+
   // The launch secret never reached the page URL, browser storage, or any file under the owned root.
   expect(page.url()).not.toContain(journeySecret())
   expect(await page.evaluate(() => JSON.stringify(window.localStorage) + JSON.stringify(window.sessionStorage))).not.toContain(journeySecret())

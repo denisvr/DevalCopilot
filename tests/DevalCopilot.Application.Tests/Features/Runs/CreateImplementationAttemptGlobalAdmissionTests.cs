@@ -223,4 +223,73 @@ public sealed partial class CreateImplementationAttemptCommandHandlerTests
 
         Assert.True(result.IsSuccess);
     }
+
+    /// <summary>ADR-0059: the persisted limit decides. At limit one a single other recorded owner refuses the claim before any external
+    /// work, an owner taking the one place before the commit seam refuses it with its manifest removed, and a lone claim is admitted.</summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task At_limit_one_a_single_other_owner_refuses_the_claim_before_any_external_work_and_consumes_nothing(bool agent)
+    {
+        var (runId, proposalId) = await SeedClaudeModelScenarioAsync(initialAlias: null);
+        await ExecutionCapacitySeed.SetLimitAsync(_fixture, 1);
+        await OccupyAsync(await AddUnrelatedScenarioAsync(), agent);
+        var before = await WorkspaceExecutionRaceSupport.TakeAsync(_fixture, runId);
+        var captures = 0;
+        var artifactStore = new FakeArtifactStore();
+        await using var handlerContext = _fixture.CreateContext();
+        var handler = new CreateImplementationAttemptCommandHandler(
+            handlerContext,
+            new RaceInjectingEvidenceReader(
+                new GitWorkspaceEvidenceResult(GitWorkspaceEvidenceOutcome.Success, new string('a', 40), Fingerprint, [], null),
+                _ =>
+                {
+                    captures++;
+                    return Task.CompletedTask;
+                }),
+            artifactStore,
+            new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(new CreateImplementationAttemptCommand(runId, proposalId), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(GlobalLimitReachedCode, Assert.Single(result.Errors).Code);
+        Assert.Equal(0, captures);
+        Assert.Empty(artifactStore.DeletedSealedFiles);
+        await WorkspaceExecutionRaceSupport.AssertUnchangedAsync(_fixture, runId, before);
+    }
+
+    [Fact]
+    public async Task At_limit_one_the_place_taken_before_the_commit_seam_refuses_the_claim_and_removes_its_manifest()
+    {
+        var (runId, proposalId) = await SeedClaudeModelScenarioAsync(initialAlias: null);
+        await ExecutionCapacitySeed.SetLimitAsync(_fixture, 1);
+        var late = await AddUnrelatedScenarioAsync();
+        var before = await WorkspaceExecutionRaceSupport.TakeAsync(_fixture, runId);
+        var artifactStore = new FakeArtifactStore();
+        await using var handlerContext = _fixture.CreateContext(new BeforeFirstSaveInterceptor(() => OccupyAsync(late, agent: true)));
+        var handler = new CreateImplementationAttemptCommandHandler(
+            handlerContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), artifactStore, new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(new CreateImplementationAttemptCommand(runId, proposalId), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(GlobalLimitReachedCode, Assert.Single(result.Errors).Code);
+        Assert.Single(artifactStore.DeletedSealedFiles, entry => entry.Purpose == ArtifactPurpose.AgentContextManifest);
+        await WorkspaceExecutionRaceSupport.AssertUnchangedAsync(_fixture, runId, before);
+    }
+
+    [Fact]
+    public async Task At_limit_one_a_lone_claim_is_admitted()
+    {
+        var (runId, proposalId) = await SeedClaudeModelScenarioAsync(initialAlias: null);
+        await ExecutionCapacitySeed.SetLimitAsync(_fixture, 1);
+        await using var handlerContext = _fixture.CreateContext();
+        var handler = new CreateImplementationAttemptCommandHandler(
+            handlerContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(new CreateImplementationAttemptCommand(runId, proposalId), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+    }
 }

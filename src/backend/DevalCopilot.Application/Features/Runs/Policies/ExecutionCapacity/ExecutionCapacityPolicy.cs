@@ -8,10 +8,11 @@ namespace DevalCopilot.Application.Features.Runs.Policies.ExecutionCapacity;
 
 /// <summary>
 /// The one fresh, untracked reading of how many potentially mutating execution owners are recorded across one authoritative database
-/// (ADR-0058). Ownership is derived only from rows that already exist: an unresolved Agent attempt whose coherent contract and role are
-/// WorkspaceMutating in Domain's <see cref="AgentAttemptContract"/>, an unresolved verification execution (a configured command may
-/// mutate), and ADR-0029's local-commit reservation tied to its one open operation. It reads no Git, provider, process table or
-/// AgentSupervision, adds no table, slot, lease or counter, and writes nothing.
+/// (ADR-0058), against the latest persisted limit revision (ADR-0059). Ownership is derived only from rows that already exist: an
+/// unresolved Agent attempt whose coherent contract and role are WorkspaceMutating in Domain's <see cref="AgentAttemptContract"/>, an
+/// unresolved verification execution (a configured command may mutate), and ADR-0029's local-commit reservation tied to its one open
+/// operation. It reads no Git, provider, process table or AgentSupervision, adds no slot, lease or counter (the only table it reads
+/// beside existing rows is the immutable limit configuration), and writes nothing.
 ///
 /// <para>
 /// Every predicate is a database-side exclusion of the recognized terminal set, so a stored status this build does not recognize is never
@@ -31,9 +32,6 @@ namespace DevalCopilot.Application.Features.Runs.Policies.ExecutionCapacity;
 /// </summary>
 internal static class ExecutionCapacityPolicy
 {
-    /// <summary>The fixed ceiling: two recorded potentially mutating owners per authoritative database.</summary>
-    public const int Limit = 2;
-
     private static readonly Expression<Func<Attempt, bool>> MutatingPair = PairsOf(AgentEffectKind.WorkspaceMutating);
     private static readonly Expression<Func<Attempt, bool>> ReadOnlyPair = PairsOf(AgentEffectKind.ReadOnly);
 
@@ -54,22 +52,66 @@ internal static class ExecutionCapacityPolicy
         return row.Role == knownRole ? row.Effect : null;
     }
 
-    /// <summary>The reading across the whole database, optionally validating the caller's own owner (included in the count).</summary>
+    /// <summary>The reading across the whole database, optionally validating the caller's own owner (included in the count). The persisted
+    /// limit is read first, fresh and untracked: a missing or malformed latest revision is Unavailable with no limit, and an ownership
+    /// reading that cannot be trusted keeps the validated limit but states no count.</summary>
     public static async Task<ExecutionCapacityReading> ReadAsync(
         IDevalCopilotDbContext dbContext, ExecutionOwner? own, CancellationToken cancellationToken)
     {
+        ExecutionCapacityConfiguration? configuration;
         try
         {
-            return await ReadCoreAsync(dbContext, own, cancellationToken);
+            configuration = await ReadConfigurationAsync(dbContext, cancellationToken);
         }
         catch (Exception exception) when (exception is InvalidOperationException or FormatException)
         {
-            return Unavailable();
+            configuration = null;
+        }
+
+        if (configuration is not { } current)
+        {
+            return new ExecutionCapacityReading(ExecutionCapacityStatus.Unavailable, null, null, null);
+        }
+
+        try
+        {
+            return await ReadCoreAsync(dbContext, own, current, cancellationToken);
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or FormatException)
+        {
+            return Unavailable(current);
         }
     }
 
+    /// <summary>The fixed reason code each status carries on the wire (null: none).</summary>
+    public static string? ReasonCodeOf(ExecutionCapacityStatus status) => status switch
+    {
+        ExecutionCapacityStatus.Available => null,
+        ExecutionCapacityStatus.AtCapacity => "execution_capacity_limit_reached",
+        _ => "execution_capacity_unavailable",
+    };
+
+    /// <summary>The latest configuration revision, read fresh and untracked, or null when none exists or the latest one is malformed. A
+    /// malformed latest row is never skipped in favour of an older one. The revision is the table's integer row key, so only its range is
+    /// judged; the limit is compared database-side with the two supported integers, so a real, text or blob value (which equals neither)
+    /// is never coerced into a setting and is never materialized.</summary>
+    internal static async Task<ExecutionCapacityConfiguration?> ReadConfigurationAsync(
+        IDevalCopilotDbContext dbContext, CancellationToken cancellationToken)
+    {
+        var latest = await dbContext.ExecutionCapacityConfigurations.AsNoTracking()
+            .OrderByDescending(configuration => configuration.Revision)
+            .Select(configuration => new
+            {
+                Valid = configuration.Revision >= 1 && (configuration.Limit == 1 || configuration.Limit == 2),
+                Revision = configuration.Revision >= 1 ? configuration.Revision : 0L,
+                Limit = configuration.Limit == 1 ? 1 : configuration.Limit == 2 ? 2 : 0,
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+        return latest is { Valid: true } ? new ExecutionCapacityConfiguration(latest.Revision, latest.Limit) : null;
+    }
+
     private static async Task<ExecutionCapacityReading> ReadCoreAsync(
-        IDevalCopilotDbContext dbContext, ExecutionOwner? own, CancellationToken cancellationToken)
+        IDevalCopilotDbContext dbContext, ExecutionOwner? own, ExecutionCapacityConfiguration configuration, CancellationToken cancellationToken)
     {
         var unresolvedAttempts = dbContext.Attempts.AsNoTracking().Where(attempt => attempt.Status != AttemptStatus.Completed
             && attempt.Status != AttemptStatus.Failed
@@ -78,7 +120,7 @@ internal static class ExecutionCapacityPolicy
                 attempt => attempt.Kind != AttemptKind.Agent && attempt.Kind != AttemptKind.Process && attempt.Kind != AttemptKind.Simulated,
                 cancellationToken))
         {
-            return Unavailable();
+            return Unavailable(configuration);
         }
 
         var unresolvedAgents = unresolvedAttempts.Where(attempt => attempt.Kind == AttemptKind.Agent);
@@ -88,7 +130,7 @@ internal static class ExecutionCapacityPolicy
         // The two pair sets are disjoint (one row per response contract), so anything left over is an unrecognized or incoherent pair.
         if (await unresolvedAgents.CountAsync(cancellationToken) != mutatingCount + readOnlyCount)
         {
-            return Unavailable();
+            return Unavailable(configuration);
         }
 
         var agentOwners = mutating.Where(attempt => attempt.AgentGitWorkspaceId != null
@@ -97,7 +139,7 @@ internal static class ExecutionCapacityPolicy
         var agentOwnerCount = await agentOwners.CountAsync(cancellationToken);
         if (agentOwnerCount != mutatingCount)
         {
-            return Unavailable();
+            return Unavailable(configuration);
         }
 
         var unresolvedExecutions = dbContext.VerificationExecutions.AsNoTracking().Where(execution =>
@@ -112,7 +154,7 @@ internal static class ExecutionCapacityPolicy
         var verificationOwnerCount = await verificationOwners.CountAsync(cancellationToken);
         if (verificationOwnerCount != await unresolvedExecutions.CountAsync(cancellationToken))
         {
-            return Unavailable();
+            return Unavailable(configuration);
         }
 
         // ADR-0029's reservation exactly as CommitReservation reads it: a Committing workspace, or a NeedsAttention one while its own
@@ -133,7 +175,7 @@ internal static class ExecutionCapacityPolicy
                     && !openOperations.Any(operation => operation.GitWorkspaceId == workspace.Id),
                 cancellationToken))
         {
-            return Unavailable();
+            return Unavailable(configuration);
         }
 
         // Two owners recorded on one workspace are untrustworthy for this reading, never one coalesced place.
@@ -147,18 +189,21 @@ internal static class ExecutionCapacityPolicy
             || await verificationOwners.AnyAsync(
                 execution => commitOwners.Any(operation => operation.GitWorkspaceId == execution.GitWorkspaceId), cancellationToken))
         {
-            return Unavailable();
+            return Unavailable(configuration);
         }
 
         if (own is { } self && !await IsCountedAsync(self, agentOwners, verificationOwners, commitOwners, cancellationToken))
         {
-            return Unavailable();
+            return Unavailable(configuration);
         }
 
         var total = (long)agentOwnerCount + verificationOwnerCount + commitOwnerCount;
         var owners = (int)Math.Min(total, int.MaxValue);
         return new ExecutionCapacityReading(
-            total >= Limit ? ExecutionCapacityStatus.AtCapacity : ExecutionCapacityStatus.Available, owners);
+            total >= configuration.Limit ? ExecutionCapacityStatus.AtCapacity : ExecutionCapacityStatus.Available,
+            owners,
+            configuration.Limit,
+            configuration.Revision);
     }
 
     private static Task<bool> IsCountedAsync(
@@ -174,7 +219,8 @@ internal static class ExecutionCapacityPolicy
             _ => Task.FromResult(false),
         };
 
-    private static ExecutionCapacityReading Unavailable() => new(ExecutionCapacityStatus.Unavailable, null);
+    private static ExecutionCapacityReading Unavailable(ExecutionCapacityConfiguration configuration) =>
+        new(ExecutionCapacityStatus.Unavailable, null, configuration.Limit, configuration.Revision);
 
     /// <summary>Exactly the coherent (response contract, role) pairs Domain's table gives the effect, as one database-side predicate.</summary>
     private static Expression<Func<Attempt, bool>> PairsOf(AgentEffectKind effect)

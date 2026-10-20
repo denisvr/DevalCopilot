@@ -1163,6 +1163,31 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                     b.ToTable("diagnosis_correction_escalations", (string)null);
                 });
 
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.ExecutionCapacityConfigurationRevision", b =>
+                {
+                    b.Property<long>("Revision")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Limit")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Revision");
+
+                    b.ToTable("execution_capacity_configurations", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_execution_capacity_configurations_limit", "typeof(\"Limit\") = 'integer' AND \"Limit\" IN (1, 2)");
+
+                            t.HasCheckConstraint("ck_execution_capacity_configurations_revision", "typeof(\"Revision\") = 'integer' AND \"Revision\" >= 1");
+                        });
+
+                    b.HasData(
+                        new
+                        {
+                            Revision = 1L,
+                            Limit = 2
+                        });
+                });
+
             modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.GitHubBranchPublicationApproval", b =>
                 {
                     b.Property<Guid>("Id")

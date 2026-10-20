@@ -95,4 +95,57 @@ public sealed class CreateDiagnosisCorrectionAttemptGlobalAdmissionTests : IAsyn
         Assert.Contains((scene.Run.Id, sealedAttemptId, ArtifactPurpose.AgentContextManifest), store.DeletedSealedFiles);
         await WorkspaceExecutionRaceSupport.AssertUnchangedAsync(_fixture, scene.Run.Id, before);
     }
+
+    /// <summary>ADR-0059: at limit one a single other recorded owner refuses the diagnosis-origin correction before any external work,
+    /// the one place taken before the claim transaction refuses it with its manifest removed, and a lone correction is admitted.</summary>
+    [Fact]
+    public async Task At_limit_one_a_single_other_owner_refuses_the_claim_before_any_external_work_and_consumes_nothing()
+    {
+        var (scene, diagnosis) = await SceneAsync();
+        await ExecutionCapacitySeed.SetLimitAsync(_fixture, 1);
+        await ExecutionCapacitySeed.AddAsync(_fixture, OwnerFamily.Verification);
+        var before = await WorkspaceExecutionRaceSupport.TakeAsync(_fixture, scene.Run.Id);
+        var reader = scene.Reader();
+        var store = scene.Store;
+
+        var result = await scene.ClaimCorrectionAsync(diagnosis.Id, reader: reader, store: store);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(LimitReached, Assert.Single(result.Errors).Code);
+        Assert.Equal(0, reader.Calls);
+        Assert.Empty(store.SealedAttemptIds);
+        await WorkspaceExecutionRaceSupport.AssertUnchangedAsync(_fixture, scene.Run.Id, before);
+    }
+
+    [Fact]
+    public async Task At_limit_one_the_place_taken_before_the_claim_transaction_refuses_the_claim_and_removes_its_manifest()
+    {
+        var (scene, diagnosis) = await SceneAsync();
+        await ExecutionCapacitySeed.SetLimitAsync(_fixture, 1);
+        var before = await WorkspaceExecutionRaceSupport.TakeAsync(_fixture, scene.Run.Id);
+        var store = scene.Store;
+        var faulting = new FaultInjectingDbContext(scene.Db)
+        {
+            BeforeBeginTransaction = _ => ExecutionCapacitySeed.AddAsync(_fixture, OwnerFamily.Agent),
+        };
+
+        var result = await scene.ClaimCorrectionAsync(diagnosis.Id, faulting, store: store);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(LimitReached, Assert.Single(result.Errors).Code);
+        var sealedAttemptId = Assert.Single(store.SealedAttemptIds);
+        Assert.Contains((scene.Run.Id, sealedAttemptId, ArtifactPurpose.AgentContextManifest), store.DeletedSealedFiles);
+        await WorkspaceExecutionRaceSupport.AssertUnchangedAsync(_fixture, scene.Run.Id, before);
+    }
+
+    [Fact]
+    public async Task At_limit_one_a_lone_correction_is_admitted()
+    {
+        var (scene, diagnosis) = await SceneAsync();
+        await ExecutionCapacitySeed.SetLimitAsync(_fixture, 1);
+
+        var result = await scene.ClaimCorrectionAsync(diagnosis.Id);
+
+        Assert.True(result.IsSuccess);
+    }
 }

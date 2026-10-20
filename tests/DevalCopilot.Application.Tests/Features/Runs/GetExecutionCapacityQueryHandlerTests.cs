@@ -5,7 +5,7 @@ using Xunit;
 
 namespace DevalCopilot.Application.Tests.Features.Runs;
 
-/// <summary>ADR-0058's closed tuples through the real query handler: limit 2 always; Available counts 0 or 1 with no reason; AtCapacity
+/// <summary>ADR-0058/0059 closed tuples through the real query handler: the persisted limit (default 2); Available counts 0 or 1 with no reason; AtCapacity
 /// counts 2 or more with <c>execution_capacity_limit_reached</c>; Unavailable has no count and <c>execution_capacity_unavailable</c>. The
 /// read writes nothing and a database fault is not turned into Available.</summary>
 public sealed class GetExecutionCapacityQueryHandlerTests : IAsyncLifetime
@@ -69,6 +69,54 @@ public sealed class GetExecutionCapacityQueryHandlerTests : IAsyncLifetime
 
         Assert.Equal(
             new GetExecutionCapacityQueryResult(ExecutionCapacityStatus.Unavailable, 2, null, "execution_capacity_unavailable"), result);
+    }
+
+    [Theory]
+    [InlineData(0, ExecutionCapacityStatus.Available, null)]
+    [InlineData(1, ExecutionCapacityStatus.AtCapacity, "execution_capacity_limit_reached")]
+    [InlineData(2, ExecutionCapacityStatus.AtCapacity, "execution_capacity_limit_reached")]
+    public async Task At_limit_one_the_tuple_follows_the_persisted_limit(int owners, ExecutionCapacityStatus status, string? reason)
+    {
+        await ExecutionCapacitySeed.SetLimitAsync(_fixture, 1);
+        var families = new[] { OwnerFamily.Agent, OwnerFamily.Verification };
+        for (var index = 0; index < owners; index++)
+        {
+            await ExecutionCapacitySeed.AddAsync(_fixture, families[index]);
+        }
+
+        var result = await QueryAsync();
+
+        Assert.Equal(new GetExecutionCapacityQueryResult(status, 1, owners, reason), result);
+    }
+
+    [Fact]
+    public async Task Unsafe_ownership_keeps_the_validated_limit_but_states_no_count()
+    {
+        await ExecutionCapacitySeed.SetLimitAsync(_fixture, 1);
+        var owner = await ExecutionCapacitySeed.AddAsync(_fixture, OwnerFamily.Agent);
+        await using (var db = _fixture.CreateContext())
+        {
+            await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE attempts SET AgentResponseContract = NULL WHERE Id = {owner.Id}");
+        }
+
+        var result = await QueryAsync();
+
+        Assert.Equal(
+            new GetExecutionCapacityQueryResult(ExecutionCapacityStatus.Unavailable, 1, null, "execution_capacity_unavailable"), result);
+    }
+
+    [Fact]
+    public async Task A_missing_configuration_is_Unavailable_with_no_limit_and_no_count_never_a_fabricated_two()
+    {
+        await using (var db = _fixture.CreateContext())
+        {
+            await db.Database.ExecuteSqlRawAsync("DELETE FROM execution_capacity_configurations");
+        }
+
+        var result = await QueryAsync();
+
+        Assert.Equal(
+            new GetExecutionCapacityQueryResult(ExecutionCapacityStatus.Unavailable, null, null, "execution_capacity_unavailable"), result);
     }
 
     [Fact]

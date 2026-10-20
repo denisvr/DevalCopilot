@@ -941,4 +941,58 @@ public sealed class CreateImplementationAttemptHumanAuthorizationTests : IAsyncL
         await using var verify = _fixture.CreateContext();
         Assert.Empty(verify.Attempts.Where(attempt => attempt.AgentRole == AgentRole.Implementer));
     }
+
+    /// <summary>ADR-0059: at limit one a single other recorded owner refuses the authorized claim early and the Human grant it would have
+    /// spent stays available; the lone authorized claim is admitted.</summary>
+    [Fact]
+    public async Task At_limit_one_a_single_other_owner_refuses_the_authorized_claim_early_and_leaves_the_grant_unconsumed()
+    {
+        var (lineage, _, _) = await SeedAuthorizedAsync();
+        await ExecutionCapacitySeed.SetLimitAsync(_fixture, 1);
+        await ExecutionCapacitySeed.AddAsync(_fixture, OwnerFamily.Verification);
+        await using var dbContext = _fixture.CreateContext();
+        var evidence = new CountingEvidenceReader();
+        var store = new RecordingArtifactStore();
+
+        var result = await ClaimAsync(dbContext, lineage, evidence, store);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("execution_capacity.limit_reached", Assert.Single(result.Errors).Code);
+        Assert.Equal(0, evidence.Captures);
+        Assert.Equal(0, store.Seals);
+        await AssertGrantUnconsumedAsync(lineage.RunId);
+    }
+
+    [Fact]
+    public async Task At_limit_one_the_place_taken_before_the_claim_transaction_refuses_the_authorized_claim_and_leaves_the_grant()
+    {
+        var (lineage, _, _) = await SeedAuthorizedAsync();
+        await ExecutionCapacitySeed.SetLimitAsync(_fixture, 1);
+        await using var dbContext = _fixture.CreateContext();
+        var faulting = new FaultInjectingDbContext(dbContext)
+        {
+            BeforeBeginTransaction = _ => ExecutionCapacitySeed.AddAsync(_fixture, OwnerFamily.Agent),
+        };
+        var store = new RecordingArtifactStore();
+
+        var result = await ClaimHandler(faulting, store: store, probe: Probe).HandleAsync(
+            new CreateImplementationAttemptCommand(lineage.RunId, lineage.FinalProposal.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("execution_capacity.limit_reached", Assert.Single(result.Errors).Code);
+        Assert.Single(store.DeletedSealedFiles);
+        await AssertGrantUnconsumedAsync(lineage.RunId);
+    }
+
+    [Fact]
+    public async Task At_limit_one_a_lone_authorized_claim_is_admitted()
+    {
+        var (lineage, _, _) = await SeedAuthorizedAsync();
+        await ExecutionCapacitySeed.SetLimitAsync(_fixture, 1);
+        await using var dbContext = _fixture.CreateContext();
+
+        var result = await ClaimAsync(dbContext, lineage, new CountingEvidenceReader(), new RecordingArtifactStore());
+
+        Assert.True(result.IsSuccess);
+    }
 }

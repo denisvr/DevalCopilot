@@ -155,12 +155,15 @@ under [Proposed decisions](#proposed-decisions).
 - [ADR-0057: Serialize Agent and verification execution within an owned workspace](0057-serialize-agent-and-verification-execution-within-an-owned-workspace.md)
   (accepted, delivered in published WORKSPACE-EXCL-01; reciprocal atomic claim/dispatch exclusion across the seven Agent contracts, verification and the existing local-commit reservation, with a protected project-owned disclosure and consistent cockpit withholding; strengthens existing writer exclusion without a scheduler, new execution grant, observation-based authority, lease release, automatic stage advancement or publication)
 
-- [ADR-0058: Bound global admission of existing workspace mutators](0058-bound-global-admission-of-existing-workspace-mutators.md)
-  (accepted, implemented in GLOBAL-ADMIT-01 and reviewed GO; reconcile publication with Git and the planner handoff; a fixed two-owner admission ceiling derived from existing mutating Agent, verification and local-commit facts, atomic claim/dispatch checks and protected global disclosure; no queue, configuration, executor lease, process-liveness proof, automatic execution grant, ownership release or publication)
+- [ADR-0059: Configure the recorded mutating admission limit](0059-configure-the-recorded-mutating-admission-limit.md)
+  (accepted, implemented in GLOBAL-LIMIT-01 and reviewed GO; reconcile publication with Git and the planner handoff; default two or explicitly selected one, immutable global configuration revisions, atomic safe updates and fresh admission checks with shared protected disclosure/control; lowering below recorded ownership is refused; no queue, new execution grant, lease, cancellation, retry, release or publication)
 
 ## Partially superseded decisions
 
 - [ADR-0001: Build a local-first supervised orchestrator](0001-build-a-local-first-supervised-orchestrator.md)
+
+- [ADR-0058: Bound global admission of existing workspace mutators](0058-bound-global-admission-of-existing-workspace-mutators.md)
+  (delivered in independently verified published GLOBAL-ADMIT-01; its fixed two-owner ceiling and fixed-limit disclosure are narrowly superseded by accepted ADR-0059; existing owner classification, atomic claim/dispatch checks and exact self-exclusion remain accepted; no queue, executor lease, process-liveness proof, automatic execution grant, ownership release or publication)
 
 ## Proposed decisions
 

@@ -8,14 +8,27 @@ public static class ExecutionCapacityErrors
 {
     public const string LimitReachedCode = "execution_capacity.limit_reached";
     public const string UnavailableCode = "execution_capacity.unavailable";
+    public const string LimitBelowRecordedOwnersCode = "execution_capacity.limit_below_recorded_owners";
+    public const string InvalidRequestCode = "execution_capacity.invalid_request";
+    public const string BodyTooLargeCode = "execution_capacity.body_too_large";
     public const string BodyNotAllowedCode = "execution_capacity.body_not_allowed";
     public const string QueryNotAllowedCode = "execution_capacity.query_not_allowed";
 
     public static Error LimitReached() => Error.Conflict(
-        LimitReachedCode, "Two potentially mutating executions are already recorded as active; wait for one to finish.");
+        LimitReachedCode, "The configured number of potentially mutating executions is already recorded as active; wait for one to finish.");
 
     public static Error Unavailable() => Error.Conflict(
         UnavailableCode, "The recorded active executions cannot be counted safely; inspect the recorded executions.");
+
+    public static Error LimitBelowRecordedOwners() => Error.Conflict(
+        LimitBelowRecordedOwnersCode,
+        "The limit cannot be set below the recorded potentially mutating executions; try again after recorded work changes.");
+
+    public static Error InvalidRequest() => new(
+        InvalidRequestCode, "The request is not exactly the supported execution capacity limit request.", ErrorType.Validation);
+
+    public static Error BodyTooLarge() => new(
+        BodyTooLargeCode, "The request body exceeds the supported size.", ErrorType.Validation);
 
     public static Error BodyNotAllowed() => new(
         BodyNotAllowedCode, "This request accepts no request body.", ErrorType.Validation);

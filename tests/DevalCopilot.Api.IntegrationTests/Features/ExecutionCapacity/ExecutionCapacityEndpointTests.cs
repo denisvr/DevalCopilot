@@ -19,7 +19,7 @@ namespace DevalCopilot.Api.IntegrationTests.Features.ExecutionCapacity;
 /// nothing. Every test boots its own host and database because the reading is global to a database. Nothing here runs a provider, Git or
 /// a process.
 /// </summary>
-public sealed class ExecutionCapacityEndpointTests : IAsyncLifetime
+public sealed partial class ExecutionCapacityEndpointTests : IAsyncLifetime
 {
     private const string Route = "/api/execution-capacity";
     private static readonly string Fingerprint = new('a', 64);
@@ -210,17 +210,22 @@ public sealed class ExecutionCapacityEndpointTests : IAsyncLifetime
     }
 
     [Fact]
-    public void Exactly_one_execution_capacity_route_exists_a_GET_that_is_authorized_and_not_anonymous()
+    public void Exactly_two_execution_capacity_routes_exist_a_GET_and_a_limit_PUT_both_authorized_and_not_anonymous()
     {
         var endpoints = factory.Services.GetRequiredService<EndpointDataSource>().Endpoints.OfType<RouteEndpoint>()
             .Where(endpoint => endpoint.RoutePattern.RawText?.Contains("execution-capacity", StringComparison.OrdinalIgnoreCase) == true)
+            .OrderBy(endpoint => endpoint.RoutePattern.RawText, StringComparer.Ordinal)
             .ToList();
 
-        var endpoint = Assert.Single(endpoints);
-        Assert.Equal("api/execution-capacity", endpoint.RoutePattern.RawText);
-        Assert.Equal(["GET"], endpoint.Metadata.GetOrderedMetadata<HttpMethodMetadata>().Single().HttpMethods);
-        Assert.NotEmpty(endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>());
-        Assert.Empty(endpoint.Metadata.GetOrderedMetadata<IAllowAnonymous>());
+        Assert.Equal(2, endpoints.Count);
+        Assert.Equal(["api/execution-capacity", "api/execution-capacity/limit"], endpoints.Select(endpoint => endpoint.RoutePattern.RawText));
+        Assert.Equal(["GET"], endpoints[0].Metadata.GetOrderedMetadata<HttpMethodMetadata>().Single().HttpMethods);
+        Assert.Equal(["PUT"], endpoints[1].Metadata.GetOrderedMetadata<HttpMethodMetadata>().Single().HttpMethods);
+        foreach (var endpoint in endpoints)
+        {
+            Assert.NotEmpty(endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>());
+            Assert.Empty(endpoint.Metadata.GetOrderedMetadata<IAllowAnonymous>());
+        }
     }
 
     [Theory]

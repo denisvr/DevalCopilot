@@ -18,6 +18,7 @@ import { useSessionStatus } from './features/cockpit/hooks/useSessionStatus'
 import { useTheme } from './features/cockpit/hooks/useTheme'
 import { useWorkspaceExecutionStatus } from './features/cockpit/hooks/useWorkspaceExecutionStatus'
 import { useExecutionCapacity } from './features/cockpit/hooks/useExecutionCapacity'
+import { ExecutionCapacityLimitControl } from './features/cockpit/components/ExecutionCapacityLimitControl'
 import type { PlanningSequenceControl } from './features/cockpit/planningSequence'
 import { describePlanningSequenceWithholding } from './features/cockpit/planningSequenceCopy'
 import './features/cockpit/cockpit.css'
@@ -132,6 +133,9 @@ export default function App() {
           {theme === 'dark-navy' ? '☾ Dark Navy' : '☀ Light'}
         </button>
       </header>
+
+      {/* ADR-0059: the one global recorded-execution limit control, independent of any selected project. */}
+      <ExecutionCapacityLimitControl capacity={executionCapacity} />
 
       {selectedProject ? <ProjectBaselineSummary project={selectedProject} /> : null}
 

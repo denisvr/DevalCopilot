@@ -1915,7 +1915,8 @@ selection or visit is dropped, a failed or timed-out read masks an earlier `Idle
 
 ### Execution capacity (GLOBAL-ADMIT-01)
 
-One protected, bodyless and queryless read of the host's recorded potentially mutating executions ([ADR-0058](../decisions/0058-bound-global-admission-of-existing-workspace-mutators.md)) returns exactly `limit`,
+One protected, bodyless and queryless read of the host's recorded potentially mutating executions ([ADR-0058](../decisions/0058-bound-global-admission-of-existing-workspace-mutators.md)) returns exactly `limit`
+(one or two; null only when the host cannot validate its configuration, [ADR-0059](../decisions/0059-configure-the-recorded-mutating-admission-limit.md)),
 `recordedOwners`, `status` (`Available`, `AtCapacity` or `Unavailable`) and `reasonCode`. The browser accepts it only as a whole
 closed tuple, owns one read per authenticated host session independent of the selected project, and refreshes on mount, explicit
 refresh, durable run or evidence hints and every five seconds, with reads that never overlap, a ten-second abort, a stop after three
@@ -1925,6 +1926,13 @@ diagnosis-origin corrections, verification Run and local-commit start), with one
 only reads again. A panel that holds both a diagnosis and its correction gates only the correction. `Available` enables nothing by
 itself. Planning, critique, resolution, code review, verification diagnosis, metadata-only authorizations and approvals, inspection,
 Refresh, Stop after current step, abandonment and recording a known result are never withheld by it.
+
+One small global control near the top, visible without a project, shows the validated current limit and lets the operator explicitly
+choose one or two and Apply (`PUT /api/execution-capacity/limit`, one required integer member), or Refresh. It states that changing the
+limit starts no work and words a lower-limit refusal as nothing changed and nothing saved. From submission until a read that began after
+the actual write settled has settled, the old reading is masked and mutating starts are withheld in both regions; a timed-out or failed
+write is shown as unconfirmed (it may have committed), never as success or rollback, and is never retried. The region guidance names the
+validated limit.
 
 ## Evidence surface
 

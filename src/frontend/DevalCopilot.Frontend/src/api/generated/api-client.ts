@@ -5353,6 +5353,76 @@ export class HealthEndpointClient {
     }
 }
 
+export class SetExecutionCapacityLimitEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    setExecutionCapacityLimit(request: SetExecutionCapacityLimitRequest): Promise<SetExecutionCapacityLimitResponse> {
+        let url_ = this.baseUrl + "/api/execution-capacity/limit";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processSetExecutionCapacityLimit(_response);
+        });
+    }
+
+    protected processSetExecutionCapacityLimit(response: Response): Promise<SetExecutionCapacityLimitResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = SetExecutionCapacityLimitResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            let resultData400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result400 = ApiProblemDetails.fromJS(resultData400);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 409) {
+            return response.text().then((_responseText) => {
+            let result409: any = null;
+            let resultData409 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result409 = ApiProblemDetails.fromJS(resultData409);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result409);
+            });
+        } else if (status === 413) {
+            return response.text().then((_responseText) => {
+            let result413: any = null;
+            let resultData413 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result413 = ApiProblemDetails.fromJS(resultData413);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result413);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<SetExecutionCapacityLimitResponse>(null as any);
+    }
+}
+
 export class GetExecutionCapacityEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -17784,8 +17854,92 @@ export interface ICaptureGitWorkspaceCheckpointResponse {
     changedFileCount?: number;
 }
 
+export class SetExecutionCapacityLimitResponse implements ISetExecutionCapacityLimitResponse {
+    limit?: number | undefined;
+    recordedOwners?: number | undefined;
+    status?: string;
+    reasonCode?: string | undefined;
+
+    constructor(data?: ISetExecutionCapacityLimitResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.limit = _data["limit"];
+            this.recordedOwners = _data["recordedOwners"];
+            this.status = _data["status"];
+            this.reasonCode = _data["reasonCode"];
+        }
+    }
+
+    static fromJS(data: any): SetExecutionCapacityLimitResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new SetExecutionCapacityLimitResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["limit"] = this.limit;
+        data["recordedOwners"] = this.recordedOwners;
+        data["status"] = this.status;
+        data["reasonCode"] = this.reasonCode;
+        return data;
+    }
+}
+
+export interface ISetExecutionCapacityLimitResponse {
+    limit?: number | undefined;
+    recordedOwners?: number | undefined;
+    status?: string;
+    reasonCode?: string | undefined;
+}
+
+export class SetExecutionCapacityLimitRequest implements ISetExecutionCapacityLimitRequest {
+    limit!: number;
+
+    constructor(data?: ISetExecutionCapacityLimitRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.limit = _data["limit"];
+        }
+    }
+
+    static fromJS(data: any): SetExecutionCapacityLimitRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new SetExecutionCapacityLimitRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["limit"] = this.limit;
+        return data;
+    }
+}
+
+export interface ISetExecutionCapacityLimitRequest {
+    limit: number;
+}
+
 export class GetExecutionCapacityResponse implements IGetExecutionCapacityResponse {
-    limit?: number;
+    limit?: number | undefined;
     recordedOwners?: number | undefined;
     status?: string;
     reasonCode?: string | undefined;
@@ -17826,7 +17980,7 @@ export class GetExecutionCapacityResponse implements IGetExecutionCapacityRespon
 }
 
 export interface IGetExecutionCapacityResponse {
-    limit?: number;
+    limit?: number | undefined;
     recordedOwners?: number | undefined;
     status?: string;
     reasonCode?: string | undefined;

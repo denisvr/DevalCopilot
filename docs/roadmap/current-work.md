@@ -6,147 +6,125 @@ was prepared ([recovery](development-workflow.md#recovery)). Git and code
 prevail; compare branch, `HEAD`, `origin/main` and staged/unstaged/untracked
 state first.
 
-## Active slice: GLOBAL-ADMIT-01 global mutating admission (ADR-0058)
+## Active slice: GLOBAL-LIMIT-01 configurable recorded mutating admission limit (ADR-0059)
 
 This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
 Reconcile publication with Git. This record alone grants no publication authority.
 
-**State: correction 1 (review 1 NO-GO, GAD-R1 and GAD-R2) prepared by the replacement executor, returned unstaged, uncommitted and
-unpushed. No GO exists.** The pending set at the start of the correction was the 90 reviewed paths
-(`logs/planner-review/global-admission-01/review-01/reviewed-paths.txt`); the correction adds
-`AgentDispatchStaleClassificationTests.cs`, `OwnerFamily.cs` and `PlacedOwner.cs` and edits the dispatch handler, `ExecutionCapacitySeed.cs`
-and this record.
-
-### Correction 1: finding dispositions
-
-- **GAD-R1 (P2, stale tracked ReadOnly classification at dispatch): fixed.** `MarkAgentAttemptDispatched` already read the persisted
-  assignment afresh and untracked; it now also requires the tracked attempt's role and response contract to equal that current pair
-  before the guidance check, any role-specific branch or the capacity exemption. A mismatch returns the existing fixed
-  `agent_attempts.invalid_agent_contract` Conflict, whatever the occupancy; the tracked entity is only read, so pending tracked writes
-  are untouched. The exemption therefore rests on a currently established coherent ReadOnly pair. Regressions (new class
-  `AgentDispatchStaleClassificationTests`, written first): stale ReadOnly over a current mutating pair at full and at free capacity,
-  the reciprocal drift (stale mutating over a current ReadOnly pair), a role-only drift, and the positive cases (a current ReadOnly
-  pair dispatches at full capacity; a current mutating pair still judges capacity). Each refusal asserts the fixed code, unchanged
-  tracked state, no dispatch marker, no outcome, an unchanged stored tuple and no new event. Red first: against the unfixed handler four
-  of the six failed for the finding's reason (`gad-r1-red-02.log`; the first attempt `gad-r1-red-01.log` did not compile because of a
-  wrong type in my test); after the fix 6 / 6 (`gad-r1-green-01.log`). The reviewer's reproduction (`reproduction-stale-classification.cs`)
-  was not copied into the suite; its capacity-code assertion does not prescribe this correction's mismatch code.
-- **GAD-R2 (P3, one top-level type per file): fixed.** `OwnerFamily` and `PlacedOwner` moved to `OwnerFamily.cs` and `PlacedOwner.cs`
-  with unchanged namespace, visibility and behavior; `ExecutionCapacitySeed.cs` holds only `ExecutionCapacitySeed`. Compilation and the
-  isolated per-test databases are preserved; no mirror test.
-
-Accepted decisions applied: the six test repairs stand with their assertions. Corrected rationale: the two neighboring-owner tests
-(`A_competing_owner_in_another_repository_...`, `Terminal_history_and_another_repository_never_refuse_the_claim`) had an Agent and a
-verification owner on one neighboring workspace (conflicting owners), not merely too many owners; the mode and guidance cases test their
-assertions in two recorded-state rounds. The direct terminal-status updates in the new tests prove database facts, not real process
-termination.
-
-**Latest independently verified published baseline.** WORKSPACE-EXCL-01 `b3d53bfc3c604711228ade769284911f9d9c2b4b` (this file at `b3d53bf`
-holds its record with pre-review wording; verification: `logs/planner-review/workspace-exclusion-01/publication-verification.json`).
-At recovery `main`, `HEAD`, local `origin/main` and live `main` all equaled `b3d53bf`, divergence 0/0, real index empty, 73 pending
-paths (36 modified, 37 new) equal to `logs/planner-review/global-admission-01/recovery-01-paths.txt`
-(SHA-256 `05d91171…e8835`). Everything below is unpublished development work. The original executor ran out of credits mid-slice;
-only the replacement continued (`recovery-01.md`). Nothing is staged, committed, pushed, reset or cleaned. No schema, dependency,
-configuration, queue, execution grant, lease, retry, takeover, release or real-provider experiment was added. The earlier WEX-C1,
-ASUP-C1 and PCO-C1 acceptances, the earlier evidence losses and all standing restrictions are unchanged. Increments 4/5/6 stay
-incomplete, ADR-0050 Proposed, P9 unproven, AI Memory deferred.
+**State: implemented by the Claude executor; review 1 was NO-GO (GLL-R1, GLL-R2) and correction 1 is prepared below. Returned unstaged, uncommitted and unpushed. No GO exists.** Baseline: `main`, `HEAD`,
+local `origin/main` and the verified live ref all `1747fb2b1d5a4a4a3050fc6b2e2a583473d8a934` (GLOBAL-ADMIT-01, published and
+independently verified), divergence 0/0, real index empty. The four planner inputs (the handoff, `decisions/README.md`, ADR-0058's
+partial-supersession status and the new ADR-0059) were preserved. Nothing is staged, committed, pushed, reset or cleaned. No dependency,
+queue, execution grant, lease, retry, takeover, release, provider experiment or credential operation was added. GAD-R1/GAD-R2 stay
+resolved; PCO-C1, ASUP-C1 and WEX-C1 stay accepted. Increments 4/5/6 stay incomplete, ADR-0050 Proposed, P9 unproven, AI Memory deferred.
 
 ### What exists
 
-- `Features/Runs/Policies/ExecutionCapacity` (`ExecutionCapacityPolicy`, `Fence`, `Feed`, `Reading`, `Status`, `Errors`, owner types):
-  one fresh untracked reading of coherent unresolved WorkspaceMutating Agent attempts (Domain's table), verification executions and
-  local-commit reservations; limit two; Unavailable for unknown, incoherent or foreign ownership; recognized terminal exclusion only.
-- Early and write-locked checks in ordinary and authorized Implementation, ReviewCorrection, DiagnosisCorrection, verification and
-  local-commit admission; dispatch and execution gates (Agent, verification, local commit) with exact kind-and-ID self-exclusion; the
-  Agent, verification and local-commit feeds only filter known refusals. Fixed 409 codes `execution_capacity.limit_reached` and
-  `execution_capacity.unavailable`.
-- `GET /api/execution-capacity` (protected, bodyless, queryless, four-member closed wire), generated client, frontend decoder, hook
-  (host-session lifetime, 5 s poll, 10 s abort, coalescing, three-failure stop, stale-remount fencing) and guidance in both regions;
-  only new mutating starts are withheld (diagnosis separated from correction).
-- Documentation: ADR-0058 and its index entry, `engineering-context.md`, `architecture/system-overview.md`,
-  `architecture/data-and-recovery.md`, `product/run-cockpit-specification.md`, `roadmap/mvp-delivery-plan.md`, the planner handoff
-  and this record.
+- **Domain / persistence.** `ExecutionCapacityConfigurationRevision` (positive Int64 revision, limit one or two, default two) and the
+  additive table `execution_capacity_configurations` (migration `AddExecutionCapacityConfiguration` seeds revision one with limit two;
+  the key and check constraints also require the INTEGER storage class; Down drops only the table).
+- **Application.** `ExecutionCapacityPolicy.ReadAsync` reads the latest revision fresh and untracked first (missing or malformed latest
+  row: Unavailable with no limit, never an older row, a default or a reseed) and judges owners against it; the reading now carries
+  limit and revision. `ExecutionCapacityFence` compares against the persisted limit at every early and final claim, dispatch and
+  execution check; the feeds use the fence. `SetExecutionCapacityLimitCommand` (manual transaction): unavailable data refuses
+  `execution_capacity.unavailable`; the same value is a no-op; a different value below the recorded owners refuses
+  `execution_capacity.limit_below_recorded_owners`; otherwise exactly one next revision is appended; revision overflow refuses without
+  writing. The fixed `limit_reached` message no longer says two. The `ExecutionCapacityPolicy.Limit` constant is gone.
+- **API.** `GET /api/execution-capacity` keeps its four members (`limit` is null only when the configuration cannot be validated).
+  `PUT /api/execution-capacity/limit` (queryless, exactly one plain JSON integer `limit` of 1 or 2, 512-byte bound including undeclared
+  length, 400/413/415/409 as in ADR-0059) with API-owned request/response, a strict body filter and the regenerated client.
+- **Frontend.** The decoder is limit-aware. `useExecutionCapacity` gained `applyLimit` and a change barrier (applying, confirming):
+  one PUT at a time, ten-second abort and abort with the lifetime, never retried, old reading masked from submission until a read that
+  began after the write transport settled has settled, write answers never trusted as the reading. `ExecutionCapacityLimitControl` is
+  shown once below the top bar without a project (current limit, one/two, Apply, Refresh, fixed feedback, "starts no work" disclosure).
+  Region guidance names limit one; a new `changing` guidance withholds during the barrier.
+- Documentation: ADR-0059 (planner), `engineering-context.md`, `architecture/system-overview.md`, `architecture/data-and-recovery.md`,
+  `product/run-cockpit-specification.md`, `roadmap/mvp-delivery-plan.md` and this record.
 
-### Work done by the replacement executor
+### Regressions and red evidence
 
-- Reconciled the partial diff with the recovery inventory (identical path set) and read the retained logs. `green-01-application.log`
-  (1 failed, 9 passed: `A_database_already_over_capacity_...`) is **not** green. Its failure was an `Assert.Equal` on a snapshot record
-  holding `List` members (reference equality). The current test snapshots strings and passes in the final runs below. The other early
-  failures stay retained and are not explained beyond their logs.
-- Added missing coverage: `LocalCommitGlobalAdmissionTests` (real host and Git: refusal before preparation, locked-seam race,
-  unattestable ownership, exact self-exclusion at execution, refusal beside two others leaving the operation Prepared, execution once a
-  place is freed); `GlobalAdmissionHostedScenarios` run against the real Implementation and ReviewCorrection supervisors (waits with no
-  capture or adapter call, then runs once with the baseline outcome) and the ReadOnly code-review and verification-diagnosis supervisors
-  (unchanged at full capacity); two hosted verification-supervisor tests (waits beside two recorded owners and launches once one
-  ends; a mediator claim is refused with nothing consumed).
-- The first final full Application run exposed six existing tests whose fixtures ADR-0058 now refuses or does not propose (corrected
-  rationale: the two neighboring-owner tests put conflicting Agent and verification owners on one neighboring workspace; the feed
-  cases claim four or three mutating attempts at once). Repaired in the tests only: `A_competing_owner_in_another_repository_does_not_delay_or_refuse_the_claim`
-  and `Terminal_history_and_another_repository_never_refuse_the_claim` (one unrelated owner instead of two),
-  `ExecutionModeFeedIsolationTests.Each_agent_feed_hands_out_only_manual_and_legacy_runs` and
-  `DirectHumanGuidanceDispatchBoundaryTests.Both_feeds_project_the_claimed_text_or_none_and_a_legacy_attempt_stays_eligible`
-  (claims are made in two rounds with the first genuinely ended). Their mode and guidance assertions are preserved.
+Written before the implementation of the behavior they judge. The original Application red log (`red-application-1.txt`, kept whole) has
+**21 failures and 55 passes of 76**: **18 behavioral failures** against the unchanged fixed-two fence and **three setup failures** (a text
+`x`, real `5.5` and blob `[5]` revision inserted into the INTEGER PRIMARY KEY rowid alias: SQLite datatype mismatch before any capacity
+assertion; not valid red or mutation evidence, removed as impossible; representable malformed-limit tests remain). The decoder/gate
+regressions had 22 of 142 failures against the unchanged decoder (`red-frontend-decoder.txt`). The new
+hook, wire, control and App tests import modules that did not exist yet, so they had no meaningful red run; the third control proves the
+barrier regression. Test repairs (narrow supersession, assertions kept otherwise): `An_empty_database_has_a_limit_of_two...` reads the
+seeded limit instead of the removed constant; the route inventory test now expects the GET and the limit PUT; the "limit is exactly 2"
+decoder test became "exactly 1 or 2, null only for Unavailable"; two migration `Down` tests list the new table among later tables;
+fixtures gained a limit parameter and `FaultInjectingDbContext` the new DbSet.
 
-### Evidence
+### Evidence (fresh on final restored sources unless stated)
 
-All logs are under `logs/executor/global-admit-01/`; none overwrote an earlier failure. Phase says which sources a run saw.
-
-| Check | Phase | Result | Log |
-| --- | --- | --- | --- |
-| Application, full | first final run | 6951 / 6957, 6 failures (the six tests above), retained | `final-application-tests.log` |
-| Application, full | final sources (after the six test repairs) | 6957 / 6957 (9 m 27 s) | `final-application-tests-02.log`, `final-application-refix-01.log` |
-| Application, 110 capacity and admission tests | after formatting two new test files | 110 / 110 | `final-application-postformat.log` |
-| API integration, full | final product sources | 2978 / 2978 (10 m 35 s) | `final-api-integrationtests.log` |
-| New API tests | development | local commit 5/5, hosted supervisors 4/4, verification supervisor class 35/35 (a first run had 2 failures from my fixture planting a launchable verification; retained) | `rec-commit-02.log`, `rec-hosted-01.log`, `rec-hosted-02.log`, `rec-hosted-03.log` |
-| Architecture, full | final and after doc edits | 185 / 185 both | `final-architecture-tests.log`, `final-architecture-02.log` |
-| Domain, full | final | 1547 / 1547 | `final-domain-tests.log` |
-| Infrastructure integration, full | final | 3155 passed, 4 skipped | `final-infrastructure-integrationtests.log` |
-| Vitest, whole | final frontend sources | 276 files, 6743 tests passed | `rec-vitest-01.log` |
-| Lint / `npm run build` (tsc -b and vite) / strict e2e tsc | final frontend sources | exit 0 (nine warnings, all in unchanged files) / 0 / 0 | `rec-lint-01.log`, `rec-build-fe-01.log`, `rec-e2e-tsc-01.log` |
-| NSwag reproducibility (client deleted, API rebuilt `--no-incremental`) | final | byte-identical, SHA-256 `be6f7a74…01201` | `final-nswag-before.txt`, `final-nswag-after.txt` |
-| Collaboration then planning-sequence journey, serial | final binaries | both passed (1.9 m, 21 s) | `final-journey-collaboration.log`, `final-journey-planning-sequence.log` |
-| Control 1: Agent write-locked capacity check omitted (compiling) | same product sources as final | killed by 3 named tests (two last-place-before-seam cases and one cross-family race) | `rec-control-agent-final-gate.log` |
-| Control 2: verification locked capacity check omitted (compiling) | same | killed by 2 tests (race, last place taken before the lock) | `rec-control-verification-final-gate.log` |
-| Changed-file `dotnet format --verify-no-changes` | final | first run exit 2 for two new test files only (retained); formatted; second run exit 0 | `final-format-changed-01-FAILED.log`, `final-format-changed-02.log` |
-| `dotnet list package --vulnerable`, `npm audit --omit=dev` | final | none / 0 vulnerabilities | `final-vuln-dotnet.log`, `final-npm-audit.log` |
-
-Controls: hashes before and after matched, the restored sources were touched and rebuilt before the final matrix, and the produced
-assemblies were verified newer than the restored sources. The final full runs followed the restoration. The first whole-solution build
-after it failed once on a transient `rjsmrazor.dswa.cache.json` file lock and succeeded on the immediate retry (`final-build-01.log`,
-`final-build-02.log`).
-
-Not run: no live provider, no packaged shell, no whole-solution format verify (the earlier 20 unrelated whitespace findings stand), no
-repeat of the other nine journeys, no broader mutation campaign. The full API run precedes the formatting-only edit to two Application
-test files and the six Application test repairs, which no API test consumes (accepted by review 1).
-
-### Correction 1: validation by phase
-
-Fresh, on the correction sources (`logs/executor/global-admit-01/`):
+All logs: `logs/executor/global-limit-01/`.
 
 | Check | Result | Log |
 | --- | --- | --- |
-| GAD-R1 regressions, red then green | 4 failed / 2 passed before the fix; 6 / 6 after | `gad-r1-red-02.log`, `gad-r1-green-01.log` |
-| Affected dispatch consumers, Application project (868 tests: every class invoking the dispatch handler, mode, guidance, turn-limit, account-usage, workspace, abandonment, repair, diagnosis, capacity/policy/feed, claim-time global admission) | 868 / 868 (2 m 7 s) | `gad-affected-Application.Tests.log`, filter `gad-r1-filter.txt` |
-| Same filter, API project (all seven real Agent supervisor compositions with their dispatch cases, hosted authorization, verification supervisor, local-commit global admission) | 339 / 339 (1 m 21 s) | `gad-affected-Api.IntegrationTests.log` |
-| Solution build | 0 warnings, 0 errors | `gad-build-01.log` |
-| Architecture, full | 185 / 185 | `gad-architecture.log` |
-| `dotnet format --verify-no-changes`, 55 changed C# files | exit 0 | `gad-format-01.log` |
-| Collaboration then planning-sequence journey, serial, rebuilt host | both passed (1.9 m, 22 s) | `gad-journey-collaboration.log`, `gad-journey-planning-sequence.log` |
+| Application, full project | 7061 / 7061 (9 m 47 s) | `final-application-full.txt` |
+| API integration, full project | 3050 / 3050 (9 m 11 s) | `final-api-full.txt` |
+| Persistence/migration classes (Infrastructure) | 468 / 468; first run 466 / 468, the two hard-coded later-table lists of `AddDiagnosisCorrectionEscalation` and `AddLocalCommit` migration tests (repaired, first log retained) | `final-persistence.txt`, `final-persistence-FIRST-2-failures.txt` |
+| Domain, focused new tests | 17 / 17 | `final-domain-focused.txt` |
+| Architecture, full | 185 / 185 | `final-architecture.txt` |
+| Vitest, whole | 279 files, 6835 tests passed | `final-vitest.txt` |
+| Lint / `npm run build` / strict e2e tsc | exit 0 (existing warnings only) / 0 / 0 | `final-lint.txt`, `final-build-fe.txt`, `final-e2e-tsc.txt` |
+| NSwag (client deleted, API rebuilt `--no-incremental`) | byte-identical, SHA-256 `23fb89bd…488bb` | `final-nswag-before.txt`, `final-nswag-after.txt` |
+| Solution build, non-incremental | 0 warnings, 0 errors | `final-build-solution.txt` |
+| Collaboration journey (extended: one/two change, shared disclosure) then planning-sequence journey, serial | both passed (1.9 m, 21 s) | `final-journey-collaboration.txt`, `final-journey-planning-sequence.txt` |
+| Changed-file `dotnet format --verify-no-changes` | exit 0 (before the two migration-test list repairs; those edits only add a string) | `format-changed-01.txt` |
+| Control 1: persisted comparison replaced by fixed two (compiling) | 33 of 53 filtered tests failed (every limit-one entrance and race) | `control-1-fixed-two-tests.log` |
+| Control 2: below-recorded-owners refusal omitted (compiling) | 5 of 23 failed, including the claim-then-lower race | `control-2-no-below-owners-refusal-tests.log` |
+| Control 3: stale pre-change read accepted as the confirmation (compiling) | 1 of 22 failed (`does not accept a read that began before the write settled...`); first attempt did not compile (unused variable, retained `attempt1-control-3-build-FAILED-unused-variable.log`) | `control-3-stale-read-across-barrier-tests.log` |
 
-Retained at their recorded phases (inputs unchanged by the correction): full Application 6957 / 6957 and full API 2978 / 2978 (pre-correction
-product sources; the correction changes only the dispatch handler, whose consumers are re-run above), Domain, Infrastructure, whole Vitest,
-lint, build, strict e2e tsc, NSwag byte-identical reproduction, audits, and the two claim controls (Agent final check of ordinary
-Implementation only, which proves neither every Agent entrance nor this dispatch exemption, and the verification control). Not run: no
-full-project repeat of Application or API, no new mutation control for the dispatch exemption. The first-attempt red log and every earlier
-failed log remain. Binaries were rebuilt by `dotnet build` from the edited sources; source hashes alone were not used as proof.
+Controls ran serially with a hash guard; baseline and restored hashes matched (`control-baseline.txt`, `run-controls-output.txt`,
+`run-control-3-output.txt`); restored sources were touched and the solution rebuilt non-incrementally before the final matrix. Source
+hashes were not used as binary proof. Control 1 replaces the single shared fence comparison, so the early and the final comparison
+cannot be mutated separately; the late-seam race regressions are what judge the final one.
 
-### Limits
+Not run: no Infrastructure full project beyond the persistence/migration classes, no other nine journeys, no provider or packaged-shell
+check, no whole-solution format verify, no new dependency audit. The Application full run and the API full run precede only the two
+migration-test string repairs (no Application or API test consumes them).
 
-- The count discloses only this policy's recorded facts, not liveness, simultaneous activity or a frozen cross-family snapshot. There
-  is no queue, configurable limit or release, and a refused operation is never retried.
-- The earlier failing development logs (`red-01`, `green-01`, compilation, policy-03, first lint and e2e tsc) are original evidence of
-  intermediate states; the final results above supersede them only for the sources they ran on.
-- The previous executor's work cannot be authenticated beyond its retained logs; missing worker output stays unknown.
+### Correction 1 (review 1 NO-GO)
+
+- **GLL-R1 (P2, reads not coalesced around the PUT): fixed in the existing hook lifetime.** The read effect now also defers while the
+  write is applying (it coalesces polling, Refresh and hints into one queued trigger); a read already pending at submission may settle
+  but neither confirms, restores nor rearms polling; when the write transport settles, the queued trigger is consumed by exactly one
+  confirming read (behind an older read still in flight when there is one), without a duplicate. Barrier, ten-second aborts, one PUT,
+  non-overlapping reads, ordinary polling, failure stop, project independence and stale-lifetime protection are unchanged. New permanent
+  regressions (written first; `correction1-red-hook.txt`: 6 of 29 failed, the five new coalescing cases plus the timeout test whose old
+  commentary endorsed polling during the write, now asserting exactly two reads): no poll while unsettled and nothing rearmed, poll plus
+  repeated Refresh and hints become one confirming read, a pending-at-submission read, an older read in flight at settlement, timeout
+  and unmount around the write, ordinary polling afterwards. No new reader, coordinator or queue.
+- **GLL-R2 (P3, red accounting): corrected** in the Regressions paragraph above (18 behavioral failures, three invalid setup failures);
+  the original log is untouched and no rerun was needed.
+
+Correction evidence (fresh, `logs/executor/global-limit-01/correction1-*`):
+
+| Check | Result | Log |
+| --- | --- | --- |
+| Ten-file capacity frontend set (two wire contracts, decoder/gates, hook normal/transport/change, control, candidate gate, RunCockpitView, App) | 958 / 958 | `correction1-capacity-set.txt` |
+| Whole hooks directory during development | 1602 / 1602 | not retained as a separate log |
+| Lint / `npm run build` / strict e2e tsc | exit 0 / 0 / 0 | `correction1-lint.txt`, `correction1-build.txt`, `correction1-e2e-tsc.txt` |
+| Control 3 rerun on the corrected hook (compiling) | killed by 1 of 29 (`does not accept a read that began before the write settled...`); baseline and restored hashes matched | `control-correction1-3-stale-read-across-barrier-tests.log`, `correction1-control-baseline.txt`, `run-correction1-control-3-output.txt` |
+| Restored hook touched, `tsc -b` and change tests | exit 0; 29 / 29 | `correction1-restored-tsc.txt` |
+| Collaboration journey, then planning-sequence journey (serial, unchanged host) | both passed (1.9 m, 20.5 s) | `correction1-journey-collaboration.txt`, `correction1-journey-planning-sequence.txt` |
+
+Retained at their phases (inputs unchanged): full Application 7061, full API 3050, persistence 468 (and its first 466/468 failure),
+Domain 17, architecture 185, NSwag byte-identical reproduction, format, controls one and two, the original control-three results and its
+invalid first compile attempt. Not run: no whole Vitest, no full Application/API/Infrastructure repeat (hook-only correction), no other
+journeys.
+
+### Limits and notes for review
+
+- The count still discloses only recorded facts, not liveness. There is no pending reduction, queue or release; a refused lowering is
+  tried again explicitly.
+- While a change is in flight the control shows the limit as unknown (the reading is masked). Reads are coalesced around the write (correction 1).
+- `PUT` answers are only checked for coherence; the confirming read is the displayed truth, so a write that succeeded but reads back a
+  different limit is worded as such.
+
+**Latest independently verified published baseline.** GLOBAL-ADMIT-01 `1747fb2b1d5a4a4a3050fc6b2e2a583473d8a934` (verification:
+`logs/planner-review/global-admission-01/publication-verification.json`; this file at `1747fb2` holds its record with pre-review
+wording).
 
 ## Functional development
 
@@ -157,6 +135,10 @@ challenge and explicit GO: [AGENTS.md](../../AGENTS.md); constraints:
 [planner-handoff.md](planner-handoff.md).
 
 ## Prior published delivery
+
+GLOBAL-ADMIT-01 `1747fb2b` (sole parent `b3d53bfc`, 93 paths) passed independent publication verification
+(`logs/planner-review/global-admission-01/publication-verification.json` and `.md`); its record, committed with pre-review wording, is this
+file at `1747fb2`. GAD-R1 and GAD-R2 are resolved.
 
 WORKSPACE-EXCL-01 `b3d53bfc` (sole parent `f95e337`, 110 paths) passed independent publication verification
 (`logs/planner-review/workspace-exclusion-01/publication-verification.json` and `.md`); its record, committed with pre-review wording,

@@ -5,20 +5,22 @@ using DevalCopilot.Domain.Features.Runs;
 namespace DevalCopilot.Application.Features.Runs.Policies.ExecutionCapacity;
 
 /// <summary>
-/// The additional veto every potentially mutating entrance shares (ADR-0058): a claim or admission may pass only while at most one
-/// coherent owner is recorded, and a single-use dispatch or execution gate only while no more than one owner other than its exact
-/// operation is recorded. Capacity is never a grant: it runs after, and never replaces, the workspace, lineage, mode, budget, source,
-/// approval and physical-ownership gates. A claim runs it once before its expensive preparation and again after taking the existing short
-/// write lock, immediately before its commit; a dispatch gate runs it under its own write lock. Each check is a fresh, untracked read.
+/// The additional veto every potentially mutating entrance shares (ADR-0058, with the limit of ADR-0059): a claim or admission may pass
+/// only while fewer coherent owners than the current persisted limit are recorded, and a single-use dispatch or execution gate only while
+/// fewer owners than that limit are recorded beside its exact operation. Capacity is never a grant: it runs after, and never replaces, the
+/// workspace, lineage, mode, budget, source, approval and physical-ownership gates. A claim runs it once before its expensive preparation
+/// and again after taking the existing short write lock, immediately before its commit; a dispatch gate runs it under its own write lock.
+/// Each check reads the limit and the owners fresh and untracked, so a limit observed before preparation never authorizes a later claim.
 /// It terminalizes nothing, cancels nothing, releases nothing and chooses no winner.
 /// </summary>
 internal static class ExecutionCapacityFence
 {
-    /// <summary>Refuses a new owner when two or more coherent owners are recorded, or when the recorded ownership is untrustworthy.</summary>
+    /// <summary>Refuses a new owner when as many coherent owners as the persisted limit are recorded, or when the limit or the recorded
+    /// ownership is untrustworthy.</summary>
     public static async Task<Error?> CheckClaimAsync(IDevalCopilotDbContext dbContext, CancellationToken cancellationToken) =>
         ToError(await ExecutionCapacityPolicy.ReadAsync(dbContext, null, cancellationToken), callerOwners: 0);
 
-    /// <summary>Refuses dispatching exactly this owner when two owners other than it are recorded. The owner must itself be a coherent
+    /// <summary>Refuses dispatching exactly this owner when as many owners as the persisted limit are recorded beside it. The owner must itself be a coherent
     /// counted owner of its own kind; another table's identifier is never excluded.</summary>
     public static async Task<Error?> CheckDispatchAsync(
         IDevalCopilotDbContext dbContext, ExecutionOwner owner, CancellationToken cancellationToken) =>
@@ -35,9 +37,9 @@ internal static class ExecutionCapacityFence
     /// <summary>The stable refusal for one reading, or null when it admits the caller. <paramref name="callerOwners"/> is how many of the
     /// counted owners are the caller's own (none for a claim, exactly one for a dispatch), so only the owners beside it count against it.</summary>
     private static Error? ToError(ExecutionCapacityReading reading, int callerOwners) =>
-        reading.RecordedOwners is not { } recorded || reading.Status == ExecutionCapacityStatus.Unavailable
+        reading is not { RecordedOwners: { } recorded, Limit: { } limit } || reading.Status == ExecutionCapacityStatus.Unavailable
             ? ExecutionCapacityErrors.Unavailable()
-            : recorded - callerOwners >= ExecutionCapacityPolicy.Limit
+            : recorded - callerOwners >= limit
                 ? ExecutionCapacityErrors.LimitReached()
                 : null;
 }

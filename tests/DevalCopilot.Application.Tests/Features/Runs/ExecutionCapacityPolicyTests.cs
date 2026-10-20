@@ -52,8 +52,9 @@ public sealed class ExecutionCapacityPolicyTests : IAsyncLifetime
     [Fact]
     public async Task An_empty_database_has_a_limit_of_two_and_no_owner()
     {
-        AssertReading(await ReadAsync(), ExecutionCapacityStatus.Available, 0);
-        Assert.Equal(2, ExecutionCapacityPolicy.Limit);
+        var reading = await ReadAsync();
+        AssertReading(reading, ExecutionCapacityStatus.Available, 0);
+        Assert.Equal(2, reading.Limit);
     }
 
     [Theory]
