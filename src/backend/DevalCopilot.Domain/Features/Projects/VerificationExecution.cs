@@ -114,6 +114,19 @@ public sealed class VerificationExecution
         CompletedAtUtc = nowUtc;
     }
 
+    /// <summary>The terminal pre-dispatch transition of a local-execution-sequence dispatch refusal (ADR-0060). A Running, never-dispatched
+    /// execution ends without any process outcome, exit code or completion fingerprint. The Application recorder proves the linked step.</summary>
+    public void MarkLocalExecutionSequenceDispatchRefused(DateTimeOffset nowUtc)
+    {
+        if (Status != VerificationExecutionStatus.Running || DispatchedAtUtc.HasValue)
+        {
+            throw new InvalidOperationException("Only an undispatched running verification execution can record a dispatch refusal.");
+        }
+
+        Status = VerificationExecutionStatus.LocalExecutionSequenceDispatchRefused;
+        CompletedAtUtc = nowUtc;
+    }
+
     public void Complete(
         VerificationExecutionOutcome outcome,
         int? exitCode,

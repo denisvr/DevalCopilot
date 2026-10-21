@@ -10,6 +10,7 @@ using DevalCopilot.Application.Features.Runs.Commands.CreateCodexPlanningAttempt
 using DevalCopilot.Application.Features.Runs.Policies.FormatRepair;
 using DevalCopilot.Application.Features.Runs.Errors;
 using DevalCopilot.Application.Features.Runs.Policies;
+using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
 using DevalCopilot.Application.Features.Runs.Policies.PlanningSequences;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
@@ -73,6 +74,11 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
             && await PlanningSequenceFence.CheckRunAsync(dbContext, run.Id, cancellationToken) is { } fenceError)
         {
             return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(fenceError);
+        }
+
+        if (await LocalExecutionSequenceFence.CheckRunAsync(dbContext, run.Id, cancellationToken) is { } localFenceError)
+        {
+            return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(localFenceError);
         }
 
         if (run.Lifecycle is not (RunLifecycle.Created or RunLifecycle.Running))
@@ -493,6 +499,12 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
                 return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(PlanningSequenceErrors.ManualControlBlocked());
             }
 
+            if (await LocalExecutionSequenceFence.RefusedRunSaveAsync(dbContext, run.Id))
+            {
+                // The database guard of an armed local execution sequence refused this claim at the write seam (ADR-0060).
+                return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(LocalExecutionSequenceErrors.ManualControlBlocked());
+            }
+
             var competingRunningAttemptExists = await dbContext.Attempts
                 .AsNoTracking()
                 .AnyAsync(candidate => candidate.RunId == run.Id && candidate.Status == AttemptStatus.Running, cancellationToken);
@@ -888,6 +900,12 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
                 {
                     // The database guard of an armed sequence refused this claim at the write seam (ADR-0055).
                     return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(PlanningSequenceErrors.ManualControlBlocked());
+                }
+
+                if (await LocalExecutionSequenceFence.RefusedRunSaveAsync(dbContext, run.Id))
+                {
+                    // The database guard of an armed local execution sequence refused this claim at the write seam (ADR-0060).
+                    return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(LocalExecutionSequenceErrors.ManualControlBlocked());
                 }
 
                 if (await dbContext.Attempts.AsNoTracking().AnyAsync(

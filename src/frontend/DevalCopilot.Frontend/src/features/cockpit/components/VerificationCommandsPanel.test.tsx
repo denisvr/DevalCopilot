@@ -237,3 +237,61 @@ describe('VerificationCommandsPanel', () => {
     expect(await screen.findByText('stdout recovered after host interruption · truncation unknown')).toBeInTheDocument()
   })
 })
+
+describe('VerificationCommandsPanel local execution sequence (ADR-0060)', () => {
+  function installCommand(status: string, extra: Record<string, unknown> = {}) {
+    vi.mocked(projectVerificationCommandsClient).mockReturnValue({
+      getProjectVerificationCommands: vi.fn().mockResolvedValue([
+        new VerificationCommandResponse({
+          verificationCommandId: 'command-1',
+          commandNumber: 1,
+          name: 'Backend tests',
+          executablePath: String.raw`C:\tools\dotnet.exe`,
+          arguments: ['test'],
+          timeoutSeconds: 300,
+          isEnabled: true,
+        }),
+      ]),
+    } as unknown as ReturnType<typeof projectVerificationCommandsClient>)
+    vi.mocked(projectGitEvidenceClient).mockReturnValue({
+      getProjectGitEvidence: vi.fn().mockResolvedValue(new GetProjectGitEvidenceResponse({ checkpointId: 'checkpoint-1' })),
+    } as unknown as ReturnType<typeof projectGitEvidenceClient>)
+    vi.mocked(projectVerificationExecutionsClient).mockReturnValue({
+      getProjectVerificationExecutions: vi.fn().mockResolvedValue([
+        new VerificationExecutionResponse({
+          verificationExecutionId: 'execution-1',
+          verificationCommandId: 'command-1',
+          executionNumber: 1,
+          status,
+          isDispatched: false,
+          hasStandardOutput: false,
+          hasStandardError: false,
+          ...extra,
+        }),
+      ]),
+    } as unknown as ReturnType<typeof projectVerificationExecutionsClient>)
+  }
+
+  it('words the dispatch-refused status as not started, with no process and no exit', async () => {
+    installCommand('LocalExecutionSequenceDispatchRefused')
+
+    render(<VerificationCommandsPanel projectId="project-1" />)
+
+    expect(await screen.findByTestId('verification-status-command-1')).toHaveTextContent(
+      'Last run: Not started: the local execution sequence no longer authorized dispatching it (no process was started and no exit was recorded)',
+    )
+  })
+
+  it('withholds creating, enabling, disabling and removing a command with the fixed reason, while Run keeps its own', async () => {
+    installCommand('Passed')
+    const reason = 'Withheld: a local execution sequence holds automatic authority.'
+
+    render(<VerificationCommandsPanel projectId="project-1" configureWithheldReason={reason} />)
+
+    await screen.findByText('#1 Backend tests')
+    expect(screen.getByRole('button', { name: 'Disable' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Remove' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Add command' })).toBeDisabled()
+    expect(screen.getByText(reason)).toBeInTheDocument()
+  })
+})

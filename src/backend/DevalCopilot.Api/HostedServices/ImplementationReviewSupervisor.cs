@@ -8,6 +8,7 @@ using DevalCopilot.Application.Features.Runs.Commands.RecordAgentAttemptSourceCh
 using DevalCopilot.Application.Features.Runs.Commands.RecordAgentAttemptWorkspaceIneligible;
 using DevalCopilot.Application.Features.Runs.Commands.RecordCodeReviewInputAlreadyCodeReviewed;
 using DevalCopilot.Application.Features.Runs.Commands.RecordImplementationReviewResult;
+using DevalCopilot.Application.Features.Runs.Commands.RecordLocalExecutionSequenceDispatchRefusal;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Application.Features.Runs.Queries.GetCodexLaunchTarget;
 using DevalCopilot.Application.Features.Runs.Queries.GetEligibleCodeReviewAttempts;
@@ -148,6 +149,11 @@ public sealed class ImplementationReviewSupervisor(
             {
                 await DispatchAsync(
                     new RecordCodeReviewInputAlreadyCodeReviewedCommand(attempt.RunId, attempt.AttemptId), CancellationToken.None);
+            }
+            else if (dispatched.Errors[0].Code == MarkAgentAttemptDispatchedCommandHandler.LocalExecutionSequenceDispatchRefusedCode)
+            {
+                await DispatchAsync(
+                    new RecordLocalExecutionSequenceDispatchRefusalCommand(attempt.RunId, attempt.AttemptId), CancellationToken.None);
             }
 
             return;

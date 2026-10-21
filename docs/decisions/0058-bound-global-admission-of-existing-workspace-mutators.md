@@ -1,6 +1,6 @@
 # ADR-0058: Bound global admission of existing workspace mutators
 
-Status: Partially superseded by ADR-0059 for the configurable limit and its disclosure; the remaining decision stays accepted.
+Status: Partially superseded by ADR-0059 for the configurable limit and its disclosure, and by ADR-0060 only for effective ownership retained by its linked dispatched operations without coherent process-exit evidence; the remaining decision stays accepted.
 
 ## Context
 

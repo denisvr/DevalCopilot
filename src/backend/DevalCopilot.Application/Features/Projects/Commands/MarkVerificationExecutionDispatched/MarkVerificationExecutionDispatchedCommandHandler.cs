@@ -9,6 +9,9 @@ namespace DevalCopilot.Application.Features.Projects.Commands.MarkVerificationEx
 public sealed class MarkVerificationExecutionDispatchedCommandHandler(IDevalCopilotDbContext dbContext, TimeProvider timeProvider)
     : ICommandHandler<MarkVerificationExecutionDispatchedCommand, Result>
 {
+    /// <summary>The refusal code of an execution whose local execution sequence no longer authorizes its dispatch (ADR-0060).</summary>
+    public const string LocalExecutionSequenceDispatchRefusedCode = VerificationDispatchAuthority.LocalExecutionSequenceDispatchRefusedCode;
+
     /// <summary>One short write-locked transaction: the first statement is a self-referential no-op write that takes the lock,
     /// the execution and its ownership are then re-read untracked and must agree with the expected snapshot, and only then is the
     /// single-use marker committed conditionally. Nothing external happens under the lock; a refusal leaves the execution pending.</summary>
@@ -36,7 +39,7 @@ public sealed class MarkVerificationExecutionDispatchedCommandHandler(IDevalCopi
             return Result.Failure(Error.Conflict("verification.execution_already_dispatched", "This verification execution was already dispatched."));
         }
 
-        if (await VerificationDispatchAuthority.ConfirmAsync(dbContext, execution, command.Expected, cancellationToken) is { } refusal)
+        if (await VerificationDispatchAuthority.ConfirmAsync(dbContext, execution, command.Expected, cancellationToken, timeProvider) is { } refusal)
         {
             return Result.Failure(refusal);
         }

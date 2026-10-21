@@ -140,7 +140,7 @@ describe('deriveWorkspaceExecutionStartGate: only a validated current Idle for t
 
   it('words an active Agent attempt as an inspect-and-wait statement that cancels and releases nothing', () => {
     expect(deriveWorkspaceExecutionStartGate(stateFor('AgentAttemptActive'), PROJECT_ID).guidance).toContain(
-      'An Agent attempt is active in this workspace. Inspect it and wait; nothing is cancelled or released here.',
+      "An Agent attempt is recorded as this workspace's execution owner",
     )
   })
 

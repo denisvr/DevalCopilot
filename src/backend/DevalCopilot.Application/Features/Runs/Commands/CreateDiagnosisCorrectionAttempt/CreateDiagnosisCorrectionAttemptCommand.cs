@@ -1,5 +1,6 @@
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
+using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
 
 namespace DevalCopilot.Application.Features.Runs.Commands.CreateDiagnosisCorrectionAttempt;
 
@@ -15,4 +16,8 @@ namespace DevalCopilot.Application.Features.Runs.Commands.CreateDiagnosisCorrect
 /// </summary>
 public sealed record CreateDiagnosisCorrectionAttemptCommand(
     Guid RunId, Guid VerificationDiagnosisAttemptId, string? Guidance = null)
-    : IManualTransactionCommand<Result<CreateDiagnosisCorrectionAttemptCommandResult>>;
+    : IManualTransactionCommand<Result<CreateDiagnosisCorrectionAttemptCommandResult>>
+{
+    /// <summary>The exact local execution sequence step (ADR-0060) this claim is composed for; never bound from a request.</summary>
+    internal LocalExecutionStepTicket? LocalStep { get; init; }
+}

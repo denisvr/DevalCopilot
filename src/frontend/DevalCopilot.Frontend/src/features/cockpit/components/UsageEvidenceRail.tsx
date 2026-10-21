@@ -24,6 +24,8 @@ interface UsageEvidenceRailProps {
   /** The run's saved Codex account-usage stop; the control is omitted when absent. Independent of the allowance observation. */
   codexAccountUsageStop?: CodexAccountUsageStopResponse | null
   accountUsageStopEditable?: boolean
+  /** The fixed reason a local execution sequence (ADR-0060) withholds changing the stop; null or absent withholds nothing. */
+  accountUsageStopWithheldReason?: string | null
   onAccountUsageStopSaved?: () => Promise<boolean>
   /** The run's saved advisory Codex account-usage warning; the control is omitted when absent. */
   codexAccountUsageWarning?: CodexAccountUsageWarningSettingResponse | null
@@ -35,6 +37,7 @@ export function UsageEvidenceRail({
   runId,
   codexAccountUsageStop,
   accountUsageStopEditable = false,
+  accountUsageStopWithheldReason = null,
   onAccountUsageStopSaved,
   codexAccountUsageWarning,
   accountUsageWarningEditable = false,
@@ -120,6 +123,7 @@ export function UsageEvidenceRail({
               setting={codexAccountUsageStop}
               editable={accountUsageStopEditable}
               onSaved={onAccountUsageStopSaved}
+              withheldReason={accountUsageStopWithheldReason}
             />
           )}
           {runId && codexAccountUsageWarning && (

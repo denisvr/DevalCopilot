@@ -33,7 +33,10 @@ public static class ClaudeRole
                 var (reviewedId, reviewedMarker) = manifest.RequireRoundProposal("reviewedProposal");
                 fields["planMessageId"] = reviewedId;
                 fields["planMarker"] = reviewedMarker;
-                response = reviewedMarker == ManifestInfo.RootPlanMarker ? ResponseFactory.Challenge() : ResponseFactory.SecondChallenge();
+                // Only the local execution cycle journey's repository has its root accepted (ADR-0060 arms an explicitly Accepted plan).
+                response = reviewedMarker == ManifestInfo.RootPlanMarker
+                    ? (manifest.IsLocalCycle ? ResponseFactory.AcceptRoot() : ResponseFactory.Challenge())
+                    : ResponseFactory.SecondChallenge();
                 break;
             case ("ImplementationReport", ClosedArguments.ClaudeProfile.Mutating):
                 // The plan, and for the human-authorized final plan its whole authorization contract, are validated before any edit,
@@ -64,6 +67,16 @@ public static class ClaudeRole
                 {
                     fields["guidanceSha256"] = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(guidance.Text)));
                     fields["guidanceBoundary"] = guidance.BoundaryIsFixed ? "fixed" : "altered";
+                }
+
+                if (manifest.IsLocalCycle)
+                {
+                    // The local execution cycle journey's repository only: two distinct corrections chosen by the file's own state
+                    // (the diagnosis-origin one first, the review-origin one second), each answered with its own report notes.
+                    var (changedPath, ordinal) = CandidateEdit.ApplyLocalCycleCorrection(location.RequireCandidateFile(worktree));
+                    fields["changedPath"] = changedPath;
+                    response = ordinal == 1 ? ResponseFactory.Correction(findingIds) : ResponseFactory.SecondCycleCorrection(findingIds);
+                    break;
                 }
 
                 fields["changedPath"] = CandidateEdit.ApplyCorrection(location.RequireCandidateFile(worktree));

@@ -149,7 +149,8 @@ public sealed class ExecutionCapacityConfigurationMigrationTests : IAsyncLifetim
         await MigrateToAsync(PriorMigration);
 
         var tablesAfter = await ReadNamesAsync("table", "%");
-        Assert.Equal(tablesBefore.Where(name => name != Table).ToList(), tablesAfter);
+        // The later local execution sequence migration (ADR-0060) is reversed with it; only those three tables go with it.
+        Assert.Equal(tablesBefore.Where(name => name != Table && !name.StartsWith("local_execution_sequence", StringComparison.Ordinal)).ToList(), tablesAfter);
         await using var verify = CreateContext();
         Assert.Equal(projectId, (await verify.Projects.AsNoTracking().SingleAsync()).Id);
         Assert.Equal(runId, (await verify.Runs.AsNoTracking().SingleAsync()).Id);

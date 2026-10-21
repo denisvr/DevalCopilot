@@ -3,6 +3,7 @@ using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Runs.Errors;
+using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
 
@@ -36,6 +37,11 @@ public sealed class SetClaudeMutationTurnLimitCommandHandler(IDevalCopilotDbCont
             return Result<SetClaudeMutationTurnLimitCommandResult>.Failure(ClaudeMutationTurnLimitErrors.RunNotFound());
         }
 
+        if (await LocalExecutionSequenceFence.CheckRunAsync(dbContext, command.RunId, cancellationToken) is { } localFence)
+        {
+            return Result<SetClaudeMutationTurnLimitCommandResult>.Failure(localFence);
+        }
+
         try
         {
             run.SetRequestedClaudeMaxTurns(command.MaxTurns);
@@ -62,6 +68,11 @@ public sealed class SetClaudeMutationTurnLimitCommandHandler(IDevalCopilotDbCont
         }
         catch (DbUpdateConcurrencyException)
         {
+            if (await LocalExecutionSequenceFence.RefusedRunSaveAsync(dbContext, command.RunId))
+            {
+                return Result<SetClaudeMutationTurnLimitCommandResult>.Failure(LocalExecutionSequenceErrors.ManualControlBlocked());
+            }
+
             var lifecycle = await dbContext.Runs
                 .AsNoTracking()
                 .Where(candidate => candidate.Id == command.RunId)
@@ -75,6 +86,15 @@ public sealed class SetClaudeMutationTurnLimitCommandHandler(IDevalCopilotDbCont
                     Result<SetClaudeMutationTurnLimitCommandResult>.Failure(ClaudeMutationTurnLimitErrors.ConcurrentChange()),
                 _ => Result<SetClaudeMutationTurnLimitCommandResult>.Failure(ClaudeMutationTurnLimitErrors.RunNotEditable()),
             };
+        }
+        catch (DbUpdateException)
+        {
+            if (await LocalExecutionSequenceFence.RefusedRunSaveAsync(dbContext, command.RunId))
+            {
+                return Result<SetClaudeMutationTurnLimitCommandResult>.Failure(LocalExecutionSequenceErrors.ManualControlBlocked());
+            }
+
+            throw;
         }
 
         return Result<SetClaudeMutationTurnLimitCommandResult>.Success(

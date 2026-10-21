@@ -11,9 +11,12 @@ public sealed class GetRunningAgentAttemptsQueryHandler(IDevalCopilotDbContext d
     public async Task<IReadOnlyList<RunningAgentAttempt>> HandleAsync(
         GetRunningAgentAttemptsQuery query, CancellationToken cancellationToken)
     {
+        // ADR-0060: a Running attempt linked to a local execution sequence is closed or quarantined by the sequence's own startup
+        // command; generic recovery never seals or imports its partial output.
         return await dbContext.Attempts
             .AsNoTracking()
-            .Where(attempt => attempt.Kind == AttemptKind.Agent && attempt.Status == AttemptStatus.Running)
+            .Where(attempt => attempt.Kind == AttemptKind.Agent && attempt.Status == AttemptStatus.Running
+                && !dbContext.LocalExecutionSequenceSteps.Any(step => step.OperationId == attempt.Id))
             .Select(attempt => new RunningAgentAttempt(attempt.RunId, attempt.Id))
             .ToListAsync(cancellationToken);
     }

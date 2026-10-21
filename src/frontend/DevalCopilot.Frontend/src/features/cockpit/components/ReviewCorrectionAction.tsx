@@ -9,6 +9,7 @@ import { DirectGuidanceFact } from './DirectGuidanceFact'
 import { ProcessEvidenceLine } from './ProcessEvidenceLine'
 import { ReviewCorrectionGuidanceEntry } from './ReviewCorrectionGuidanceEntry'
 import { TokenUsageLine } from './TokenUsageLine'
+import { LOCAL_EXECUTION_DISPATCH_REFUSED_LABEL } from '../localExecutionSequenceCopy'
 
 interface ReviewCorrectionActionProps {
   /** With `reviewAttemptId`, the identity that owns the optional direct-guidance draft. */
@@ -57,6 +58,7 @@ const OUTCOME_LABEL: Record<string, string> = {
   ProviderInvocationFailed: 'The Implementer could not be invoked for correction',
   CheckpointEvidenceUnavailable: 'Source evidence could not be captured',
   WorkspaceNoLongerEligible: 'Workspace no longer eligible for correction',
+  LocalExecutionSequenceDispatchRefused: LOCAL_EXECUTION_DISPATCH_REFUSED_LABEL,
 }
 
 function phaseLabel(status: ReviewCorrectionAttemptStatusResponse): string {

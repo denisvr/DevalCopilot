@@ -103,6 +103,12 @@ import {
   StopPlanningSequenceWireClient,
 } from '../features/cockpit/planningSequenceWire'
 import {
+  ArmLocalExecutionSequenceWireClient,
+  LocalExecutionSequenceAvailabilityWireClient,
+  LocalExecutionSequenceStatusWireClient,
+  StopLocalExecutionSequenceWireClient,
+} from '../features/cockpit/localExecutionSequenceWire'
+import {
   AgentAttemptVerificationEvidenceWireClient,
   AgentAttemptVerificationWindowWireClient,
 } from '../features/cockpit/agentAttemptVerificationWire'
@@ -144,6 +150,11 @@ export const executionCapacityLimitClient = (signal?: AbortSignal) => new Execut
 export const planningSequenceStatusClient = () => new PlanningSequenceStatusWireClient(getApiBaseUrl(), authenticatedHttp)
 export const armPlanningSequenceClient = () => new ArmPlanningSequenceWireClient(getApiBaseUrl(), authenticatedHttp)
 export const stopPlanningSequenceClient = () => new StopPlanningSequenceWireClient(getApiBaseUrl(), authenticatedHttp)
+// The local-execution-sequence operations (ADR-0060): parsed-body facades; each carries its own signal that cancels the actual request.
+export const localExecutionSequenceStatusClient = (signal?: AbortSignal) => new LocalExecutionSequenceStatusWireClient(getApiBaseUrl(), authenticatedHttp, signal)
+export const localExecutionSequenceAvailabilityClient = (signal?: AbortSignal) => new LocalExecutionSequenceAvailabilityWireClient(getApiBaseUrl(), authenticatedHttp, signal)
+export const armLocalExecutionSequenceClient = (signal?: AbortSignal) => new ArmLocalExecutionSequenceWireClient(getApiBaseUrl(), authenticatedHttp, signal)
+export const stopLocalExecutionSequenceClient = (signal?: AbortSignal) => new StopLocalExecutionSequenceWireClient(getApiBaseUrl(), authenticatedHttp, signal)
 // Hand the parsed bodies to the whole-answer decoders instead of the generated models (see the ADR-0052 wire clients).
 export const agentAttemptVerificationEvidenceClient = () =>
   new AgentAttemptVerificationEvidenceWireClient(getApiBaseUrl(), authenticatedHttp)

@@ -171,7 +171,7 @@ export class PlanningSequenceAnswerInvalid extends Error {
   }
 }
 
-function problemOf(caught: unknown): { status: number | undefined; code: string | null } | null {
+export function problemOf(caught: unknown): { status: number | undefined; code: string | null } | null {
   if (caught instanceof ApiProblemDetails) {
     const code = caught.errors?.[0]?.code
     return { status: typeof caught.status === 'number' ? caught.status : undefined, code: typeof code === 'string' ? code : null }

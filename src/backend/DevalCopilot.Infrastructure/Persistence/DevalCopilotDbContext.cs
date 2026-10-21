@@ -69,6 +69,12 @@ public sealed class DevalCopilotDbContext(DbContextOptions<DevalCopilotDbContext
 
     public DbSet<PlanningSequenceStep> PlanningSequenceSteps => Set<PlanningSequenceStep>();
 
+    public DbSet<LocalExecutionSequence> LocalExecutionSequences => Set<LocalExecutionSequence>();
+
+    public DbSet<LocalExecutionSequenceRecipe> LocalExecutionSequenceRecipes => Set<LocalExecutionSequenceRecipe>();
+
+    public DbSet<LocalExecutionSequenceStep> LocalExecutionSequenceSteps => Set<LocalExecutionSequenceStep>();
+
     public DbSet<AgentSupervision> AgentSupervisions => Set<AgentSupervision>();
 
     public DbSet<ExecutionCapacityConfigurationRevision> ExecutionCapacityConfigurations =>

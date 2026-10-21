@@ -9,6 +9,8 @@ import { ExecutionCapacityGuidance } from './ExecutionCapacityGuidance'
 import { EXECUTION_CAPACITY_WITHHELD_POINTER, deriveExecutionCapacityStartGate } from '../executionCapacity'
 import type { ExecutionCapacityState } from '../executionCapacity'
 import { WORKSPACE_EXECUTION_WITHHELD_POINTER, deriveWorkspaceExecutionStartGate } from '../workspaceExecution'
+import type { UseLocalExecutionSequenceResult } from '../hooks/useLocalExecutionSequence'
+import { describeLocalExecutionSequenceWithholding } from '../localExecutionSequenceCopy'
 import type { WorkspaceExecutionState } from '../workspaceExecution'
 
 interface CandidateWorkspacePanelProps {
@@ -31,6 +33,13 @@ interface CandidateWorkspacePanelProps {
    * never gated by it.
    */
   executionCapacity: ExecutionCapacityState | null
+  /**
+   * The selected run's one local-execution-sequence reader (ADR-0060), shared with the run cockpit; this region cannot read its own copy.
+   * While its control is blocked or unknown, verification Run, creating, enabling, disabling or removing a verification command and
+   * capturing a checkpoint are withheld. Required: null is an explicit "no state" that withholds. A project without a run passes a
+   * reader whose control is `none`.
+   */
+  localExecutionSequence: UseLocalExecutionSequenceResult | null
 }
 
 function abbreviate(sha: string | undefined): string {
@@ -59,6 +68,7 @@ export function CandidateWorkspacePanel({
   runWithheldReason = null,
   workspaceExecution,
   executionCapacity,
+  localExecutionSequence,
 }: CandidateWorkspacePanelProps) {
   const { workspace, loading, preparing, rechecking, error, prepare, recheckIdentity } = useProjectWorkspace(projectId)
   const refreshOwner = useOwnedLifetime(projectId)
@@ -84,8 +94,10 @@ export function CandidateWorkspacePanel({
   const workspaceGate = deriveWorkspaceExecutionStartGate(workspaceExecution, projectId)
   // The host's execution capacity is a third, additional veto of the same shape (ADR-0058); the earlier reasons keep their precedence.
   const capacityGate = deriveExecutionCapacityStartGate(executionCapacity)
+  const localExecutionWithheld = describeLocalExecutionSequenceWithholding(localExecutionSequence?.control ?? 'unknown')
   const effectiveRunWithheldReason =
     runWithheldReason
+    ?? localExecutionWithheld
     ?? (workspaceGate.allowsExecutionStart ? null : WORKSPACE_EXECUTION_WITHHELD_POINTER)
     ?? (capacityGate.allowsMutatingStart ? null : EXECUTION_CAPACITY_WITHHELD_POINTER)
 
@@ -145,12 +157,14 @@ export function CandidateWorkspacePanel({
         workspaceReady={workspace.state === 'Ready'}
         refreshGeneration={generation}
         onCaptured={requestEvidenceRefresh}
+        captureWithheldReason={localExecutionWithheld}
       />
       <VerificationCommandsPanel
         key={`commands:${projectId}`}
         projectId={projectId}
         refreshGeneration={generation}
         runWithheldReason={effectiveRunWithheldReason}
+        configureWithheldReason={localExecutionWithheld}
       />
       <CheckpointReviewPanel key={`reviews:${projectId}`} projectId={projectId} refreshGeneration={generation} />
 

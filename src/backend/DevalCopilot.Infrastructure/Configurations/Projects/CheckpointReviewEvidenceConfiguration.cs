@@ -12,7 +12,7 @@ public sealed class CheckpointReviewEvidenceConfiguration : IEntityTypeConfigura
         builder.HasKey(evidence => evidence.Id);
         builder.Property(evidence => evidence.VerificationExecutionNumber).IsRequired();
         builder.Property(evidence => evidence.VerificationExecutionCheckpointFingerprintSha256).HasMaxLength(64).IsRequired();
-        builder.Property(evidence => evidence.VerificationExecutionStatus).HasConversion<string>().HasMaxLength(32).IsRequired();
+        builder.Property(evidence => evidence.VerificationExecutionStatus).HasConversion<string>().HasMaxLength(64).IsRequired();
         builder.Property(evidence => evidence.VerificationExecutionOutcome).HasConversion<string>().HasMaxLength(32);
 
         builder.HasOne<VerificationCommand>().WithMany().HasForeignKey(evidence => evidence.VerificationCommandId).OnDelete(DeleteBehavior.Restrict);

@@ -19,6 +19,7 @@ import { capacityReadingOf, capacityStateFor } from '../executionCapacityFixture
 import { WORKSPACE_EXECUTION_GUIDANCE, WORKSPACE_EXECUTION_WITHHELD_POINTER } from '../workspaceExecution'
 import { PROJECT_ID, stateFor } from '../workspaceExecutionFixture'
 import { CandidateWorkspacePanel } from './CandidateWorkspacePanel'
+import { noneLocalReader } from '../localExecutionSequenceFixture'
 
 // ADR-0058 in the candidate workspace region: the host's execution capacity is an additional veto of verification Run (a configured command
 // may mutate). Anything but a validated, current Available withholds Run and shows one fixed guidance; Available enables nothing by
@@ -93,6 +94,7 @@ async function renderPanel(
   const view = render(
     <CandidateWorkspacePanel
       projectId={PROJECT_ID}
+      localExecutionSequence={noneLocalReader()}
       executionCapacity={executionCapacity as ExecutionCapacityState | null}
       workspaceExecution={workspaceExecution}
       {...props}
@@ -124,7 +126,7 @@ describe('CandidateWorkspacePanel execution capacity gate', () => {
 
   it('does not enable Run for an Available capacity when the ordinary gates disable it: Available enables nothing by itself', async () => {
     installClients({ checkpoint: false })
-    render(<CandidateWorkspacePanel projectId={PROJECT_ID} executionCapacity={capacityStateFor('Available')} workspaceExecution={stateFor('Idle')} />)
+    render(<CandidateWorkspacePanel projectId={PROJECT_ID} localExecutionSequence={noneLocalReader()} executionCapacity={capacityStateFor('Available')} workspaceExecution={stateFor('Idle')} />)
     await waitFor(() => expect(within(source()).getByText('No source checkpoint has been captured yet.')).toBeInTheDocument())
 
     expect(runButton()).toBeDisabled()
@@ -257,7 +259,7 @@ describe('CandidateWorkspacePanel execution capacity gate', () => {
     const view = await renderPanel(capacityStateFor('Available'))
     expect(runButton()).toBeEnabled()
 
-    view.rerender(<CandidateWorkspacePanel projectId={PROJECT_ID} executionCapacity={capacityStateFor('AtCapacity')} workspaceExecution={stateFor('Idle')} />)
+    view.rerender(<CandidateWorkspacePanel projectId={PROJECT_ID} localExecutionSequence={noneLocalReader()} executionCapacity={capacityStateFor('AtCapacity')} workspaceExecution={stateFor('Idle')} />)
     await waitFor(() => expect(runButton()).toBeDisabled())
     fireEvent.click(runButton())
 
@@ -269,7 +271,7 @@ describe('CandidateWorkspacePanel execution capacity gate', () => {
     const view = await renderPanel(capacityStateFor('AtCapacity'))
     expect(runButton()).toBeDisabled()
 
-    view.rerender(<CandidateWorkspacePanel projectId={PROJECT_ID} executionCapacity={capacityStateFor('Available')} workspaceExecution={stateFor('Idle')} />)
+    view.rerender(<CandidateWorkspacePanel projectId={PROJECT_ID} localExecutionSequence={noneLocalReader()} executionCapacity={capacityStateFor('Available')} workspaceExecution={stateFor('Idle')} />)
     await waitFor(() => expect(runButton()).toBeEnabled())
     expect(guidanceRegion()).not.toBeInTheDocument()
     fireEvent.click(runButton())

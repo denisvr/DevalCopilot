@@ -20,6 +20,7 @@ using DevalCopilot.Application.Features.Projects.Commands.RecoverInterruptedVeri
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Projects.Queries.GetProjectGitHubOrigin;
 using DevalCopilot.Application.Features.Runs.Commands.CloseInterruptedAgentSupervisions;
+using DevalCopilot.Application.Features.Runs.Commands.InterruptLocalExecutionSequences;
 using DevalCopilot.Application.Features.Runs.Commands.InterruptPlanningSequences;
 using DevalCopilot.Application.Features.Runs.Commands.ReconcileInterruptedAgentAttempts;
 using DevalCopilot.Application.Features.Runs.Commands.RecoverLocalCommitOperations;
@@ -110,6 +111,8 @@ builder.Services.AddScoped<IAttemptDurabilityProbe>(
     provider => new AttemptDurabilityProbe(provider.GetRequiredService<DbContextOptions<DevalCopilotDbContext>>()));
 builder.Services.AddScoped<IPlanningSequenceStepProbe>(
     provider => new PlanningSequenceStepProbe(provider.GetRequiredService<DbContextOptions<DevalCopilotDbContext>>()));
+builder.Services.AddScoped<ILocalExecutionStepProbe>(
+    provider => new LocalExecutionStepProbe(provider.GetRequiredService<DbContextOptions<DevalCopilotDbContext>>()));
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<ILaunchSessionAccessor, LaunchSessionAccessor>();
@@ -259,6 +262,11 @@ builder.Services.AddHostedService<ReviewCorrectionSupervisor>();
 // formerly advancing sequence before this service starts.
 builder.Services.AddHostedService<PlanningSequenceCoordinator>();
 
+// The one fixed local execution coordinator (ADR-0060): it observes explicitly armed sequences and composes the existing claims; the
+// supervisors above keep executing durably claimed operations exactly as before. Startup closure interrupts every formerly advancing
+// sequence before this service starts, and nothing ever resumes one.
+builder.Services.AddHostedService<LocalExecutionSequenceCoordinator>();
+
 // Current Agent supervision observations (ADR-0056): one host-launch identifier generated here once, the small observation collaborator
 // the seven Agent supervisors above resolve from their own composition, and the independent bounded sweep. They only record what the
 // host's own observer reported; none of them claims, dispatches, retries, cancels or terminalizes an attempt. Startup closure of
@@ -338,6 +346,12 @@ if (!isSideEffectFreeComposition)
     using var startupScope = app.Services.CreateScope();
     var dbContext = startupScope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
     await dbContext.Database.MigrateAsync();
+
+    // ADR-0060: close every previous-launch local execution sequence and revoke its unclaimed preparations before any artifact
+    // recovery, attempt interruption, workspace reconciliation or supervisor. Nothing resumes, redispatches or adopts, and a linked
+    // dispatched operation without a coherent recorded result is left exactly as recorded for the recoveries below to exclude.
+    await startupScope.ServiceProvider.GetRequiredService<IApplicationMediator>()
+        .SendAsync(new InterruptLocalExecutionSequencesCommand(), CancellationToken.None);
 
     // Must complete before ProcessAttemptSupervisor (started below, only once the host
     // itself starts) can claim any work: a Process attempt this instance finds still

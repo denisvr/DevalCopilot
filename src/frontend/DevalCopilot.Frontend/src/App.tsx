@@ -18,6 +18,7 @@ import { useSessionStatus } from './features/cockpit/hooks/useSessionStatus'
 import { useTheme } from './features/cockpit/hooks/useTheme'
 import { useWorkspaceExecutionStatus } from './features/cockpit/hooks/useWorkspaceExecutionStatus'
 import { useExecutionCapacity } from './features/cockpit/hooks/useExecutionCapacity'
+import { useLocalExecutionSequence } from './features/cockpit/hooks/useLocalExecutionSequence'
 import { ExecutionCapacityLimitControl } from './features/cockpit/components/ExecutionCapacityLimitControl'
 import type { PlanningSequenceControl } from './features/cockpit/planningSequence'
 import { describePlanningSequenceWithholding } from './features/cockpit/planningSequenceCopy'
@@ -88,6 +89,10 @@ export default function App() {
     [],
   )
   const selectedRunId = selectedProject?.runId ?? null
+  // Who holds automatic authority through a local execution sequence (ADR-0060): the ONE reader of the selected run, owned by that run's
+  // lifetime and handed to both the candidate workspace panel and the run cockpit. Neither region reads its own copy; an explicit Refresh
+  // evidence is a hint, and the run cockpit hints on every durable run event.
+  const localExecutionSequence = useLocalExecutionSequence(sessionStatus === 'ready' ? selectedRunId : null, evidenceRefresh.generation)
   const runFence: PlanningSequenceControl =
     selectedRunId === null ? 'none' : reportedFence?.runId === selectedRunId ? reportedFence.control : 'unknown'
 
@@ -146,6 +151,7 @@ export default function App() {
           runWithheldReason={describePlanningSequenceWithholding(runFence)}
           workspaceExecution={workspaceExecution}
           executionCapacity={executionCapacity}
+          localExecutionSequence={localExecutionSequence}
         /> : null}
 
       {selectedProject ? (
@@ -185,6 +191,7 @@ export default function App() {
           onPlanningSequenceControlChange={reportPlanningSequenceControl}
           workspaceExecution={workspaceExecution}
           executionCapacity={executionCapacity}
+          localExecutionSequence={localExecutionSequence}
         />
       ) : selectedProject ? (
         <p className="dc-empty-state">{selectedProject.projectName} has no run yet.</p>

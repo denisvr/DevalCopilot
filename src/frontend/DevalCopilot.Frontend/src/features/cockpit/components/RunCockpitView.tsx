@@ -3,6 +3,7 @@ import { useRunCockpit } from '../hooks/useRunCockpit'
 import { useAgentSupervision } from '../hooks/useAgentSupervision'
 import { useReadingAgeSeconds } from '../hooks/useReadingAge'
 import { usePlanningSequence } from '../hooks/usePlanningSequence'
+import type { UseLocalExecutionSequenceResult } from '../hooks/useLocalExecutionSequence'
 import { useCollaborationTimeline } from '../hooks/useCollaborationTimeline'
 import { useAgentAttemptStatus } from '../hooks/useAgentAttemptStatus'
 import { useRequestCodexPlanningAttempt } from '../hooks/useRequestCodexPlanningAttempt'
@@ -37,6 +38,7 @@ import { deriveRunExecutionModeDisclosure } from '../deriveRunExecutionModeDiscl
 import type { PlanningSequenceControl } from '../planningSequence'
 import { AGENT_SUPERVISION_STALE_READING_SECONDS, describeSupervisionBadge } from '../agentSupervisionCopy'
 import { derivePlanningSequenceClaimBlock, describePlanningSequenceWithholding } from '../planningSequenceCopy'
+import { deriveLocalExecutionSequenceClaimBlock, describeLocalExecutionSequenceWithholding } from '../localExecutionSequenceCopy'
 import { selectCurrentProcessAttemptId } from '../selectCurrentProcessAttempt'
 import {
   derivePlanningLineage,
@@ -61,6 +63,7 @@ import { ClaudeCriticalReviewRepairAction } from './ClaudeCriticalReviewRepairAc
 import { PlanningLineageSummary } from './PlanningLineageSummary'
 import { AgentSupervisionPanel } from './AgentSupervisionPanel'
 import { PlanningSequencePanel } from './PlanningSequencePanel'
+import { LocalExecutionSequencePanel } from './LocalExecutionSequencePanel'
 import { PlanningImplementationAuthorizationPanel } from './PlanningImplementationAuthorizationPanel'
 import { ChallengeResolutionAction } from './ChallengeResolutionAction'
 import { ChallengeResolutionRepairAction } from './ChallengeResolutionRepairAction'
@@ -111,6 +114,13 @@ interface RunCockpitViewProps {
    * step, abandonment or a recorded result; Available enables nothing by itself. Required: null is an explicit "no state" that withholds.
    */
   executionCapacity: ExecutionCapacityState | null
+  /**
+   * The one local-execution-sequence reader of this run (ADR-0060), owned by the app for the selected run and shared with the candidate
+   * workspace panel: neither region reads its own copy. While its control is blocked or unknown (or the reader belongs to another run)
+   * every mutating start here is withheld: Agent claims, local commit, abandonment and the run settings. It is only ever a veto; reading
+   * history, evidence and notifications stays available. Required: null is an explicit "no state" that withholds.
+   */
+  localExecutionSequence: UseLocalExecutionSequenceResult | null
 }
 
 const AUTHORIZED_REQUEST_LABEL = 'Implement the human-authorized final plan with Claude'
@@ -125,12 +135,14 @@ export function RunCockpitView({
   onPlanningSequenceControlChange,
   workspaceExecution,
   executionCapacity,
+  localExecutionSequence,
 }: RunCockpitViewProps) {
   const { cockpit, cards, connection, loading, error, syncError, refresh } = useRunCockpit(runId)
   // A run event is a durable hint that the workspace's owner may have changed: the project's status is read again (coalesced by its own
   // lifetime). The first sequence this view sees is not a change.
   const refreshWorkspaceExecution = workspaceExecution?.refresh
   const refreshExecutionCapacity = executionCapacity?.refresh
+  const refreshLocalExecutionSequence = localExecutionSequence?.refresh
   const seenSequence = useRef<number | undefined>(undefined)
   const latestSequence = cockpit?.latestSequence
   useEffect(() => {
@@ -141,9 +153,10 @@ export function RunCockpitView({
     if (seenSequence.current !== undefined && seenSequence.current !== latestSequence) {
       refreshWorkspaceExecution?.()
       refreshExecutionCapacity?.()
+      refreshLocalExecutionSequence?.()
     }
     seenSequence.current = latestSequence
-  }, [latestSequence, refreshWorkspaceExecution, refreshExecutionCapacity])
+  }, [latestSequence, refreshWorkspaceExecution, refreshExecutionCapacity, refreshLocalExecutionSequence])
   // Who holds automatic authority over this run: read once, re-read on every run event and, while a sequence can advance, by bounded
   // polling. Anything not established withholds every manual mutation below.
   const planningSequence = usePlanningSequence(runId, cockpit?.latestSequence)
@@ -302,7 +315,12 @@ export function RunCockpitView({
   const workspaceGate = deriveWorkspaceExecutionStartGate(workspaceExecution, cockpit.runId === runId ? (cockpit.projectId ?? null) : null)
   const workspaceWithheld = !workspaceGate.allowsExecutionStart
   const workspaceClaimBlock: GlobalAgentClaimBlock | null = workspaceWithheld ? { reason: 'WorkspaceExecutionWithheld' } : null
-  const globalClaimBlock = planningSequenceClaimBlock ?? workspaceClaimBlock ?? deriveGlobalAgentClaimBlock(cockpit, runId)
+  // The local-execution-sequence fence (ADR-0060) is the same kind of veto, from the one reader shared with the workspace region. A reader
+  // that belongs to another run, or is absent, is unknown.
+  const localControl = localExecutionSequence !== null && localExecutionSequence.runId === runId ? localExecutionSequence.control : 'unknown'
+  const localExecutionClaimBlock = deriveLocalExecutionSequenceClaimBlock(localControl)
+  const localExecutionWithheld = describeLocalExecutionSequenceWithholding(localControl)
+  const globalClaimBlock = planningSequenceClaimBlock ?? localExecutionClaimBlock ?? workspaceClaimBlock ?? deriveGlobalAgentClaimBlock(cockpit, runId)
   // The host's execution capacity is a further, additional veto of a NEW potentially mutating start only (ADR-0058). It is kept apart from
   // the claim block above, which every ReadOnly request also reads, and it is applied after every earlier reason so their precedence and
   // wording are unchanged. Its one guidance is shown once below; each control shows only a short pointer to it.
@@ -379,6 +397,7 @@ export function RunCockpitView({
           runId={runId}
           requestedCodexModel={cockpit.requestedCodexModel ?? null}
           requestedCodexEffort={cockpit.requestedCodexEffort ?? null}
+          withheldReason={localExecutionWithheld}
         />
       )}
       {cockpit.runId === runId && (
@@ -388,6 +407,7 @@ export function RunCockpitView({
           requestedClaudeModel={cockpit.requestedClaudeModel ?? null}
           requestedClaudeEffort={cockpit.requestedClaudeEffort ?? null}
           onSaved={refresh}
+          withheldReason={localExecutionWithheld}
         />
       )}
       {cockpit.runId === runId && (
@@ -397,10 +417,11 @@ export function RunCockpitView({
           request={cockpit.claudeMutationTurnLimit}
           editable={cockpit.lifecycle === 'Created' || cockpit.lifecycle === 'Running'}
           onSaved={refresh}
+          withheldReason={localExecutionWithheld}
         />
       )}
       {cockpit.runId === runId && <TokenWarningPanel key={runId} runId={runId} tokenWarnings={cockpit.tokenWarnings} onSaved={refresh} />}
-      {cockpit.runId === runId && <TokenStopPanel key={`token-stop:${runId}`} runId={runId} tokenStops={cockpit.tokenStops} onSaved={refresh} />}
+      {cockpit.runId === runId && <TokenStopPanel key={`token-stop:${runId}`} runId={runId} tokenStops={cockpit.tokenStops} onSaved={refresh} withheldReason={localExecutionWithheld} />}
       <LatestAgentAttemptEvidence attempt={cockpit.runId === runId ? cockpit.latestAgentAttempt : null} />
       <RunTokenUsageSummary summary={cockpit.runId === runId ? cockpit.tokenUsageSummary : null} />
       <ProviderTokenUsageSummaries entries={cockpit.runId === runId ? cockpit.providerTokenUsageSummaries : null} />
@@ -421,6 +442,17 @@ export function RunCockpitView({
               runId={runId}
               planningSequence={planningSequence}
               armWithheldReason={workspaceWithheld ? WORKSPACE_EXECUTION_WITHHELD_POINTER : null}
+            />
+          )}
+          {cockpit.runId === runId && executionMode.kind === 'ManualAgent' && (
+            <LocalExecutionSequencePanel
+              runId={runId}
+              localExecutionSequence={localExecutionSequence}
+              planProposalMessageId={implementablePlanMessageId}
+              latestEventSequence={cockpit.latestSequence}
+              armWithheldReason={
+                workspaceWithheld ? WORKSPACE_EXECUTION_WITHHELD_POINTER : capacityWithheld ? EXECUTION_CAPACITY_WITHHELD_POINTER : planningSequenceWithheld
+              }
             />
           )}
           {agentActionsAllowed ? (
@@ -622,6 +654,7 @@ export function RunCockpitView({
               evidenceRefreshGeneration={evidenceRefreshGeneration}
               withheldReason={
                 planningSequenceWithheld
+                ?? localExecutionWithheld
                 ?? (workspaceWithheld ? WORKSPACE_EXECUTION_WITHHELD_POINTER : null)
                 ?? (capacityWithheld ? EXECUTION_CAPACITY_WITHHELD_POINTER : null)
               }
@@ -634,7 +667,7 @@ export function RunCockpitView({
               runId={runId}
               latestSequence={cockpit.latestSequence}
               evidenceRefreshGeneration={evidenceRefreshGeneration}
-              withheldReason={planningSequenceWithheld}
+              withheldReason={planningSequenceWithheld ?? localExecutionWithheld}
               onSaved={refresh}
               onProjectChanged={onProjectChanged}
             />
@@ -645,6 +678,7 @@ export function RunCockpitView({
           runId={runId}
           codexAccountUsageStop={cockpit.runId === runId ? cockpit.codexAccountUsageStop : null}
           accountUsageStopEditable={cockpit.lifecycle === 'Created' || cockpit.lifecycle === 'Running'}
+          accountUsageStopWithheldReason={localExecutionWithheld}
           onAccountUsageStopSaved={refresh}
           codexAccountUsageWarning={cockpit.runId === runId ? cockpit.codexAccountUsageWarning : null}
           accountUsageWarningEditable={cockpit.lifecycle === 'Created' || cockpit.lifecycle === 'Running'}

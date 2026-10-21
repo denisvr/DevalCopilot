@@ -19,6 +19,18 @@ public sealed class ManifestInfo
 
     public const string VerificationFailureMarker = "TOTAL-NOT-SUM";
 
+    /// <summary>
+    /// The conventions marker of the one repository the local execution cycle journey registers (the sealed project instruction
+    /// context carries the tracked root AGENTS.md text). Only manifests of that repository select the cycle behavior of the doubles;
+    /// every other journey's manifests never carry it, so their behavior is unchanged.
+    /// </summary>
+    public const string LocalCycleMarker = "CONVENTIONS-OF-local-execution-source";
+
+    /// <summary>The implementation note of the second correction report of the cycle, by which the review double recognizes it.</summary>
+    public const string LocalCycleSecondCorrectionNote = "Removed the leftover review marker comment.";
+
+    public bool IsLocalCycle => Raw.Contains(LocalCycleMarker, StringComparison.Ordinal);
+
     private ManifestInfo(string raw, JsonElement root, string contract)
     {
         Raw = raw;
@@ -111,7 +123,7 @@ public sealed class ManifestInfo
     {
         var (id, steps) = Plan();
         var marker = ClassifyPlan(steps);
-        if (marker is not (RevisedPlanMarker or FinalPlanMarker))
+        if (marker is not (RevisedPlanMarker or FinalPlanMarker) && !(IsLocalCycle && marker == RootPlanMarker))
         {
             throw new FixtureRefusal(FixtureRefusal.PlanIdentityRefused, "The plan in the manifest is not a revised Proposal.");
         }
@@ -152,7 +164,7 @@ public sealed class ManifestInfo
             return (id, marker, HumanAuthorizedPlan.Require(this, id));
         }
 
-        if (marker != RevisedPlanMarker || HumanAuthorizedPlan.CarriesAnyAuthorization(this))
+        if ((marker != RevisedPlanMarker && !(IsLocalCycle && marker == RootPlanMarker)) || HumanAuthorizedPlan.CarriesAnyAuthorization(this))
         {
             throw new FixtureRefusal(FixtureRefusal.PlanIdentityRefused, "The plan in the manifest is not the revised Proposal.");
         }

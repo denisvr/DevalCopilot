@@ -25,6 +25,8 @@ interface ClaudeModelPreferenceControlProps {
   requestedClaudeEffort?: string | null
   /** Re-queries the authoritative cockpit; resolves false on failure or if the run changed meanwhile. */
   onSaved?: () => Promise<boolean>
+  /** The fixed reason a local execution sequence (ADR-0060) withholds changing this setting; null or absent withholds nothing. */
+  withheldReason?: string | null
 }
 
 /**
@@ -44,6 +46,7 @@ export function ClaudeModelPreferenceControl({
   requestedClaudeModel,
   requestedClaudeEffort = null,
   onSaved,
+  withheldReason = null,
 }: ClaudeModelPreferenceControlProps) {
   const identity = `${runId}|${requestedClaudeModel ?? ''}|${requestedClaudeEffort ?? ''}`
   const [seenIdentity, setSeenIdentity] = useState(identity)
@@ -147,16 +150,21 @@ export function ClaudeModelPreferenceControl({
           </option>
         ))}
       </select>
-      <button type="button" onClick={() => void handleSave()} disabled={saving}>
+      <button type="button" onClick={() => void handleSave()} disabled={saving || withheldReason !== null}>
         Save
       </button>
       <button
         type="button"
         onClick={() => void handleClear()}
-        disabled={saving || (saved.model === null && saved.effort === null)}
+        disabled={saving || withheldReason !== null || (saved.model === null && saved.effort === null)}
       >
         Clear
       </button>
+      {withheldReason != null && (
+        <span className="dc-claude-model-preference-status" role="status">
+          {withheldReason}
+        </span>
+      )}
       {error && <span className="dc-claude-model-preference-error">{error}</span>}
       {syncFailed && <span className="dc-claude-model-preference-error">{SYNC_FAILURE_MESSAGE}</span>}
     </div>

@@ -1,4 +1,5 @@
 import type { GetRunCockpitResponse } from '../../api/clients'
+import { LOCAL_EXECUTION_CLAIM_BLOCK_MESSAGES } from './localExecutionSequenceCopy'
 import { PLANNING_SEQUENCE_CLAIM_BLOCK_MESSAGES } from './planningSequenceCopy'
 import { EXECUTION_CAPACITY_WITHHELD_POINTER } from './executionCapacity'
 import { WORKSPACE_EXECUTION_WITHHELD_POINTER } from './workspaceExecution'
@@ -23,6 +24,10 @@ export type GlobalAgentClaimBlockReason =
   | 'PlanningSequenceAutomaticAuthority'
   /** ADR-0055: whether a planning sequence holds that authority could not be established (loading, failed or invalid status). */
   | 'PlanningSequenceStatusUnknown'
+  /** ADR-0060: a local execution sequence holds automatic authority over the run, its workspace or its recipes, or owns an unresolved operation. A veto of this fence only. */
+  | 'LocalExecutionSequenceAutomaticAuthority'
+  /** ADR-0060: whether a local execution sequence holds that authority could not be established (loading, failed, invalid or unavailable status). */
+  | 'LocalExecutionSequenceStatusUnknown'
   /** ADR-0057: the workspace execution status of the project is not a validated, current Idle (pending, failed, replaced, or an owner is
    * recorded). An additional veto only; its one fixed guidance is shown once by the region, not by each control. */
   | 'WorkspaceExecutionWithheld'
@@ -159,6 +164,7 @@ export function deriveGlobalAgentClaimBlock(
 
 const BLOCK_MESSAGE: Record<GlobalAgentClaimBlockReason, string> = {
   ...PLANNING_SEQUENCE_CLAIM_BLOCK_MESSAGES,
+  ...LOCAL_EXECUTION_CLAIM_BLOCK_MESSAGES,
   WorkspaceExecutionWithheld: WORKSPACE_EXECUTION_WITHHELD_POINTER,
   ExecutionCapacityWithheld: EXECUTION_CAPACITY_WITHHELD_POINTER,
   CountBudgetExhausted: 'Blocked by the run-wide Agent claim budget: no further Agent attempt can be claimed for this run.',

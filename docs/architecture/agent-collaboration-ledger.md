@@ -150,6 +150,15 @@ objective hash) and `planning_sequence_steps` (the ordinal, role, exact predeces
 attempt), plus six `planning_sequence.*` events. They add no collaboration message type and change no ledger envelope; the
 Proposal, Challenge, Decision, Acceptance and escalation messages stay exactly those the existing handlers record.
 
+### Local execution sequence records
+
+An armed local execution sequence ([ADR-0060](../decisions/0060-coordinate-one-explicitly-authorized-local-execution-sequence.md))
+adds three tables, `local_execution_sequences` (one per run: the pinned plan and its authority, workspace, checkpoint, fingerprint,
+confirmation value, run-settings snapshot, correction allowance, state and final references), `local_execution_sequence_recipes` (the
+whole enabled verification set pinned by value) and `local_execution_sequence_steps` (kind, pass, recipe position, source, expected
+report and subject attempt, the reserved and linked operation), plus six `local_execution_sequence.*` events and database guards. They
+add no collaboration message type; the host exhaustion Escalation is an ordinary host-constructed Escalation message with fixed content.
+
 ## Run execution mode and isolation
 
 Every run carries an immutable execution mode ([ADR-0014](../decisions/0014-add-manual-agent-run-intake-with-durable-execution-mode-isolation.md)):

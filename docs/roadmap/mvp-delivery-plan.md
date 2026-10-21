@@ -224,6 +224,13 @@ advances to Accepted planning or the Human escalation. It is a bounded capabilit
 or 5 completion: it starts no implementation, mutating coordination, verification, commit or publication, and every provider-contract
 boundary below stays open.
 
+**Local execution coordination (partial, under review).** ADR-0060 / LOCAL-COORD-01 adds one explicitly armed, Human-confirmed local
+execution sequence that the host advances from one accepted plan through implementation, whole pinned verification passes, ordinary
+review or eligible failure diagnosis and at most two shared corrections to an approved review awaiting the Human's own approval, a
+Human escalation or an attention state. It is a bounded capability, not an Increment 4, 5 or 6 completion: it grants no approval,
+commit or publication, adds no queue, executor lease, retry, takeover or process-aware recovery (a linked dispatched operation without
+coherent host Exited evidence stays an owner), and every provider-contract boundary below stays open.
+
 **Agent supervision observations (partial).** ADR-0056 / AGENT-SUP-01 adds, for all seven existing Agent response contracts, a
 durable disclosure of what the host's own observer last reported for the current Agent attempt (phase, last report, absolute deadline,
 first attention) with an independent bounded sweep and startup closure of a previous host's observations. It is operational evidence

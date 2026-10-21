@@ -3,6 +3,7 @@ using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Runs.Errors;
+using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
 
@@ -36,6 +37,11 @@ public sealed class SetCodexAccountUsageStopCommandHandler(IDevalCopilotDbContex
             return Result<SetCodexAccountUsageStopCommandResult>.Failure(executionModeError);
         }
 
+        if (await LocalExecutionSequenceFence.CheckRunAsync(dbContext, command.RunId, cancellationToken) is { } localFence)
+        {
+            return Result<SetCodexAccountUsageStopCommandResult>.Failure(localFence);
+        }
+
         try
         {
             run.SetCodexAccountUsageStopPercent(command.Percent);
@@ -62,6 +68,11 @@ public sealed class SetCodexAccountUsageStopCommandHandler(IDevalCopilotDbContex
         }
         catch (DbUpdateConcurrencyException)
         {
+            if (await LocalExecutionSequenceFence.RefusedRunSaveAsync(dbContext, command.RunId))
+            {
+                return Result<SetCodexAccountUsageStopCommandResult>.Failure(LocalExecutionSequenceErrors.ManualControlBlocked());
+            }
+
             var lifecycle = await dbContext.Runs
                 .AsNoTracking()
                 .Where(candidate => candidate.Id == command.RunId)
@@ -75,6 +86,15 @@ public sealed class SetCodexAccountUsageStopCommandHandler(IDevalCopilotDbContex
                     Result<SetCodexAccountUsageStopCommandResult>.Failure(CodexAccountUsageStopErrors.ConcurrentChange()),
                 _ => Result<SetCodexAccountUsageStopCommandResult>.Failure(CodexAccountUsageStopErrors.RunNotEditable()),
             };
+        }
+        catch (DbUpdateException)
+        {
+            if (await LocalExecutionSequenceFence.RefusedRunSaveAsync(dbContext, command.RunId))
+            {
+                return Result<SetCodexAccountUsageStopCommandResult>.Failure(LocalExecutionSequenceErrors.ManualControlBlocked());
+            }
+
+            throw;
         }
 
         return Result<SetCodexAccountUsageStopCommandResult>.Success(new SetCodexAccountUsageStopCommandResult(command.Percent));

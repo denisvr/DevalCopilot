@@ -11,6 +11,7 @@ using DevalCopilot.Application.Features.Runs.Commands.CreateCodexPlanningAttempt
 using DevalCopilot.Application.Features.Runs.Policies.FormatRepair;
 using DevalCopilot.Application.Features.Runs.Errors;
 using DevalCopilot.Application.Features.Runs.Policies;
+using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
 using DevalCopilot.Application.Features.Runs.Policies.PlanningSequences;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
@@ -77,6 +78,11 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
             && await PlanningSequenceFence.CheckRunAsync(dbContext, run.Id, cancellationToken) is { } fenceError)
         {
             return Result<CreateChallengeResolutionAttemptCommandResult>.Failure(fenceError);
+        }
+
+        if (await LocalExecutionSequenceFence.CheckRunAsync(dbContext, run.Id, cancellationToken) is { } localFenceError)
+        {
+            return Result<CreateChallengeResolutionAttemptCommandResult>.Failure(localFenceError);
         }
 
         if (run.Lifecycle != RunLifecycle.Running)
@@ -640,6 +646,12 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
                 {
                     // The database guard of an armed sequence refused this claim at the write seam (ADR-0055).
                     return Result<CreateChallengeResolutionAttemptCommandResult>.Failure(PlanningSequenceErrors.ManualControlBlocked());
+                }
+
+                if (await LocalExecutionSequenceFence.RefusedRunSaveAsync(dbContext, run.Id))
+                {
+                    // The database guard of an armed local execution sequence refused this claim at the write seam (ADR-0060).
+                    return Result<CreateChallengeResolutionAttemptCommandResult>.Failure(LocalExecutionSequenceErrors.ManualControlBlocked());
                 }
 
                 if (command.RepairSourceAttemptId is { } repairSourceOnRace

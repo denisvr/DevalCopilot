@@ -4,6 +4,7 @@ using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Runs.Errors;
 using DevalCopilot.Application.Features.Runs.Policies.Abandonment;
+using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
 using DevalCopilot.Application.Features.Runs.Policies.PlanningSequences;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.Runs;
@@ -76,6 +77,11 @@ public sealed class AbandonManualRunCommandHandler(
             return Result<AbandonManualRunCommandResult>.Failure(PlanningSequenceErrors.ManualControlBlocked());
         }
 
+        if (await LocalExecutionSequenceFence.CheckRunAsync(dbContext, command.RunId, cancellationToken) is { } localFenceError)
+        {
+            return Result<AbandonManualRunCommandResult>.Failure(localFenceError);
+        }
+
         var projectId = await dbContext.Runs.AsNoTracking()
             .Where(candidate => candidate.Id == command.RunId)
             .Select(candidate => candidate.ProjectId)
@@ -119,6 +125,15 @@ public sealed class AbandonManualRunCommandHandler(
         catch (DbUpdateConcurrencyException)
         {
             return Result<AbandonManualRunCommandResult>.Failure(RunAbandonmentErrors.ConcurrentChange());
+        }
+        catch (DbUpdateException)
+        {
+            if (await LocalExecutionSequenceFence.RefusedRunSaveAsync(dbContext, command.RunId))
+            {
+                return Result<AbandonManualRunCommandResult>.Failure(LocalExecutionSequenceErrors.ManualControlBlocked());
+            }
+
+            throw;
         }
 
         await NotifyAsync(run.Id, recorded.Sequence, cancellationToken);

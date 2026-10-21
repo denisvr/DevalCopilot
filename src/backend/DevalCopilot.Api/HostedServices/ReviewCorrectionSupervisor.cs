@@ -6,6 +6,7 @@ using DevalCopilot.Application.Features.Runs.Commands.MarkAgentAttemptDispatched
 using DevalCopilot.Application.Features.Runs.Commands.RecordAgentAttemptCheckpointEvidenceUnavailable;
 using DevalCopilot.Application.Features.Runs.Commands.RecordAgentAttemptSourceChanged;
 using DevalCopilot.Application.Features.Runs.Commands.RecordAgentAttemptWorkspaceIneligible;
+using DevalCopilot.Application.Features.Runs.Commands.RecordLocalExecutionSequenceDispatchRefusal;
 using DevalCopilot.Application.Features.Runs.Commands.RecordReviewCorrectionInputAlreadyCorrected;
 using DevalCopilot.Application.Features.Runs.Commands.RecordReviewCorrectionResult;
 using DevalCopilot.Application.Features.Runs.Ports;
@@ -93,6 +94,10 @@ public sealed class ReviewCorrectionSupervisor(
             else if (dispatched.Errors[0].Code == MarkAgentAttemptDispatchedCommandHandler.InputAlreadyCorrectedCode)
             {
                 await DispatchAsync(new RecordReviewCorrectionInputAlreadyCorrectedCommand(attempt.RunId, attempt.AttemptId), CancellationToken.None);
+            }
+            else if (dispatched.Errors[0].Code == MarkAgentAttemptDispatchedCommandHandler.LocalExecutionSequenceDispatchRefusedCode)
+            {
+                await DispatchAsync(new RecordLocalExecutionSequenceDispatchRefusalCommand(attempt.RunId, attempt.AttemptId), CancellationToken.None);
             }
 
             return;

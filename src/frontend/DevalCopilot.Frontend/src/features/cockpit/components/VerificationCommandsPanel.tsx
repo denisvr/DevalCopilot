@@ -9,6 +9,7 @@ import type { VerificationExecutionResponse } from '../../../api/clients'
 import { claimVerificationExecutionClient, ClaimVerificationExecutionRequest } from '../../../api/clients'
 import { ApiException } from '../../../api/generated/api-client'
 import { VerificationExecutionOutputViewer } from './VerificationExecutionOutputViewer'
+import { LOCAL_EXECUTION_DISPATCH_REFUSED, LOCAL_EXECUTION_VERIFICATION_DISPATCH_REFUSED_LABEL } from '../localExecutionSequenceCopy'
 
 interface VerificationCommandsPanelProps {
   projectId: string
@@ -19,6 +20,11 @@ interface VerificationCommandsPanelProps {
    * whether it does is not established. Null or absent: this fence withholds nothing, which never means Run is otherwise eligible.
    */
   runWithheldReason?: string | null
+  /**
+   * The fixed reason a local execution sequence (ADR-0060) withholds creating, enabling, disabling or removing a verification command:
+   * the sequence pins the project's recipes. Null or absent withholds nothing. Run keeps its own reason above.
+   */
+  configureWithheldReason?: string | null
 }
 
 const DEFAULT_TIMEOUT_SECONDS = 300
@@ -77,7 +83,7 @@ function outputCaptureDescription(execution: VerificationExecutionResponse, stre
   return truncated ? `${stream} captured · truncated` : `${stream} captured · truncation known`
 }
 
-export function VerificationCommandsPanel({ projectId, refreshGeneration, runWithheldReason = null }: VerificationCommandsPanelProps) {
+export function VerificationCommandsPanel({ projectId, refreshGeneration, runWithheldReason = null, configureWithheldReason = null }: VerificationCommandsPanelProps) {
   const { commands, loading, saving, error, configure, update, remove } = useProjectVerificationCommands(projectId)
   const { evidence, current: evidenceCurrent, loading: evidenceLoading } = useProjectGitEvidence(projectId, true, refreshGeneration)
   const {
@@ -94,6 +100,9 @@ export function VerificationCommandsPanel({ projectId, refreshGeneration, runWit
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (configureWithheldReason !== null) {
+      return
+    }
     const submittedVersion = draftVersion
     const created = await configure({
       name,
@@ -202,6 +211,10 @@ export function VerificationCommandsPanel({ projectId, refreshGeneration, runWit
         <span className="dc-workspace-evidence-empty" role="status">{runWithheldReason}</span>
       ) : null}
 
+      {configureWithheldReason !== null && configureWithheldReason !== runWithheldReason ? (
+        <span className="dc-workspace-evidence-empty" role="status">{configureWithheldReason}</span>
+      ) : null}
+
       {!evidenceCurrent ? (
         <span className="dc-workspace-evidence-empty">
           {evidenceLoading ? 'Reading the current source checkpoint…' : 'The current source checkpoint could not be refreshed. Use Refresh evidence to enable Run.'}
@@ -222,7 +235,7 @@ export function VerificationCommandsPanel({ projectId, refreshGeneration, runWit
           const isRunning = execution?.status === 'Running' && !historical
           const statusLabel = isRunning
             ? (execution?.isDispatched ? 'Running' : 'Pending')
-            : historical && execution?.status === 'Running' ? 'Running (earlier workspace)' : execution?.status
+            : historical && execution?.status === 'Running' ? 'Running (earlier workspace)' : execution?.status === LOCAL_EXECUTION_DISPATCH_REFUSED ? LOCAL_EXECUTION_VERIFICATION_DISPATCH_REFUSED_LABEL : execution?.status
           const canInspectOutput = execution && execution.status !== 'Running'
           const outputSelection = selectedOutput && selectedOutput.executionId === execution?.verificationExecutionId ? selectedOutput : null
           return (
@@ -234,13 +247,13 @@ export function VerificationCommandsPanel({ projectId, refreshGeneration, runWit
             {statusLabel ? <span data-testid={`verification-status-${command.verificationCommandId}`}>Last run: {statusLabel}</span> : null}
           </div>
           <div className="dc-verification-command-actions">
-            <button type="button" className="dc-button" disabled={saving} onClick={() => void update(command, !command.isEnabled)}>
+            <button type="button" className="dc-button" disabled={saving || configureWithheldReason !== null} onClick={() => void update(command, !command.isEnabled)}>
               {command.isEnabled ? 'Disable' : 'Enable'}
             </button>
             <button type="button" className="dc-button" data-variant="primary" disabled={!command.isEnabled || !canRun || runningCommandId !== null || isRunning} onClick={() => void run(command.verificationCommandId)}>
               {runningCommandId === command.verificationCommandId ? 'Starting…' : isRunning ? (execution?.isDispatched ? 'Running…' : 'Pending…') : 'Run'}
             </button>
-            <button type="button" className="dc-button" disabled={saving || !command.verificationCommandId} onClick={() => void remove(command.verificationCommandId!)}>
+            <button type="button" className="dc-button" disabled={saving || configureWithheldReason !== null || !command.verificationCommandId} onClick={() => void remove(command.verificationCommandId!)}>
               Remove
             </button>
           </div>
@@ -274,7 +287,7 @@ export function VerificationCommandsPanel({ projectId, refreshGeneration, runWit
           Timeout (seconds)
           <input aria-label="Verification timeout seconds" type="number" min="1" max="900" value={timeoutSeconds} onChange={event => commit(previous => ({ ...previous, timeoutSeconds: Number(event.target.value), draftVersion: previous.draftVersion + 1 }))} />
         </label>
-        <button type="submit" className="dc-button" data-variant="primary" disabled={saving}>{saving ? 'Saving…' : 'Add command'}</button>
+        <button type="submit" className="dc-button" data-variant="primary" disabled={saving || configureWithheldReason !== null}>{saving ? 'Saving…' : 'Add command'}</button>
       </form>
       {error ? <span className="dc-candidate-workspace-error">{error}</span> : null}
       {executionError ? <span className="dc-candidate-workspace-error">{executionError}</span> : null}

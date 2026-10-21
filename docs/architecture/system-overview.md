@@ -329,6 +329,17 @@ withhold execution-start actions. It adds no table, lease, queue, slot or
 scheduler, does not include standalone Process attempts, and does not implement
 the global two-mutating-run scheduler. Increment 5 stays incomplete.
 
+**Implemented for review: local execution coordination (LOCAL-COORD-01).**
+[ADR-0060](../decisions/0060-coordinate-one-explicitly-authorized-local-execution-sequence.md) adds one explicitly armed, Human-confirmed
+local execution sequence per ManualAgent run. A hosted coordinator observes it from locked durable state and composes the existing
+implementation, verification, CodeReview, VerificationDiagnosis and both correction-origin claims through the mediator with an internal
+step ticket; each link commits in the claim's own transaction, an independent probe settles uncertainty and nothing is retried. It
+extends effective ownership narrowly: a linked dispatched operation without coherent host-recorded Exited evidence remains an owner
+(workspace exclusion and, for mutating contracts, the global count) even when its row is terminal, with no supported release. Startup
+closes previous-launch sequences before any recovery and never resumes, redispatches or adopts. It adds three tables and database
+guards, four protected operations and one run-owned cockpit reader, no queue, lease, scheduler, retry, takeover or process-aware
+recovery, and grants no approval, commit or publication. Increments 4 to 6 stay incomplete.
+
 **Delivered partial slice: global mutating admission (GLOBAL-ADMIT-01).**
 [ADR-0058](../decisions/0058-bound-global-admission-of-existing-workspace-mutators.md) adds one ceiling of recorded potentially mutating execution owners per authoritative database (fixed at two there; ADR-0059 makes it the operator's durable choice of one or two, default two, read fresh at every check), derived only from
 existing rows: unresolved Agent attempts whose coherent contract and role Domain classifies WorkspaceMutating (implementation and

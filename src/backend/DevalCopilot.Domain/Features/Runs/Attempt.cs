@@ -1492,6 +1492,32 @@ public sealed class Attempt
         CompletedAtUtc = nowUtc;
     }
 
+    /// <summary>The terminal pre-dispatch transition of a local-execution-sequence dispatch refusal (ADR-0060): a Running, never-dispatched
+    /// Agent attempt of one of the four involved contracts ends as Failed with the dedicated outcome and no dispatch, process, token or
+    /// model-limit evidence. The Application recorder proves the sequence association before calling this.</summary>
+    public void CompleteLocalExecutionSequenceDispatchRefused(DateTimeOffset nowUtc)
+    {
+        if (Kind != AttemptKind.Agent
+            || AgentResponseContract is not (Runs.AgentResponseContract.ImplementationReport
+                or Runs.AgentResponseContract.ImplementationReview
+                or Runs.AgentResponseContract.ReviewCorrection
+                or Runs.AgentResponseContract.VerificationDiagnosis))
+        {
+            throw new InvalidOperationException(
+                "Only an implementation, code review, correction or verification diagnosis attempt can record a local-execution-sequence refusal.");
+        }
+
+        if (Status != AttemptStatus.Running || AgentDispatchedAtUtc.HasValue)
+        {
+            throw new InvalidOperationException(
+                "A local-execution-sequence refusal is recorded once, for a claimed attempt that was never dispatched.");
+        }
+
+        AgentOutcome = Runs.AgentOutcome.LocalExecutionSequenceDispatchRefused;
+        Status = AttemptStatus.Failed;
+        CompletedAtUtc = nowUtc;
+    }
+
     public void Complete(DateTimeOffset nowUtc)
     {
         if (Status != AttemptStatus.Running)
@@ -1690,6 +1716,12 @@ public sealed class Attempt
         if (!Enum.IsDefined(outcome))
         {
             throw new ArgumentOutOfRangeException(nameof(outcome), outcome, "Not a defined agent outcome.");
+        }
+
+        if (outcome == Runs.AgentOutcome.LocalExecutionSequenceDispatchRefused)
+        {
+            throw new InvalidOperationException(
+                "LocalExecutionSequenceDispatchRefused is recorded only through CompleteLocalExecutionSequenceDispatchRefused.");
         }
 
         if (outcome == Runs.AgentOutcome.PlanningSequenceDispatchRefused)
@@ -1917,6 +1949,12 @@ public sealed class Attempt
             throw new ArgumentOutOfRangeException(nameof(outcome), outcome, "Not a defined agent outcome.");
         }
 
+        if (outcome == Runs.AgentOutcome.LocalExecutionSequenceDispatchRefused)
+        {
+            throw new InvalidOperationException(
+                "LocalExecutionSequenceDispatchRefused is recorded only through CompleteLocalExecutionSequenceDispatchRefused.");
+        }
+
         var isSuccess = contract.CompletedOutcomes.Contains(outcome);
 
         // Independent Domain-level backstop, never the only line of defense — mirrors
@@ -1997,6 +2035,12 @@ public sealed class Attempt
         if (!Enum.IsDefined(outcome))
         {
             throw new ArgumentOutOfRangeException(nameof(outcome), outcome, "Not a defined agent outcome.");
+        }
+
+        if (outcome == Runs.AgentOutcome.LocalExecutionSequenceDispatchRefused)
+        {
+            throw new InvalidOperationException(
+                "LocalExecutionSequenceDispatchRefused is recorded only through CompleteLocalExecutionSequenceDispatchRefused.");
         }
 
         if (outcome is Runs.AgentOutcome.Proposed

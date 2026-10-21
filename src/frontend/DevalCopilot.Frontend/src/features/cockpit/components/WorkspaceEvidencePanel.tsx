@@ -8,6 +8,8 @@ interface WorkspaceEvidencePanelProps {
   // Advanced by the project's owner to ask every checkpoint consumer to read again; `onCaptured` tells the owner a capture succeeded.
   refreshGeneration?: number
   onCaptured?: () => void
+  /** The fixed reason a local execution sequence (ADR-0060) withholds capturing a checkpoint (it changes the recorded source); null or absent withholds nothing. */
+  captureWithheldReason?: string | null
 }
 
 function abbreviate(value: string | undefined): string {
@@ -33,7 +35,7 @@ function coverageSummary(comparison: CheckpointComparison): string {
 
 /** Source evidence deliberately remains separate from workspace preparation: preparation
  * proves ownership; a checkpoint proves one observed content state. */
-export function WorkspaceEvidencePanel({ projectId, workspaceReady, refreshGeneration, onCaptured }: WorkspaceEvidencePanelProps) {
+export function WorkspaceEvidencePanel({ projectId, workspaceReady, refreshGeneration, onCaptured, captureWithheldReason = null }: WorkspaceEvidencePanelProps) {
   const { evidence, changedFiles, comparison, loading, capturing, inspecting, error, capture, inspect } = useProjectGitEvidence(
     projectId,
     workspaceReady,
@@ -52,10 +54,12 @@ export function WorkspaceEvidencePanel({ projectId, workspaceReady, refreshGener
           <span className="dc-candidate-workspace-title">Source evidence</span>
           <span className="dc-workspace-evidence-subtitle">Immutable checkpoint for the isolated workspace</span>
         </div>
-        <button type="button" className="dc-button" data-variant="primary" disabled={capturing} onClick={() => void capture()}>
+        <button type="button" className="dc-button" data-variant="primary" disabled={capturing || captureWithheldReason !== null} onClick={() => void capture()}>
           {capturing ? 'Capturing…' : 'Capture checkpoint'}
         </button>
       </div>
+
+      {captureWithheldReason !== null ? <span className="dc-workspace-evidence-empty" role="status">{captureWithheldReason}</span> : null}
 
       {loading ? <span className="dc-empty-state">Loading evidence…</span> : null}
       {!loading && !evidence?.checkpointId ? (

@@ -100,6 +100,7 @@ describe('CodeReviewAction', () => {
   })
 
   it.each([
+    ['LocalExecutionSequenceDispatchRefused', 'Not started: the local execution sequence no longer authorized dispatching it (no provider was invoked, no output recorded, no budget refunded)'],
     ['AccountUsageStopReached', 'Not started: the account-usage stop was reached'],
     ['AccountUsageEvidenceUnavailable', 'Not started: the account-usage stop could not be checked'],
   ])('labels the %s outcome safely and still allows a retry', (outcome, label) => {

@@ -90,6 +90,13 @@ CriticalReviewer, Resolver; at most five attempts) that the host advances to
 Accepted planning or the existing Human escalation. It never starts
 implementation, verification, commit or publication. PLAN-COORD-01's review
 and publication provenance are recorded in the roadmap checkpoints and Git.
+ADR-0060 / LOCAL-COORD-01 (implemented for review, unpublished until its own GO) adds the second narrow exception: one explicit,
+single-use, Human-confirmed authorization per ManualAgent run arms one local execution sequence for one Accepted (or separately
+Human-authorized depth-two) plan. The host composes the existing implementation, whole pinned verification passes, ordinary review or
+eligible failure diagnosis and at most two shared corrections through the same claim gates, ending at an approved review awaiting the
+Human's own approval, a Human escalation or an attention state; it never approves, commits or publishes. A linked dispatched operation
+without coherent host Exited evidence stays an effective execution owner (no supported release exists), and a restart never resumes,
+redispatches or adopts. Increments 4 to 6 stay incomplete.
 ADR-0056 adds only operational evidence for all seven Agent response contracts: a
 durable observation of what the host's own observer last reported (phase, last
 report, absolute deadline, first attention) for the current attempt, an independent

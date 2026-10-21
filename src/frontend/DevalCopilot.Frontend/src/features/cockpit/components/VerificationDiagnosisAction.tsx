@@ -8,6 +8,7 @@ import { DirectGuidanceFact } from './DirectGuidanceFact'
 import { ProcessEvidenceLine } from './ProcessEvidenceLine'
 import { TokenUsageLine } from './TokenUsageLine'
 import { ACCOUNT_USAGE_OUTCOME_LABELS } from '../accountUsageOutcomeLabels'
+import { LOCAL_EXECUTION_DISPATCH_REFUSED_LABEL } from '../localExecutionSequenceCopy'
 
 interface VerificationDiagnosisActionProps {
   /** The run that owns the correction draft, with the diagnosis attempt the status names. */
@@ -49,6 +50,7 @@ const OUTCOME_LABEL: Record<string, string> = {
   WorkspaceNoLongerEligible: 'Workspace no longer eligible for dispatch',
   InputAlreadyDiagnosed: 'This failed verification was already diagnosed',
   VerificationEvidenceChanged: 'The verification evidence changed before the diagnosis completed',
+  LocalExecutionSequenceDispatchRefused: LOCAL_EXECUTION_DISPATCH_REFUSED_LABEL,
 }
 
 const CORRECTION_OUTCOME_LABEL: Record<string, string> = {
@@ -61,6 +63,7 @@ const CORRECTION_OUTCOME_LABEL: Record<string, string> = {
   ProviderInvocationFailed: 'The Implementer could not be invoked for correction',
   CheckpointEvidenceUnavailable: 'Source evidence could not be captured',
   WorkspaceNoLongerEligible: 'Workspace no longer eligible for correction',
+  LocalExecutionSequenceDispatchRefused: LOCAL_EXECUTION_DISPATCH_REFUSED_LABEL,
 }
 
 /** Fixed copy per `diagnosisUnavailableCode`; the closed codes are display hints, never eligibility. */
@@ -89,6 +92,7 @@ const FAILED_OUTCOMES = new Set([
   'CheckpointEvidenceUnavailable',
   'SourceChanged',
   'WorkspaceNoLongerEligible',
+  'LocalExecutionSequenceDispatchRefused',
 ])
 
 function phaseLabel(status: VerificationDiagnosisStatusResponse): string {

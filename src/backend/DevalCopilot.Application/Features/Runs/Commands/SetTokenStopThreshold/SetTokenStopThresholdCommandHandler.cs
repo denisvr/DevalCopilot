@@ -2,6 +2,8 @@ using System.Text.Json;
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
+using DevalCopilot.Application.Features.Runs.Errors;
+using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
 
@@ -41,6 +43,11 @@ public sealed class SetTokenStopThresholdCommandHandler(IDevalCopilotDbContext d
         if (run is null)
         {
             return Result<SetTokenStopThresholdCommandResult>.Failure(TokenStopThresholdErrors.RunNotFound());
+        }
+
+        if (await LocalExecutionSequenceFence.CheckRunAsync(dbContext, command.RunId, cancellationToken) is { } localFence)
+        {
+            return Result<SetTokenStopThresholdCommandResult>.Failure(localFence);
         }
 
         try
@@ -85,6 +92,11 @@ public sealed class SetTokenStopThresholdCommandHandler(IDevalCopilotDbContext d
         }
         catch (DbUpdateConcurrencyException)
         {
+            if (await LocalExecutionSequenceFence.RefusedRunSaveAsync(dbContext, command.RunId))
+            {
+                return Result<SetTokenStopThresholdCommandResult>.Failure(LocalExecutionSequenceErrors.ManualControlBlocked());
+            }
+
             var lifecycle = await dbContext.Runs
                 .AsNoTracking()
                 .Where(candidate => candidate.Id == command.RunId)
@@ -98,6 +110,15 @@ public sealed class SetTokenStopThresholdCommandHandler(IDevalCopilotDbContext d
                     Result<SetTokenStopThresholdCommandResult>.Failure(TokenStopThresholdErrors.ConcurrentChange()),
                 _ => Result<SetTokenStopThresholdCommandResult>.Failure(TokenStopThresholdErrors.RunNotEditable()),
             };
+        }
+        catch (DbUpdateException)
+        {
+            if (await LocalExecutionSequenceFence.RefusedRunSaveAsync(dbContext, command.RunId))
+            {
+                return Result<SetTokenStopThresholdCommandResult>.Failure(LocalExecutionSequenceErrors.ManualControlBlocked());
+            }
+
+            throw;
         }
 
         return Result<SetTokenStopThresholdCommandResult>.Success(

@@ -68,6 +68,16 @@ public static class CodexRole
                     throw new FixtureRefusal(FixtureRefusal.PlanIdentityRefused, "The review input carries no passed verification.");
                 }
 
+                if (manifest.IsLocalCycle)
+                {
+                    // The local execution cycle journey's repository only, decided statelessly from the sealed report: the report of the
+                    // second correction (by its notes) is approved, any earlier report receives one review finding.
+                    var approved = manifest.Raw.Contains(ManifestInfo.LocalCycleSecondCorrectionNote, StringComparison.Ordinal);
+                    fields["outcome"] = approved ? "approved" : "changesRequested";
+                    response = approved ? ResponseFactory.ReviewApproved(reviewedMarker) : ResponseFactory.ReviewChangesRequested();
+                    break;
+                }
+
                 response = ResponseFactory.ReviewApproved(reviewedMarker);
                 break;
             default:

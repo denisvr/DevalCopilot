@@ -62,13 +62,14 @@ public sealed class CheckpointReviewEvidence
         // way — drift caught before dispatch has no process outcome, drift caught after
         // completion still snapshots the real one — every other terminal status always requires
         // one.
-        if (verificationExecutionStatus == VerificationExecutionStatus.Interrupted
+        if (verificationExecutionStatus is VerificationExecutionStatus.Interrupted or VerificationExecutionStatus.LocalExecutionSequenceDispatchRefused
             && (verificationExecutionOutcome.HasValue || verificationExecutionExitCode.HasValue))
         {
             throw new ArgumentException("Interrupted review evidence cannot have a process outcome or exit code.", nameof(verificationExecutionStatus));
         }
 
         if (verificationExecutionStatus is not VerificationExecutionStatus.Interrupted and not VerificationExecutionStatus.SourceChanged
+            and not VerificationExecutionStatus.LocalExecutionSequenceDispatchRefused
             && !verificationExecutionOutcome.HasValue)
         {
             throw new ArgumentException("Terminal process evidence requires an outcome.", nameof(verificationExecutionOutcome));

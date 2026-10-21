@@ -53,6 +53,15 @@ public static class ResponseFactory
         }),
     });
 
+    /// <summary>The critical review of the Planner root that accepts it, served only to the local execution cycle journey's repository so
+    /// the root becomes an explicitly Accepted plan.</summary>
+    public static string AcceptRoot() => Serialize(new JsonObject
+    {
+        ["decision"] = "accept",
+        ["summary"] = "The root plan is acceptable for one implementation.",
+        ["rationale"] = "The plan keeps the change small and can be verified by the configured commands.",
+    });
+
     /// <summary>The second critical review, of the first revision: a materially different concern from the first.</summary>
     public static string SecondChallenge() => Serialize(new JsonObject
     {
@@ -137,9 +146,12 @@ public static class ResponseFactory
     {
         ["summary"] = "Implemented Total in the Feature file.",
         ["changedRelativePaths"] = new JsonArray(OwnedLocation.CandidateRelativePath),
-        ["implementationNotes"] = planMarker == ManifestInfo.FinalPlanMarker
-            ? "Implemented the final plan in the single named file."
-            : "Implemented the revised plan in the single named file.",
+        ["implementationNotes"] = planMarker switch
+        {
+            ManifestInfo.FinalPlanMarker => "Implemented the final plan in the single named file.",
+            ManifestInfo.RootPlanMarker => "Implemented the root plan in the single named file.",
+            _ => "Implemented the revised plan in the single named file.",
+        },
         ["unexpectedDiscoveries"] = "None.",
         ["remainingRisks"] = "Local verification has not been run.",
         ["recommendedVerification"] = "Run the configured verification command.",
@@ -161,7 +173,28 @@ public static class ResponseFactory
         ["escalation"] = null,
     });
 
-    public static string Correction(IReadOnlyList<Guid> findingIds)
+    /// <summary>The second correction of the local execution cycle: a report whose notes the review double recognizes.</summary>
+    public static string SecondCycleCorrection(IReadOnlyList<Guid> findingIds) => Correction(findingIds, ManifestInfo.LocalCycleSecondCorrectionNote);
+
+    /// <summary>The review-origin findings of the local execution cycle's first review: one low-severity standards finding.</summary>
+    public static string ReviewChangesRequested() => Serialize(new JsonObject
+    {
+        ["outcome"] = "changesRequested",
+        ["summary"] = "The total is correct but a leftover marker comment remains.",
+        ["rationale"] = null,
+        ["residualRisks"] = null,
+        ["findings"] = new JsonArray(new JsonObject
+        {
+            ["severity"] = "low",
+            ["category"] = "standards",
+            ["summary"] = "A leftover marker comment remains after the statement.",
+            ["evidence"] = "The returned statement still carries a trailing review marker comment.",
+            ["requiredChange"] = "Remove the trailing marker comment and keep the statement itself unchanged.",
+            ["affectedRelativePath"] = OwnedLocation.CandidateRelativePath,
+        }),
+    });
+
+    public static string Correction(IReadOnlyList<Guid> findingIds, string notes = "Restored addition in Total.")
     {
         var responses = new JsonArray();
         foreach (var id in findingIds)
@@ -182,7 +215,7 @@ public static class ResponseFactory
             {
                 ["summary"] = "Correction complete.",
                 ["changedRelativePaths"] = new JsonArray(OwnedLocation.CandidateRelativePath),
-                ["implementationNotes"] = "Restored addition in Total.",
+                ["implementationNotes"] = notes,
                 ["unexpectedDiscoveries"] = "None.",
                 ["remainingRisks"] = "Verification has not been rerun.",
                 ["recommendedVerification"] = "Run the configured verification command.",
@@ -194,9 +227,12 @@ public static class ResponseFactory
     public static string ReviewApproved(string planMarker) => Serialize(new JsonObject
     {
         ["outcome"] = "approved",
-        ["summary"] = planMarker == ManifestInfo.FinalPlanMarker
-            ? "The implementation matches the final plan."
-            : "The implementation matches the revised plan.",
+        ["summary"] = planMarker switch
+        {
+            ManifestInfo.FinalPlanMarker => "The implementation matches the final plan.",
+            ManifestInfo.RootPlanMarker => "The implementation matches the root plan.",
+            _ => "The implementation matches the revised plan.",
+        },
         ["rationale"] = "Total adds its operands and the local verification passed.",
         ["residualRisks"] = "None material.",
         ["findings"] = new JsonArray(),

@@ -1,5 +1,6 @@
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
+using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
 
 namespace DevalCopilot.Application.Features.Runs.Commands.CreateCodeReviewAttempt;
 
@@ -28,6 +29,9 @@ public sealed record CreateCodeReviewAttemptCommand(
     Guid RunId, Guid? ExecutionReportMessageId, Guid? RepairSourceAttemptId = null)
     : IManualTransactionCommand<Result<CreateCodeReviewAttemptCommandResult>>
 {
+    /// <summary>The exact local execution sequence step (ADR-0060) this claim is composed for; never bound from a request.</summary>
+    internal LocalExecutionStepTicket? LocalStep { get; init; }
+
     public static CreateCodeReviewAttemptCommand ForRepair(Guid runId, Guid sourceAttemptId) =>
         new(runId, null, sourceAttemptId);
 }

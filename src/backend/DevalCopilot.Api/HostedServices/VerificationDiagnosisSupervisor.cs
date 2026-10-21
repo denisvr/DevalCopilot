@@ -6,6 +6,7 @@ using DevalCopilot.Application.Features.Runs.Commands.MarkAgentAttemptDispatched
 using DevalCopilot.Application.Features.Runs.Commands.RecordAgentAttemptCheckpointEvidenceUnavailable;
 using DevalCopilot.Application.Features.Runs.Commands.RecordAgentAttemptSourceChanged;
 using DevalCopilot.Application.Features.Runs.Commands.RecordAgentAttemptWorkspaceIneligible;
+using DevalCopilot.Application.Features.Runs.Commands.RecordLocalExecutionSequenceDispatchRefusal;
 using DevalCopilot.Application.Features.Runs.Commands.RecordVerificationDiagnosisDispatchRefusal;
 using DevalCopilot.Application.Features.Runs.Commands.RecordVerificationDiagnosisResult;
 using DevalCopilot.Application.Features.Runs.Ports;
@@ -142,6 +143,11 @@ public sealed class VerificationDiagnosisSupervisor(
                     new RecordVerificationDiagnosisDispatchRefusalCommand(
                         attempt.RunId, attempt.AttemptId, VerificationDiagnosisDispatchRefusal.VerificationEvidenceChanged),
                     CancellationToken.None);
+            }
+            else if (code == MarkAgentAttemptDispatchedCommandHandler.LocalExecutionSequenceDispatchRefusedCode)
+            {
+                await DispatchAsync(
+                    new RecordLocalExecutionSequenceDispatchRefusalCommand(attempt.RunId, attempt.AttemptId), CancellationToken.None);
             }
 
             return;

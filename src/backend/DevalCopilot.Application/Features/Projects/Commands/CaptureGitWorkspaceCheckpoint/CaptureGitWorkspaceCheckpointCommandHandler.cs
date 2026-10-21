@@ -3,6 +3,8 @@ using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Projects.Policies;
 using DevalCopilot.Application.Features.Projects.Ports;
+using DevalCopilot.Application.Features.Runs.Errors;
+using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
 using DevalCopilot.Domain.Features.Projects;
 using Microsoft.EntityFrameworkCore;
 
@@ -46,6 +48,11 @@ public sealed class CaptureGitWorkspaceCheckpointCommandHandler(
                 Error.Conflict("workspaces.lease_not_active", "This workspace is no longer owned for source evidence capture."));
         }
 
+        if (await LocalExecutionSequenceFence.CheckWorkspaceAsync(dbContext, workspace.Id, cancellationToken) is { } localFence)
+        {
+            return Result<CaptureGitWorkspaceCheckpointCommandResult>.Failure(localFence);
+        }
+
         var evidence = await evidenceReader.CaptureAsync(workspace.WorkspacePath, cancellationToken);
         if (evidence.Outcome != GitWorkspaceEvidenceOutcome.Success)
         {
@@ -68,9 +75,21 @@ public sealed class CaptureGitWorkspaceCheckpointCommandHandler(
 
         dbContext.GitCheckpoints.Add(checkpoint);
         dbContext.GitChangedFiles.AddRange(changedFiles);
-        if (await CommitReservation.TrySaveAsync(dbContext, command.ProjectId, cancellationToken) is { } conflict)
+        try
         {
-            return Result<CaptureGitWorkspaceCheckpointCommandResult>.Failure(conflict);
+            if (await CommitReservation.TrySaveAsync(dbContext, command.ProjectId, cancellationToken) is { } conflict)
+            {
+                return Result<CaptureGitWorkspaceCheckpointCommandResult>.Failure(conflict);
+            }
+        }
+        catch (DbUpdateException)
+        {
+            if (await LocalExecutionSequenceFence.RefusedWorkspaceSaveAsync(dbContext, workspace.Id))
+            {
+                return Result<CaptureGitWorkspaceCheckpointCommandResult>.Failure(LocalExecutionSequenceErrors.ManualControlBlocked());
+            }
+
+            throw;
         }
 
         return Result<CaptureGitWorkspaceCheckpointCommandResult>.Success(new(

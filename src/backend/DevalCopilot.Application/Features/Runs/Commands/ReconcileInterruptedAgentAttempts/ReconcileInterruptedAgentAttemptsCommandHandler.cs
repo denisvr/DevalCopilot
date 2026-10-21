@@ -19,9 +19,12 @@ public sealed class ReconcileInterruptedAgentAttemptsCommandHandler(IDevalCopilo
         // AgentAttemptContract, not a hardcoded role literal, and materialized before the query so
         // EF Core translates the check to a closed SQL IN (...) predicate.
         var readOnlyRoles = AgentAttemptContract.RolesForEffect(AgentEffectKind.ReadOnly).ToArray();
+        // ADR-0060: an attempt linked to a local execution sequence is never generically interrupted here; the sequence's own startup
+        // command closes undispatched ones and quarantines dispatched ones, so the run is never marked Interrupted from this path.
         var interruptedAttempts = await dbContext.Attempts
             .Where(attempt =>
-                attempt.Kind == AttemptKind.Agent && readOnlyRoles.Contains(attempt.AgentRole!.Value) && attempt.Status == AttemptStatus.Running)
+                attempt.Kind == AttemptKind.Agent && readOnlyRoles.Contains(attempt.AgentRole!.Value) && attempt.Status == AttemptStatus.Running
+                && !dbContext.LocalExecutionSequenceSteps.Any(step => step.OperationId == attempt.Id))
             .ToListAsync(cancellationToken);
 
         if (interruptedAttempts.Count == 0)

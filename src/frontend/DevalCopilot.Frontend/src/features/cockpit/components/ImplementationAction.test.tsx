@@ -284,6 +284,7 @@ describe('ImplementationAction', () => {
     ['ProviderInvocationFailed', 'Claude could not be invoked'],
     ['CheckpointEvidenceUnavailable', 'Source evidence could not be captured'],
     ['WorkspaceNoLongerEligible', 'Workspace no longer eligible for dispatch'],
+    ['LocalExecutionSequenceDispatchRefused', 'Not started: the local execution sequence no longer authorized dispatching it (no provider was invoked, no output recorded, no budget refunded)'],
   ])('labels the %s terminal outcome safely and still allows a retry', (outcome, label) => {
     render(
       <ImplementationAction

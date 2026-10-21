@@ -281,6 +281,18 @@ before preparation and again under the existing write lock; dispatch and executi
 owner. A refusal consumes no identity, budget, grant, number, membership, artifact or event, and an over-capacity database is never
 rewritten to fit. Heartbeat or deadline expiry never releases capacity; only a genuine terminal transition does.
 
+### Local execution sequence closure and quarantine
+
+[ADR-0060](../decisions/0060-coordinate-one-explicitly-authorized-local-execution-sequence.md) closes every formerly advancing local
+execution sequence first at startup (after migration, before any artifact recovery, attempt interruption, workspace reconciliation or
+supervisor): the sequence becomes Interrupted and its unclaimed preparations are revoked, and a linked claim proved never dispatched ends
+with the dedicated dispatch refusal without invoking its adapter. A linked dispatched operation without a coherent recorded terminal
+result is left exactly as recorded: the generic recoveries exclude it, so its partial output is neither sealed, imported nor deleted,
+its row is neither interrupted nor terminalized, no run outcome is invented and its ownership and global count stay. A terminal linked
+operation without coherent host Exited evidence (a timeout, cancellation, adapter exception or missing evidence) is likewise a retained
+owner: terminal status never proves the process or its descendants stopped. There is no supported release, force-release, cancel, retry
+or takeover in this version; the cockpit says so. Exited here is the host's proof about the invoked process only.
+
 ## Retention and deletion
 
 MVP retention is explicit even for a local tool:

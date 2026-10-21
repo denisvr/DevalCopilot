@@ -6,6 +6,7 @@ using DevalCopilot.Application.Features.Runs.Errors;
 using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Application.Features.Runs.Policies.ExecutionCapacity;
 using DevalCopilot.Application.Features.Runs.Policies.FormatRepair;
+using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
 using DevalCopilot.Application.Features.Runs.Policies.PlanningSequences;
 using DevalCopilot.Application.Features.Runs.Policies.VerificationDiagnosis;
 using DevalCopilot.Domain.Features.Projects;
@@ -34,6 +35,11 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
     /// checkpoint need not have changed at all. It maps to its own terminal outcome and its own dedicated recording command; the provider
     /// is never invoked.</summary>
     public const string PlanningSequenceDispatchRefusedCode = "agent_attempts.planning_sequence_dispatch_refused";
+
+    /// <summary>The local-execution-sequence counterpart (ADR-0060): the attempt is the linked operation of a sequence whose authority,
+    /// result deadline, pinned source, recipes or settings no longer permit dispatch. It maps to its own terminal outcome and its own
+    /// dedicated recording command; the provider is never invoked.</summary>
+    public const string LocalExecutionSequenceDispatchRefusedCode = "agent_attempts.local_execution_sequence_dispatch_refused";
 
     /// <summary>Distinct from <see cref="WorkspaceNoLongerEligibleCode"/> on purpose: the run,
     /// workspace, lease, and checkpoint all remain fully eligible here — only the reviewed
@@ -224,6 +230,24 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
         if (sequenceGate.Sequence is { } linkedSequence)
         {
             PlanningSequenceDispatchGate.Guard(dbContext, linkedSequence);
+        }
+
+        // The local-execution-sequence half of the same last gate (ADR-0060): the exact linked step, pinned source and recipes, settings and
+        // unexpired result deadline are required, and the sequence revision decided against must be unchanged at this marker's own commit.
+        // The workspace and capacity fences below still apply to a linked operation exactly as to any other.
+        var localGate = await LocalExecutionDispatchGate.EvaluateAgentAsync(
+            dbContext, attempt, timeProvider.GetUtcNow(), trackSequence: true, cancellationToken);
+        if (localGate.Verdict == LocalExecutionDispatchGate.Verdict.Refused)
+        {
+            return Result<DateTimeOffset>.Failure(
+                Error.Conflict(
+                    LocalExecutionSequenceDispatchRefusedCode,
+                    "The local execution sequence no longer authorizes dispatching this attempt."));
+        }
+
+        if (localGate.Verdict == LocalExecutionDispatchGate.Verdict.Dispatchable)
+        {
+            LocalExecutionDispatchGate.Guard(dbContext, localGate.Sequence!);
         }
 
         var workspace = await dbContext.GitWorkspaces

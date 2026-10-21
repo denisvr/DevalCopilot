@@ -1,5 +1,6 @@
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
+using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
 
 namespace DevalCopilot.Application.Features.Runs.Commands.CreateVerificationDiagnosisAttempt;
 
@@ -11,4 +12,8 @@ namespace DevalCopilot.Application.Features.Runs.Commands.CreateVerificationDiag
 /// short guard transaction only after all external work completes.
 /// </summary>
 public sealed record CreateVerificationDiagnosisAttemptCommand(Guid RunId, Guid ExecutionReportMessageId)
-    : IManualTransactionCommand<Result<CreateVerificationDiagnosisAttemptCommandResult>>;
+    : IManualTransactionCommand<Result<CreateVerificationDiagnosisAttemptCommandResult>>
+{
+    /// <summary>The exact local execution sequence step (ADR-0060) this claim is composed for; never bound from a request.</summary>
+    internal LocalExecutionStepTicket? LocalStep { get; init; }
+}

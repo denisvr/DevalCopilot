@@ -154,6 +154,7 @@ describe('VerificationDiagnosisAction', () => {
     ['CheckpointEvidenceUnavailable', 'Source evidence could not be captured'],
     ['SourceChanged', 'Source changed before the diagnosis completed'],
     ['WorkspaceNoLongerEligible', 'Workspace no longer eligible for dispatch'],
+    ['LocalExecutionSequenceDispatchRefused', 'Not started: the local execution sequence no longer authorized dispatching it (no provider was invoked, no output recorded, no budget refunded)'],
     ['AccountUsageStopReached', 'Not started: the account-usage stop was reached'],
     ['AccountUsageEvidenceUnavailable', 'Not started: the account-usage stop could not be checked'],
   ])('reports the failed outcome %s truthfully, with no repair control, and allows an explicit new request', (outcome, label) => {

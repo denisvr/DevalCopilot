@@ -2,6 +2,8 @@ using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Projects.Policies;
+using DevalCopilot.Application.Features.Runs.Errors;
+using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
 using Microsoft.EntityFrameworkCore;
 
 namespace DevalCopilot.Application.Features.Projects.Commands.UpdateVerificationCommand;
@@ -24,6 +26,11 @@ public sealed class UpdateVerificationCommandCommandHandler(IDevalCopilotDbConte
             return Result.Failure(CommitReservation.WorkspaceCommitting());
         }
 
+        if (await LocalExecutionSequenceFence.CheckProjectAsync(dbContext, command.ProjectId, cancellationToken) is { } localFence)
+        {
+            return Result.Failure(localFence);
+        }
+
         verificationCommand.Update(
             command.Name,
             command.ExecutablePath,
@@ -32,8 +39,20 @@ public sealed class UpdateVerificationCommandCommandHandler(IDevalCopilotDbConte
             command.IsEnabled,
             timeProvider.GetUtcNow());
 
-        return await CommitReservation.TrySaveAsync(dbContext, command.ProjectId, cancellationToken) is { } conflict
-            ? Result.Failure(conflict)
-            : Result.Success();
+        try
+        {
+            return await CommitReservation.TrySaveAsync(dbContext, command.ProjectId, cancellationToken) is { } conflict
+                ? Result.Failure(conflict)
+                : Result.Success();
+        }
+        catch (DbUpdateException)
+        {
+            if (await LocalExecutionSequenceFence.RefusedProjectSaveAsync(dbContext, command.ProjectId))
+            {
+                return Result.Failure(LocalExecutionSequenceErrors.ManualControlBlocked());
+            }
+
+            throw;
+        }
     }
 }

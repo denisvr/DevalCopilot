@@ -37,6 +37,14 @@ public sealed class RecordInterruptedAgentArtifactCommandHandler(IDevalCopilotDb
                 Error.Conflict("attempts.not_active", $"The attempt is {attempt.Status}, not eligible for interrupted-output recovery."));
         }
 
+        // ADR-0060 defense in depth: an attempt linked to a local execution sequence is closed or quarantined by the sequence's own
+        // startup command; generic recovery never imports its partial output.
+        if (await dbContext.LocalExecutionSequenceSteps.AsNoTracking().AnyAsync(step => step.OperationId == attempt.Id, cancellationToken))
+        {
+            return Result<bool>.Failure(Error.Conflict(
+                "attempts.local_execution_sequence_linked", "The attempt belongs to a local execution sequence and is not eligible for interrupted-output recovery."));
+        }
+
         var alreadyRecorded = await dbContext.Artifacts
             .AnyAsync(a => a.AttemptId == command.AttemptId && a.Purpose == command.Purpose, cancellationToken);
         if (alreadyRecorded)

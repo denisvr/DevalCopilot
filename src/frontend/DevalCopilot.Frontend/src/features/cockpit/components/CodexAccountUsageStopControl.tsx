@@ -17,6 +17,8 @@ interface CodexAccountUsageStopControlProps {
   editable: boolean
   /** Re-queries the authoritative cockpit; resolves false on failure or if the run changed meanwhile. */
   onSaved?: () => Promise<boolean>
+  /** The fixed reason a local execution sequence (ADR-0060) withholds changing this setting; null or absent withholds nothing. */
+  withheldReason?: string | null
 }
 
 /**
@@ -26,7 +28,7 @@ interface CodexAccountUsageStopControlProps {
  * saved setting; drafts, pending state and messages are owned by the run plus that authoritative
  * setting, so a stale completion never writes or refreshes a replacement selection.
  */
-export function CodexAccountUsageStopControl({ runId, setting, editable, onSaved }: CodexAccountUsageStopControlProps) {
+export function CodexAccountUsageStopControl({ runId, setting, editable, onSaved, withheldReason = null }: CodexAccountUsageStopControlProps) {
   const authoritativeDraft = setting?.state === 'Configured' && setting.percent !== undefined ? String(setting.percent) : ''
   const identity = `${runId}|${setting?.state ?? ''}|${setting?.percent ?? ''}`
   const [seenIdentity, setSeenIdentity] = useState(identity)
@@ -90,15 +92,20 @@ export function CodexAccountUsageStopControl({ runId, setting, editable, onSaved
             disabled={saving}
             aria-invalid={shownError ? true : undefined}
           />
-          <button type="button" aria-label="Save Codex account-usage stop" onClick={() => void handleSave()} disabled={saving}>
+          <button type="button" aria-label="Save Codex account-usage stop" onClick={() => void handleSave()} disabled={saving || withheldReason !== null}>
             Save
           </button>
-          <button type="button" aria-label="Clear Codex account-usage stop" onClick={() => void handleClear()} disabled={saving}>
+          <button type="button" aria-label="Clear Codex account-usage stop" onClick={() => void handleClear()} disabled={saving || withheldReason !== null}>
             Clear
           </button>
         </>
       ) : (
         <span className="dc-codex-account-usage-stop-readonly">This run&apos;s Codex account-usage stop can no longer be changed.</span>
+      )}
+      {withheldReason != null && (
+        <span className="dc-codex-account-usage-stop-readonly" role="status">
+          {withheldReason}
+        </span>
       )}
       {shownError && (
         <span className="dc-codex-account-usage-stop-error" role="alert">

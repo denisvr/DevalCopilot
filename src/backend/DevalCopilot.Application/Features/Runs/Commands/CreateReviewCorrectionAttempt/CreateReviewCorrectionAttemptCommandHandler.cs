@@ -10,6 +10,7 @@ using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Application.Features.Runs.Errors;
 using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Application.Features.Runs.Policies.ExecutionCapacity;
+using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
 using DevalCopilot.Application.Features.Runs.Policies.PlanningSequences;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
@@ -27,7 +28,8 @@ public sealed class CreateReviewCorrectionAttemptCommandHandler(
     IGitWorkspaceEvidenceReader evidenceReader,
     IArtifactStore artifactStore,
     TimeProvider timeProvider,
-    IRunEventNotifier? eventNotifier = null)
+    IRunEventNotifier? eventNotifier = null,
+    ILocalExecutionStepProbe? localStepProbe = null)
     : ICommandHandler<CreateReviewCorrectionAttemptCommand, Result<CreateReviewCorrectionAttemptCommandResult>>
 {
     private const int MaxContextManifestBytes = 32 * 1024;
@@ -40,6 +42,16 @@ public sealed class CreateReviewCorrectionAttemptCommandHandler(
     {
         // Supplied direct guidance is normalized (and refused if invalid) before any read or external work. The
         // validator normally rejects it first; this keeps a direct handler call equally safe. Null stays unguided.
+        var ticket = command.LocalStep;
+        if (ticket is not null
+            && (command.Guidance is not null
+                || ticket.Kind != LocalExecutionStepKind.ReviewCorrection
+                || ticket.SubjectAttemptId != command.ImplementationReviewAttemptId))
+        {
+            // A local execution sequence step consumes its own exact review and never any caller-supplied guidance.
+            return Failure(LocalExecutionSequenceErrors.StepInputMismatch());
+        }
+
         string? directGuidance = null;
         if (command.Guidance is not null)
         {
@@ -66,7 +78,10 @@ public sealed class CreateReviewCorrectionAttemptCommandHandler(
 
         // A planning sequence (ADR-0055) holds the run against every claim that does not carry its own exact step identity; the
         // database guard of the same predicate decides at the durable commit.
-        if (await PlanningSequenceFence.CheckRunAsync(dbContext, run.Id, cancellationToken) is { } fenceError)
+        // A local execution sequence (ADR-0060) holds the run the same way; only its own exact step claims are exempt.
+        if (ticket is null
+            && (await PlanningSequenceFence.CheckRunAsync(dbContext, run.Id, cancellationToken)
+                ?? await LocalExecutionSequenceFence.CheckRunAsync(dbContext, run.Id, cancellationToken)) is { } fenceError)
         {
             return Result<CreateReviewCorrectionAttemptCommandResult>.Failure(fenceError);
         }
@@ -157,6 +172,14 @@ public sealed class CreateReviewCorrectionAttemptCommandHandler(
             return Failure(Error.Conflict("agent_attempts.checkpoint_missing", "A current Git checkpoint is required."));
         }
 
+        if (ticket is not null
+            && await LocalExecutionStepAuthority.CheckEarlyAsync(
+                dbContext, ticket, run, LocalExecutionStepKind.ReviewCorrection, workspace, checkpoint, timeProvider.GetUtcNow(), cancellationToken)
+                is { } stepError)
+        {
+            return Failure(stepError);
+        }
+
         // ADR-0057: no other Agent attempt, verification execution or local-commit reservation may own this workspace, decided before
         // any Git work or manifest sealing and again at the write-locked commit seam below.
         if (await WorkspaceExecutionFence.CheckClaimAsync(dbContext, run.ProjectId, workspace.Id, cancellationToken) is { } workspaceBusy)
@@ -216,6 +239,20 @@ public sealed class CreateReviewCorrectionAttemptCommandHandler(
         var executionReport = currentReview.ExecutionReport;
         var findings = currentReview.OrderedFindings;
 
+        if (ticket is not null)
+        {
+            if (ticket.ReportMessageId != executionReport.Id)
+            {
+                return Failure(LocalExecutionSequenceErrors.StepInputMismatch());
+            }
+
+            // Decided before the ordinary exhaustion branch below, which would record an escalation or consume a Human grant.
+            if (await LocalAllowanceReachedAsync(run, ticket, cancellationToken))
+            {
+                return Failure(LocalExecutionSequenceErrors.AllowanceReached());
+            }
+        }
+
         var correctionAttemptsUsed = await dbContext.Attempts.CountAsync(
             candidate => candidate.RunId == run.Id
                 && candidate.Kind == AttemptKind.Agent
@@ -271,7 +308,7 @@ public sealed class CreateReviewCorrectionAttemptCommandHandler(
             return Failure(Error.Conflict("agent_attempts.provider_not_observed", "The Claude runtime is not currently observed as available."));
         }
 
-        var attemptId = Guid.NewGuid();
+        var attemptId = ticket?.ReservedOperationId ?? Guid.NewGuid();
         if (await ReviewCorrectionInputIdentity.HasCompetingSuccessfulCorrectionAsync(
                 dbContext,
                 run.Id,
@@ -324,7 +361,7 @@ public sealed class CreateReviewCorrectionAttemptCommandHandler(
         var guardedModeError = await CurrentRunExecutionMode.ReadAndGuardAgentAsync(dbContext, run, cancellationToken);
         if (guardedModeError is not null)
         {
-            artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+            await CleanUpManifestAsync(run.Id, attemptId, ticket);
             return Failure(guardedModeError);
         }
 
@@ -339,7 +376,7 @@ public sealed class CreateReviewCorrectionAttemptCommandHandler(
         var requestedTurnLimit = await CurrentClaudeMutationTurnLimit.ReadAndGuardAsync(dbContext, run, cancellationToken);
         if (requestedTurnLimit.IsFailure)
         {
-            artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+            await CleanUpManifestAsync(run.Id, attemptId, ticket);
             return Failure(requestedTurnLimit.Errors[0]);
         }
 
@@ -358,12 +395,12 @@ public sealed class CreateReviewCorrectionAttemptCommandHandler(
         }
         catch (OperationCanceledException)
         {
-            artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+            await CleanUpManifestAsync(run.Id, attemptId, ticket);
             throw;
         }
         catch (DbException)
         {
-            artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+            await CleanUpManifestAsync(run.Id, attemptId, ticket);
             return Failure(Error.Failure("attempts.persistence_failed", "The correction attempt could not be durably recorded."));
         }
 
@@ -371,26 +408,43 @@ public sealed class CreateReviewCorrectionAttemptCommandHandler(
         // A failed or cancelled fresh read under the write lock leaves nothing persisted by this claim: the uncommitted transaction is
         // disposed, only this operation's own sealed manifest is removed, and a cancellation propagates unchanged.
         Error? workspaceBusyAtSeam;
+        LocalExecutionStepLink? stepLink = null;
         try
         {
+            if (ticket is not null)
+            {
+                // A step claim first confirms and locks its exact reserved step, then re-reads everything it consumes under that lock
+                // (ADR-0060). A refusal here leaves nothing consumed, in particular no escalation and no Human grant.
+                (workspaceBusyAtSeam, stepLink) = await LocalExecutionStepAuthority.ConfirmAtSeamAsync(
+                    dbContext, ticket, run, LocalExecutionStepKind.ReviewCorrection, timeProvider.GetUtcNow(), cancellationToken);
+                workspaceBusyAtSeam ??= await RevalidateStepInputsAsync(
+                    run, workspace.Id, checkpoint.Id, review.Id, executionReport.Id, findings, ticket, cancellationToken);
+            }
+            else
+            {
+                workspaceBusyAtSeam = null;
+            }
+
             // ADR-0058: the global ceiling is decided under the same write lock, in the same cleanup, right after the workspace's ownership.
-            workspaceBusyAtSeam = await WorkspaceExecutionFence.CheckClaimAsync(dbContext, run.ProjectId, workspace.Id, cancellationToken)
+            workspaceBusyAtSeam ??= await WorkspaceExecutionFence.CheckClaimAsync(dbContext, run.ProjectId, workspace.Id, cancellationToken)
                 ?? await ExecutionCapacityFence.CheckClaimAsync(dbContext, cancellationToken);
         }
         catch (OperationCanceledException)
         {
-            artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+            await CleanUpManifestAsync(run.Id, attemptId, ticket);
             throw;
         }
         catch (DbException)
         {
-            artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
-            return Failure(Error.Failure("attempts.persistence_failed", "The correction attempt could not be durably recorded."));
+            await CleanUpManifestAsync(run.Id, attemptId, ticket);
+            return Failure(ticket is null
+                ? Error.Failure("attempts.persistence_failed", "The correction attempt could not be durably recorded.")
+                : LocalExecutionSequenceErrors.PersistenceFailed());
         }
 
         if (workspaceBusyAtSeam is not null)
         {
-            artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+            await CleanUpManifestAsync(run.Id, attemptId, ticket);
             return Failure(workspaceBusyAtSeam);
         }
 
@@ -438,15 +492,31 @@ public sealed class CreateReviewCorrectionAttemptCommandHandler(
             nowUtc);
         dbContext.Artifacts.Add(manifestArtifact);
 
+        // The step link, its event, the attempt, its inputs and the manifest artifact commit in this one transaction.
+        stepLink?.Apply(dbContext, attemptId, InvocationTimeout, nowUtc);
+
         try
         {
             await dbContext.SaveChangesAsync(cancellationToken);
             await fenceTransaction.CommitAsync(cancellationToken);
         }
+        catch (OperationCanceledException) when (ticket is not null)
+        {
+            // Cancellation never proves absence: only an independent read of the step decides the sealed file's fate.
+            await RollbackBestEffortAsync(fenceTransaction);
+            await CleanUpManifestAsync(run.Id, attemptId, ticket);
+            throw;
+        }
         catch (Exception exception) when (exception is DbUpdateException or DbException)
         {
             // The explicit commit seam is released first, so the readback below sees only what actually committed.
             await RollbackBestEffortAsync(fenceTransaction);
+
+            if (ticket is not null)
+            {
+                return await ConcludeStepFailureAsync(
+                    ticket, exception, attempt, inputRows, manifestArtifact, attemptId, attemptNumber, run.Id);
+            }
 
             var thisAttemptPersisted = await dbContext.Attempts
                 .AsNoTracking()
@@ -457,7 +527,7 @@ public sealed class CreateReviewCorrectionAttemptCommandHandler(
                     new CreateReviewCorrectionAttemptCommandResult.AttemptCreated(attemptId, attemptNumber));
             }
 
-            artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+            await CleanUpManifestAsync(run.Id, attemptId, ticket);
             dbContext.Attempts.Remove(attempt);
             foreach (var inputMessage in inputRows)
             {
@@ -480,6 +550,12 @@ public sealed class CreateReviewCorrectionAttemptCommandHandler(
                         : await CurrentTokenStopPolicy.HasChangedAsync(dbContext, run, cancellationToken)
                         ? CurrentTokenStopPolicy.PolicyChangedDuringClaim()
                         : CurrentClaudeModelPreference.RunChangedDuringClaim());
+            }
+
+            if (await LocalExecutionSequenceFence.RefusedRunSaveAsync(dbContext, run.Id))
+            {
+                // The database guard of a local execution sequence refused this claim at the write seam (ADR-0060).
+                return Failure(LocalExecutionSequenceErrors.ManualControlBlocked());
             }
 
             if (await PlanningSequenceFence.RefusedRunSaveAsync(dbContext, run.Id))
@@ -558,6 +634,180 @@ public sealed class CreateReviewCorrectionAttemptCommandHandler(
 
         return Result<CreateReviewCorrectionAttemptCommandResult>.Success(
             new CreateReviewCorrectionAttemptCommandResult.AttemptCreated(attempt.Id, attempt.AttemptNumber));
+    }
+
+    /// <summary>Removes this claim's sealed manifest. A step claim removes it only when an independent read proves that no worker claimed the
+    /// step: a duplicate worker that lost the compare-and-set shares the winner's sealed path, and absence or uncertainty never authorizes
+    /// deleting a possibly referenced file.</summary>
+    private async Task CleanUpManifestAsync(Guid runId, Guid attemptId, LocalExecutionStepTicket? ticket)
+    {
+        if (ticket is null || await ProbeStepAsync(ticket) == AttemptDurabilityCheckResult.NotPersisted)
+        {
+            artifactStore.DeleteOrphanedSealedFile(runId, attemptId, ArtifactPurpose.AgentContextManifest);
+        }
+    }
+
+    private async Task<AttemptDurabilityCheckResult> ProbeStepAsync(LocalExecutionStepTicket ticket) =>
+        localStepProbe is null
+            ? AttemptDurabilityCheckResult.Unresolved
+            : await localStepProbe.CheckAsync(ticket.StepId, CancellationToken.None) switch
+            {
+                LocalExecutionStepProbeResult.Claimed => AttemptDurabilityCheckResult.Persisted,
+                LocalExecutionStepProbeResult.NotClaimed => AttemptDurabilityCheckResult.NotPersisted,
+                _ => AttemptDurabilityCheckResult.Unresolved,
+            };
+
+    /// <summary>The outcome of a failed or ambiguous save of a step claim, decided only by the independent step probe. It is never a retry
+    /// classification: the sequence decides what happens next.</summary>
+    private async Task<Result<CreateReviewCorrectionAttemptCommandResult>> ConcludeStepFailureAsync(
+        LocalExecutionStepTicket ticket,
+        Exception exception,
+        Attempt attempt,
+        List<AttemptInputMessage> inputRows,
+        Artifact manifestArtifact,
+        Guid attemptId,
+        int attemptNumber,
+        Guid runId)
+    {
+        var durability = await ProbeStepAsync(ticket);
+        if (durability == AttemptDurabilityCheckResult.Persisted)
+        {
+            return Result<CreateReviewCorrectionAttemptCommandResult>.Success(
+                new CreateReviewCorrectionAttemptCommandResult.AttemptCreated(attemptId, attemptNumber));
+        }
+
+        if (durability == AttemptDurabilityCheckResult.Unresolved)
+        {
+            return Failure(LocalExecutionSequenceErrors.PersistenceUnresolved());
+        }
+
+        artifactStore.DeleteOrphanedSealedFile(runId, attemptId, ArtifactPurpose.AgentContextManifest);
+        dbContext.Attempts.Remove(attempt);
+        dbContext.AttemptInputMessages.RemoveRange(inputRows);
+        dbContext.Artifacts.Remove(manifestArtifact);
+        return Failure(exception is DbUpdateConcurrencyException
+            ? LocalExecutionSequenceErrors.StepAuthorityLost()
+            : LocalExecutionSequenceErrors.PersistenceFailed());
+    }
+
+    /// <summary>The allowance of a step claim: the run's ordinary correction count (any status, both origins) and the sequence's pinned
+    /// allowance, counted over its non-revoked correction steps other than this one. Never reads or consumes a Human grant.</summary>
+    private async Task<bool> LocalAllowanceReachedAsync(Run run, LocalExecutionStepTicket ticket, CancellationToken cancellationToken)
+    {
+        var used = await dbContext.Attempts.AsNoTracking().CountAsync(
+            candidate => candidate.RunId == run.Id
+                && candidate.Kind == AttemptKind.Agent
+                && candidate.AgentResponseContract == AgentResponseContract.ReviewCorrection,
+            cancellationToken);
+        if (used >= run.MaximumReviewCorrectionAttempts)
+        {
+            return true;
+        }
+
+        var allowance = await dbContext.LocalExecutionSequences.AsNoTracking()
+            .Where(sequence => sequence.Id == ticket.SequenceId)
+            .Select(sequence => (int?)sequence.CorrectionAllowance)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (allowance is not { } pinned)
+        {
+            return true;
+        }
+
+        var spent = await dbContext.LocalExecutionSequenceSteps.AsNoTracking().CountAsync(
+            step => step.SequenceId == ticket.SequenceId
+                && step.Id != ticket.StepId
+                && (step.Kind == LocalExecutionStepKind.ReviewCorrection || step.Kind == LocalExecutionStepKind.DiagnosisCorrection)
+                && step.State != LocalExecutionSequenceStepState.Revoked,
+            cancellationToken);
+        return spent >= pinned;
+    }
+
+    /// <summary>Re-reads, untracked and under the claim's write lock, every input a step claim consumes: the run's lifecycle and budgets,
+    /// the exact applicable review with its report and complete ordered findings, the allowance, the Claude runtime and the absence of a
+    /// competing correction. The allowance is decided before anything could escalate or consume a grant.</summary>
+    private async Task<Error?> RevalidateStepInputsAsync(
+        Run run,
+        Guid workspaceId,
+        Guid checkpointId,
+        Guid reviewId,
+        Guid reportId,
+        IReadOnlyList<CollaborationMessage> findings,
+        LocalExecutionStepTicket ticket,
+        CancellationToken cancellationToken)
+    {
+        var lifecycle = await dbContext.Runs.AsNoTracking()
+            .Where(candidate => candidate.Id == run.Id)
+            .Select(candidate => (RunLifecycle?)candidate.Lifecycle)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (lifecycle != RunLifecycle.Running)
+        {
+            return Error.Conflict("runs.not_running", "The run is not active.");
+        }
+
+        if (await LocalAllowanceReachedAsync(run, ticket, cancellationToken))
+        {
+            return LocalExecutionSequenceErrors.AllowanceReached();
+        }
+
+        if (await dbContext.Attempts.AsNoTracking().AnyAsync(
+                candidate => candidate.RunId == run.Id && candidate.Status == AttemptStatus.Running, cancellationToken))
+        {
+            return Error.Conflict("attempts.run_has_active_attempt", "This run already has an attempt in progress.");
+        }
+
+        var agentAttemptsUsed = await dbContext.Attempts.AsNoTracking().CountAsync(
+            candidate => candidate.RunId == run.Id && candidate.Kind == AttemptKind.Agent, cancellationToken);
+        if (agentAttemptsUsed >= run.MaximumAgentAttempts)
+        {
+            return Error.Conflict("agent_attempts.budget_exhausted", "This run has reached its maximum claimed Agent attempts.");
+        }
+
+        if (run.MaximumAgentInvocationTime is { } maximumAgentInvocationTime)
+        {
+            var reserved = await AgentInvocationTimeBudget.ComputeReservedAsync(dbContext, run.Id, asNoTracking: true, cancellationToken);
+            var projected = reserved is null ? null : AgentInvocationTimeReservation.ComputeProjectedReservation(reserved.Value, InvocationTimeout);
+            if (projected is null)
+            {
+                return Error.Failure("agent_attempts.time_budget_evidence_invalid", "This claim's reserved Agent invocation time could not be safely evaluated: prior Agent attempt invocation-time evidence is missing or invalid, or this claim's own reservation is not representable.");
+            }
+
+            if (projected.Value > maximumAgentInvocationTime)
+            {
+                return Error.Conflict("agent_attempts.time_budget_exceeded", "This run has reached its maximum reserved Agent invocation time.");
+            }
+        }
+
+        if (await AgentTokenStopGate.CheckClaimAsync(dbContext, run, AgentProvider.ClaudeCode, cancellationToken) is { } tokenStop)
+        {
+            return tokenStop;
+        }
+
+        var snapshot = await ImplementerExecutionReportEligibility.LoadSnapshotAsync(dbContext, run.Id, cancellationToken);
+        var still = ReviewCorrectionReviewEligibility.ResolveCurrent(snapshot, run.Id, workspaceId, checkpointId);
+        if (still is null
+            || still.ReviewAttempt.Id != reviewId
+            || still.ExecutionReport.Id != reportId
+            || ticket.ReportMessageId != reportId
+            || still.OrderedFindings.Count == 0
+            || still.OrderedFindings.Count > ReviewCorrectionOutputSchema.MaximumFindings
+            || !still.OrderedFindings.Select(finding => finding.Id).SequenceEqual(findings.Select(finding => finding.Id)))
+        {
+            return Error.Conflict("agent_attempts.review_not_applicable", "The selected review is not an applicable changes-requested review.");
+        }
+
+        var claudeSnapshot = await dbContext.HostCapabilitySnapshots.AsNoTracking()
+            .SingleOrDefaultAsync(candidate => candidate.Capability == Capability.ClaudeCli, cancellationToken);
+        if (claudeSnapshot is null
+            || claudeSnapshot.ReasonCode != CapabilityProbeReason.None
+            || string.IsNullOrWhiteSpace(claudeSnapshot.ResolvedExecutablePath))
+        {
+            return Error.Conflict("agent_attempts.provider_not_observed", "The Claude runtime is not currently observed as available.");
+        }
+
+        return await ReviewCorrectionInputIdentity.HasCompetingSuccessfulCorrectionAsync(
+            dbContext, run.Id, ticket.ReservedOperationId, checkpointId, [reportId, .. findings.Select(finding => finding.Id)], cancellationToken)
+            ? Error.Conflict("agent_attempts.already_corrected", "This exact correction input already has a successful correction.")
+            : null;
     }
 
     private async Task<Result<CreateReviewCorrectionAttemptCommandResult>> CreateOrGetEscalationAsync(

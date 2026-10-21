@@ -9,6 +9,7 @@ using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Application.Features.Runs.Errors;
 using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Application.Features.Runs.Policies.ExecutionCapacity;
+using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
 using DevalCopilot.Application.Features.Runs.Policies.PlanningSequences;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
@@ -32,7 +33,8 @@ public sealed class CreateImplementationAttemptCommandHandler(
     IGitWorkspaceEvidenceReader evidenceReader,
     IArtifactStore artifactStore,
     TimeProvider timeProvider,
-    IAttemptDurabilityProbe? attemptDurabilityProbe = null)
+    IAttemptDurabilityProbe? attemptDurabilityProbe = null,
+    ILocalExecutionStepProbe? localStepProbe = null)
     : ICommandHandler<CreateImplementationAttemptCommand, Result<CreateImplementationAttemptCommandResult>>
 {
     /// <summary>Hard ceiling on the sealed context-manifest artifact — a bounded reference
@@ -77,14 +79,17 @@ public sealed class CreateImplementationAttemptCommandHandler(
 
         public Guid AttemptId { get; private set; }
 
+        public LocalExecutionStepTicket? Ticket { get; private set; }
+
         public IDbContextTransaction? Transaction { get; set; }
 
         public List<object> Tracked { get; } = [];
 
-        public void Arm(Guid runId, Guid attemptId)
+        public void Arm(Guid runId, Guid attemptId, LocalExecutionStepTicket? ticket)
         {
             RunId = runId;
             AttemptId = attemptId;
+            Ticket = ticket;
             IsArmed = true;
         }
     }
@@ -99,9 +104,41 @@ public sealed class CreateImplementationAttemptCommandHandler(
             await RollbackBestEffortAsync(transaction);
         }
 
-        return attemptDurabilityProbe is null
+        return await ProbeAsync(claim.Ticket, claim.AttemptId, CancellationToken.None);
+    }
+
+    /// <summary>The independent durability read of this claim: the attempt row for an ordinary claim, or the exact step/operation
+    /// association for a coordinator step (ADR-0060). A step claim without a probe is unresolved, never assumed absent.</summary>
+    private async Task<AttemptDurabilityCheckResult> ProbeAsync(
+        LocalExecutionStepTicket? ticket, Guid attemptId, CancellationToken cancellationToken)
+    {
+        if (ticket is null)
+        {
+            return attemptDurabilityProbe is null
+                ? AttemptDurabilityCheckResult.Unresolved
+                : await attemptDurabilityProbe.CheckAsync(attemptId, cancellationToken);
+        }
+
+        return localStepProbe is null
             ? AttemptDurabilityCheckResult.Unresolved
-            : await attemptDurabilityProbe.CheckAsync(claim.AttemptId, CancellationToken.None);
+            : await localStepProbe.CheckAsync(ticket.StepId, cancellationToken) switch
+            {
+                LocalExecutionStepProbeResult.Claimed => AttemptDurabilityCheckResult.Persisted,
+                LocalExecutionStepProbeResult.NotClaimed => AttemptDurabilityCheckResult.NotPersisted,
+                _ => AttemptDurabilityCheckResult.Unresolved,
+            };
+    }
+
+    /// <summary>Removes this claim's sealed manifest after a refusal. A step claim removes it only when an independent read proves that no
+    /// other worker claimed the same step: a duplicate worker shares the winner's sealed path, and absence or uncertainty never authorizes
+    /// deleting a possibly referenced file.</summary>
+    private async Task DiscardSealedManifestAsync(LocalExecutionStepTicket? ticket, Guid runId, Guid attemptId)
+    {
+        if (ticket is null
+            || await ProbeAsync(ticket, attemptId, CancellationToken.None) == AttemptDurabilityCheckResult.NotPersisted)
+        {
+            artifactStore.DeleteOrphanedSealedFile(runId, attemptId, ArtifactPurpose.AgentContextManifest);
+        }
     }
 
     private void DiscardOrphanedAuthorizedClaim(AuthorizedClaimScope claim)
@@ -131,6 +168,13 @@ public sealed class CreateImplementationAttemptCommandHandler(
     private async Task<Result<CreateImplementationAttemptCommandResult>> ClaimAsync(
         CreateImplementationAttemptCommand command, AuthorizedClaimScope sealedClaim, CancellationToken cancellationToken)
     {
+        // A coordinator step consumes exactly the pinned plan and never a caller's guidance (ADR-0060).
+        var ticket = command.LocalStep;
+        if (ticket is not null && command.Guidance is not null)
+        {
+            return Result<CreateImplementationAttemptCommandResult>.Failure(LocalExecutionSequenceErrors.StepInputMismatch());
+        }
+
         // Supplied direct guidance is normalized (and refused if invalid) before any read or external work. The
         // validator normally rejects it first; this keeps a direct handler call equally safe. Null stays unguided.
         string? directGuidance = null;
@@ -163,6 +207,14 @@ public sealed class CreateImplementationAttemptCommandHandler(
         if (await PlanningSequenceFence.CheckRunAsync(dbContext, run.Id, cancellationToken) is { } fenceError)
         {
             return Result<CreateImplementationAttemptCommandResult>.Failure(fenceError);
+        }
+
+        // A local execution sequence (ADR-0060) holds the run against every claim that is not its own exact step; the database guard of
+        // the same predicate decides at the durable commit.
+        if (ticket is null
+            && await LocalExecutionSequenceFence.CheckRunAsync(dbContext, run.Id, cancellationToken) is { } localFenceError)
+        {
+            return Result<CreateImplementationAttemptCommandResult>.Failure(localFenceError);
         }
 
         if (run.Lifecycle != RunLifecycle.Running)
@@ -259,6 +311,14 @@ public sealed class CreateImplementationAttemptCommandHandler(
                 Error.Conflict("agent_attempts.checkpoint_missing", "A current Git checkpoint is required to request an implementation."));
         }
 
+        if (ticket is not null
+            && await LocalExecutionStepAuthority.CheckEarlyAsync(
+                dbContext, ticket, run, LocalExecutionStepKind.Implementation, workspace, checkpoint, timeProvider.GetUtcNow(), cancellationToken)
+                is { } stepError)
+        {
+            return Result<CreateImplementationAttemptCommandResult>.Failure(stepError);
+        }
+
         // A revised plan's lineage refusal (end of lineage, a challenging review, corrupt or unreadable
         // evidence, an unsupported role/provider pair) is decided from durable identity here, before any
         // provider probe, Git capture, or manifest sealing, so it does no external work. The original
@@ -298,7 +358,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
                 Error.Conflict("agent_attempts.checkpoint_not_current", "The selected source checkpoint is no longer current for this workspace."));
         }
 
-        var attemptId = Guid.NewGuid();
+        var attemptId = ticket?.ReservedOperationId ?? Guid.NewGuid();
 
         var alreadyImplemented = await ImplementationInputIdentity.HasCompetingSuccessfulImplementationAsync(
             dbContext, run.Id, attemptId, command.PlanProposalMessageId, checkpoint.Id, cancellationToken);
@@ -318,6 +378,12 @@ public sealed class CreateImplementationAttemptCommandHandler(
         if (planValidation.Error is { } error)
         {
             return Result<CreateImplementationAttemptCommandResult>.Failure(error);
+        }
+
+        if (ticket is not null
+            && await CheckPinnedPlanAsync(ticket, command.PlanProposalMessageId, planValidation, cancellationToken) is { } pinnedPlanError)
+        {
+            return Result<CreateImplementationAttemptCommandResult>.Failure(pinnedPlanError);
         }
 
         var (manifestJson, orderedInputMessageIds) = (planValidation.ManifestJson!, planValidation.OrderedInputMessageIds!);
@@ -343,19 +409,21 @@ public sealed class CreateImplementationAttemptCommandHandler(
                 Error.Failure("agent_attempts.context_manifest_seal_failed", "The context manifest could not be sealed."));
         }
 
-        if (planValidation.Grant is not null)
+        if (planValidation.Grant is not null || ticket is not null)
         {
-            sealedClaim.Arm(run.Id, attemptId);
+            sealedClaim.Arm(run.Id, attemptId, ticket);
         }
 
         // A human-authorized escalated plan (ADR-0016) commits through one short explicit transaction opened only now,
         // after every external step: its first statement takes the database write lock, so the fresh untracked
         // authority reads below (context, lineage, grant) and the single save that consumes the grant with the attempt
         // are one atomic unit that no competing connection can interleave with. A disposed, uncommitted transaction
-        // rolls back, so every refusal path below consumes nothing. Ordinary claims keep their single guarded save.
+        // rolls back, so every refusal path below consumes nothing. Ordinary claims keep their single guarded save. A coordinator
+        // step (ADR-0060) takes the same explicit transaction: its first statement confirms and locks the exact reserved step, and the
+        // late plan re-validation below is then decided under that write lock.
         var authorizedGrant = planValidation.Grant;
         IDbContextTransaction? claimTransaction = null;
-        if (authorizedGrant is not null)
+        if (authorizedGrant is not null || ticket is not null)
         {
             try
             {
@@ -363,7 +431,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
             }
             catch (DbException)
             {
-                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                await DiscardSealedManifestAsync(ticket, run.Id, attemptId);
                 return Result<CreateImplementationAttemptCommandResult>.Failure(
                     Error.Failure("attempts.persistence_failed", "The attempt could not be durably recorded."));
             }
@@ -372,7 +440,30 @@ public sealed class CreateImplementationAttemptCommandHandler(
         sealedClaim.Transaction = claimTransaction;
         await using var claimTransactionScope = claimTransaction;
 
-        if (authorizedGrant is not null)
+        LocalExecutionStepLink? stepLink = null;
+        if (ticket is not null)
+        {
+            Error? stepSeamError;
+            try
+            {
+                (stepSeamError, stepLink) = await LocalExecutionStepAuthority.ConfirmAtSeamAsync(
+                    dbContext, ticket, run, LocalExecutionStepKind.Implementation, nowUtc, cancellationToken);
+            }
+            catch (DbException)
+            {
+                await DiscardSealedManifestAsync(ticket, run.Id, attemptId);
+                return Result<CreateImplementationAttemptCommandResult>.Failure(
+                    Error.Failure("attempts.persistence_failed", "The attempt could not be durably recorded."));
+            }
+
+            if (stepSeamError is not null)
+            {
+                await DiscardSealedManifestAsync(ticket, run.Id, attemptId);
+                return Result<CreateImplementationAttemptCommandResult>.Failure(stepSeamError);
+            }
+        }
+
+        if (authorizedGrant is not null || ticket is not null)
         {
             Error? contextError;
             try
@@ -381,14 +472,14 @@ public sealed class CreateImplementationAttemptCommandHandler(
             }
             catch (DbException)
             {
-                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                await DiscardSealedManifestAsync(ticket, run.Id, attemptId);
                 return Result<CreateImplementationAttemptCommandResult>.Failure(
                     Error.Failure("attempts.persistence_failed", "The attempt could not be durably recorded."));
             }
 
             if (contextError is not null)
             {
-                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                await DiscardSealedManifestAsync(ticket, run.Id, attemptId);
                 return Result<CreateImplementationAttemptCommandResult>.Failure(contextError);
             }
         }
@@ -405,9 +496,18 @@ public sealed class CreateImplementationAttemptCommandHandler(
         if (lateError is null
             && (!lateValidation.OrderedInputMessageIds!.SequenceEqual(orderedInputMessageIds)
                 || lateValidation.Grant?.Id != authorizedGrant?.Id
-                || (authorizedGrant is not null && !string.Equals(lateValidation.ManifestJson, manifestJson, StringComparison.Ordinal))))
+                || ((authorizedGrant is not null || ticket is not null)
+                    && !string.Equals(lateValidation.ManifestJson, manifestJson, StringComparison.Ordinal))))
         {
             lateError = Error.Conflict("agent_attempts.plan_changed", "The resolved plan's evidence changed while this claim was being prepared.");
+        }
+
+        // A step claim also re-proves, under the lock, that this is exactly the plan, authority form and ordered inputs the Human armed.
+        if (lateError is null
+            && ticket is not null
+            && await CheckPinnedPlanAsync(ticket, command.PlanProposalMessageId, lateValidation, cancellationToken) is { } latePinnedPlanError)
+        {
+            lateError = latePinnedPlanError;
         }
 
         if (lateError is null
@@ -426,7 +526,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
 
         if (lateError is not null)
         {
-            artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+            await DiscardSealedManifestAsync(ticket, run.Id, attemptId);
             return Result<CreateImplementationAttemptCommandResult>.Failure(lateError);
         }
 
@@ -439,14 +539,14 @@ public sealed class CreateImplementationAttemptCommandHandler(
                 .SingleOrDefaultAsync(candidate => candidate.Id == authorizedGrant.Id, cancellationToken);
             if (trackedGrant is null || !trackedGrant.IsAvailable)
             {
-                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                await DiscardSealedManifestAsync(ticket, run.Id, attemptId);
                 return Result<CreateImplementationAttemptCommandResult>.Failure(
                     PlanningImplementationAuthorizationErrors.ClaimConsumed());
             }
 
             if (nowUtc < trackedGrant.CreatedAtUtc)
             {
-                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                await DiscardSealedManifestAsync(ticket, run.Id, attemptId);
                 return Result<CreateImplementationAttemptCommandResult>.Failure(
                     PlanningImplementationAuthorizationErrors.ClaimInvalid());
             }
@@ -460,7 +560,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
         var guardedModeError = await CurrentRunExecutionMode.ReadAndGuardAgentAsync(dbContext, run, cancellationToken);
         if (guardedModeError is not null)
         {
-            artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+            await DiscardSealedManifestAsync(ticket, run.Id, attemptId);
             return Result<CreateImplementationAttemptCommandResult>.Failure(guardedModeError);
         }
 
@@ -475,7 +575,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
         var requestedTurnLimit = await CurrentClaudeMutationTurnLimit.ReadAndGuardAsync(dbContext, run, cancellationToken);
         if (requestedTurnLimit.IsFailure)
         {
-            artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+            await DiscardSealedManifestAsync(ticket, run.Id, attemptId);
             return Result<CreateImplementationAttemptCommandResult>.Failure(requestedTurnLimit.Errors[0]);
         }
 
@@ -532,7 +632,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
 
         if (workspaceBusyAtSeam is not null)
         {
-            artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+            await DiscardSealedManifestAsync(ticket, run.Id, attemptId);
             return Result<CreateImplementationAttemptCommandResult>.Failure(workspaceBusyAtSeam);
         }
 
@@ -581,13 +681,20 @@ public sealed class CreateImplementationAttemptCommandHandler(
             ArtifactRetentionPolicy.RetainUntilRunDeleted,
             nowUtc);
         dbContext.Artifacts.Add(manifestArtifact);
-        if (trackedGrant is not null)
+        if (trackedGrant is not null || ticket is not null)
         {
-            sealedClaim.Tracked.Add(trackedGrant);
+            if (trackedGrant is not null)
+            {
+                sealedClaim.Tracked.Add(trackedGrant);
+            }
+
             sealedClaim.Tracked.Add(attempt);
             sealedClaim.Tracked.AddRange(inputMessages);
             sealedClaim.Tracked.Add(manifestArtifact);
         }
+
+        // The step link, its event, the attempt, its inputs, its manifest artifact and any spent grant commit in this one transaction.
+        stepLink?.Apply(dbContext, attemptId, InvocationTimeout, nowUtc);
 
         try
         {
@@ -670,6 +777,21 @@ public sealed class CreateImplementationAttemptCommandHandler(
             }
 
             dbContext.Artifacts.Remove(manifestArtifact);
+            if (ticket is not null)
+            {
+                // The step's own compare-and-set, a guarded run row or any other refusal of a step claim is never reinterpreted as
+                // a race that allows a retry: the sequence decides what happens next.
+                if (trackedGrant is not null)
+                {
+                    dbContext.Entry(trackedGrant).State = EntityState.Detached;
+                }
+
+                return Result<CreateImplementationAttemptCommandResult>.Failure(
+                    exception is DbUpdateConcurrencyException
+                        ? LocalExecutionSequenceErrors.StepAuthorityLost()
+                        : Error.Failure("attempts.persistence_failed", "The attempt could not be durably recorded."));
+            }
+
             if (trackedGrant is not null)
             {
                 dbContext.Entry(trackedGrant).State = EntityState.Detached;
@@ -698,15 +820,16 @@ public sealed class CreateImplementationAttemptCommandHandler(
             }
 
             if (await PlanningSequenceFence.RefusedRunSaveAsync(dbContext, run.Id))
-
             {
-
                 // The database guard of an armed sequence refused this claim at the write seam (ADR-0055).
-
                 return Result<CreateImplementationAttemptCommandResult>.Failure(PlanningSequenceErrors.ManualControlBlocked());
-
             }
 
+            if (await LocalExecutionSequenceFence.RefusedRunSaveAsync(dbContext, run.Id))
+            {
+                // The database guard of a live local execution sequence refused this claim at the write seam (ADR-0060).
+                return Result<CreateImplementationAttemptCommandResult>.Failure(LocalExecutionSequenceErrors.ManualControlBlocked());
+            }
 
             var competingRunningAttemptExists = await dbContext.Attempts
                 .AsNoTracking()
@@ -967,7 +1090,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
             evidence.UntrackedFiles,
             directHumanGuidance);
 
-        return ResolvedPlanValidation.Succeeded(manifestJson, [proposalMessage.Id, acceptanceMessage.Id]);
+        return ResolvedPlanValidation.Succeeded(manifestJson, [proposalMessage.Id, acceptanceMessage.Id], ResolvedPlanForm.AcceptedRoot);
     }
 
     private async Task<ResolvedPlanValidation> ValidateResolvedRevisedProposalAsync(
@@ -1050,7 +1173,10 @@ public sealed class CreateImplementationAttemptCommandHandler(
             orderedInputMessageIds.Add(acceptance.Id);
         }
 
-        return ResolvedPlanValidation.Succeeded(manifestJson, orderedInputMessageIds);
+        return ResolvedPlanValidation.Succeeded(
+            manifestJson,
+            orderedInputMessageIds,
+            acceptance is null ? ResolvedPlanForm.UnreviewedRevision : ResolvedPlanForm.AcceptedRevision);
     }
 
     /// <summary>
@@ -1243,18 +1369,66 @@ public sealed class CreateImplementationAttemptCommandHandler(
         public static RevisionEligibility Failed(Error error) => new(null, null, error);
     }
 
+    /// <summary>The plan authority form an ordinary claim admitted. <see cref="UnreviewedRevision"/> is admitted by an ordinary manual claim
+    /// but never by a local execution sequence (ADR-0060).</summary>
+    private enum ResolvedPlanForm
+    {
+        AcceptedRoot,
+        AcceptedRevision,
+        HumanAuthorized,
+        UnreviewedRevision,
+    }
+
+    private static LocalExecutionPlanAuthority? ToLocalAuthority(ResolvedPlanForm form) => form switch
+    {
+        ResolvedPlanForm.AcceptedRoot => LocalExecutionPlanAuthority.AcceptedRoot,
+        ResolvedPlanForm.AcceptedRevision => LocalExecutionPlanAuthority.AcceptedRevision,
+        ResolvedPlanForm.HumanAuthorized => LocalExecutionPlanAuthority.HumanAuthorizedRevision,
+        _ => null,
+    };
+
+    /// <summary>Re-reads the sequence's pinned plan and requires this claim to consume exactly it: the same Proposal, a reviewed or
+    /// separately authorized form equal to the armed authority, and the same ordered inputs and grant (never an unreviewed revision).</summary>
+    private async Task<Error?> CheckPinnedPlanAsync(
+        LocalExecutionStepTicket ticket, Guid planProposalMessageId, ResolvedPlanValidation validation, CancellationToken cancellationToken)
+    {
+        var pinned = await dbContext.LocalExecutionSequences.AsNoTracking()
+            .Where(candidate => candidate.Id == ticket.SequenceId)
+            .Select(candidate => new { candidate.PlanProposalMessageId, candidate.PlanAuthority, candidate.PlanInputsSha256 })
+            .SingleOrDefaultAsync(cancellationToken);
+        if (pinned is null)
+        {
+            return LocalExecutionSequenceErrors.StepAuthorityLost();
+        }
+
+        if (pinned.PlanProposalMessageId != planProposalMessageId
+            || ToLocalAuthority(validation.Form) is not { } authority
+            || authority != pinned.PlanAuthority
+            || !string.Equals(
+                LocalExecutionCandidate.HashPlanInputs(validation.OrderedInputMessageIds!, validation.Grant?.Id),
+                pinned.PlanInputsSha256,
+                StringComparison.Ordinal))
+        {
+            return LocalExecutionSequenceErrors.StepInputMismatch();
+        }
+
+        return null;
+    }
+
     private sealed record ResolvedPlanValidation(
         string? ManifestJson,
         IReadOnlyList<Guid>? OrderedInputMessageIds,
         Error? Error,
-        PlanningImplementationAuthorization? Grant = null)
+        PlanningImplementationAuthorization? Grant = null,
+        ResolvedPlanForm Form = ResolvedPlanForm.UnreviewedRevision)
     {
-        public static ResolvedPlanValidation Succeeded(string manifestJson, IReadOnlyList<Guid> orderedInputMessageIds) =>
-            new(manifestJson, orderedInputMessageIds, null);
+        public static ResolvedPlanValidation Succeeded(
+            string manifestJson, IReadOnlyList<Guid> orderedInputMessageIds, ResolvedPlanForm form) =>
+            new(manifestJson, orderedInputMessageIds, null, null, form);
 
         public static ResolvedPlanValidation SucceededAuthorized(
             string manifestJson, IReadOnlyList<Guid> orderedInputMessageIds, PlanningImplementationAuthorization grant) =>
-            new(manifestJson, orderedInputMessageIds, null, grant);
+            new(manifestJson, orderedInputMessageIds, null, grant, ResolvedPlanForm.HumanAuthorized);
 
         public static ResolvedPlanValidation Failed(Error error) => new(null, null, error);
     }

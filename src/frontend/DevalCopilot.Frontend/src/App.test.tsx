@@ -4,6 +4,7 @@ import App from './App'
 import * as useSessionStatusModule from './features/cockpit/hooks/useSessionStatus'
 import { OTHER_PROJECT_ID, PROJECT_ID, idleWire, wireFor } from './features/cockpit/workspaceExecutionFixture'
 import { availableCapacityWire, capacityWireFor } from './features/cockpit/executionCapacityFixture'
+import { localNoneStatusFor, localStatusFor } from './features/cockpit/localExecutionSequenceFixture'
 
 vi.mock('./features/cockpit/hooks/useSessionStatus')
 
@@ -743,5 +744,130 @@ describe('App execution capacity composition (ADR-0058)', () => {
 
       expect(changeExecutionCapacityLimit).not.toHaveBeenCalled()
     })
+  })
+})
+
+describe('App local execution sequence composition (ADR-0060)', () => {
+  type RegionProps = {
+    projectId?: string
+    runId?: string
+    localExecutionSequence?: { runId: string | null; control: string; loading: boolean; failure: string | null }
+    onEvidenceRefreshRequested?: () => void
+  }
+
+  const describeState = (props: RegionProps) => {
+    const state = props.localExecutionSequence
+    return state === undefined ? 'absent' : `${state.runId ?? 'no run'} ${state.control}${state.failure === null ? '' : ` failed ${state.failure}`}${state.loading ? ' loading' : ''}`
+  }
+
+  async function renderApp(read: (runId: string) => Promise<unknown>, sessionStatus = 'ready') {
+    const readLocalExecutionSequence = vi.fn(read)
+    vi.resetModules()
+    vi.doMock('./features/cockpit/hooks/useSessionStatus', () => ({ useSessionStatus: () => sessionStatus }))
+    vi.doMock('./features/cockpit/hooks/useProjectSummaries', () => ({
+      useProjectSummaries: () => ({
+        projects: [
+          { projectId: PROJECT_ID, projectName: 'Alpha', runId: 'run-a', lifecycle: 'Running', capabilities: [] },
+          { projectId: OTHER_PROJECT_ID, projectName: 'Beta', runId: 'run-b', lifecycle: 'Running', capabilities: [] },
+        ],
+        loading: false,
+        error: null,
+        refresh: vi.fn(),
+      }),
+    }))
+    vi.doMock('./features/cockpit/hooks/useProviderRuntimePreflight', () => ({
+      useProviderRuntimePreflight: () => ({ providers: [], loading: false, error: null, refresh: vi.fn() }),
+    }))
+    vi.doMock('./features/cockpit/hooks/useHostCapabilityRefresh', () => ({
+      useHostCapabilityRefresh: () => ({ refreshingCapability: null, requestRefresh: vi.fn() }),
+    }))
+    vi.doMock('./features/cockpit/components/CandidateWorkspacePanel', () => ({
+      CandidateWorkspacePanel: (props: RegionProps) => (
+        <>
+          <p>{`workspace panel ${props.projectId}: ${describeState(props)}`}</p>
+          <button type="button" onClick={props.onEvidenceRefreshRequested}>
+            refresh evidence
+          </button>
+        </>
+      ),
+    }))
+    vi.doMock('./features/cockpit/components/RunCockpitView', () => ({
+      RunCockpitView: (props: RegionProps) => <p>{`cockpit ${props.runId}: ${describeState(props)}`}</p>,
+    }))
+    vi.doMock('./features/cockpit/hooks/useWorkspaceExecutionStatus', () => ({
+      useWorkspaceExecutionStatus: () => ({ reading: null, loading: false, failure: null, polling: false, refresh: vi.fn() }),
+    }))
+    vi.doMock('./features/cockpit/hooks/useExecutionCapacity', () => ({
+      useExecutionCapacity: () => ({ reading: null, loading: false, failure: null, polling: false, refresh: vi.fn(), change: { phase: 'idle', outcome: null, requested: null }, applyLimit: vi.fn() }),
+    }))
+    vi.doMock('./api/clients', async (importOriginal) => ({
+      ...(await importOriginal<typeof import('./api/clients')>()),
+      localExecutionSequenceStatusClient: () => ({ readLocalExecutionSequence }),
+    }))
+    const { default: FreshApp } = await import('./App')
+    return { ...render(<FreshApp />), readLocalExecutionSequence }
+  }
+
+  it('reads the selected run once and hands the one same reader to both regions, unknown until it is read', async () => {
+    let release!: (value: unknown) => void
+    const { readLocalExecutionSequence } = await renderApp(() => new Promise((resolve) => { release = resolve }))
+
+    expect(readLocalExecutionSequence).toHaveBeenCalledTimes(1)
+    expect(readLocalExecutionSequence).toHaveBeenCalledWith('run-a')
+    expect(screen.getByText(`workspace panel ${PROJECT_ID}: run-a unknown loading`)).toBeInTheDocument()
+    expect(screen.getByText('cockpit run-a: run-a unknown loading')).toBeInTheDocument()
+
+    await act(async () => release(localNoneStatusFor('run-a')))
+
+    expect(await screen.findByText(`workspace panel ${PROJECT_ID}: run-a none`)).toBeInTheDocument()
+    expect(screen.getByText('cockpit run-a: run-a none')).toBeInTheDocument()
+    expect(readLocalExecutionSequence).toHaveBeenCalledTimes(1)
+  })
+
+  it('hands a blocking status to both regions and a failed or incoherent read as unknown, never as a lifted fence', async () => {
+    const blocked = await renderApp((runId) => Promise.resolve(localStatusFor(runId, 'AwaitingStepResult')))
+    expect(await screen.findByText(`workspace panel ${PROJECT_ID}: run-a blocked`)).toBeInTheDocument()
+    expect(screen.getByText('cockpit run-a: run-a blocked')).toBeInTheDocument()
+    blocked.unmount()
+
+    const failed = await renderApp(() => Promise.reject(new Error('down')))
+    expect(await screen.findByText(`workspace panel ${PROJECT_ID}: run-a unknown failed read`)).toBeInTheDocument()
+    expect(screen.getByText('cockpit run-a: run-a unknown failed read')).toBeInTheDocument()
+    failed.unmount()
+
+    await renderApp(() => Promise.resolve({ nonsense: true }))
+    expect(await screen.findByText('cockpit run-a: run-a unknown failed invalid')).toBeInTheDocument()
+  })
+
+  it('reads another run for another project, never shows the previous status for it, and starts a fresh lifetime on A-B-A', async () => {
+    const { readLocalExecutionSequence } = await renderApp((runId) => Promise.resolve(localNoneStatusFor(runId)))
+    await screen.findByText('cockpit run-a: run-a none')
+
+    fireEvent.click(screen.getByRole('button', { name: /^Beta/ }))
+    expect(readLocalExecutionSequence).toHaveBeenLastCalledWith('run-b')
+    expect(screen.getByText('cockpit run-b: run-b unknown loading')).toBeInTheDocument()
+    expect(await screen.findByText('cockpit run-b: run-b none')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /^Alpha/ }))
+    expect(screen.getByText('cockpit run-a: run-a unknown loading')).toBeInTheDocument()
+    expect(await screen.findByText('cockpit run-a: run-a none')).toBeInTheDocument()
+    expect(readLocalExecutionSequence).toHaveBeenCalledTimes(3)
+  })
+
+  it('reads the status again on an explicit evidence refresh, which is a durable hint', async () => {
+    const { readLocalExecutionSequence } = await renderApp((runId) => Promise.resolve(localNoneStatusFor(runId)))
+    await screen.findByText('cockpit run-a: run-a none')
+    expect(readLocalExecutionSequence).toHaveBeenCalledTimes(1)
+
+    fireEvent.click(screen.getByRole('button', { name: 'refresh evidence' }))
+
+    await waitFor(() => expect(readLocalExecutionSequence).toHaveBeenCalledTimes(2))
+  })
+
+  it('reads nothing while the session is not ready', async () => {
+    const { readLocalExecutionSequence } = await renderApp((runId) => Promise.resolve(localNoneStatusFor(runId)), 'initializing')
+
+    expect(screen.getByText(/starting the local host/i)).toBeInTheDocument()
+    expect(readLocalExecutionSequence).not.toHaveBeenCalled()
   })
 })

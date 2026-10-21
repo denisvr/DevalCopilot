@@ -7,6 +7,8 @@ interface CodexAssignmentPreferenceControlProps {
   runId: string
   requestedCodexModel: string | null
   requestedCodexEffort: string | null
+  /** The fixed reason a local execution sequence (ADR-0060) withholds changing this setting; null or absent withholds nothing. */
+  withheldReason?: string | null
 }
 
 /**
@@ -22,6 +24,7 @@ export function CodexAssignmentPreferenceControl({
   runId,
   requestedCodexModel,
   requestedCodexEffort,
+  withheldReason = null,
 }: CodexAssignmentPreferenceControlProps) {
   const { catalog, loading: catalogLoading, error: catalogError } = useCodexModelCatalog()
   const identity = `${runId}|${requestedCodexModel ?? ''}|${requestedCodexEffort ?? ''}`
@@ -118,12 +121,17 @@ export function CodexAssignmentPreferenceControl({
           </select>
         </>
       )}
-      <button type="button" onClick={() => void handleSave()} disabled={saving || (catalogLoading && selectedModel.length > 0)}>
+      <button type="button" onClick={() => void handleSave()} disabled={saving || withheldReason !== null || (catalogLoading && selectedModel.length > 0)}>
         Save
       </button>
-      <button type="button" onClick={() => void handleClear()} disabled={saving || saved.model === null}>
+      <button type="button" onClick={() => void handleClear()} disabled={saving || withheldReason !== null || saved.model === null}>
         Clear
       </button>
+      {withheldReason != null && (
+        <span className="dc-codex-assignment-preference-status" role="status">
+          {withheldReason}
+        </span>
+      )}
       {saveError && <span className="dc-codex-assignment-preference-error">{saveError}</span>}
     </div>
   )

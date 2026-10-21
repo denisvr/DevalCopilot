@@ -2,6 +2,8 @@ using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Projects.Policies;
+using DevalCopilot.Application.Features.Runs.Errors;
+using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
 using DevalCopilot.Domain.Features.Projects;
 using Microsoft.EntityFrameworkCore;
 
@@ -25,6 +27,11 @@ public sealed class ConfigureVerificationCommandCommandHandler(IDevalCopilotDbCo
             return Result<ConfigureVerificationCommandCommandResult>.Failure(CommitReservation.WorkspaceCommitting());
         }
 
+        if (await LocalExecutionSequenceFence.CheckProjectAsync(dbContext, project.Id, cancellationToken) is { } localFence)
+        {
+            return Result<ConfigureVerificationCommandCommandResult>.Failure(localFence);
+        }
+
         var nowUtc = timeProvider.GetUtcNow();
         var verificationCommand = VerificationCommand.Configure(
             Guid.NewGuid(),
@@ -37,9 +44,21 @@ public sealed class ConfigureVerificationCommandCommandHandler(IDevalCopilotDbCo
             command.IsEnabled,
             nowUtc);
         dbContext.VerificationCommands.Add(verificationCommand);
-        if (await CommitReservation.TrySaveAsync(dbContext, project.Id, cancellationToken) is { } conflict)
+        try
         {
-            return Result<ConfigureVerificationCommandCommandResult>.Failure(conflict);
+            if (await CommitReservation.TrySaveAsync(dbContext, project.Id, cancellationToken) is { } conflict)
+            {
+                return Result<ConfigureVerificationCommandCommandResult>.Failure(conflict);
+            }
+        }
+        catch (DbUpdateException)
+        {
+            if (await LocalExecutionSequenceFence.RefusedProjectSaveAsync(dbContext, project.Id))
+            {
+                return Result<ConfigureVerificationCommandCommandResult>.Failure(LocalExecutionSequenceErrors.ManualControlBlocked());
+            }
+
+            throw;
         }
 
         return Result<ConfigureVerificationCommandCommandResult>.Success(

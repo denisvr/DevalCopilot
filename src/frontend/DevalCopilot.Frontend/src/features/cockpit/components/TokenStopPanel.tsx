@@ -28,6 +28,7 @@ interface ProviderStopProps {
   provider: StopProvider
   stop: RunCockpitTokenStopResponse | undefined
   onSaved?: () => Promise<boolean>
+  withheldReason?: string | null
 }
 
 function gapText(stop: RunCockpitTokenStopResponse, provider: StopProvider): string {
@@ -98,7 +99,7 @@ function statusMessage(stop: RunCockpitTokenStopResponse | undefined, provider: 
   }
 }
 
-function ProviderStop({ runId, provider, stop, onSaved }: ProviderStopProps) {
+function ProviderStop({ runId, provider, stop, onSaved, withheldReason = null }: ProviderStopProps) {
   const label = PROVIDER_LABEL[provider]
   const identity = `${runId}|${provider}|${stop?.thresholdTokens ?? ''}`
   const [seenIdentity, setSeenIdentity] = useState(identity)
@@ -169,14 +170,15 @@ function ProviderStop({ runId, provider, stop, onSaved }: ProviderStopProps) {
             aria-label={`${label} stop threshold`}
           />
         </label>
-        <button type="button" onClick={() => void handleSave()} disabled={saving}>
+        <button type="button" onClick={() => void handleSave()} disabled={saving || withheldReason !== null}>
           Save {label} stop
         </button>
-        <button type="button" onClick={() => void handleClear()} disabled={saving || saved === null}>
+        <button type="button" onClick={() => void handleClear()} disabled={saving || withheldReason !== null || saved === null}>
           Clear {label} stop
         </button>
       </div>
       <p className="dc-token-stop-formula">Counts {FORMULA_LABEL[provider]} from locally recorded, concluded attempts.</p>
+      {withheldReason !== null && <p className="dc-token-stop-note" role="status">{withheldReason}</p>}
       {(localError ?? error) && <p className="dc-token-stop-error">{localError ?? error}</p>}
       {syncFailed && <p className="dc-token-stop-error">{SYNC_FAILURE_MESSAGE}</p>}
     </div>
@@ -188,6 +190,8 @@ interface TokenStopPanelProps {
   tokenStops: RunCockpitTokenStopResponse[] | null | undefined
   /** Re-queries the authoritative cockpit after a successful save or clear; resolves false if that failed. */
   onSaved?: () => Promise<boolean>
+  /** The fixed reason a local execution sequence (ADR-0060) withholds changing a stop; null or absent withholds nothing. */
+  withheldReason?: string | null
 }
 
 /**
@@ -199,7 +203,7 @@ interface TokenStopPanelProps {
  * that a provider invocation is possible. The two providers use different, provider-specific counts
  * and are never combined.
  */
-export function TokenStopPanel({ runId, tokenStops, onSaved }: TokenStopPanelProps) {
+export function TokenStopPanel({ runId, tokenStops, onSaved, withheldReason = null }: TokenStopPanelProps) {
   const byProvider = (provider: StopProvider) => tokenStops?.find((entry) => entry.provider === provider)
   const codex = byProvider('Codex')
   const claude = byProvider('ClaudeCode')
@@ -218,6 +222,7 @@ export function TokenStopPanel({ runId, tokenStops, onSaved }: TokenStopPanelPro
         provider="Codex"
         stop={codex}
         onSaved={onSaved}
+        withheldReason={withheldReason}
       />
       <ProviderStop
         key={`ClaudeCode:${claude?.thresholdTokens ?? ''}`}
@@ -225,6 +230,7 @@ export function TokenStopPanel({ runId, tokenStops, onSaved }: TokenStopPanelPro
         provider="ClaudeCode"
         stop={claude}
         onSaved={onSaved}
+        withheldReason={withheldReason}
       />
     </section>
   )

@@ -63,6 +63,8 @@ import { availableCapacityState, capacityReadingOf, capacityStateFor } from '../
 import { EXECUTION_CAPACITY_GUIDANCE, EXECUTION_CAPACITY_WITHHELD_POINTER } from '../executionCapacity'
 import type { ExecutionCapacityReadFailure, ExecutionCapacityState } from '../executionCapacity'
 import { RunCockpitView } from './RunCockpitView'
+import { blockedLocalReader, localReaderFor, localStatusFor, noneLocalReader, unknownLocalReader } from '../localExecutionSequenceFixture'
+import { describeLocalExecutionSequenceWithholding } from '../localExecutionSequenceCopy'
 
 vi.mock('../hooks/useRunCockpit')
 vi.mock('../hooks/useCollaborationTimeline')
@@ -383,7 +385,7 @@ describe('RunCockpitView', () => {
       refresh: async () => true,
     })
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.getByText('Loading run…')).toBeInTheDocument()
   })
@@ -413,7 +415,7 @@ describe('RunCockpitView', () => {
       refresh: async () => true,
     })
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.getByText('Prove the walking skeleton')).toBeInTheDocument()
     expect(screen.getByText('Running · Plan')).toBeInTheDocument()
@@ -444,7 +446,7 @@ describe('RunCockpitView', () => {
       refresh: async () => true,
     })
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.getByText('Completed · Completed')).toBeInTheDocument()
   })
@@ -475,7 +477,7 @@ describe('RunCockpitView', () => {
       refresh: async () => true,
     })
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.getByRole('status')).toHaveTextContent(/disconnected/i)
   })
@@ -506,7 +508,7 @@ describe('RunCockpitView', () => {
       refresh: async () => true,
     })
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     // The specific sync-error reason is surfaced, not just the generic disconnected text —
     // and the cockpit already on screen is untouched by it.
@@ -546,7 +548,7 @@ describe('RunCockpitView', () => {
       refresh: async () => true,
     })
 
-    const { rerender } = render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    const { rerender } = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
     expect(screen.queryByRole('button', { name: 'Request Codex plan' })).not.toBeInTheDocument()
     expect(screen.getByText(/run-wide agent claim budget/i)).toBeInTheDocument()
 
@@ -555,7 +557,7 @@ describe('RunCockpitView', () => {
     // newly selected run must never inherit run-1's exhausted state, even for this one frame:
     // it must show the honest "unavailable" state instead, since no coherent data for run-2 has
     // arrived yet.
-    rerender(<RunCockpitView runId="run-2" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    rerender(<RunCockpitView runId="run-2" localExecutionSequence={noneLocalReader('run-2')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
     expect(screen.queryByRole('button', { name: 'Request Codex plan' })).not.toBeInTheDocument()
     expect(screen.queryByText(/run-wide agent claim budget/i)).not.toBeInTheDocument()
     // The workspace execution gate (ADR-0057) is the earlier veto of this unconfirmed frame: it is never offered, and the pending
@@ -577,7 +579,7 @@ describe('RunCockpitView', () => {
       syncError: null,
       refresh: async () => true,
     })
-    rerender(<RunCockpitView runId="run-2" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    rerender(<RunCockpitView runId="run-2" localExecutionSequence={noneLocalReader('run-2')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
     expect(screen.getByRole('button', { name: 'Request Codex plan' })).toBeInTheDocument()
   })
 
@@ -593,7 +595,7 @@ describe('RunCockpitView', () => {
         refresh: async () => true,
       })
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
       expect(screen.getByText(/not yet collected for the simulated adapter/i)).toBeInTheDocument()
       expect(processAttemptOutputClient).not.toHaveBeenCalled()
@@ -615,7 +617,7 @@ describe('RunCockpitView', () => {
         refresh: async () => true,
       })
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
       await waitFor(() => expect(getProcessAttemptOutput).toHaveBeenCalledTimes(2))
 
@@ -648,7 +650,7 @@ describe('RunCockpitView', () => {
         refresh: async () => true,
       })
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
       await waitFor(() => expect(getProcessAttemptOutput).toHaveBeenCalledTimes(2))
 
@@ -684,7 +686,7 @@ describe('RunCockpitView', () => {
         refresh: async () => true,
       })
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
       expect(await screen.findAllByText(sentinel)).toHaveLength(2)
 
@@ -739,7 +741,7 @@ describe('RunCockpitView', () => {
       const authorize = vi.fn().mockResolvedValue(true)
       useAuthorizeReviewCorrectionMock.mockReturnValue({ authorizing: false, error: null, authorize })
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
       fireEvent.click(screen.getByRole('button', { name: 'Authorize one additional correction' }))
       expect(authorize).toHaveBeenLastCalledWith('run-1', 'escalation-1')
 
@@ -751,7 +753,7 @@ describe('RunCockpitView', () => {
     it('binds the authorization hook to the selected run', () => {
       withExhaustedEscalation()
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
       expect(useAuthorizeReviewCorrectionMock).toHaveBeenCalledWith('run-1', expect.any(Function))
     })
@@ -788,7 +790,7 @@ describe('RunCockpitView', () => {
       const request = vi.fn()
       useRequestCodexPlanningRepairAttemptMock.mockReturnValue({ requesting: false, error: null, request })
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
       fireEvent.click(screen.getByRole('button', { name: 'Request one format-repair plan' }))
 
       expect(request).toHaveBeenCalledWith('attempt-9')
@@ -798,12 +800,12 @@ describe('RunCockpitView', () => {
 
     it('binds the repair hook to the newly selected run and offers no repair for a stale status', () => {
       withInvalidLatestAttempt()
-      const { rerender } = render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      const { rerender } = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
       expect(screen.getByRole('button', { name: 'Request one format-repair plan' })).toBeInTheDocument()
 
       // The status hook masks another run's status to null during a switch (its own contract).
       useAgentAttemptStatusMock.mockReturnValue({ status: null, loading: true, error: null, refresh: vi.fn() })
-      rerender(<RunCockpitView runId="run-2" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      rerender(<RunCockpitView runId="run-2" localExecutionSequence={noneLocalReader('run-2')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
       expect(useRequestCodexPlanningRepairAttemptMock).toHaveBeenLastCalledWith('run-2', expect.any(Function))
       expect(screen.queryByRole('button', { name: 'Request one format-repair plan' })).not.toBeInTheDocument()
@@ -817,7 +819,7 @@ describe('RunCockpitView', () => {
         request: vi.fn(),
       })
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
       expect(screen.getByText('A repair was already requested for this attempt.')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Request Codex plan' })).toBeInTheDocument()
@@ -838,7 +840,7 @@ describe('RunCockpitView', () => {
       const request = vi.fn()
       useRequestCodexPlanningAttemptMock.mockReturnValue({ requesting: false, error: null, request })
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
       fireEvent.click(screen.getByRole('button', { name: 'Request Codex plan' }))
 
       expect(request).toHaveBeenCalledWith('run-1')
@@ -861,7 +863,7 @@ describe('RunCockpitView', () => {
         refresh: vi.fn(),
       })
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
       expect(screen.getByText(/pending/i)).toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Request Codex plan' })).not.toBeInTheDocument()
@@ -884,7 +886,7 @@ describe('RunCockpitView', () => {
         request,
       })
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
       expect(screen.getByText('This run already has a Codex planning attempt in progress.')).toBeInTheDocument()
       expect(screen.getByText('Prove the walking skeleton')).toBeInTheDocument()
@@ -901,10 +903,10 @@ describe('RunCockpitView', () => {
         refresh: async () => true,
       })
 
-      const { rerender } = render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      const { rerender } = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
       expect(useAgentAttemptStatusMock).toHaveBeenLastCalledWith('run-1', runningCockpit.latestSequence)
 
-      rerender(<RunCockpitView runId="run-2" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      rerender(<RunCockpitView runId="run-2" localExecutionSequence={noneLocalReader('run-2')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
       expect(useAgentAttemptStatusMock).toHaveBeenLastCalledWith('run-2', runningCockpit.latestSequence)
     })
   })
@@ -941,7 +943,7 @@ describe('RunCockpitView', () => {
       hasSuccessfulResponse: true,
     })
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.getByText('The input guard is missing.')).toBeInTheDocument()
     expect(screen.getByText('The guard was added.')).toBeInTheDocument()
@@ -967,7 +969,7 @@ describe('RunCockpitView', () => {
         hasSuccessfulResponse: true,
       })
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
       expect(screen.queryByRole('button', { name: 'Request Claude review' })).not.toBeInTheDocument()
     })
@@ -991,7 +993,7 @@ describe('RunCockpitView', () => {
       const request = vi.fn()
       useRequestClaudeCriticalReviewMock.mockReturnValue({ requesting: false, error: null, request })
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
       fireEvent.click(screen.getByRole('button', { name: 'Request Claude review' }))
 
       expect(request).toHaveBeenCalledWith('run-1', 'message-1')
@@ -1025,7 +1027,7 @@ describe('RunCockpitView', () => {
         refresh: vi.fn(),
       })
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
       expect(screen.getByText(/pending/i)).toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Request Claude review' })).not.toBeInTheDocument()
@@ -1053,7 +1055,7 @@ describe('RunCockpitView', () => {
         request: vi.fn(),
       })
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
       expect(screen.getByText('This run already has a Claude critical-review attempt in progress.')).toBeInTheDocument()
       expect(screen.getByText('Prove the walking skeleton')).toBeInTheDocument()
@@ -1070,10 +1072,10 @@ describe('RunCockpitView', () => {
         refresh: async () => true,
       })
 
-      const { rerender } = render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      const { rerender } = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
       expect(useClaudeCriticalReviewAttemptStatusMock).toHaveBeenLastCalledWith('run-1', runningCockpit.latestSequence)
 
-      rerender(<RunCockpitView runId="run-2" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      rerender(<RunCockpitView runId="run-2" localExecutionSequence={noneLocalReader('run-2')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
       expect(useClaudeCriticalReviewAttemptStatusMock).toHaveBeenLastCalledWith('run-2', runningCockpit.latestSequence)
     })
   })
@@ -1153,7 +1155,7 @@ describe('RunCockpitView', () => {
       const request = vi.fn()
       useRequestClaudeCriticalReviewMock.mockReturnValue({ requesting: false, error: null, request })
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
       fireEvent.click(screen.getByRole('button', { name: 'Request Claude review of the revised proposal' }))
 
       expect(request).toHaveBeenCalledWith('run-1', 'first')
@@ -1165,7 +1167,7 @@ describe('RunCockpitView', () => {
       const request = vi.fn()
       useRequestImplementationMock.mockReturnValue({ requesting: false, error: null, request })
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
       fireEvent.click(screen.getByRole('button', { name: 'Implement the resolved plan with Claude' }))
 
       expect(request).toHaveBeenCalledWith('run-1', 'first', undefined)
@@ -1197,11 +1199,11 @@ describe('RunCockpitView', () => {
       >)
       const implement = () => screen.getByRole('button', { name: /Implement the resolved plan with Claude|^Requesting…$/ })
 
-      const { rerender } = render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      const { rerender } = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
       fireEvent.click(implement())
       expect(implement()).toBeDisabled()
 
-      rerender(<RunCockpitView runId="run-2" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      rerender(<RunCockpitView runId="run-2" localExecutionSequence={noneLocalReader('run-2')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
       expect(implement()).toBeEnabled()
       fireEvent.click(implement())
       expect(implement()).toBeDisabled()
@@ -1222,7 +1224,7 @@ describe('RunCockpitView', () => {
     it('offers the implementation of a first revision after its own second review was Accepted', () => {
       arrange([rootCard, firstRevision], { reviewed: 'first', outcome: 'Accepted' }, { outcome: 'Resolved', original: 'root' })
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
       expect(screen.getByRole('button', { name: 'Implement the resolved plan with Claude' })).toBeInTheDocument()
       expect(screen.getByLabelText('Proposal lineage')).toHaveTextContent(/accepted the revised proposal/)
@@ -1231,7 +1233,7 @@ describe('RunCockpitView', () => {
     it('withholds the implementation of a first revision whose second review Challenged and offers the last resolution', () => {
       arrange([rootCard, firstRevision], { reviewed: 'first', outcome: 'Challenged' }, { outcome: 'Resolved', original: 'root' })
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
       expect(screen.queryByRole('button', { name: 'Implement the resolved plan with Claude' })).not.toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Request Claude review of the revised proposal' })).not.toBeInTheDocument()
@@ -1246,7 +1248,7 @@ describe('RunCockpitView', () => {
         { outcome: 'Resolved', original: 'first' },
       )
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
       expect(screen.queryByRole('button', { name: /Request Claude review/ })).not.toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Resolve challenges with Codex' })).not.toBeInTheDocument()
@@ -1257,11 +1259,11 @@ describe('RunCockpitView', () => {
 
     it('withholds a first revision implementation while its review status is loading or failed, showing the error', () => {
       arrange([rootCard, firstRevision], { loading: true })
-      const { rerender } = render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      const { rerender } = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
       expect(screen.queryByRole('button', { name: 'Implement the resolved plan with Claude' })).not.toBeInTheDocument()
 
       arrange([rootCard, firstRevision], { error: 'Claude critical review attempt status is unavailable.' })
-      rerender(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      rerender(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
       expect(screen.queryByRole('button', { name: 'Implement the resolved plan with Claude' })).not.toBeInTheDocument()
       expect(screen.getByText('Claude critical review attempt status is unavailable.')).toBeInTheDocument()
@@ -1269,7 +1271,7 @@ describe('RunCockpitView', () => {
 
     it("never carries the previous run's lineage into a newly selected run without a revision", () => {
       arrange([rootCard, firstRevision, secondRevision, escalationCard], { reviewed: 'first', outcome: 'Challenged' })
-      const { rerender } = render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      const { rerender } = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
       expect(screen.getByLabelText('Proposal lineage')).toBeInTheDocument()
 
       // The newly selected run's hooks report only its own data: one unreviewed root proposal.
@@ -1285,7 +1287,7 @@ describe('RunCockpitView', () => {
       })
       const request = vi.fn()
       useRequestClaudeCriticalReviewMock.mockReturnValue({ requesting: false, error: null, request })
-      rerender(<RunCockpitView runId="run-2" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      rerender(<RunCockpitView runId="run-2" localExecutionSequence={noneLocalReader('run-2')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
       expect(screen.queryByLabelText('Proposal lineage')).not.toBeInTheDocument()
       fireEvent.click(screen.getByRole('button', { name: 'Request Claude review' }))
@@ -1325,7 +1327,7 @@ describe('RunCockpitView', () => {
       it('binds the hooks to the loaded escalation and offers nothing before the facts are read', () => {
         arrangeFacts(null)
 
-        render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+        render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
         expect(usePlanningImplementationAuthorizationMock).toHaveBeenLastCalledWith('run-1', 'escalation', runningCockpit.latestSequence)
         expect(useAuthorizePlanningImplementationMock).toHaveBeenLastCalledWith('run-1', 'escalation', expect.any(Function))
@@ -1338,7 +1340,7 @@ describe('RunCockpitView', () => {
       it('shows the decision form for an absent authorization and sends the reason for exactly that escalation', () => {
         const { authorize } = arrangeFacts('Absent')
 
-        render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+        render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
         const region = screen.getByLabelText('Human decision on the final plan')
         expect(region).toHaveTextContent(/exactly one implementation claim/)
@@ -1356,7 +1358,7 @@ describe('RunCockpitView', () => {
         const request = vi.fn().mockResolvedValue(true)
         useRequestImplementationMock.mockReturnValue({ requesting: false, error: null, request })
 
-        render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+        render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
         expect(screen.getByLabelText('Human decision on the final plan')).toHaveTextContent(/Authorized by a human/)
         expect(screen.getByLabelText('Human decision on the final plan')).toHaveTextContent(/Recorded reason: Reviewed both rounds\./)
@@ -1369,7 +1371,7 @@ describe('RunCockpitView', () => {
 
       it('withholds the authorized implementation start while the host capacity is full, and keeps the metadata-only authorization operable', () => {
         const { authorize } = arrangeFacts('Absent')
-        const { unmount } = render(<RunCockpitView runId="run-1" executionCapacity={capacityStateFor('AtCapacity')} workspaceExecution={idleStateFor('project-1')} />)
+        const { unmount } = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={capacityStateFor('AtCapacity')} workspaceExecution={idleStateFor('project-1')} />)
 
         fireEvent.change(screen.getByLabelText(/Your reason for authorizing this final plan/), { target: { value: 'I accept it.' } })
         const authorizeButton = screen.getByRole('button', { name: 'Authorize one implementation claim' })
@@ -1381,7 +1383,7 @@ describe('RunCockpitView', () => {
         arrangeFacts('Available')
         const request = vi.fn().mockResolvedValue(true)
         useRequestImplementationMock.mockReturnValue({ requesting: false, error: null, request })
-        render(<RunCockpitView runId="run-1" executionCapacity={capacityStateFor('AtCapacity')} workspaceExecution={idleStateFor('project-1')} />)
+        render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={capacityStateFor('AtCapacity')} workspaceExecution={idleStateFor('project-1')} />)
 
         expect(screen.queryByRole('button', { name: authorizedLabel })).not.toBeInTheDocument()
         expect(screen.getAllByText(EXECUTION_CAPACITY_WITHHELD_POINTER).length).toBeGreaterThan(0)
@@ -1392,7 +1394,7 @@ describe('RunCockpitView', () => {
       it('keeps provider review and resolution of the final revision unavailable whatever the authorization says', () => {
         for (const state of ['Absent', 'Available', 'Consumed', 'Stale', 'Invalid']) {
           arrangeFacts(state)
-          const { unmount } = render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+          const { unmount } = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
           expect(screen.queryByRole('button', { name: /Request Claude review/ }), state).not.toBeInTheDocument()
           expect(screen.queryByRole('button', { name: 'Resolve challenges with Codex' }), state).not.toBeInTheDocument()
@@ -1403,7 +1405,7 @@ describe('RunCockpitView', () => {
       it('shows a consumed authorization truthfully and withholds any new request', () => {
         arrangeFacts('Consumed', { consumedByAttemptId: 'attempt-9' })
 
-        render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+        render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
         expect(screen.getByLabelText('Human decision on the final plan')).toHaveTextContent(/used by an implementation claim and cannot be reused/)
         expect(screen.getByText(/was already used by an implementation claim\. It cannot be reused/)).toBeInTheDocument()
@@ -1417,7 +1419,7 @@ describe('RunCockpitView', () => {
       ])('shows a %s authorization as unusable with no action', (state, expected) => {
         arrangeFacts(state)
 
-        render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+        render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
         expect(screen.getByLabelText('Human decision on the final plan')).toHaveTextContent(expected)
         expect(screen.queryByRole('button', { name: authorizedLabel })).not.toBeInTheDocument()
@@ -1427,7 +1429,7 @@ describe('RunCockpitView', () => {
       it('offers nothing when the server names a different final plan than the timeline', () => {
         arrangeFacts('Available', { finalProposalMessageId: 'other-plan' })
 
-        render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+        render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
         expect(screen.getByLabelText('Human decision on the final plan')).toHaveTextContent(/names a different final plan/)
         expect(screen.queryByRole('button', { name: authorizedLabel })).not.toBeInTheDocument()
@@ -1442,7 +1444,7 @@ describe('RunCockpitView', () => {
           refresh: vi.fn(),
         })
 
-        render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+        render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
         expect(screen.getByLabelText('Human decision on the final plan')).toHaveTextContent(/could not be read, so no decision is shown/)
         expect(screen.queryByRole('button', { name: authorizedLabel })).not.toBeInTheDocument()
@@ -1451,16 +1453,16 @@ describe('RunCockpitView', () => {
 
       it('renders no authorization panel without the escalation, for an ambiguous chain, or before the second revision', () => {
         arrange([rootCard, firstRevision, secondRevision], { reviewed: 'first', outcome: 'Challenged' }, { outcome: 'Resolved', original: 'first' })
-        const { rerender } = render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+        const { rerender } = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
         expect(screen.queryByLabelText('Human decision on the final plan')).not.toBeInTheDocument()
         expect(usePlanningImplementationAuthorizationMock).toHaveBeenLastCalledWith('run-1', null, runningCockpit.latestSequence)
 
         arrange([...exhausted, { ...secondRevision, id: 'second-b', sequence: 22 }], { reviewed: 'first', outcome: 'Challenged' })
-        rerender(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+        rerender(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
         expect(screen.queryByLabelText('Human decision on the final plan')).not.toBeInTheDocument()
 
         arrange([rootCard, firstRevision], { reviewed: 'root', outcome: 'Challenged' })
-        rerender(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+        rerender(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
         expect(screen.queryByLabelText('Human decision on the final plan')).not.toBeInTheDocument()
       })
 
@@ -1510,13 +1512,13 @@ describe('RunCockpitView', () => {
 
         it('withholds the implementation on returning to an earlier run until the replacement read supplies usable facts', async () => {
           const { reads } = await arrangeRealRead()
-          const { rerender } = render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+          const { rerender } = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
           await settle(() => reads[0].resolve(available('run-1')))
           expect(screen.getByRole('button', { name: authorizedLabel })).toBeInTheDocument()
 
-          rerender(<RunCockpitView runId="run-2" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+          rerender(<RunCockpitView runId="run-2" localExecutionSequence={noneLocalReader('run-2')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
           expect(screen.queryByRole('button', { name: authorizedLabel })).not.toBeInTheDocument()
-          rerender(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+          rerender(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
           expect(reads).toHaveLength(3)
           expect(screen.queryByRole('button', { name: authorizedLabel })).not.toBeInTheDocument()
@@ -1535,10 +1537,10 @@ describe('RunCockpitView', () => {
 
         it('shows an unavailable read, not the earlier Available facts, when the replacement read fails', async () => {
           const { reads } = await arrangeRealRead()
-          const { rerender } = render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+          const { rerender } = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
           await settle(() => reads[0].resolve(available('run-1')))
-          rerender(<RunCockpitView runId="run-2" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
-          rerender(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+          rerender(<RunCockpitView runId="run-2" localExecutionSequence={noneLocalReader('run-2')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+          rerender(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
           await settle(() => reads[2].reject(new Error('offline')))
 
@@ -1549,7 +1551,7 @@ describe('RunCockpitView', () => {
 
         it('does not resurrect an earlier Consumed state after an A to B to A round trip', async () => {
           const { reads } = await arrangeRealRead()
-          const { rerender } = render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+          const { rerender } = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
           await settle(() =>
             reads[0].resolve(
               new PlanningImplementationAuthorizationResponse({
@@ -1565,8 +1567,8 @@ describe('RunCockpitView', () => {
           )
           expect(screen.getByLabelText('Human decision on the final plan')).toHaveTextContent(/used by an implementation claim/)
 
-          rerender(<RunCockpitView runId="run-2" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
-          rerender(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+          rerender(<RunCockpitView runId="run-2" localExecutionSequence={noneLocalReader('run-2')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+          rerender(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
           expect(screen.getByLabelText('Human decision on the final plan')).not.toHaveTextContent(/used by an implementation claim/)
           expect(screen.queryByRole('button', { name: authorizedLabel })).not.toBeInTheDocument()
@@ -1583,7 +1585,7 @@ describe('RunCockpitView', () => {
           return { requesting: false, error: null, request: vi.fn().mockResolvedValue(true) }
         })
 
-        render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+        render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
         onRequested?.()
 
         expect(implementationRefresh).toHaveBeenCalledOnce()
@@ -1616,7 +1618,7 @@ describe('RunCockpitView', () => {
         refresh: vi.fn(),
       })
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
       expect(screen.queryByRole('button', { name: 'Resolve challenges with Codex' })).not.toBeInTheDocument()
     })
@@ -1646,7 +1648,7 @@ describe('RunCockpitView', () => {
       const request = vi.fn()
       useRequestChallengeResolutionMock.mockReturnValue({ requesting: false, error: null, request })
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
       fireEvent.click(screen.getByRole('button', { name: 'Resolve challenges with Codex' }))
 
       expect(request).toHaveBeenCalledWith('run-1', 'review-1')
@@ -1686,7 +1688,7 @@ describe('RunCockpitView', () => {
         refresh: vi.fn(),
       })
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
       expect(screen.getByText(/pending/i)).toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Resolve challenges with Codex' })).not.toBeInTheDocument()
@@ -1727,7 +1729,7 @@ describe('RunCockpitView', () => {
         refresh: vi.fn(),
       })
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
       expect(screen.queryByRole('button', { name: 'Resolve challenges with Codex' })).not.toBeInTheDocument()
       expect(screen.getByText('Last attempt #3: Challenges resolved.')).toBeInTheDocument()
@@ -1744,10 +1746,10 @@ describe('RunCockpitView', () => {
         refresh: async () => true,
       })
 
-      const { rerender } = render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      const { rerender } = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
       expect(useChallengeResolutionAttemptStatusMock).toHaveBeenLastCalledWith('run-1', runningCockpit.latestSequence)
 
-      rerender(<RunCockpitView runId="run-2" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      rerender(<RunCockpitView runId="run-2" localExecutionSequence={noneLocalReader('run-2')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
       expect(useChallengeResolutionAttemptStatusMock).toHaveBeenLastCalledWith('run-2', runningCockpit.latestSequence)
     })
   })
@@ -1866,7 +1868,7 @@ describe('RunCockpitView', () => {
         const request = vi.fn()
         role.repairHook.mockReturnValue({ requesting: false, error: null, request })
 
-        render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+        render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
         fireEvent.click(screen.getByRole('button', { name: role.repairButton }))
 
         expect(request).toHaveBeenCalledExactlyOnceWith(role.sourceId)
@@ -1878,7 +1880,7 @@ describe('RunCockpitView', () => {
         withStatus()
         role.repairHook.mockReturnValue({ requesting: true, error: null, request: vi.fn() })
 
-        render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+        render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
         expect(screen.getByRole('button', { name: 'Requesting repair…' })).toBeDisabled()
         expect(screen.getByRole('button', { name: /^Requesting…$/ })).toBeDisabled()
@@ -1888,18 +1890,18 @@ describe('RunCockpitView', () => {
         withStatus()
         role.ordinaryHook.mockReturnValue({ requesting: true, error: null, request: vi.fn() })
 
-        render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+        render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
         expect(screen.getByRole('button', { name: role.repairButton })).toBeDisabled()
       })
 
       it('binds to the newly selected run and offers no repair for a masked status', () => {
         withStatus()
-        const { rerender } = render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+        const { rerender } = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
         expect(screen.getByRole('button', { name: role.repairButton })).toBeInTheDocument()
 
         role.statusHook.mockReturnValue({ status: null, loading: true, error: null, refresh: vi.fn() })
-        rerender(<RunCockpitView runId="run-2" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+        rerender(<RunCockpitView runId="run-2" localExecutionSequence={noneLocalReader('run-2')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
         expect(role.repairHook).toHaveBeenLastCalledWith('run-2', expect.any(Function))
         expect(screen.queryByRole('button', { name: role.repairButton })).not.toBeInTheDocument()
@@ -1909,7 +1911,7 @@ describe('RunCockpitView', () => {
         withStatus()
         role.repairHook.mockReturnValue({ requesting: false, error: role.errorText, request: vi.fn() })
 
-        render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+        render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
         expect(screen.getByText(role.errorText)).toBeInTheDocument()
         expect(screen.getByRole('button', { name: role.ordinaryButton })).toBeEnabled()
@@ -1918,7 +1920,7 @@ describe('RunCockpitView', () => {
       it('keeps the lineage visible for a repair attempt and offers no second repair', () => {
         withStatus({ attemptNumber: 4, repairSourceAttemptId: 'earlier-1', repairSourceAttemptNumber: 3 })
 
-        render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+        render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
         expect(screen.getByText(/Attempt #4 is the one repair request for attempt #3\./)).toBeInTheDocument()
         expect(screen.queryByRole('button', { name: role.repairButton })).not.toBeInTheDocument()
@@ -1967,9 +1969,9 @@ describe('RunCockpitView', () => {
         refresh: vi.fn(),
       })
 
-      const { rerender } = render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      const { rerender } = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
       fireEvent.click(screen.getByRole('button', { name: 'Request one format-repair code review' }))
-      rerender(<RunCockpitView runId="run-2" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      rerender(<RunCockpitView runId="run-2" localExecutionSequence={noneLocalReader('run-2')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
       fireEvent.click(screen.getByRole('button', { name: 'Request one format-repair code review' }))
       expect(screen.getByRole('button', { name: 'Requesting repair…' })).toBeDisabled()
 
@@ -2027,11 +2029,11 @@ describe('RunCockpitView', () => {
       })
       const repairButton = () => screen.getByRole('button', { name: 'Request one format-repair code review' })
 
-      const { rerender } = render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      const { rerender } = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
       fireEvent.click(screen.getByRole('button', { name: 'Request code review' }))
       expect(repairButton()).toBeDisabled()
 
-      rerender(<RunCockpitView runId="run-2" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      rerender(<RunCockpitView runId="run-2" localExecutionSequence={noneLocalReader('run-2')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
       expect(repairButton()).toBeEnabled()
       expect(screen.getByRole('button', { name: 'Request code review' })).toBeEnabled()
 
@@ -2080,7 +2082,7 @@ describe('RunCockpitView', () => {
         refresh: async () => true,
       })
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
       // CodexPlanning (a 10-minute-configured path) is unaffected by Implementation's own
       // (20-minute-configured) time-fit block: each claim path's fit is independent.
@@ -2110,7 +2112,7 @@ describe('RunCockpitView', () => {
         refresh: vi.fn(),
       })
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
       expect(screen.queryByRole('button', { name: 'Resolve challenges with Codex' })).not.toBeInTheDocument()
       expect(screen.getByText(/insufficient reserved invocation time/i)).toBeInTheDocument()
@@ -2144,7 +2146,7 @@ describe('RunCockpitView', () => {
         refresh: vi.fn(),
       })
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
       expect(screen.queryByRole('button', { name: 'Resolve challenges with Codex' })).not.toBeInTheDocument()
       // Both the global count-budget block AND the ChallengeResolution-specific time-fit block
@@ -2165,14 +2167,14 @@ describe('RunCockpitView', () => {
         refresh: async () => true,
       })
 
-      const { rerender } = render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      const { rerender } = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
       expect(screen.queryByRole('button', { name: 'Request Codex plan' })).not.toBeInTheDocument()
       expect(screen.getByText(/insufficient reserved invocation time/i)).toBeInTheDocument()
 
       // Selecting a different run while the hook still returns run-1's own stale projection
       // must never carry run-1's DoesNotFit state — or its Fits state — into run-2: the honest
       // "unavailable" state is shown instead until run-2's own projection arrives.
-      rerender(<RunCockpitView runId="run-2" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      rerender(<RunCockpitView runId="run-2" localExecutionSequence={noneLocalReader('run-2')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
       expect(screen.queryByRole('button', { name: 'Request Codex plan' })).not.toBeInTheDocument()
       expect(screen.queryByText(/insufficient reserved invocation time/i)).not.toBeInTheDocument()
       expect(screen.getByText(/time-fit status is confirmed/i)).toBeInTheDocument()
@@ -2186,7 +2188,7 @@ describe('RunCockpitView', () => {
         syncError: null,
         refresh: async () => true,
       })
-      rerender(<RunCockpitView runId="run-2" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      rerender(<RunCockpitView runId="run-2" localExecutionSequence={noneLocalReader('run-2')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
       expect(screen.getByRole('button', { name: 'Request Codex plan' })).toBeInTheDocument()
     })
   })
@@ -2222,7 +2224,7 @@ describe('RunCockpitView process evidence', () => {
       refresh: async () => true,
     })
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     const section = screen.getByRole('region', { name: 'Latest agent attempt' })
     expect(section).toHaveTextContent(
@@ -2242,10 +2244,10 @@ describe('RunCockpitView process evidence', () => {
       refresh: async () => true,
     })
 
-    const { rerender } = render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    const { rerender } = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
     expect(screen.getByRole('region', { name: 'Latest agent attempt' })).toBeInTheDocument()
 
-    rerender(<RunCockpitView runId="run-2" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    rerender(<RunCockpitView runId="run-2" localExecutionSequence={noneLocalReader('run-2')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.queryByRole('region', { name: 'Latest agent attempt' })).not.toBeInTheDocument()
     expect(screen.queryByText(/Process timed out/)).not.toBeInTheDocument()
@@ -2262,7 +2264,7 @@ describe('RunCockpitView process evidence', () => {
       refresh: async () => true,
     })
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.queryByRole('region', { name: 'Latest agent attempt' })).not.toBeInTheDocument()
   })
@@ -2305,7 +2307,7 @@ describe('RunCockpitView token usage', () => {
   it('renders the latest attempt usage beside its process evidence and the run summary as partial', () => {
     renderWith(partialCockpit)
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     const section = screen.getByRole('region', { name: 'Latest agent attempt' })
     expect(section).toHaveTextContent('Process exited with code 1 after 900 ms')
@@ -2332,7 +2334,7 @@ describe('RunCockpitView token usage', () => {
       }),
     )
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.getByLabelText('Run token usage')).toHaveTextContent(
       'Run token total: 1,200 input · 345 output (all 1 dispatched attempt reported usage)',
@@ -2347,7 +2349,7 @@ describe('RunCockpitView token usage', () => {
       }),
     )
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.getByLabelText('Run token usage')).toHaveTextContent('No token usage data yet')
     expect(screen.queryByRole('region', { name: 'Latest agent attempt' })).not.toBeInTheDocument()
@@ -2356,10 +2358,10 @@ describe('RunCockpitView token usage', () => {
   it('never renders token usage from the previously selected run for the newly selected one', () => {
     renderWith(partialCockpit, true)
 
-    const { rerender } = render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    const { rerender } = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
     expect(screen.getByLabelText('Run token usage')).toBeInTheDocument()
 
-    rerender(<RunCockpitView runId="run-2" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    rerender(<RunCockpitView runId="run-2" localExecutionSequence={noneLocalReader('run-2')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.queryByLabelText('Run token usage')).not.toBeInTheDocument()
     expect(screen.queryByText(/Partial token count/)).not.toBeInTheDocument()
@@ -2393,7 +2395,7 @@ describe('RunCockpitView token usage', () => {
       }),
     )
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     const list = screen.getByLabelText('Provider token usage')
     expect(list.querySelectorAll('li')).toHaveLength(3)
@@ -2425,10 +2427,10 @@ describe('RunCockpitView token usage', () => {
       true,
     )
 
-    const { rerender } = render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    const { rerender } = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
     expect(screen.getByLabelText('Provider token usage')).toBeInTheDocument()
 
-    rerender(<RunCockpitView runId="run-2" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    rerender(<RunCockpitView runId="run-2" localExecutionSequence={noneLocalReader('run-2')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.queryByLabelText('Provider token usage')).not.toBeInTheDocument()
   })
@@ -2442,7 +2444,7 @@ describe('RunCockpitView one Agent claim slot remaining warning', () => {
   it('renders alongside the exhausted banner\'s own healthy (non-exhausted) state without it, and shows nothing when the budget is not down to its last slot', () => {
     renderWith(runningCockpit)
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(screen.queryByText(/Only one Agent claim slot remains/)).not.toBeInTheDocument()
@@ -2458,7 +2460,7 @@ describe('RunCockpitView one Agent claim slot remaining warning', () => {
       } as ConstructorParameters<typeof GetRunCockpitResponse>[0]),
     )
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     const warning = screen.getByRole('status')
     expect(warning).toHaveTextContent('Only one Agent claim slot remains for this run (15/16 used).')
@@ -2478,7 +2480,7 @@ describe('RunCockpitView one Agent claim slot remaining warning', () => {
       } as ConstructorParameters<typeof GetRunCockpitResponse>[0]),
     )
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.getByRole('alert')).toHaveTextContent('reached its maximum of 16 claimed Agent attempts')
     expect(screen.queryByText(/Only one Agent claim slot remains/)).not.toBeInTheDocument()
@@ -2495,10 +2497,10 @@ describe('RunCockpitView one Agent claim slot remaining warning', () => {
       true,
     )
 
-    const { rerender } = render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    const { rerender } = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
     expect(screen.getByRole('status')).toBeInTheDocument()
 
-    rerender(<RunCockpitView runId="run-2" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    rerender(<RunCockpitView runId="run-2" localExecutionSequence={noneLocalReader('run-2')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.queryByText(/Only one Agent claim slot remains/)).not.toBeInTheDocument()
   })
@@ -2527,7 +2529,7 @@ describe('RunCockpitView Claude model request', () => {
       refresh: async () => true,
     })
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.getByLabelText('Claude model request')).toHaveTextContent(
       'Requested Claude model for future attempts: haiku.',
@@ -2548,10 +2550,10 @@ describe('RunCockpitView Claude model request', () => {
       refresh: async () => true,
     })
 
-    const { rerender } = render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    const { rerender } = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
     expect(screen.getByLabelText('Claude model request')).toBeInTheDocument()
 
-    rerender(<RunCockpitView runId="run-2" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    rerender(<RunCockpitView runId="run-2" localExecutionSequence={noneLocalReader('run-2')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.queryByLabelText('Claude model request')).not.toBeInTheDocument()
   })
@@ -2581,12 +2583,12 @@ describe('RunCockpitView token-activity warnings', () => {
       refresh: async () => true,
     })
 
-    const { rerender } = render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    const { rerender } = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.getByRole('alert')).toHaveTextContent('Codex token-activity warning')
     expect(screen.getByLabelText('Claude Code token-activity warning')).toHaveTextContent('not an all-clear')
 
-    rerender(<RunCockpitView runId="run-2" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    rerender(<RunCockpitView runId="run-2" localExecutionSequence={noneLocalReader('run-2')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.queryByLabelText('Codex token-activity warning')).not.toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
@@ -2617,13 +2619,13 @@ describe('RunCockpitView token-activity stops', () => {
       refresh: async () => true,
     })
 
-    const { rerender } = render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    const { rerender } = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.getByRole('alert')).toHaveTextContent('Codex token stop reached')
     expect(screen.getByLabelText('Claude Code token stop')).toHaveTextContent('does not show that the provider is available')
     expect(screen.queryByLabelText('Codex token-activity warning')).toHaveTextContent('no token-activity warning threshold set')
 
-    rerender(<RunCockpitView runId="run-2" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    rerender(<RunCockpitView runId="run-2" localExecutionSequence={noneLocalReader('run-2')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.queryByLabelText('Codex token stop')).not.toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
@@ -2656,7 +2658,7 @@ describe('RunCockpitView Claude effort request', () => {
       }),
     })
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.getByLabelText('Claude model request')).toHaveTextContent(
       'Requested Claude effort for future attempts: low. This is a request only; the effort actually applied is not observed',
@@ -2672,7 +2674,7 @@ describe('RunCockpitView Claude effort request', () => {
     const refresh = vi.fn().mockResolvedValue(true)
     mockCockpit(refresh)
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
     fireEvent.change(screen.getByLabelText('Requested Claude model'), { target: { value: 'sonnet' } })
     fireEvent.change(screen.getByLabelText('Requested Claude effort'), { target: { value: 'medium' } })
     fireEvent.click(within(screen.getByLabelText('Claude model request')).getByRole('button', { name: 'Save' }))
@@ -2691,7 +2693,7 @@ describe('RunCockpitView Claude effort request', () => {
     const refresh = vi.fn().mockResolvedValue(false)
     mockCockpit(refresh)
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
     fireEvent.click(within(screen.getByLabelText('Claude model request')).getByRole('button', { name: 'Clear' }))
 
     await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1))
@@ -2710,7 +2712,7 @@ describe('RunCockpitView Claude effort request', () => {
     const refresh = vi.fn().mockResolvedValue(true)
     mockCockpit(refresh)
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
     fireEvent.click(within(screen.getByLabelText('Claude model request')).getByRole('button', { name: 'Save' }))
 
     expect(await screen.findByText('The Claude model request could not be saved for this run.')).toBeInTheDocument()
@@ -2739,7 +2741,7 @@ describe('RunCockpitView Claude turn limit request', () => {
   it('shows the control with the current saved request for an editable run', () => {
     mockCockpit(async () => true)
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     const control = screen.getByRole('group', { name: 'Claude turn limit' })
     expect(control).toHaveTextContent('Current run request: 12 turns')
@@ -2749,7 +2751,7 @@ describe('RunCockpitView Claude turn limit request', () => {
   it.each(['Created', 'Running'])('is editable while the run is %s', (lifecycle) => {
     mockCockpit(async () => true, { lifecycle })
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.getByLabelText('Requested Claude turn limit')).toBeTruthy()
   })
@@ -2757,7 +2759,7 @@ describe('RunCockpitView Claude turn limit request', () => {
   it.each(['Completed', 'Failed'])('is read-only once the run is %s', (lifecycle) => {
     mockCockpit(async () => true, { lifecycle })
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     const control = screen.getByRole('group', { name: 'Claude turn limit' })
     expect(control).toHaveTextContent('Current run request: 12 turns')
@@ -2771,7 +2773,7 @@ describe('RunCockpitView Claude turn limit request', () => {
     const refresh = vi.fn().mockResolvedValue(true)
     mockCockpit(refresh)
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
     const control = screen.getByRole('group', { name: 'Claude turn limit' })
     fireEvent.change(within(control).getByLabelText('Requested Claude turn limit'), { target: { value: '20' } })
     fireEvent.click(within(control).getByRole('button', { name: 'Save' }))
@@ -2786,7 +2788,7 @@ describe('RunCockpitView Claude turn limit request', () => {
     const refresh = vi.fn().mockResolvedValue(true)
     mockCockpit(refresh)
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
     const control = screen.getByRole('group', { name: 'Claude turn limit' })
     fireEvent.click(within(control).getByRole('button', { name: 'Clear' }))
     await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1))
@@ -2800,7 +2802,7 @@ describe('RunCockpitView Claude turn limit request', () => {
   it('shows Unknown for a stored value the server could not validate', () => {
     mockCockpit(async () => true, { claudeMutationTurnLimit: new ClaudeMutationTurnLimitResponse({ state: 'Unknown' }) })
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.getByRole('group', { name: 'Claude turn limit' })).toHaveTextContent('Current run request: Unknown')
   })
@@ -2818,7 +2820,7 @@ describe('RunCockpitView Claude turn limit request', () => {
       }),
     })
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.getByRole('region', { name: 'Latest agent attempt' })).toHaveTextContent(
       'Claude turn limit for this attempt: Requested: 7 turns',
@@ -2828,7 +2830,7 @@ describe('RunCockpitView Claude turn limit request', () => {
 
   it('does not carry a typed draft or error across a run switch', () => {
     mockCockpit(async () => true, { claudeMutationTurnLimit: new ClaudeMutationTurnLimitResponse({ state: 'NotRequested' }) })
-    const { rerender } = render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    const { rerender } = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
     fireEvent.change(screen.getByLabelText('Requested Claude turn limit'), { target: { value: '55' } })
     expect((screen.getByLabelText('Requested Claude turn limit') as HTMLInputElement).value).toBe('55')
 
@@ -2836,7 +2838,7 @@ describe('RunCockpitView Claude turn limit request', () => {
       runId: 'run-2',
       claudeMutationTurnLimit: new ClaudeMutationTurnLimitResponse({ state: 'NotRequested' }),
     })
-    rerender(<RunCockpitView runId="run-2" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    rerender(<RunCockpitView runId="run-2" localExecutionSequence={noneLocalReader('run-2')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect((screen.getByLabelText('Requested Claude turn limit') as HTMLInputElement).value).toBe('')
   })
@@ -2855,7 +2857,7 @@ describe('RunCockpitView execution mode', () => {
       syncError: null,
       refresh: async () => true,
     })
-    return render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    return render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
   }
 
   it('discloses a manual Agent run and, while Created, that it waits for an explicit planning request', () => {
@@ -2927,7 +2929,7 @@ describe('RunCockpitView verification diagnosis', () => {
     const request = vi.fn().mockResolvedValue(true)
     useRequestVerificationDiagnosisMock.mockReturnValue({ requesting: false, error: null, request })
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     const diagnosis = screen.getByRole('region', { name: 'Verification diagnosis' })
     fireEvent.click(within(diagnosis).getByRole('button', { name: 'Diagnose failed verification with Codex' }))
@@ -2954,7 +2956,7 @@ describe('RunCockpitView verification diagnosis', () => {
     const request = vi.fn().mockResolvedValue(true)
     useRequestDiagnosisCorrectionMock.mockReturnValue({ requesting: false, error: null, request })
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Correct the diagnosed findings with Claude' }))
     expect(request).toHaveBeenCalledExactlyOnceWith('run-1', 'diagnosis-3')
@@ -2973,7 +2975,7 @@ describe('RunCockpitView verification diagnosis', () => {
     const request = vi.fn().mockResolvedValue(true)
     useRequestCodeReviewMock.mockReturnValue({ requesting: false, error: null, request })
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
     fireEvent.click(screen.getByRole('button', { name: 'Request code review' }))
 
     expect(request).toHaveBeenCalledExactlyOnceWith('run-1', 'corrected-report')
@@ -2991,7 +2993,7 @@ describe('RunCockpitView verification diagnosis', () => {
     const request = vi.fn().mockResolvedValue(true)
     useRequestCodeReviewMock.mockReturnValue({ requesting: false, error: null, request })
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
     fireEvent.click(screen.getByRole('button', { name: 'Request code review' }))
 
     expect(request).toHaveBeenCalledExactlyOnceWith('run-1', 'ordinary-report')
@@ -3001,7 +3003,7 @@ describe('RunCockpitView verification diagnosis', () => {
     mockRunning()
     mockDiagnosis({})
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.queryByRole('button', { name: 'Request code review' })).not.toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Codex planning' })).toBeInTheDocument()
@@ -3012,7 +3014,7 @@ describe('RunCockpitView verification diagnosis', () => {
     mockRunning('Simulated')
     mockDiagnosis({ diagnosableExecutionReportMessageId: 'report-9' })
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.queryByRole('region', { name: 'Verification diagnosis' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Diagnose failed verification with Codex' })).not.toBeInTheDocument()
@@ -3023,7 +3025,7 @@ describe('RunCockpitView verification diagnosis', () => {
     const refresh = vi.fn()
     mockDiagnosis({}, refresh)
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(useRequestVerificationDiagnosisMock).toHaveBeenCalledWith('run-1', null, refresh, 0)
     expect(useRequestDiagnosisCorrectionMock).toHaveBeenCalledWith('run-1', null, refresh)
@@ -3032,7 +3034,7 @@ describe('RunCockpitView verification diagnosis', () => {
   it('hands the evidence refresh generation to the verification-dependent status and request hooks, and to nothing else', () => {
     mockRunning()
 
-    render(<RunCockpitView runId="run-1" evidenceRefreshGeneration={4} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" evidenceRefreshGeneration={4} localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(useVerificationDiagnosisStatusMock).toHaveBeenCalledWith('run-1', 2, 4)
     expect(useCodeReviewAttemptStatusMock).toHaveBeenCalledWith('run-1', 2, 4)
@@ -3061,7 +3063,7 @@ describe('RunCockpitView local commit composition', () => {
   it('mounts the panel for the selected manual Agent run with the cockpit sequence, the evidence generation and the cockpit refresh', () => {
     const refresh = mockCockpit()
 
-    render(<RunCockpitView runId="run-1" evidenceRefreshGeneration={3} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" evidenceRefreshGeneration={3} localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.getByRole('region', { name: 'Local commit' })).toBeInTheDocument()
     expect(useLocalCommitStatusMock).toHaveBeenCalledWith('run-1', 2, 3)
@@ -3070,18 +3072,18 @@ describe('RunCockpitView local commit composition', () => {
 
   it('does not mount the panel for a simulated or unrecognized execution mode', () => {
     mockCockpit({ executionMode: 'Simulated' })
-    const { rerender } = render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    const { rerender } = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
     expect(screen.queryByRole('region', { name: 'Local commit' })).not.toBeInTheDocument()
 
     mockCockpit({ executionMode: 'SomethingNew' })
-    rerender(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    rerender(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
     expect(screen.queryByRole('region', { name: 'Local commit' })).not.toBeInTheDocument()
   })
 
   it('never shows a projection held from another run as the selected run\'s local commit', () => {
     mockCockpit({ runId: 'run-1' })
 
-    render(<RunCockpitView runId="run-2" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-2" localExecutionSequence={noneLocalReader('run-2')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.queryByRole('region', { name: 'Local commit' })).not.toBeInTheDocument()
     expect(useLocalCommitStatusMock).not.toHaveBeenCalledWith('run-2', expect.anything(), expect.anything())
@@ -3107,7 +3109,7 @@ describe('RunCockpitView abandonment composition', () => {
     const refresh = mockCockpit()
     const onProjectChanged = vi.fn()
 
-    render(<RunCockpitView runId="run-1" evidenceRefreshGeneration={3} onProjectChanged={onProjectChanged} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" evidenceRefreshGeneration={3} onProjectChanged={onProjectChanged} localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.getByRole('region', { name: 'Abandon run' })).toBeInTheDocument()
     expect(useManualRunAbandonmentMock).toHaveBeenCalledWith('run-1', 2, 3)
@@ -3116,18 +3118,18 @@ describe('RunCockpitView abandonment composition', () => {
 
   it('does not mount the panel for a simulated or unrecognized execution mode', () => {
     mockCockpit({ executionMode: 'Simulated' })
-    const { rerender } = render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    const { rerender } = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
     expect(screen.queryByRole('region', { name: 'Abandon run' })).not.toBeInTheDocument()
 
     mockCockpit({ executionMode: 'SomethingNew' })
-    rerender(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    rerender(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
     expect(screen.queryByRole('region', { name: 'Abandon run' })).not.toBeInTheDocument()
   })
 
   it("never shows a projection held from another run as the selected run's abandonment", () => {
     mockCockpit({ runId: 'run-1' })
 
-    render(<RunCockpitView runId="run-2" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-2" localExecutionSequence={noneLocalReader('run-2')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.queryByRole('region', { name: 'Abandon run' })).not.toBeInTheDocument()
     expect(useManualRunAbandonmentMock).not.toHaveBeenCalledWith('run-2', expect.anything(), expect.anything())
@@ -3136,7 +3138,7 @@ describe('RunCockpitView abandonment composition', () => {
   it('shows an abandoned run truthfully: not as a completion, with no Agent request actions and a fixed note', () => {
     mockCockpit({ lifecycle: 'Abandoned', stage: 'Plan', activeParticipant: new ParticipantIdentityResponse({ kind: 'None' }) })
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.getByText('Abandoned · Plan')).toHaveAttribute('data-tone', 'abandoned')
     expect(screen.queryByRole('button', { name: 'Request Codex plan' })).not.toBeInTheDocument()
@@ -3147,7 +3149,7 @@ describe('RunCockpitView abandonment composition', () => {
   it('keeps the Agent request actions for a running manual run', () => {
     mockCockpit()
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.getByRole('button', { name: 'Request Codex plan' })).toBeInTheDocument()
     expect(screen.queryByText(/This run was abandoned/)).not.toBeInTheDocument()
@@ -3394,7 +3396,7 @@ describe('RunCockpitView PlanningSequence fence', () => {
       scenario.arrange()
       usePlanningSequenceMock.mockReturnValue(control(state))
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
       expect(scenario.offered()).toBeInTheDocument()
       expect(screen.queryByText(WITHHELD)).not.toBeInTheDocument()
@@ -3405,7 +3407,7 @@ describe('RunCockpitView PlanningSequence fence', () => {
       scenario.arrange()
       usePlanningSequenceMock.mockReturnValue(control(state))
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
       expect(scenario.offered()).not.toBeInTheDocument()
       expect(screen.getAllByText(WITHHELD).length).toBeGreaterThan(0)
@@ -3416,7 +3418,7 @@ describe('RunCockpitView PlanningSequence fence', () => {
     mockRun()
     usePlanningSequenceMock.mockReturnValue(control('released'))
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.queryByRole('button', { name: 'Request Claude review' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Resolve challenges with Codex' })).not.toBeInTheDocument()
@@ -3426,12 +3428,12 @@ describe('RunCockpitView PlanningSequence fence', () => {
   it('names the fixed reason for each withheld fence', () => {
     mockRun()
     usePlanningSequenceMock.mockReturnValue(control('unknown'))
-    const { unmount } = render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    const { unmount } = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
     expect(screen.getAllByText(/Withheld until the planning sequence status is confirmed/).length).toBeGreaterThan(0)
     unmount()
 
     usePlanningSequenceMock.mockReturnValue(control('blocked'))
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
     expect(screen.getAllByText(/a planning sequence holds automatic authority.*Stop after current step/).length).toBeGreaterThan(0)
   })
 
@@ -3440,7 +3442,7 @@ describe('RunCockpitView PlanningSequence fence', () => {
     usePlanningSequenceMock.mockReturnValue(control('blocked'))
     const report = vi.fn()
 
-    const { unmount } = render(<RunCockpitView runId="run-1" onPlanningSequenceControlChange={report} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    const { unmount } = render(<RunCockpitView runId="run-1" onPlanningSequenceControlChange={report} localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.getByRole('region', { name: 'Planning sequence' })).toBeInTheDocument()
     expect(report).toHaveBeenLastCalledWith('run-1', 'blocked')
@@ -3452,7 +3454,7 @@ describe('RunCockpitView PlanningSequence fence', () => {
     mockRun({ executionMode: 'Simulated' })
     usePlanningSequenceMock.mockReturnValue(control('none'))
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.queryByRole('region', { name: 'Planning sequence' })).not.toBeInTheDocument()
   })
@@ -3462,7 +3464,7 @@ describe('RunCockpitView PlanningSequence fence', () => {
       mockRun()
       usePlanningSequenceMock.mockReturnValue(control('blocked'))
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
       const badge = screen.getByText('Running · Plan')
       expect(badge).toHaveAttribute('data-recorded-lifecycle', 'true')
@@ -3475,7 +3477,7 @@ describe('RunCockpitView PlanningSequence fence', () => {
       mockRun({ executionMode: 'Simulated' })
       usePlanningSequenceMock.mockReturnValue(control('none'))
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
       const badge = screen.getByText('Running · Plan')
       expect(badge).toHaveAttribute('data-tone', 'running')
@@ -3490,7 +3492,7 @@ describe('RunCockpitView PlanningSequence fence', () => {
         mockRun({ executionMode })
         usePlanningSequenceMock.mockReturnValue(control('none'))
 
-        render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+        render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
         const badge = screen.getByText('Running · Plan')
         expect(badge).toHaveAttribute('data-tone', 'default')
@@ -3504,7 +3506,7 @@ describe('RunCockpitView PlanningSequence fence', () => {
       mockRun()
       usePlanningSequenceMock.mockReturnValue(control('unknown'))
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
       expect(screen.getByText('Running · Plan')).toHaveAttribute('data-tone', 'default')
     })
@@ -3512,13 +3514,13 @@ describe('RunCockpitView PlanningSequence fence', () => {
     it('hides the waiting hint of a Created run once a sequence is recorded or its status is unknown, and keeps it otherwise', () => {
       mockRun({ lifecycle: 'Created' })
       usePlanningSequenceMock.mockReturnValue(control('none'))
-      const { unmount } = render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      const { unmount } = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
       expect(screen.getByText(/Waiting for an explicit planning request/)).toBeInTheDocument()
       unmount()
 
       for (const state of ['blocked', 'released', 'unknown'] as const) {
         usePlanningSequenceMock.mockReturnValue(control(state))
-        const view = render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+        const view = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
         expect(screen.queryByText(/Waiting for an explicit planning request/)).not.toBeInTheDocument()
         view.unmount()
       }
@@ -3548,7 +3550,7 @@ describe('RunCockpitView host observation composition (ADR-0056)', () => {
     mockRun({ executionMode })
     useAgentSupervisionMock.mockReturnValue(supervisionOf(observedWire('run-1')))
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.getByRole('region', { name: 'Host observation of the current Agent attempt' })).toHaveAttribute('data-status', 'Observed')
     expect(useAgentSupervisionMock).toHaveBeenLastCalledWith('run-1', runningCockpit.latestSequence)
@@ -3559,7 +3561,7 @@ describe('RunCockpitView host observation composition (ADR-0056)', () => {
     mockRun({ executionMode: 'Simulated' })
     useAgentSupervisionMock.mockReturnValue(supervisionOf(observedWire('run-1')))
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.queryByRole('region', { name: 'Host observation of the current Agent attempt' })).not.toBeInTheDocument()
     expect(screen.queryByTestId('header-host-observation')).not.toBeInTheDocument()
@@ -3570,7 +3572,7 @@ describe('RunCockpitView host observation composition (ADR-0056)', () => {
     mockRun({ runId: 'run-0' })
     useAgentSupervisionMock.mockReturnValue(resultFor(null, { loading: true }))
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(useAgentSupervisionMock).toHaveBeenLastCalledWith(null, runningCockpit.latestSequence)
     expect(screen.queryByRole('region', { name: 'Host observation of the current Agent attempt' })).not.toBeInTheDocument()
@@ -3585,7 +3587,7 @@ describe('RunCockpitView host observation composition (ADR-0056)', () => {
     mockRun()
     useAgentSupervisionMock.mockReturnValue(supervisionOf(body))
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.getByTestId('header-host-observation')).toHaveTextContent(badge)
     expect(screen.getByText('Running · Plan')).toHaveAttribute('data-recorded-lifecycle', 'true')
@@ -3595,7 +3597,7 @@ describe('RunCockpitView host observation composition (ADR-0056)', () => {
     mockRun()
     useAgentSupervisionMock.mockReturnValue(resultFor(null, { failure: 'timeout', polling: false }))
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(screen.getByRole('alert')).toHaveTextContent('did not answer within ten seconds')
     expect(screen.getByTestId('header-host-observation')).toHaveTextContent('Host observation: unavailable')
@@ -3610,20 +3612,20 @@ describe('RunCockpitView host observation composition (ADR-0056)', () => {
 
     mockRun()
     useAgentSupervisionMock.mockReturnValue(resultFor(null, { loading: true }))
-    const baseline = render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    const baseline = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
     const reference = offered()
     baseline.unmount()
     expect(reference.length).toBeGreaterThan(0)
 
     for (const body of [observedWire('run-1'), needsAttentionWire('run-1'), endedWire('run-1'), notObservedWire('run-1'), unavailableWire('run-1')]) {
       useAgentSupervisionMock.mockReturnValue(supervisionOf(body))
-      const view = render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      const view = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
       expect(offered()).toEqual(reference)
       view.unmount()
     }
 
     useAgentSupervisionMock.mockReturnValue(resultFor(null, { failure: 'read', polling: false }))
-    const failed = render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    const failed = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
     expect(offered()).toEqual(reference)
     failed.unmount()
   })
@@ -3634,7 +3636,7 @@ describe('RunCockpitView host observation composition (ADR-0056)', () => {
       mockRun()
       useAgentSupervisionMock.mockReturnValue(supervisionOf(observedWire('run-1'), { receivedAtMilliseconds: performance.now(), polling: true }))
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
       expect(screen.getByTestId('header-host-observation')).toHaveTextContent('Host observation: reporting')
 
       act(() => {
@@ -3690,7 +3692,7 @@ describe('RunCockpitView workspace execution gate (ADR-0057)', () => {
       mockRun()
       scenario.arrange()
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={stateFor('Idle')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={stateFor('Idle')} />)
 
       expect(scenario.offered()).toBeInTheDocument()
       expect(screen.queryByText(/Withheld/)).not.toBeInTheDocument()
@@ -3704,7 +3706,7 @@ describe('RunCockpitView workspace execution gate (ADR-0057)', () => {
       mockRun()
       scenario.arrange()
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={state as WorkspaceExecutionState | null} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={state as WorkspaceExecutionState | null} />)
 
       expect(scenario.offered()).not.toBeInTheDocument()
       expect(screen.getAllByText(WORKSPACE_EXECUTION_GUIDANCE.pending)).toHaveLength(1)
@@ -3716,7 +3718,7 @@ describe('RunCockpitView workspace execution gate (ADR-0057)', () => {
       mockRun()
       scenario.arrange()
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={state} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={state} />)
 
       expect(scenario.offered()).not.toBeInTheDocument()
       expect(screen.getAllByText(guidance)).toHaveLength(1)
@@ -3731,7 +3733,7 @@ describe('RunCockpitView workspace execution gate (ADR-0057)', () => {
         mockRun()
         abandonScenario.arrange()
 
-        render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={state} />)
+        render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={state} />)
 
         expect(abandonScenario.offered()).toBeInTheDocument()
       },
@@ -3741,7 +3743,7 @@ describe('RunCockpitView workspace execution gate (ADR-0057)', () => {
   it('does not enable what the ordinary gates disable when the status is Idle (Idle enables nothing by itself)', () => {
     mockRun({ maximumAgentAttempts: 1, agentAttemptsUsed: 1, agentBudgetExhausted: true })
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={stateFor('Idle')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={stateFor('Idle')} />)
 
     expect(screen.queryByRole('button', { name: 'Request Codex plan' })).not.toBeInTheDocument()
     expect(screen.getByText(/run-wide Agent claim budget/)).toBeInTheDocument()
@@ -3765,7 +3767,7 @@ describe('RunCockpitView workspace execution gate (ADR-0057)', () => {
     })
     const guidance = WORKSPACE_EXECUTION_GUIDANCE.AgentAttemptActive
 
-    render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={stateFor('AgentAttemptActive')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={stateFor('AgentAttemptActive')} />)
 
     expect(screen.getAllByText(guidance)).toHaveLength(1)
     expect(screen.queryByRole('button', { name: 'Request Codex plan' })).not.toBeInTheDocument()
@@ -3780,7 +3782,7 @@ describe('RunCockpitView workspace execution gate (ADR-0057)', () => {
       mockRun()
       usePlanningSequenceMock.mockReturnValue(hookResultFor(armableStatusFor('run-1'), 'run-1'))
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={stateFor('Idle')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={stateFor('Idle')} />)
 
       expect(screen.getByRole('button', { name: 'Arm planning sequence' })).toBeEnabled()
     })
@@ -3789,7 +3791,7 @@ describe('RunCockpitView workspace execution gate (ADR-0057)', () => {
       mockRun()
       usePlanningSequenceMock.mockReturnValue(hookResultFor(armableStatusFor('run-1'), 'run-1'))
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={state} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={state} />)
 
       expect(screen.getByRole('button', { name: 'Arm planning sequence' })).toBeDisabled()
       expect(within(screen.getByRole('region', { name: 'Planning sequence' })).getByText(WORKSPACE_EXECUTION_WITHHELD_POINTER)).toBeInTheDocument()
@@ -3801,7 +3803,7 @@ describe('RunCockpitView workspace execution gate (ADR-0057)', () => {
         mockRun()
         usePlanningSequenceMock.mockReturnValue(hookResultFor(statusFor('run-1', 'AwaitingStepResult'), 'run-1'))
 
-        render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={state} />)
+        render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={state} />)
 
         expect(screen.getByRole('button', { name: 'Stop after current step' })).toBeEnabled()
       },
@@ -3813,7 +3815,7 @@ describe('RunCockpitView workspace execution gate (ADR-0057)', () => {
       const refresh = vi.fn()
       mockRun()
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={{ ...state, refresh }} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={{ ...state, refresh }} />)
 
       expect(screen.getByText('Prove the walking skeleton')).toBeInTheDocument()
       fireEvent.click(within(screen.getByRole('status', GUIDANCE_REGION)).getByRole('button', { name: 'Refresh workspace execution status' }))
@@ -3829,7 +3831,7 @@ describe('RunCockpitView workspace execution gate (ADR-0057)', () => {
         refresh: vi.fn(),
       })
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={stateFor('VerificationActive')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={stateFor('VerificationActive')} />)
 
       expect(screen.getByText(/Last attempt #3/)).toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Request one format-repair plan' })).not.toBeInTheDocument()
@@ -3840,7 +3842,7 @@ describe('RunCockpitView workspace execution gate (ADR-0057)', () => {
     it('does not show the guidance for a simulated run, which has no Agent actions or local commit', () => {
       mockRun({ executionMode: 'Simulated' })
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={stateFor('AgentAttemptActive')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={stateFor('AgentAttemptActive')} />)
 
       expect(screen.queryByRole('status', GUIDANCE_REGION)).not.toBeInTheDocument()
     })
@@ -3848,7 +3850,7 @@ describe('RunCockpitView workspace execution gate (ADR-0057)', () => {
     it('treats a cockpit that is still another run frame as replaced, never as Idle', () => {
       mockRun({ runId: 'run-0' })
 
-      render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={stateFor('Idle')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={stateFor('Idle')} />)
 
       expect(screen.queryByRole('button', { name: 'Request Codex plan' })).not.toBeInTheDocument()
     })
@@ -3858,28 +3860,28 @@ describe('RunCockpitView workspace execution gate (ADR-0057)', () => {
     it('reads the status again when the latest event sequence changes, and not for the first sequence it sees', () => {
       const refresh = vi.fn()
       mockRun({ latestSequence: 2 })
-      const { rerender } = render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={stateFor('Idle', { refresh })} />)
+      const { rerender } = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={stateFor('Idle', { refresh })} />)
       expect(refresh).not.toHaveBeenCalled()
 
-      rerender(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={stateFor('Idle', { refresh })} />)
+      rerender(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={stateFor('Idle', { refresh })} />)
       expect(refresh).not.toHaveBeenCalled()
 
       mockRun({ latestSequence: 3 })
-      rerender(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={stateFor('Idle', { refresh })} />)
+      rerender(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={stateFor('Idle', { refresh })} />)
       expect(refresh).toHaveBeenCalledTimes(1)
 
       mockRun({ latestSequence: 3 })
-      rerender(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={stateFor('Idle', { refresh })} />)
+      rerender(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={stateFor('Idle', { refresh })} />)
       expect(refresh).toHaveBeenCalledTimes(1)
     })
 
     it('starts no read when no status was passed', () => {
       mockRun({ latestSequence: 2 })
-      const { rerender } = render(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+      const { rerender } = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
       mockRun({ latestSequence: 3 })
 
-      expect(() => rerender(<RunCockpitView runId="run-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)).not.toThrow()
+      expect(() => rerender(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)).not.toThrow()
     })
   })
 })
@@ -3935,7 +3937,7 @@ describe('RunCockpitView execution capacity gate (ADR-0058)', () => {
       mockRun()
       scenario.arrange()
 
-      render(<RunCockpitView runId="run-1" executionCapacity={capacityStateFor('Available')} workspaceExecution={stateFor('Idle')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={capacityStateFor('Available')} workspaceExecution={stateFor('Idle')} />)
 
       expect(scenario.offered()).toBeInTheDocument()
       expect(screen.queryByText(/Withheld/)).not.toBeInTheDocument()
@@ -3949,7 +3951,7 @@ describe('RunCockpitView execution capacity gate (ADR-0058)', () => {
       mockRun()
       scenario.arrange()
 
-      render(<RunCockpitView runId="run-1" executionCapacity={state as ExecutionCapacityState | null} workspaceExecution={stateFor('Idle')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={state as ExecutionCapacityState | null} workspaceExecution={stateFor('Idle')} />)
 
       expect(scenario.offered()).not.toBeInTheDocument()
       expect(screen.getAllByText(EXECUTION_CAPACITY_GUIDANCE.pending)).toHaveLength(1)
@@ -3961,7 +3963,7 @@ describe('RunCockpitView execution capacity gate (ADR-0058)', () => {
       mockRun()
       scenario.arrange()
 
-      render(<RunCockpitView runId="run-1" executionCapacity={state} workspaceExecution={stateFor('Idle')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={state} workspaceExecution={stateFor('Idle')} />)
 
       expect(scenario.offered()).not.toBeInTheDocument()
       expect(screen.getAllByText(guidance)).toHaveLength(1)
@@ -3971,10 +3973,10 @@ describe('RunCockpitView execution capacity gate (ADR-0058)', () => {
     it('is offered again once the capacity is read as Available, with no release command', () => {
       mockRun()
       scenario.arrange()
-      const { rerender } = render(<RunCockpitView runId="run-1" executionCapacity={capacityStateFor('AtCapacity')} workspaceExecution={stateFor('Idle')} />)
+      const { rerender } = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={capacityStateFor('AtCapacity')} workspaceExecution={stateFor('Idle')} />)
       expect(scenario.offered()).not.toBeInTheDocument()
 
-      rerender(<RunCockpitView runId="run-1" executionCapacity={capacityStateFor('Available')} workspaceExecution={stateFor('Idle')} />)
+      rerender(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={capacityStateFor('Available')} workspaceExecution={stateFor('Idle')} />)
 
       expect(scenario.offered()).toBeInTheDocument()
       expect(screen.queryByRole('status', GUIDANCE_REGION)).not.toBeInTheDocument()
@@ -3984,7 +3986,7 @@ describe('RunCockpitView execution capacity gate (ADR-0058)', () => {
       mockRun()
       scenario.arrange()
 
-      render(<RunCockpitView runId="run-1" executionCapacity={capacityStateFor('Available')} workspaceExecution={stateFor('VerificationActive')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={capacityStateFor('Available')} workspaceExecution={stateFor('VerificationActive')} />)
 
       expect(scenario.offered()).not.toBeInTheDocument()
       expect(screen.queryByRole('status', GUIDANCE_REGION)).not.toBeInTheDocument()
@@ -4001,7 +4003,7 @@ describe('RunCockpitView execution capacity gate (ADR-0058)', () => {
       mockRun()
       scenario.arrange()
 
-      render(<RunCockpitView runId="run-1" executionCapacity={state as ExecutionCapacityState | null} workspaceExecution={stateFor('Idle')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={state as ExecutionCapacityState | null} workspaceExecution={stateFor('Idle')} />)
 
       expect(scenario.offered()).toBeInTheDocument()
       // The abandonment is offered disabled until its own confirmation, whatever the capacity says; everything else is enabled.
@@ -4016,7 +4018,7 @@ describe('RunCockpitView execution capacity gate (ADR-0058)', () => {
     const requestPlanning = vi.fn()
     useRequestCodexPlanningAttemptMock.mockReturnValue({ requesting: false, error: null, request: requestPlanning })
 
-    render(<RunCockpitView runId="run-1" executionCapacity={capacityStateFor('AtCapacity')} workspaceExecution={stateFor('Idle')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={capacityStateFor('AtCapacity')} workspaceExecution={stateFor('Idle')} />)
     fireEvent.click(screen.getByRole('button', { name: 'Request Codex plan' }))
 
     expect(requestPlanning).toHaveBeenCalledTimes(1)
@@ -4042,11 +4044,11 @@ describe('RunCockpitView execution capacity gate (ADR-0058)', () => {
       error: null,
       refresh: vi.fn(),
     })
-    const { rerender } = render(<RunCockpitView runId="run-1" executionCapacity={capacityStateFor('Available')} workspaceExecution={stateFor('Idle')} />)
+    const { rerender } = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={capacityStateFor('Available')} workspaceExecution={stateFor('Idle')} />)
     expect(screen.getByRole('button', { name: 'Diagnose failed verification with Codex' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Correct the diagnosed findings with Claude' })).toBeEnabled()
 
-    rerender(<RunCockpitView runId="run-1" executionCapacity={capacityStateFor('AtCapacity')} workspaceExecution={stateFor('Idle')} />)
+    rerender(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={capacityStateFor('AtCapacity')} workspaceExecution={stateFor('Idle')} />)
 
     expect(screen.getByRole('button', { name: 'Diagnose failed verification with Codex' })).toBeEnabled()
     expect(screen.queryByRole('button', { name: 'Correct the diagnosed findings with Claude' })).not.toBeInTheDocument()
@@ -4077,7 +4079,7 @@ describe('RunCockpitView execution capacity gate (ADR-0058)', () => {
       refresh: vi.fn(),
     })
 
-    render(<RunCockpitView runId="run-1" executionCapacity={capacityStateFor('AtCapacity')} workspaceExecution={stateFor('Idle')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={capacityStateFor('AtCapacity')} workspaceExecution={stateFor('Idle')} />)
 
     // An authorization that was already granted is metadata; starting the authorized correction is the mutating start the capacity vetoes.
     expect(screen.queryByRole('button', { name: 'Request review correction' })).not.toBeInTheDocument()
@@ -4089,7 +4091,7 @@ describe('RunCockpitView execution capacity gate (ADR-0058)', () => {
     mockRun({ maximumAgentAttempts: 1, agentAttemptsUsed: 1, agentBudgetExhausted: true })
     scenarios.find((scenario) => scenario.name === 'implementation')!.arrange()
 
-    render(<RunCockpitView runId="run-1" executionCapacity={capacityStateFor('AtCapacity')} workspaceExecution={stateFor('Idle')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={capacityStateFor('AtCapacity')} workspaceExecution={stateFor('Idle')} />)
 
     expect(screen.getAllByText(/run-wide Agent claim budget/).length).toBeGreaterThan(0)
     expect(screen.queryByRole('button', { name: 'Implement the resolved plan with Claude' })).not.toBeInTheDocument()
@@ -4101,7 +4103,7 @@ describe('RunCockpitView execution capacity gate (ADR-0058)', () => {
     scenarios.find((scenario) => scenario.name === 'local commit request')!.arrange()
     scenarios.find((scenario) => scenario.name === 'implementation')!.arrange()
 
-    render(<RunCockpitView runId="run-1" executionCapacity={capacityStateFor('Unavailable')} workspaceExecution={stateFor('Idle')} />)
+    render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={capacityStateFor('Unavailable')} workspaceExecution={stateFor('Idle')} />)
 
     expect(screen.getAllByText(EXECUTION_CAPACITY_GUIDANCE.Unavailable)).toHaveLength(1)
     expect(screen.queryByRole('button', { name: 'Implement the resolved plan with Claude' })).not.toBeInTheDocument()
@@ -4114,10 +4116,10 @@ describe('RunCockpitView execution capacity gate (ADR-0058)', () => {
     const submit = vi.fn()
     useRequestLocalCommitMock.mockReturnValue({ requesting: false, error: null, submit })
     scenarios.find((scenario) => scenario.name === 'local commit request')!.arrange()
-    const { rerender } = render(<RunCockpitView runId="run-1" executionCapacity={capacityStateFor('Available')} workspaceExecution={stateFor('Idle')} />)
+    const { rerender } = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={capacityStateFor('Available')} workspaceExecution={stateFor('Idle')} />)
     const commit = screen.getByRole('button', { name: 'Commit locally' })
 
-    rerender(<RunCockpitView runId="run-1" executionCapacity={capacityStateFor('AtCapacity')} workspaceExecution={stateFor('Idle')} />)
+    rerender(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={capacityStateFor('AtCapacity')} workspaceExecution={stateFor('Idle')} />)
     fireEvent.click(commit)
 
     expect(screen.queryByRole('button', { name: 'Commit locally' })).not.toBeInTheDocument()
@@ -4129,12 +4131,12 @@ describe('RunCockpitView execution capacity gate (ADR-0058)', () => {
       for (const { state } of withheldStates) {
         mockRun()
         usePlanningSequenceMock.mockReturnValue(hookResultFor(armableStatusFor('run-1'), 'run-1'))
-        const armable = render(<RunCockpitView runId="run-1" executionCapacity={state} workspaceExecution={stateFor('Idle')} />)
+        const armable = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={state} workspaceExecution={stateFor('Idle')} />)
         expect(screen.getByRole('button', { name: 'Arm planning sequence' })).toBeEnabled()
         armable.unmount()
 
         usePlanningSequenceMock.mockReturnValue(hookResultFor(statusFor('run-1', 'AwaitingStepResult'), 'run-1'))
-        const stoppable = render(<RunCockpitView runId="run-1" executionCapacity={state} workspaceExecution={stateFor('Idle')} />)
+        const stoppable = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={state} workspaceExecution={stateFor('Idle')} />)
         expect(screen.getByRole('button', { name: 'Stop after current step' })).toBeEnabled()
         stoppable.unmount()
       }
@@ -4144,7 +4146,7 @@ describe('RunCockpitView execution capacity gate (ADR-0058)', () => {
       const refresh = vi.fn()
       mockRun()
 
-      render(<RunCockpitView runId="run-1" executionCapacity={{ ...state, refresh }} workspaceExecution={stateFor('Idle')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={{ ...state, refresh }} workspaceExecution={stateFor('Idle')} />)
 
       expect(screen.getByText('Prove the walking skeleton')).toBeInTheDocument()
       fireEvent.click(within(screen.getByRole('status', GUIDANCE_REGION)).getByRole('button', { name: 'Refresh execution capacity' }))
@@ -4154,7 +4156,7 @@ describe('RunCockpitView execution capacity gate (ADR-0058)', () => {
     it('does not show the guidance for a simulated run, which has no Agent actions or local commit', () => {
       mockRun({ executionMode: 'Simulated' })
 
-      render(<RunCockpitView runId="run-1" executionCapacity={capacityStateFor('AtCapacity')} workspaceExecution={stateFor('Idle')} />)
+      render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={capacityStateFor('AtCapacity')} workspaceExecution={stateFor('Idle')} />)
 
       expect(screen.queryByRole('status', GUIDANCE_REGION)).not.toBeInTheDocument()
     })
@@ -4165,28 +4167,145 @@ describe('RunCockpitView execution capacity gate (ADR-0058)', () => {
       const refresh = vi.fn()
       const capacity = () => capacityStateFor('Available', { refresh })
       mockRun({ latestSequence: 2 })
-      const { rerender } = render(<RunCockpitView runId="run-1" executionCapacity={capacity()} workspaceExecution={stateFor('Idle')} />)
+      const { rerender } = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={capacity()} workspaceExecution={stateFor('Idle')} />)
       expect(refresh).not.toHaveBeenCalled()
 
-      rerender(<RunCockpitView runId="run-1" executionCapacity={capacity()} workspaceExecution={stateFor('Idle')} />)
+      rerender(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={capacity()} workspaceExecution={stateFor('Idle')} />)
       expect(refresh).not.toHaveBeenCalled()
 
       mockRun({ latestSequence: 3 })
-      rerender(<RunCockpitView runId="run-1" executionCapacity={capacity()} workspaceExecution={stateFor('Idle')} />)
+      rerender(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={capacity()} workspaceExecution={stateFor('Idle')} />)
       expect(refresh).toHaveBeenCalledTimes(1)
 
       mockRun({ latestSequence: 3 })
-      rerender(<RunCockpitView runId="run-1" executionCapacity={capacity()} workspaceExecution={stateFor('Idle')} />)
+      rerender(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={capacity()} workspaceExecution={stateFor('Idle')} />)
       expect(refresh).toHaveBeenCalledTimes(1)
     })
 
     it('starts no read when no state was passed', () => {
       mockRun({ latestSequence: 2 })
-      const { rerender } = render(<RunCockpitView runId="run-1" executionCapacity={null} workspaceExecution={stateFor('Idle')} />)
+      const { rerender } = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={null} workspaceExecution={stateFor('Idle')} />)
 
       mockRun({ latestSequence: 3 })
 
-      expect(() => rerender(<RunCockpitView runId="run-1" executionCapacity={null} workspaceExecution={stateFor('Idle')} />)).not.toThrow()
+      expect(() => rerender(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={null} workspaceExecution={stateFor('Idle')} />)).not.toThrow()
     })
+  })
+})
+
+describe('RunCockpitView local execution sequence fence (ADR-0060)', () => {
+  const usePlanningSequenceMock = vi.mocked(usePlanningSequenceModule.usePlanningSequence)
+  const BLOCKED = /a local execution sequence holds automatic authority/
+  const UNKNOWN = /Withheld until the local execution sequence status is confirmed/
+
+  function mockRun(overrides: Record<string, unknown> = {}) {
+    useRunCockpitMock.mockReturnValue({
+      cockpit: new GetRunCockpitResponse({ ...runningCockpit, ...overrides } as ConstructorParameters<typeof GetRunCockpitResponse>[0]),
+      cards: [],
+      connection: 'live',
+      loading: false,
+      error: null,
+      syncError: null,
+      refresh: async () => true,
+    })
+    usePlanningSequenceMock.mockReturnValue(hookResultFor(armableStatusFor('run-1'), 'run-1'))
+  }
+
+  const view = (reader: ReturnType<typeof noneLocalReader> | null, runId = 'run-1') =>
+    render(<RunCockpitView runId={runId} localExecutionSequence={reader} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+
+  describe.each(scenarios)('$name', (scenario) => {
+    it.each(['none', 'released'] as const)('is left exactly as the ordinary gates decide when the local fence is %s', (state) => {
+      mockRun()
+      scenario.arrange()
+
+      view(state === 'none' ? noneLocalReader('run-1') : localReaderFor(localStatusFor('run-1', 'Stopped'), 'run-1'))
+
+      expect(scenario.offered()).toBeInTheDocument()
+      expect(screen.queryByText(BLOCKED)).not.toBeInTheDocument()
+    })
+
+    it('is withheld while the local fence is blocked', () => {
+      mockRun()
+      scenario.arrange()
+
+      view(blockedLocalReader('run-1'))
+
+      expect(scenario.offered()).not.toBeInTheDocument()
+      expect(screen.getAllByText(BLOCKED).length).toBeGreaterThan(0)
+    })
+
+    it.each([
+      ['unknown', (): ReturnType<typeof noneLocalReader> | null => unknownLocalReader('run-1')],
+      ['absent', (): ReturnType<typeof noneLocalReader> | null => null],
+      ['belonging to another run', (): ReturnType<typeof noneLocalReader> | null => noneLocalReader('run-2')],
+    ])('is withheld while the local fence is %s', (_name, reader) => {
+      mockRun()
+      scenario.arrange()
+
+      view(reader())
+
+      expect(scenario.offered()).not.toBeInTheDocument()
+      expect(screen.getAllByText(UNKNOWN).length).toBeGreaterThan(0)
+    })
+  })
+
+  describe('run settings controls', () => {
+    const settingsButtons = () => [
+      ...Array.from(document.querySelectorAll('.dc-codex-assignment-preference button')),
+      ...Array.from(document.querySelectorAll('.dc-claude-model-preference button')),
+      ...Array.from(document.querySelectorAll('.dc-claude-turn-limit button')),
+      ...Array.from(document.querySelectorAll('.dc-token-stop-controls button')),
+    ] as HTMLButtonElement[]
+
+    it('withholds saving and clearing every setting while the fence is blocked or unknown, with the fixed reason', () => {
+      for (const reader of [blockedLocalReader('run-1'), unknownLocalReader('run-1')]) {
+        mockRun({ claudeMutationTurnLimit: new ClaudeMutationTurnLimitResponse({ state: 'Requested', maxTurns: 12 }) })
+        const { unmount } = view(reader)
+
+        const buttons = settingsButtons()
+        expect(buttons.length).toBeGreaterThanOrEqual(8)
+        expect(buttons.every((button) => button.disabled)).toBe(true)
+        expect(screen.getAllByText(describeLocalExecutionSequenceWithholding(reader.control)!).length).toBeGreaterThanOrEqual(4)
+        unmount()
+      }
+    })
+
+    it('leaves the settings as their own rules decide when the fence is lifted', () => {
+      mockRun({ claudeMutationTurnLimit: new ClaudeMutationTurnLimitResponse({ state: 'Requested', maxTurns: 12 }) })
+      view(noneLocalReader('run-1'))
+
+      const enabled = settingsButtons().filter((button) => !button.disabled)
+      expect(enabled.length).toBeGreaterThan(0)
+      expect(screen.queryByText(BLOCKED)).not.toBeInTheDocument()
+    })
+  })
+
+  it('mounts the local execution panel for a manual Agent run only, from the one shared reader', () => {
+    mockRun()
+    view(blockedLocalReader('run-1'))
+    expect(screen.getByRole('region', { name: 'Local execution sequence' })).toBeInTheDocument()
+    expect(screen.getByRole('status', { name: 'Local execution sequence state' })).toBeInTheDocument()
+  })
+
+  it('does not mount the panel for a simulated run', () => {
+    mockRun({ executionMode: 'Simulated' })
+    view(noneLocalReader('run-1'))
+    expect(screen.queryByRole('region', { name: 'Local execution sequence' })).not.toBeInTheDocument()
+  })
+
+  it('reads the shared status again when the latest event sequence changes, and not for the first sequence it sees', () => {
+    const refresh = vi.fn()
+    mockRun({ latestSequence: 2 })
+    const reader = () => noneLocalReader('run-1', { refresh })
+    const { rerender } = view(reader())
+    expect(refresh).not.toHaveBeenCalled()
+
+    mockRun({ latestSequence: 3 })
+    rerender(<RunCockpitView runId="run-1" localExecutionSequence={reader()} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    expect(refresh).toHaveBeenCalledTimes(1)
+
+    rerender(<RunCockpitView runId="run-1" localExecutionSequence={reader()} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    expect(refresh).toHaveBeenCalledTimes(1)
   })
 })

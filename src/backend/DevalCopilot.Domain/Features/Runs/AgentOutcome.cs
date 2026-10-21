@@ -234,4 +234,12 @@ public enum AgentOutcome
     /// sequence authority under the write lock, never by an ordinary provider-result recorder. Valid only for the Planner,
     /// CriticalReviewer and Resolver read-only contracts.</summary>
     PlanningSequenceDispatchRefused = 28,
+
+    /// <summary>Detected immediately before dispatch, distinct from <see cref="WorkspaceNoLongerEligible"/> (ADR-0060): the operation
+    /// was claimed as the linked step of an explicitly authorized local execution sequence whose authority or result deadline no longer
+    /// permits dispatch (it was stopped, ended, expired, interrupted or superseded). The provider is never invoked, no protocol output is
+    /// written and no budget is refunded. Recorded only by a dedicated command that independently proves the linked, Running,
+    /// undispatched association under the write lock, never by an ordinary provider-result recorder. Valid only for the
+    /// ImplementationReport, ImplementationReview, ReviewCorrection and VerificationDiagnosis contracts.</summary>
+    LocalExecutionSequenceDispatchRefused = 29,
 }

@@ -1,302 +1,432 @@
 # Planner/reviewer handoff
 
 [AGENTS.md](../../AGENTS.md) and the [workflow](development-workflow.md) apply.
-Codex remains planner/reviewer and performed publication verification,
-critical-path assessment, selection and architectural judgment itself.
-GLOBAL-ADMIT-01 is published and independently verified. GLOBAL-LIMIT-01
-correction 1 is reviewed GO below; GLL-R1 and GLL-R2 are resolved. Publication
-belongs to its same Claude executor chat, limited to the exact external
-review-2 tree, parent and approved paths. Codex implemented no product
-correction; independent publication verification is still pending.
+Codex remains planner/reviewer and performed architecture, selection and review
+judgment itself. LOCAL-COORD-01 correction 2 passed **review 3: GO** for the
+exact approved content identified in the external review-03 publication record
+and complete GO prompt. LCO-R1 through LCO-R4 and LCO-V1 are resolved.
+Publication remains pending in the same Claude executor chat; the reviewed
+diff is unstaged, uncommitted and unpushed at this checkpoint. Codex made
+only review-document edits, with no product correction. Temporary reviewer tests were compiled, retained under
+ignored review evidence and removed from the test project before a fresh build.
+No provider experiment, staging, commit or push was performed in this chat.
 
-## Verified publication and executor preflight
+## Verified baseline and executor preflight
 
-Independent verification on 2026-10-20 confirms branch main and HEAD, local
-origin/main and freshly queried live refs/heads/main all equal
-**`1747fb2b1d5a4a4a3050fc6b2e2a583473d8a934`**. Its approved tree is
-`e8e8e541a52a56e3951e7c30d836972a358058c1`, sole parent
-`b3d53bfc3c604711228ade769284911f9d9c2b4b`, with exactly **93 paths, 51
-modified and 42 added**. Inventory SHA-256:
-`feba202d39c81d767c0b8b3c5e1607aa01f0cd45958f1252bc299778f69ab00b`.
-Divergence 0/0; index empty; worktree clean including nonignored untracked
-paths. Exact comparisons are in
-`logs/planner-review/global-admission-01/publication-verification.json` and
-`.md`. Executor success was independently checked against the GO identity.
+Startup reconciliation confirms **main**, HEAD and local origin/main
+**`7c78c849fdd556ecf3a539dce479e31fc3cc501b`**, tree
+`136936b465d48753b4e96e6ba3557d527179acd1`, sole parent
+`1747fb2b1d5a4a4a3050fc6b2e2a583473d8a934`, divergence 0/0, empty real
+index and initially clean working tree including nonignored untracked paths.
+A fresh `git ls-remote origin refs/heads/main` confirms that same published
+commit. The first sandboxed network read failed with getaddrinfo; the permitted
+read outside the sandbox succeeded. No Git reconciliation was needed.
 
-GAD-R1 and GAD-R2 are resolved: the dispatch handler reconciles its current
-stored and tracked role/contract before role branches and capacity exemption;
-the test support types have matching files. Review 2 independently passed
-Application 324/324, API 74/74 and architecture 185/185. The first architecture
-attempt aborted on testhost connection timeout; the retry does not establish
-its cause. Earlier full Application 6957 and API 2978 remain pre-correction
-product-source results; affected correction consumers and both journeys ran
-again. Keep every phase, warning, skip, failure and qualified control in the
-review records and current-work; no broad final full-rerun claim is added.
+GLOBAL-LIMIT-01 is published and independently verified, not reopened. Exact
+70 paths (45 M, 25 A), approved inventory SHA-256
+`894d05914e8174fb82d96a8a39813aa699cfcda4699586c528f1f5383ec9751f`, tree and
+parent are retained in `logs/planner-review/global-limit-01/publication-verification.json`
+and `.md`. The committed implementation/review wording records its preparation
+phase; it requires no closure edit or commit. Full prior review decisions are
+this file at `7c78c84` and the ignored per-slice records, not repeated here.
 
-The published checkpoints retain their preparation/review wording. This
-neither reopens GLOBAL-ADMIT-01 nor requires a closure commit. Its detailed
-review/selection/recovery record is this file at `1747fb2` and the ignored
-per-slice logs. The account-credit replacement executor completed that slice;
-its recovery exception is not an instruction to reuse it for a different one.
+The original selection supplied these five planner inputs, preserved by the
+executor (this handoff is now updated by Codex for review 3):
 
-Prior independently verified baselines remain WORKSPACE-EXCL-01 `b3d53bf`
-(110 paths, 64 M/46 A), AGENT-SUP-01 `f95e337` (141, 43 M/98 A) and
-PLAN-COORD-01 `a78e572c` (176, 66 M/110 A). WEX-R1 through R4, ASUP-R1
-through R5 and PCO-R1 through R5 are resolved. WEX-C1, ASUP-C1 and PCO-C1
-remain accepted nonblocking. Preserve WEX's possible initial stale-mutant
-API provenance and overwritten correction failure log, earlier unexplained
-full-suite failures, advisory/audit qualifications and all missing originals.
-Later passes reconstruct or explain none of them.
+- this file;
+- `docs/decisions/README.md`;
+- ADR-0057 and ADR-0058 status lines only;
+- new accepted ADR-0060.
 
-Continuity: **CONTINUE_THIS_CHAT**. After publication verification, local
-current-chat token_count metadata at 2026-10-20T16:44:34.854Z reports last
-80787 / model window 475000 = **17.01%**. Source:
-`logs/planner-review/global-admission-01/context-after-publication.json`.
-This is observed metadata, not an asserted UI meter; earlier readings are
-historical. No measured threshold above 60% or concrete transition reason
-exists. Claude continuity is separate: this slice and its corrections remain in its
-current executor chat; no older executor runs in parallel.
+The five-path selection preflight is historical. Independent review preflight
+now confirms main, the same HEAD/local/live origin/main, divergence 0/0 and an
+empty real index, with **313 distinct pending paths: 124 modified, 189 added**.
+All are under the
+selected docs/src/tests areas. Exact submitted inventory:
+`logs/planner-review/local-coord-01/review-03/reviewed-paths.txt`. The final
+approved path set and expected tree are in that directory's external GO record;
+they are not embedded in this tracked file. The temporary reviewer tests are absent.
+Before publication, the same executor verifies the exact GO preconditions and
+identity once and investigates a discrepancy without resetting or cleaning.
+Selection and review evidence live under `logs/planner-review/local-coord-01/`.
+No local logs are publication authority or authentication of historical binaries.
 
-A fresh selection preflight again found the same branch/HEAD/local/live main,
-0/0, empty real index and clean worktree. Selection changes only this file,
-`docs/decisions/README.md`, ADR-0058's partial-supersession status and the new
-ADR-0059. Those four planner paths are
-expected pending input to the executor and must be preserved. No source,
-test, dependency, commit or push was changed by Codex during selection.
-That four-path preflight is historical; the 70-path review inventory below
-now prevails. Current-work is this slice's implementation-for-review record.
+## Continuity and owner authority
+
+This is the new Codex chat required after GLOBAL-LIMIT-01 publication: the
+outgoing chat's observed 2026-10-20T20:43:30.586Z token_count metadata was
+303895 / 475000 = 63.98%, above the mandatory 60% threshold. It selected no
+next slice. Its older 17.01% checkpoint observation is historical. No current
+context percentage is available to this chat; none is inferred from those
+readings. No new publication occurred here to trigger another continuity gate.
+
+On 2026-10-20, after the planner identified the missing mutation authority, the
+owner explicitly answered **Authorize that bounded local cycle**: design a
+single opt-in authorization for an accepted plan, implementation, the pinned
+verification set, review and at most two shared corrections, including eligible
+failure diagnosis, ending at approved review or escalation. Commit/publication
+remain separate. This is the new authority decision required by the transition,
+not an inference from planning, supervision, admission or settings. It grants no
+real-provider run or experiment in this chat and no repository publication GO.
+The completed GLOBAL-LIMIT-01 Claude chat must not be reused; LOCAL-COORD-01
+starts in a new Claude executor chat and keeps its corrections there.
 
 ## Remaining MVP critical path
 
-Increments 4/5/6 remain incomplete; ADR-0050 Proposed, P9 unproven, AI Memory
-deferred. No completion percentage, provider qualification or date is claimed.
-
-| Front | Actual delivery and remaining boundary |
+| Front | Delivery and remaining boundary |
 | --- | --- |
-| Planning | ADR-0055 coordinates at most five existing ReadOnly attempts and ends at Accepted planning or Human escalation. It grants no mutating successor. |
-| Supervision | ADR-0056 records host observations for seven Agent contracts, not liveness, an executor lease, cancellation, retry, takeover or release. |
-| Exclusion/admission | ADR-0057 enforces reciprocal workspace ownership; published ADR-0058 adds a global fixed-two recorded-mutator ceiling across Agent, verification and commit. |
-| Capacity configuration | The ADR-0059 delivery implements durable one/two choice, fresh shared checks and UI control. Correction 1 is reviewed GO with GLL-R1/R2 resolved; publication remains pending independent verification. |
-| Queue/recovery | Pinned pending intent, expiry, revalidation, replay, fairness, finite execution leases and process-aware recovery remain separate contracts. Observation expiry or terminal rows prove no process death. |
-| Local coordination | Explicit implementation, verification, review, diagnosis, correction and commit exist. Automatic workspace mutation still needs a new owner authority decision, never inference from planning or settings. |
-| Providers/remote | Claude account usage, resume, live context, manual compaction, permission profiles, raw Git/non-Windows proof and separate Git/GitHub/GCM qualification remain open. No real-provider experiment is authorized; access/consent is not push permission. |
+| Planning | Published ADR-0055 coordinates at most five ReadOnly attempts, ending at Accepted planning or Human escalation. Its grant still starts no mutation. |
+| Supervision | Published ADR-0056 reports host observations for seven contracts. It proves neither process liveness nor provider progress and remains an eligibility non-input. |
+| Exclusion/capacity | Published ADR-0057/58/59 provide reciprocal workspace exclusion and a fresh durable operator-selected global limit of one/two. They provide no queue, execution grant or process-aware recovery. |
+| Local coordination | The explicit primitives exist, but the host advances no implementation/verification/review/correction chain. LOCAL-COORD-01 now selects that bounded observable outcome under the owner's new decision. |
+| Queue/recovery | Durable pending admission, queue pinning/revalidation/fairness, finite execution leases, cancellation/retry/takeover and process-aware recovery remain separate unresolved contracts. This slice fails closed instead of guessing release. |
+| Providers/remote | Claude account usage, session resume, live context, manual compaction, permission profiles, raw Git/non-Windows proof and separate Git/GitHub/GCM qualification remain open. ADR-0050 Proposed, P9 unproven, AI Memory deferred. |
 
-## Selected slice: GLOBAL-LIMIT-01 configurable recorded admission
+Increments 4/5/6 remain incomplete; no completion percentage or qualification
+is claimed. Accepted upstream findings remain resolved: PCO-R1-R5, ASUP-R1-R5,
+WEX-R1-R4, GAD-R1/R2 and GLL-R1/R2. PCO-C1, ASUP-C1 and WEX-C1 remain
+accepted nonblocking limitations, never new authority.
 
-Implement accepted
-[ADR-0059](../decisions/0059-configure-the-recorded-mutating-admission-limit.md).
-The operator can explicitly select one or two globally, see the persisted
-choice after restart, and have every existing mutating entrance obey it.
-Default two and every ADR-0058 independent authority/safety gate remain.
+## Selected slice: LOCAL-COORD-01
 
-**Sizing judgment.** A setting without all final gates leaves direct/racing
-entrances; a backend-only control lacks the operator outcome; a nonpersistent
-choice changes after restart; blindly lowering with two admitted owners can
-strand both undispatched owners. Include durable revisions, atomic safe
-updates, fresh policy/fence/feed/query reads, closed wire and one host-owned
-control with both regions' correct guidance as one outcome. Queueing and
-full local coordination are larger authority/lifecycle changes, not implicit
-extensions. Other provider contracts need their own evidence and no experiment
-is renewed. This is a common Increment 5 prerequisite under ADR-0006, not a
-claim to complete the scheduler or the local delivery loop.
+Implement accepted [ADR-0060](../decisions/0060-coordinate-one-explicitly-authorized-local-execution-sequence.md):
+one Human authorization of one accepted plan advances initial implementation,
+whole pinned verification passes, ordinary review or eligible failure diagnosis,
+and up to two shared correction claims, until exact approved review awaiting
+Human approval or a bounded escalation/attention outcome. No automatic approval,
+commit or remote action occurs.
 
-Static selection evidence and exact source references are retained in
-`logs/planner-review/global-limit-01/selection-evidence.md`. No product probe,
-provider, process, Git workspace mutation or implementation was performed.
+**Sizing judgment.** Both correction origins share the same report lineage,
+verification snapshots and allowance; separating them would leave one ordinary
+failure branch requiring manual stage transfer. Include their persistence,
+atomic claim links, hosted observation, cockpit and conservative restart safety
+in one reviewable outcome. A backend-only or implementation-only slice fails
+that outcome. Queueing, full leases/recovery and publication require different
+process/admission/authority evidence and are excluded for those concrete
+reasons, not to meet a file or task count.
 
-## Resolved architecture and scope
+ADR-0060 owns the resolved details. Dispatch essentials:
 
-ADR-0059 owns the complete contract; these are its dispatch boundaries:
+- At most one lifetime sequence per ManualAgent run, no prior mutating Agent
+  claim, exact Accepted plan (or separately Human-authorized depth-two plan),
+  latest owned source, 1-32 complete enabled recipes and explicit confirmation
+  binding full recipe/run-setting snapshots. Arming starts/claims nothing.
+- Immutable relational membership, unique predetermined operation IDs and
+  original-host preparation tokens. Existing claims through the mediator link
+  step/operation/inputs/artifacts/budgets/grants atomically. One outstanding
+  operation, no claim-then-link, adopted manual attempt or retry after ambiguity.
+- Every pass executes every pinned recipe once in order. All Passed routes to
+  ordinary review; only ADR-0018's coherent nonzero-exit set routes to diagnosis.
+  Exact whole findings select the matching correction origin. At most two
+  shared corrections, three passes, six Agent claims and 102 steps; existing
+  smaller budgets and guards remain decisive. Two-hour advancement deadline.
+- Manual coexistence fences all claim/repair entrances and competing checkpoint,
+  recipe/run-setting mutations at their final seams. Original result recording
+  stays available. Stop after current operation never means process cancellation.
+- ADR-0057/58's narrow ownership extension counts a linked dispatched operation
+  without coherent host Exited proof even if a terminal row exists. Use one
+  shared reading, deduplicate the ordinary owner, retain ReadOnly workspace
+  exclusion and mutating global count, preserve ADR-0059 freshness/safe lowering.
+- Close continuation before startup recovery. Never redispatch/adopt; preserve
+  unresolved dispatched rows, ownership and possibly live output instead of
+  blindly interrupting/importing them. No supported recovery/release exists
+  for ambiguity. Exited proof is about the invoked process, not every descendant.
+- Four protected operations (availability, arm, status, stop), closed exact wire,
+  one run-owned status/fence across both regions, confirmation barriers and
+  stale visit/lifetime protection. No Running indicator from lifecycle or host
+  observations. No browser advancement or persisted browser authority.
 
-- One Domain-owned immutable configuration-revision type and additive table,
-  positive Int64 revision and limit one/two, migration seed revision one/two,
-  constraints, upgrade/reopen/down. Latest revision is current. No runtime
-  seeding, cache, older-row fallback or second settings framework. Missing or
-  malformed current configuration fails closed. Preserve historical rows.
-- One explicit command under the existing SQLite-wide write lock. Unavailable
-  configuration/owners refuse unchanged. Same value is a no-op. A different
-  limit below recorded ownership refuses fixed
-  execution_capacity.limit_below_recorded_owners Conflict; otherwise append
-  exactly one revision atomically. No stranded pending reduction, chosen
-  winner, termination, cancellation or release.
-- Read the current persisted limit fresh at every early and final mutating
-  claim, exact-owner dispatch/execution and advisory feed. Preserve GAD-R1,
-  all mutating entrances, ReadOnly independence and result recording. A race
-  after preparation re-decides under the write boundary and consumes nothing
-  when refused. Changing the limit starts no work.
-- GET retains exactly limit/recordedOwners/status/reasonCode. Valid limit is
-  one/two, null only when configuration is unavailable. Available count is
-  below that limit; AtCapacity is at/above it; Unavailable has null count.
-  Add protected, queryless PUT /api/execution-capacity/limit, exactly one JSON
-  integer limit field, 512-byte body bound, closed validation, fixed errors
-  and the same response shape. No extra metadata/history endpoint or secret.
-- One App-owned host-session control visible without a project, with explicit
-  Apply/Refresh and fixed copy; both regions share its capacity state.
-  Preserve polling/real abort/coalescing/failure limits. One PUT at a time,
-  actual ten-second abort, no auto retry. Mask old Available from submission
-  until a new post-write GET settles, including stale reads/lifetimes and
-  ambiguous timeout. No optimistic success, rollback or automatic resubmit.
-
-Touch feature-owned Domain/Application/API/Infrastructure/frontend code,
-necessary focused tests, generated client/migration and directly affected
-architecture/product/engineering/roadmap contracts only. No generic pipeline,
-transaction/supervisor rewrite, broad fixture caching, unrelated type split,
-new package or standards change. Challenge a material flaw before dependent
-work; discussion is not additional authority.
+Allowed: feature-owned Domain/Application/API/Infrastructure/frontend code,
+necessary tests/migration/generated client, narrowly affected startup/shared
+ownership consumers and directly affected product/architecture/security/context/
+roadmap contracts. Preserve this planner selection and accepted decisions in
+the returned diff. No generic workflow/settings/recovery engine, transaction or
+supervisor throughput rewrite, broad fixture cache, dependency or standards edit.
 
 ## Proportional validation and acceptance
 
-Plan exact filters before implementation; use regressions first and build
-incrementally. No simultaneous writers to shared build/generator/mutation
-outputs. Preserve complete failed logs and actual source phases.
+First identify exact focused classes/filters and record them before editing.
+Use the cheapest boundary for detailed permutations; no simultaneous build,
+generator or mutation writers. Full logs retain failures and actual phases.
 
-- New Domain configuration invariants; real SQLite policy/command/history
-  cases, missing/invalid current rows, tracked-state freshness, no-op/refusal
-  with no side effects. Independent connections prove both configuration/
-  claim orderings, limit-one admission at every mutating entrance, exact own
-  dispatch for all families and unchanged ReadOnly/known-result paths.
-- Complete new/existing capacity MVC protection, closed input/output and
-  error matrix, representative production mediator/persistence/race and
-  hosted compositions. Cheap invalid requests need no full Git lineage.
-- Full Application/API once on stable final product/test sources because the
-  shared capacity read/fence changes every consumer. All persistence/migration
-  classes; no unrelated full Infrastructure process/Git suite by default.
-  Focused Domain tests, full architecture. Broaden for actual changed inputs,
-  failures or uncertain shared impact; mandatory CI/release gates stand.
-- Whole Vitest, lint/build (includes product typecheck), strict e2e tsc and
-  reproducible generated client. Prove decoder tuples, both regions and one
-  shared lifetime, real PUT cancellation, stale pre-change responses,
-  ambiguous success/timeouts, project-independent ownership and remounts.
-- Collaboration and planning-sequence journeys serially after stable binaries;
-  extend collaboration with explicit one/two change and shared disclosure.
-  No other nine-journey/native/provider campaign by default.
-- Three compiling controls at named regressions: fixed-two instead of the
-  persisted final comparison; omitted below-owner update refusal; stale
-  pre-change Available admitted across the UI confirmation barrier. Retain
-  failures, verify restored hashes, touch restored sources, rebuild and run
-  final checks. Do not claim source hashes prove historical binaries. Earlier
-  controls remain qualified at their phases unless inputs need another run.
+| Changed boundary | Focused development evidence | Final stable-source matrix |
+| --- | --- | --- |
+| Domain/claims/sequence/ownership | New `LocalExecutionSequence` classes, affected implementation/review/diagnosis/correction and verification claims, dispatch, stop, source lineage and both capacity orderings; real SQLite independent connections | Full Application and API projects once because all entrances, startup and shared owner policy change; focused Domain and full architecture |
+| Migration/transaction/startup | Feature migration constraints, upgrade/reopen/down; atomic link, budget/grant/artifact rollback and uncertainty; every startup boundary, unchanged fingerprint with unresolved dispatched owner, terminal-without-exit quarantine | All Infrastructure `Persistence` classes and affected transaction-boundary classes; broaden to adapters/process/Git only if their inputs change or evidence raises a concern |
+| HTTP/wire/UI | Four complete endpoint contracts/auth inventory, raw-wire whole-tuple decoding, exact confirmation and both regions, stale A-B-A/remount, stop/arm/deadline races and actual cancellation | Generated client reproducibility, whole Vitest, lint, build (includes product typecheck), strict explicit-source e2e TypeScript including both Playwright configs |
+| Hosted outcome/coexistence | Production claim/result paths for no correction, each correction origin, mixed origins/exhaustion, independent projects, zero forbidden calls | New authenticated `local-execution-sequence.journey.ts`, then existing collaboration and planning-sequence journeys serially on stable binaries |
 
-Update current-work with outcome, source-phased fresh/retained/not-run checks,
-failures, challenges and Git state. It remains an implementation-for-review
-record, not a self-issued GO. Planner documents are preserved in the delivered
-slice. No exact new test count is prescribed or invented before execution.
+Expected command families: `dotnet test` for the named test projects with focused
+`FullyQualifiedName~LocalExecutionSequence` and affected existing class filters,
+then full Application/API/architecture projects; Infrastructure final filter
+`FullyQualifiedName~Persistence` plus the enumerated affected transaction classes.
+Build current inputs before any `--no-build --no-restore` run. Frontend final
+`npm test`, `npm run lint`, `npm run build`; strict e2e compiler uses the existing
+explicit-source ES2023/ESNext/bundler/DOM/node-vite/JSX configuration with
+`--ignoreConfig`, not a nonexistent tsconfig.e2e.json. Existing receipt:
+`logs/planner-review/global-limit-01/review-02/e2e-final-receipt.json`.
+Journeys use `npx playwright test -c playwright.journey.config.ts <one file>`.
+Formatter/analyzers, applicable audit/secret checks, changed-document links,
+complete diff and mandatory CI/security/release gates remain.
 
-## Stop boundaries and next action
+Four serial compiling controls must kill named regressions: atomic operation
+link, exact pass/recipe membership, original-host/startup quarantine and stale
+frontend confirmation/fence. Retain invalid/failed controls; restore hashes,
+touch restored sources and rebuild before final evidence. No source hash
+proves a historical binary. No new exact test count or performance promise.
 
-Publish only GLOBAL-LIMIT-01's exact approved content in its same Claude
-executor chat using the complete GO prompt. First reconcile branch, HEAD/
-local/live main, divergence, empty real index and the exact 70-path inventory.
-Stage only that set, compare the staged tree, then the committed tree, sole
-parent and path set before a normal fast-forward push of main. A mismatch,
-failed push, remote divergence or material content change stops publication;
-no amend, force-push, silent recomputation, broader staging or reconciliation.
-No implementation, documentation or evidence edit belongs to publication.
+Update current-work as implementation-for-review with exact commands, timings,
+source-phased fresh/retained/not-run results, failures/challenges, blockers and
+Git state. Return everything unstaged, uncommitted and unpushed for Codex review.
+No GO exists for LOCAL-COORD-01; material design challenges pause dependent work.
 
-The implementation/correction-for-review wording in current-work records its
-preparation phase. Preserve it; no closure edit or closure commit is needed.
-No next slice is selected. After the executor report, Codex independently
-checks the published identity, fresh live ref and clean state, then current
-context usage and the matching continuity/next-step prompt.
+## LOCAL-COORD-01 review 3: GO, publication pending
 
-This GO grants no new execution authority, automatic local mutation, queue/
-fairness, limit above two, per-provider/project settings, generic configuration
-or event infrastructure, executor lease, cancel/retry/resume/takeover/release,
-process-death inference, dependency, provider/native/security experiment,
-permission/credential change or remote-publication mechanism. Standing limits
-below remain; discussion grants none of those capabilities.
+Correction 2 was independently reviewed on 2026-10-21. LCO-R2 is resolved:
+both Agent final proofs compare the step's exact source fingerprint, and the
+provider diagnosis Escalation uses the same exact report-input and recorded
+ordered-pass proof as approval. Coordinator classification and later disclosure
+share it. The immutable recorded result remains unchanged when later evidence
+cannot be proved. LCO-R1, LCO-R3 and LCO-R4 remain resolved.
 
-## GLOBAL-LIMIT-01 review 2: GO
+LCO-V1 is resolved within its selected ADR-0043 bounds: the provider-neutral
+bounded Concat projection reads both candidate sets in one statement, with
+all existing validation preserved. No observer-time transaction, retry, new
+lock or port was introduced. Three permanent tests prove a competing commit
+at the controlled hook; the fourth explicitly commits between two query reads.
+All assert the joint candidate statement and coherent results. The old-reader
+control kills four structural single-statement assertions and separately the
+retained reviewer's actual unavailable-response regression; these are distinct
+forms of sensitivity, not five observed mixed-read responses.
 
-Independent reconciliation confirms main, HEAD/local origin/main and freshly
-queried live main `1747fb2b1d5a4a4a3050fc6b2e2a583473d8a934`, divergence
-0/0 and real index empty. The exact set is unchanged: **70 distinct paths,
-45 modified and 25 added** (64 grouped status entries). Inventory, complete
-review, checks and exact publication identity:
-`logs/planner-review/global-limit-01/review-02/reviewed-paths.txt`,
-`review-02.md` and `approval.json`. The external tree is computed after all
-planner edits; no tracked file embeds its own future tree/commit identity.
+Fresh independent verification: all **six original Application reviewer
+regressions now pass** (3 s), including ordinary-EF argument drift, missing
+approval, moved-run startup refusal, source fingerprint at classification and
+disclosure, and missing diagnosis input. Only the exact reviewer-created files
+were removed after comparison with retained source hashes. A fresh subsequent
+build passed the permanent final-evidence classes **51/51** (20 s); independent
+API binding-consistency/protected final-status classes passed **8/8** (27 s).
+No independent rerun of the now-vacuous old API scheduling probe is claimed.
 
-- **GLL-R1 [P2], resolved.** GET starts now defer while PUT is applying as
-  well as while a GET is busy. Poll/Refresh/hints coalesce into one trigger;
-  pre-write answers neither restore the reading nor rearm polling. PUT
-  completion consumes the trigger immediately or behind an existing GET,
-  with exactly one new confirming read. confirmAfter still rejects old
-  responses. No second reader or durable queue was added. Red-before-fix
-  evidence has six failures/23 passes: five newly failing cases plus the old
-  timeout test now pinning exactly two reads. The expanded change set is 29.
-- **GLL-R2 [P3], resolved.** current-work separates the original 21 failed/
-  55 passed into 18 behavioral failures and three invalid rowid-insertion
-  setup failures. The original log remains intact; impossible key cases are
-  not counted as valid red/control sensitivity and malformed-limit cases stay.
+Inspected executor logs establish clean correction-2 full Application
+**7589/7589** and API **3170/3170**, plus Domain 1732, architecture 185,
+Persistence 631 and seven transaction classes 22. The three required serial
+journeys pass, and generated client hashes match. Frontend/control evidence
+retains its explicitly unchanged input scope; no duplicate whole-suite run
+is required. Build is clean with zero warnings/errors. Final evidence,
+commands and the approved publication identity are external under
+`logs/planner-review/local-coord-01/review-03/`.
 
-Independent corrected-source frontend: **958/958 across ten files (10.37 s)**,
-lint/build including product typecheck exit 0, strict e2e checking of all 46
-roots plus both Playwright configs exit 0. The first reviewer e2e invocation
-used a missing config and the second required the compiler's ignoreConfig
-flag; both invocation failures are retained, and the corrected explicit-source
-check passed without changing any configuration/source. Existing lint, chunk
-and journey warnings retain their limits. No new probe or product correction
-was introduced by Codex in this round.
+Two additional development setup failures were found in retained correction-2
+logs: Application 50/51 (extra evidence reused a unique command key) and API
+62/63 (the old combined read-model setup reused project registration identity).
+The final fixtures pass; the earlier files remain failed invocations, not
+behavioral red controls or reconstructed source snapshots. Codex added those
+qualifications and clarified the four scheduling cases in current-work before
+approval. The two correction-1 full API failures and all older limits remain.
 
-Inspected correction evidence: executor capacity set 958, compiling control
-three killed 1/29, restored hashes matched/touched, both journeys passed
-serially. The volunteered 1602-hook development run has no separate retained
-log and is not independently authenticated. Backend inputs are unchanged;
-review-1 independent Application 328, API 142, Domain 17, migration classes 36
-and architecture 185 retain their phases. Full Application 7061/API 3050,
-persistence 468 with its first 466/468 failure, generator and format stay
-qualified; whole Vitest 6835 is pre-correction, not a new full frontend run.
+The whole-solution formatter log was reconciled against the submitted paths:
+only the four already accepted unchanged-comment findings intersect the diff;
+the other reported files are outside it. No general formatter cleanup is
+selected. Local dependency audit, whole unrelated Infrastructure, browser
+stop/restart and real-provider qualification remain not run; mandatory
+CI/security/release gates are unchanged. Permanent quarantine without supported
+release remains an accepted ADR-0060 constraint, including global capacity
+consumption by unresolved dispatched mutators. This is local-slice acceptance.
 
-Review-1 findings, reproduction, accepted test adjustments and executor
-concerns remain in `logs/planner-review/global-limit-01/review-01/review-01.md`.
-The shared early/final comparison control has bounded sensitivity, unknown
-current limit during masking is truthful, and PUT-coherence/new-GET semantics
-state current observations without proving operation causality. Preserve the
-first invalid control-three compile attempt, all failed logs, warning/skip
-scopes, restored-source versus binary limits and earlier lost/overwritten
-originals. Later passes reconstruct or explain none of them.
+The explicit GO authorizes only staging the approved paths, verifying their
+expected tree and sole parent, one commit on main, normal fast-forward push
+and live-ref verification in this same executor chat. It authorizes no product
+edits, closure-document diff, different slice or provider experiment. A content
+or Git mismatch stops publication and returns for review. After the executor
+reports publication, Codex must independently verify the live commit/content
+and then assess current chat continuity before selecting further work.
 
-This GO accepts only ADR-0059's explicit durable one/two admission setting and
-its current gates/disclosure. Increments 4/5/6 remain incomplete, ADR-0050
-Proposed, P9 unproven, AI Memory deferred; PCO-C1/ASUP-C1/WEX-C1 remain
-accepted nonblocking. Publication remains pending independent Git verification.
+## LOCAL-COORD-01 review 2: NO-GO
+
+Historical review-2 decision; review 3 above supplies current dispositions.
+
+Correction 1 was independently reviewed on 2026-10-21. The final ordered
+verification-argument comparison, SourceChanged clock composition, common full
+undispatched-claim proof and the four type splits resolve LCO-R1, LCO-R3 and
+LCO-R4. The malformed escalation fixture correction is justified: a Proposal
+is not a linked ExecutionReport. Permanent quarantine and the standing scope
+remain unchanged. Complete review and retained probes:
+`logs/planner-review/local-coord-01/review-02/review-02.md`.
+
+**LCO-R2 [P2] remains incomplete.** The new LocalExecutionFinalEvidence proves
+the actual approval and many relevant relationships, but neither Agent final
+proof compares AgentCheckpointFingerprintSha256 with its step's pinned source.
+Change only that property through ordinary EF after a real approved review:
+the coordinator still enters ReadyForHumanApproval and a completed sequence
+still discloses its final. The provider escalation proof also ignores its
+AttemptInputMessages: deleting the diagnosis input through ordinary EF leaves
+the supposedly proved final escalation disclosed. Three independent regressions
+compiled and failed (0 passed); no guard or constraint was disabled. Finish
+the exact source and applicable input/pass proof for both Agent final kinds,
+before classification and on later disclosure, without changing historical
+state, replacing messages or introducing a general graph/replay engine.
+
+**LCO-V1: repair the reproduced existing binding-reader race.** The binding
+reader queries binding rows and their events separately outside the final
+write transaction. A controlled, successful protected POST can commit the
+pair between those reads: the other real handler sees zero binding rows and
+one event, falsely returns github_repository_identity_binding.unavailable
+and never reaches its locked replay. An independent deterministic probe
+compiled and failed with that exact code. The binding handler, reader and
+durability test blobs match HEAD; this is a reproduced mechanism in unchanged
+code, not a new LOCAL-COORD regression or proof of the exact historical timing.
+It is compatible with the concurrent 409 family. Those historical failures
+remain separately unexplained at invocation level.
+
+Planner decision: include only this narrow ADR-0043 consistency repair in the
+same correction, because it blocks the required API evidence. No new authority
+or ADR reversal is needed: coherent replay and atomic pair recording are
+already accepted. Obtain the bounded binding/event candidates in one database
+statement/snapshot through provider-neutral EF, including orphan/duplicate
+detection and every existing byte/actor/payload/identity check. Do not just
+reverse the reads, retry until green, serialize or weaken the tests, acquire
+a new observation-time lock/transaction, or relax incoherent-evidence refusal.
+The observer still runs exactly once when required, outside transactions;
+the existing final Run write lock and canonical replay remain unchanged.
+Cover the reader's existing GitHub observation/publication consumers as well
+as the binding operation. If this cannot be implemented within these bounds,
+return a concrete design challenge before changing the contract.
+
+Fresh independent normal checks after retaining and removing only the exact
+reviewer-created test files: Application **150/150**, API **115/115**, both
+freshly built. The API filter includes the seven durability cases; their
+pass does not erase the deterministic failing probe or qualify a whole API
+run. Diff whitespace check passes. The correction's complete Application
+**7573/7573** log is verified as reported evidence, distinct from the earlier
+7503/7504 failure. Its two full API logs remain **3162/3164** (status fixture
+plus concurrent binding) and **3163/3164** (different concurrent binding case).
+There is no clean complete corrected API result. No full independent rerun,
+provider/browser-stop/restart experiment or audit is claimed.
+
+Next action stays in this Claude executor chat: complete LCO-R2 and LCO-V1,
+starting with permanent regressions for the retained probes. After focused
+proofs, one fresh full Application/API matrix is justified by the common
+evidence reader's observation and publication consumers. Retain unchanged
+Domain/Persistence/transaction/frontend/generator/controls with explicit input
+scope; rerun affected checks and the three required journeys serially on
+stable binaries. Update current-work and preserve all failed invocations,
+controls and known limitations. Return unstaged, uncommitted and unpushed.
+No GO exists; no different slice or publication is authorized.
+
+## LOCAL-COORD-01 review 1: NO-GO (historical; dispositions above supersede)
+
+Independent review on 2026-10-21 reproduced three contract failures through
+real file-backed SQLite and production claims/dispatch/query/startup handlers.
+None of the probes dropped a guard or disabled a constraint. They exercise
+persisted evidence drift, not a public API for tampering or a real provider.
+Complete retained source and output: `review-01/PlannerLocalExecutionSequenceReview01Tests.cs`
+and `review-01/probes-02.log` under this slice's planner-review directory.
+
+- **LCO-R1 [P2], open:** LocalExecutionDispatchGate's verification comparison
+  omits the execution's ordered arguments. After claiming the pinned recipe,
+  changing only the execution Arguments before the supervisor's fresh feed
+  still lets the real marker dispatch. The ordinary feed/marker snapshot
+  comparison merely agrees with that changed execution; it does not bind it
+  to the Human-confirmed recipe. Compare the complete executable snapshot,
+  including ordinal arguments, against the pinned member at the final gate.
+  Add the before-feed drift regression, positive exact-match proof and an
+  affected hosted no-process-call proof. Do not weaken ordinary snapshot checks.
+- **LCO-R2 [P2], open:** GetLocalExecutionSequence's final-reference proof
+  trusts a linked Completed/ReviewApproved enum without reading its approval
+  message. A successful cycle still discloses the same supposedly proved
+  report/review pair after that ReviewApproval is removed through normal EF.
+  Prove the exact actual approval and its report/attempt/role/provenance/input
+  relationship before advertising final evidence; validate the applicable
+  whole pass and final tuple. Missing or incoherent evidence must fail closed,
+  without changing immutable historical outcomes or inventing replacement
+  approval. Cover pre-classification and subsequent reads at the cheapest
+  boundary, plus representative protected API behavior. Review the matching
+  diagnosis/escalation proof for this same identity risk.
+- **LCO-R3 [P2], open:** InterruptLocalExecutionSequences' direct refusal path
+  proves UUID/link state but not the sequence's owning run. Change the pending
+  attempt's RunId to another valid run before startup: closure marks it Failed
+  with the new refusal and records a completion event against the other run.
+  Refuse to fabricate a terminal result for an unproved association. Require
+  complete sequence/run/project/workspace/source/kind/contract identity and
+  no dispatch/process evidence before either family's startup refusal; retain
+  safe exclusion/unavailability for malformed links. Check the dedicated live
+  refusal recorders against the same proof, not just matching UUIDs. Include
+  valid undispatched closure, foreign-source/owner and dispatched quarantine
+  non-regressions, with no false event or ownership release.
+- **LCO-R4 [P3], open:** four new files violate the mandatory one-top-level-type
+  rule: ILocalExecutionStepProbe.cs (interface/enum), LocalExecutionCandidate.cs
+  (recipe pin/candidate), LocalExecutionVerdict.cs (enum/record) and the API
+  LocalExecutionSequenceProcessDouble.cs (two records/class). Split these
+  existing types into matching files without behavioral changes or unrelated
+  restructuring. Nested private operation details are not this finding.
+
+All three independent regressions compiled and failed for the named assertions
+(3 failed, 0 passed). The first sandboxed invocation produced no output and
+was interrupted; its empty log remains, with cause unproved. The permitted
+second invocation built and ran the probes. After removing only the reviewer
+test (identical copy retained), a fresh build and focused Application run passed
+**174/174**, including dispatch/ownership/restart/status and the event-type class.
+Independent frontend passed **257/257 across nine files**. Complete commands
+and qualifications are in `review-01/review-01.md`. No fresh whole-suite, API,
+journey, generator, Domain, architecture or Infrastructure claim is made by Codex.
+
+Executor challenges are addressed: widening the refusal-name mappings, the
+conservative permanent quarantine, ending rather than queuing a fence-refused
+dispatch, early startup ordering, avoiding live output import, fixture changes,
+strict Accepted plan forms and refusing before Human-grant/exhaustion branches
+are consistent with ADR-0060. They do not excuse the findings. Accepted-root
+browser coverage with depth-two coverage at hosted/Application boundaries is
+proportional to the unchanged 120-minute budget; do not raise it for a journey.
+
+The original Application 7503/7504 run remains failed evidence, with its
+event-list correction and focused verification distinguished. It is not a
+clean complete Application run. The four formatter findings concern unchanged
+comment text; no unrelated whitespace fix is requested. No dependency changed;
+the omitted local dependency audit grants no waiver of mandatory CI/security
+or release checks. Preserve the earlier API disposal failure as unexplained,
+all journey failures/debug output and the noncompiling first control.
+
+Correction validation: start with the named red regressions and affected
+Application/API/hosted classes. Run the original proportional final matrix once
+on stable correction sources, with fresh full Application/API because shared
+dispatch/startup/evidence consumers change. Infrastructure must include
+Persistence and the affected existing transaction classes: ClaimVerificationExecution,
+CreateCodeReviewAttempt, CreateReviewCorrectionAttempt, VerificationDiagnosis,
+ReconcileInterruptedImplementationAttempts, RecoverInterruptedVerificationOutputArtifacts
+and SetCodexAssignmentPreference TransactionBoundaryTests. Retain unchanged
+frontend/control evidence with explicit input scope; rerun it if its inputs
+change. Run the three required journeys serially after stable host binaries.
+Do not automatically replay all unrelated Infrastructure, native or provider
+checks. Update current-work, retain findings and return for review in this same
+slice/chat. No staging, commit, push or different slice is authorized.
 
 ## Retained review and evidence limits
 
-Active execution-evidence limits:
-[current-work](current-work.md#active-evidence-limits). Detail as written:
+Do not rewrite the published GLOBAL-LIMIT-01 record. Its final independent
+frontend evidence is 958/958 plus lint, build/typecheck and strict e2e checking;
+two reviewer compiler-invocation failures precede the corrected pass. Full
+Application 7061/API 3050 retain unchanged backend-source scope. Persistence 468
+retains its first 466/468 failure and accepted table-list repairs. Whole Vitest
+6835 is pre-correction evidence, not a fresh whole-suite run. Both corrected
+journeys passed serially; the volunteered 1602-hook run has no separate log.
+
+The original Application red run is 21 failures/55 passes: 18 behavioral and
+three invalid rowid-insertion setup failures. The original third control's
+unused-variable attempt did not compile; its corrected-hook control compiled
+and killed its named regression. Preserve their distinct scopes and all
+warnings/skips, bounded control sensitivity and source-versus-binary limits.
+
+Detailed prior review and constraints: this file at `7c78c84`,
+[current-work](current-work.md#active-evidence-limits),
 [WF-04-era limits](planner-handoff-history-e614c79.md#retained-review-and-evidence-limits),
-[earlier planner limits](planner-handoff-history-0a57216.md#retained-review-and-evidence-limits),
-[execution limits](current-work-history-0a57216.md#prior-published-delivery),
-this file at `e55709f`, and per-slice records under ignored
-`logs/planner-review/<slice>/` and `logs/executor/<slice>/`. Progressive
-reading and condensation waive none of them:
-- WF-02A evidence loss remains: derivative, partly abridged chat transcription;
-  original failed runs/checker/timings unavailable; run B exit unknown. No
-  reconstruction or historical authentication of missing originals.
-- Failed, derivative, missing, overwritten and chat-only evidence and all
-  earlier stable findings/dispositions stay retained; later passes erase or
-  explain none of them. Accepted dispositions (EX-N01, EX-N02, EX-04-02,
-  EX-05-01, the RV-04-01 measurement limit, earlier legacy-route
-  observations) and retained failures (RV-N01 child streams, planner N
-  verify-01/02) stand as recorded.
-- Scans/coordinates are lexical; Git/disk/live and independent checks have no
-  negative controls. Retained controls and publication phases were inspected,
-  not rerun or historically authenticated. Moved counts, ordinals, deferred controls,
-  null-model observations and "real today" wording stay unreconciled.
-- Records citing the formerly missing
-  `planner-handoff.md#verified-transition-baseline` fragment stay historical;
-  EX-05-01's CW-A repair is accepted. Archiving does not resolve any
-  open issue.
-
-## Historical review routes
-
-Exact earlier review records: WF-05 in this file at `e55709f`;
-[WF-04](planner-handoff-history-e614c79.md#selected-slice-wf-04-publication-go);
-WF-03I to WF-03N through the
-[route list](planner-handoff-history-e614c79.md#historical-review-routes).
-Their old GO/pending statements are not current instructions.
+[earlier limits](planner-handoff-history-0a57216.md#retained-review-and-evidence-limits),
+and ignored per-slice planner/executor logs. WEX's initial API mutant-provenance
+uncertainty and overwritten correction failure log remain. Earlier lost,
+derivative, partly retained and chat-only output, invalid/no-op controls,
+measurement limits and unexplained failures stay qualified; later passes
+reconstruct, authenticate or explain none of them. Frozen snapshots remain
+untouched; no historical result is reconstructed by this selection.
 
 ## Standing decision constraints
 
@@ -323,12 +453,8 @@ Their old GO/pending statements are not current instructions.
   hung submissions; retention beside disposal failure is unproven.
 - Increments 4/5/6 incomplete. Account/context, raw Git read, non-Windows limits:
   [current-work](current-work.md#open-risks). Production code and necessary
-  tests are selected only for GLOBAL-LIMIT-01 under ADR-0059; PLAN-COORD-01,
-  AGENT-SUP-01, WORKSPACE-EXCL-01 and GLOBAL-ADMIT-01 are published. The one
-  configuration table and one/two control narrow the existing admission policy;
-  they grant no broader mutation or automatic coordination authority. No dependency, experiment,
-  capture-limit or standards edits; the old documentation-only production/test
-  exclusion is superseded, not the other restrictions.
-
-All six frozen snapshots ([registry](development-workflow.md#historical-snapshots))
-remain untouched.
+  tests are selected only for LOCAL-COORD-01 under accepted ADR-0060 and the
+  owner's new bounded-cycle decision. PLAN-COORD-01, AGENT-SUP-01,
+  WORKSPACE-EXCL-01, GLOBAL-ADMIT-01 and GLOBAL-LIMIT-01 are published. No broader
+  mutation, queue, lease, retry, recovery, approval, commit or publication
+  authority follows. No dependency, experiment, capture-limit or standards edit.

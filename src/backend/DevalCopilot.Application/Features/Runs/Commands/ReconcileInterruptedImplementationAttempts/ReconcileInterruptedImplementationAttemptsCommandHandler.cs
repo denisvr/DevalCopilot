@@ -30,9 +30,12 @@ public sealed class ReconcileInterruptedImplementationAttemptsCommandHandler(
         // hardcoded role literal, and materialized before the query so EF Core translates the
         // check to a closed SQL IN (...) predicate.
         var mutatingRoles = AgentAttemptContract.RolesForEffect(AgentEffectKind.WorkspaceMutating).ToArray();
+        // ADR-0060: an attempt linked to a local execution sequence is never generically interrupted here (no run lifecycle change, no
+        // workspace flag); the sequence's own startup command closes undispatched ones and quarantines dispatched ones.
         var interruptedAttemptIds = await dbContext.Attempts
             .AsNoTracking()
-            .Where(attempt => attempt.Kind == AttemptKind.Agent && mutatingRoles.Contains(attempt.AgentRole!.Value) && attempt.Status == AttemptStatus.Running)
+            .Where(attempt => attempt.Kind == AttemptKind.Agent && mutatingRoles.Contains(attempt.AgentRole!.Value) && attempt.Status == AttemptStatus.Running
+                && !dbContext.LocalExecutionSequenceSteps.Any(step => step.OperationId == attempt.Id))
             .Select(attempt => attempt.Id)
             .ToListAsync(cancellationToken);
 

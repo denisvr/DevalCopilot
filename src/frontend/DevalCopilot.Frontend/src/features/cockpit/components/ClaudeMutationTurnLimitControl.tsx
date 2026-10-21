@@ -15,6 +15,8 @@ interface ClaudeMutationTurnLimitControlProps {
   editable: boolean
   /** Re-queries the authoritative cockpit; resolves false on failure or if the run changed meanwhile. */
   onSaved?: () => Promise<boolean>
+  /** The fixed reason a local execution sequence (ADR-0060) withholds changing this setting; null or absent withholds nothing. */
+  withheldReason?: string | null
 }
 
 /**
@@ -25,7 +27,7 @@ interface ClaudeMutationTurnLimitControlProps {
  * a successful save or clear re-queries the cockpit, and the parent keys this component by run and
  * saved value so the draft re-initialises from that authoritative state.
  */
-export function ClaudeMutationTurnLimitControl({ runId, request, editable, onSaved }: ClaudeMutationTurnLimitControlProps) {
+export function ClaudeMutationTurnLimitControl({ runId, request, editable, onSaved, withheldReason = null }: ClaudeMutationTurnLimitControlProps) {
   const authoritativeDraft = request?.state === 'Requested' && request.maxTurns !== undefined ? String(request.maxTurns) : ''
   const identity = `${runId}|${request?.state ?? ''}|${request?.maxTurns ?? ''}`
   const [seenIdentity, setSeenIdentity] = useState(identity)
@@ -99,15 +101,20 @@ export function ClaudeMutationTurnLimitControl({ runId, request, editable, onSav
             disabled={saving}
             aria-invalid={shownError ? true : undefined}
           />
-          <button type="button" onClick={() => void handleSave()} disabled={saving}>
+          <button type="button" onClick={() => void handleSave()} disabled={saving || withheldReason !== null}>
             Save
           </button>
-          <button type="button" onClick={() => void handleClear()} disabled={saving}>
+          <button type="button" onClick={() => void handleClear()} disabled={saving || withheldReason !== null}>
             Clear
           </button>
         </>
       ) : (
         <span className="dc-claude-turn-limit-readonly">This run&apos;s Claude turn limit request can no longer be changed.</span>
+      )}
+      {withheldReason != null && (
+        <span className="dc-claude-turn-limit-readonly" role="status">
+          {withheldReason}
+        </span>
       )}
       {shownError && (
         <span className="dc-claude-turn-limit-error" role="alert">

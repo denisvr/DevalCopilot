@@ -1,6 +1,7 @@
 using Devalente.Shared.Cqrs;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Projects.Commands.MarkVerificationExecutionDispatched;
+using DevalCopilot.Application.Features.Projects.Commands.RecordLocalExecutionSequenceVerificationDispatchRefusal;
 using DevalCopilot.Application.Features.Projects.Commands.RecordVerificationExecutionResult;
 using DevalCopilot.Application.Features.Projects.Commands.RecordVerificationExecutionSourceChanged;
 using DevalCopilot.Application.Features.Projects.Ports;
@@ -71,6 +72,15 @@ public sealed class VerificationExecutionSupervisor(
             new MarkVerificationExecutionDispatchedCommand(execution.VerificationExecutionId, execution.ToSnapshot()), stoppingToken);
         if (dispatched.IsFailure)
         {
+            if (dispatched.Errors[0].Code == MarkVerificationExecutionDispatchedCommandHandler.LocalExecutionSequenceDispatchRefusedCode)
+            {
+                // A linked, still-undispatched execution whose sequence authority ended is closed by its dedicated refusal (ADR-0060)
+                // instead of staying pending: the recorder re-proves the link and the refusal under its own write lock.
+                await DispatchAsync(
+                    new RecordLocalExecutionSequenceVerificationDispatchRefusalCommand(execution.ProjectId, execution.VerificationExecutionId),
+                    CancellationToken.None);
+            }
+
             return;
         }
 

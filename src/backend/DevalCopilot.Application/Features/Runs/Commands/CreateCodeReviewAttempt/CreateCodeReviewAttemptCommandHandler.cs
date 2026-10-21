@@ -11,6 +11,7 @@ using DevalCopilot.Application.Features.Runs.Commands.CreateCodexPlanningAttempt
 using DevalCopilot.Application.Features.Runs.Policies.FormatRepair;
 using DevalCopilot.Application.Features.Runs.Errors;
 using DevalCopilot.Application.Features.Runs.Policies;
+using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
 using DevalCopilot.Application.Features.Runs.Policies.PlanningSequences;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
@@ -38,7 +39,8 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
     IArtifactStore artifactStore,
     TimeProvider timeProvider,
     IAttemptDurabilityProbe attemptDurabilityProbe,
-    IAccountUsageObserver? accountUsageGuardAdapter = null)
+    IAccountUsageObserver? accountUsageGuardAdapter = null,
+    ILocalExecutionStepProbe? localStepProbe = null)
     : ICommandHandler<CreateCodeReviewAttemptCommand, Result<CreateCodeReviewAttemptCommandResult>>
 {
     private const int MaxContextManifestBytes = 32 * 1024;
@@ -65,11 +67,30 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
             return Result<CreateCodeReviewAttemptCommandResult>.Failure(executionModeError);
         }
 
+        // A local execution step carries its own exact identity, an ordinary review of the sequence's report and no repair or
+        // different report (ADR-0060); it is exempt from the fences below and decided by its own step authority.
+        var ticket = command.LocalStep;
+        if (ticket is not null
+            && (command.RepairSourceAttemptId is not null
+                || ticket.Kind != LocalExecutionStepKind.CodeReview
+                || ticket.ReportMessageId is null
+                || ticket.ReportMessageId != command.ExecutionReportMessageId))
+        {
+            return Result<CreateCodeReviewAttemptCommandResult>.Failure(LocalExecutionSequenceErrors.StepInputMismatch());
+        }
+
         // A planning sequence (ADR-0055) holds the run against every claim that does not carry its own exact step identity; the
         // database guard of the same predicate decides at the durable commit.
         if (await PlanningSequenceFence.CheckRunAsync(dbContext, run.Id, cancellationToken) is { } fenceError)
         {
             return Result<CreateCodeReviewAttemptCommandResult>.Failure(fenceError);
+        }
+
+        // The same holds for a local execution sequence (ADR-0060) against every claim without its own exact step identity.
+        if (ticket is null
+            && await LocalExecutionSequenceFence.CheckRunAsync(dbContext, run.Id, cancellationToken) is { } localFenceError)
+        {
+            return Result<CreateCodeReviewAttemptCommandResult>.Failure(localFenceError);
         }
 
         if (run.Lifecycle != RunLifecycle.Running)
@@ -194,6 +215,14 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
                 Error.Conflict("agent_attempts.checkpoint_missing", "A current Git checkpoint is required to request a code review."));
         }
 
+        if (ticket is not null
+            && await LocalExecutionStepAuthority.CheckEarlyAsync(
+                dbContext, ticket, run, LocalExecutionStepKind.CodeReview, workspace, checkpoint, timeProvider.GetUtcNow(), cancellationToken)
+                is { } stepError)
+        {
+            return Result<CreateCodeReviewAttemptCommandResult>.Failure(stepError);
+        }
+
         // The repair's target: the ExecutionReport and verification set recorded as the source's
         // inputs, validated exactly as an ordinary request's would be and required to equal the
         // currently enabled/latest Passed selection — never supplied by the caller. Decided before any
@@ -265,7 +294,7 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
                 Error.Conflict("agent_attempts.already_code_reviewed", "This exact implementation and verification evidence set already has a successful code review."));
         }
 
-        var attemptId = Guid.NewGuid();
+        var attemptId = ticket?.ReservedOperationId ?? Guid.NewGuid();
         var manifestArtifactId = Guid.NewGuid();
         var nowUtc = timeProvider.GetUtcNow();
 
@@ -417,12 +446,12 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
             // Nothing was ever begun — no tracked entity has been added and no statement could
             // have executed, so the sealed manifest is unconditionally orphaned. Cancellation is
             // never converted into a Result; it propagates exactly as cancellation.
-            artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+            await DeleteManifestUnlessAnotherWorkerClaimedAsync(run.Id, attemptId, ticket);
             throw;
         }
         catch (DbException)
         {
-            artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+            await DeleteManifestUnlessAnotherWorkerClaimedAsync(run.Id, attemptId, ticket);
             return Result<CreateCodeReviewAttemptCommandResult>.Failure(
                 Error.Failure("attempts.persistence_failed", "The attempt could not be durably recorded."));
         }
@@ -436,8 +465,19 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
             bool runStillActive;
             Error? repairRevalidationError = null;
             Error? workspaceExecutionError = null;
+            Error? stepSeamError = null;
+            Error? stepInputError = null;
+            LocalExecutionStepLink? stepLink = null;
             try
             {
+                // A local execution step first confirms and locks its exact reserved step, re-reads the pinned source and keeps its
+                // link tracked for the one SaveChanges below (ADR-0060); an ordinary claim has no step and is unaffected.
+                if (ticket is not null)
+                {
+                    (stepSeamError, stepLink) = await LocalExecutionStepAuthority.ConfirmAtSeamAsync(
+                        dbContext, ticket, run, LocalExecutionStepKind.CodeReview, timeProvider.GetUtcNow(), cancellationToken);
+                }
+
                 // One atomic UPDATE ... WHERE statement requiring the Run's requested model/effort
                 // to still exactly match what was just read above.
                 preferenceStillCurrent = await CurrentCodexAssignmentPreference.ConfirmUnchangedAsync(
@@ -470,6 +510,14 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
                         run, repairSourceAtCommit, workspace.Id, checkpoint, executionReportMessage.Id, orderedVerificationExecutions, cancellationToken);
                 }
 
+                // A step's report, result checkpoint and verification selection are re-read here, under the write lock the step's own
+                // first statement took, and must be exactly the recorded pass (ADR-0060).
+                if (ticket is not null && stepSeamError is null)
+                {
+                    stepInputError = await RevalidateLocalStepAsync(
+                        run, ticket, workspace.Id, checkpoint, executionReportMessage.Id, orderedVerificationExecutions, cancellationToken);
+                }
+
                 // ADR-0057: decided under the same write lock, immediately before the claim's own insert, from fresh untracked reads.
                 workspaceExecutionError = await WorkspaceExecutionFence.CheckClaimAsync(
                     dbContext, run.ProjectId, workspace.Id, cancellationToken);
@@ -480,7 +528,7 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
                 // cleanup as acquisition cancellation above. Cancellation is never misclassified
                 // as a preference conflict or an ordinary persistence failure; it propagates.
                 await RollbackBestEffortAsync(claimTransaction, CancellationToken.None);
-                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                await DeleteManifestUnlessAnotherWorkerClaimedAsync(run.Id, attemptId, ticket);
                 throw;
             }
             catch (DbException)
@@ -490,9 +538,18 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
                 // itself changed; that is reported only when the guard actually observes zero
                 // matching rows, below.
                 await RollbackBestEffortAsync(claimTransaction, cancellationToken);
-                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                await DeleteManifestUnlessAnotherWorkerClaimedAsync(run.Id, attemptId, ticket);
                 return Result<CreateCodeReviewAttemptCommandResult>.Failure(
                     Error.Failure("attempts.persistence_failed", "The attempt could not be durably recorded."));
+            }
+
+            if (stepSeamError is not null)
+            {
+                // The sequence no longer authorizes this exact step (stopped, expired, interrupted or its pinned source changed):
+                // rolled back before any insert, so nothing is consumed (ADR-0060).
+                await RollbackBestEffortAsync(claimTransaction, cancellationToken);
+                await DeleteManifestUnlessAnotherWorkerClaimedAsync(run.Id, attemptId, ticket);
+                return Result<CreateCodeReviewAttemptCommandResult>.Failure(stepSeamError);
             }
 
             if (!runStillActive)
@@ -500,7 +557,7 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
                 // The run ended (it was explicitly abandoned) between this claim's decision and its commit. Rolled back before any
                 // insert: no attempt, artifact, reservation, or authorization is consumed, and the sealed manifest is removed.
                 await RollbackBestEffortAsync(claimTransaction, cancellationToken);
-                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                await DeleteManifestUnlessAnotherWorkerClaimedAsync(run.Id, attemptId, ticket);
                 return Result<CreateCodeReviewAttemptCommandResult>.Failure(CurrentRunLifecycle.NotRunning());
             }
 
@@ -509,7 +566,7 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
                 // The run no longer admits Agent work. Rolled back before any insert: no attempt, artifact,
                 // reservation, or authorization is consumed, and the sealed manifest is removed.
                 await RollbackBestEffortAsync(claimTransaction, cancellationToken);
-                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                await DeleteManifestUnlessAnotherWorkerClaimedAsync(run.Id, attemptId, ticket);
                 return Result<CreateCodeReviewAttemptCommandResult>.Failure(CurrentRunExecutionMode.NotAdmitted());
             }
 
@@ -519,7 +576,7 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
                 // and this guard — this claim fails safely, cleaning up the already-sealed
                 // manifest file, rather than durably embed a pair that is no longer current.
                 await RollbackBestEffortAsync(claimTransaction, cancellationToken);
-                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                await DeleteManifestUnlessAnotherWorkerClaimedAsync(run.Id, attemptId, ticket);
                 return Result<CreateCodeReviewAttemptCommandResult>.Failure(Error.Conflict(
                     "agent_attempts.assignment_preference_changed",
                     "The run's requested Codex model or effort changed while this claim was being prepared; retry the request."));
@@ -531,7 +588,7 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
                 // the old policy. The transaction is rolled back before any insert, the sealed
                 // manifest is removed, and nothing was consumed; a retry re-decides.
                 await RollbackBestEffortAsync(claimTransaction, cancellationToken);
-                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                await DeleteManifestUnlessAnotherWorkerClaimedAsync(run.Id, attemptId, ticket);
                 return Result<CreateCodeReviewAttemptCommandResult>.Failure(CurrentTokenStopPolicy.PolicyChangedDuringClaim());
             }
 
@@ -540,7 +597,7 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
                 // The account-usage stop changed, its launch tuple changed, or its evidence is no longer fresh: rolled back before any
                 // insert, the sealed manifest removed and nothing consumed.
                 await RollbackBestEffortAsync(claimTransaction, cancellationToken);
-                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                await DeleteManifestUnlessAnotherWorkerClaimedAsync(run.Id, attemptId, ticket);
                 return Result<CreateCodeReviewAttemptCommandResult>.Failure(accountUsageError);
             }
 
@@ -550,8 +607,17 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
                 // the earlier checks: no repair is claimed, nothing is consumed, and the sealed manifest
                 // is removed, exactly like a changed preference.
                 await RollbackBestEffortAsync(claimTransaction, cancellationToken);
-                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                await DeleteManifestUnlessAnotherWorkerClaimedAsync(run.Id, attemptId, ticket);
                 return Result<CreateCodeReviewAttemptCommandResult>.Failure(repairRevalidationError);
+            }
+
+            if (stepInputError is not null)
+            {
+                // The report, its result checkpoint or the verification selection is no longer exactly the recorded pass: rolled back
+                // before any insert, nothing consumed and no second claim.
+                await RollbackBestEffortAsync(claimTransaction, cancellationToken);
+                await DeleteManifestUnlessAnotherWorkerClaimedAsync(run.Id, attemptId, ticket);
+                return Result<CreateCodeReviewAttemptCommandResult>.Failure(stepInputError);
             }
 
             if (workspaceExecutionError is not null)
@@ -559,7 +625,7 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
                 // Another owner of the workspace appeared (or the ownership is not trustworthy): rolled back before any insert, so no
                 // attempt, input, verification evidence, artifact, budget or claim number is consumed, and the sealed manifest is removed.
                 await RollbackBestEffortAsync(claimTransaction, cancellationToken);
-                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                await DeleteManifestUnlessAnotherWorkerClaimedAsync(run.Id, attemptId, ticket);
                 return Result<CreateCodeReviewAttemptCommandResult>.Failure(workspaceExecutionError);
             }
 
@@ -567,6 +633,9 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
             dbContext.AttemptInputMessages.Add(inputMessage);
             dbContext.AttemptVerificationEvidence.AddRange(verificationEvidenceRows);
             dbContext.Artifacts.Add(manifestArtifact);
+
+            // The step link, its event, the attempt, its inputs and the manifest artifact commit in this one transaction.
+            stepLink?.Apply(dbContext, attemptId, InvocationTimeout, nowUtc);
 
             try
             {
@@ -582,10 +651,10 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
                 // converted into a Result.
                 await RollbackBestEffortAsync(claimTransaction, CancellationToken.None);
 
-                var durability = await attemptDurabilityProbe.CheckAsync(attemptId, CancellationToken.None);
+                var durability = await ProbeAsync(ticket, attemptId, CancellationToken.None);
                 if (durability == AttemptDurabilityCheckResult.NotPersisted)
                 {
-                    artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                    await DeleteManifestUnlessAnotherWorkerClaimedAsync(run.Id, attemptId, ticket);
                     dbContext.Attempts.Remove(attempt);
                     dbContext.AttemptInputMessages.Remove(inputMessage);
                     foreach (var row in verificationEvidenceRows)
@@ -601,11 +670,11 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
 
                 throw;
             }
-            catch (DbUpdateException)
+            catch (DbUpdateException exception)
             {
                 await RollbackBestEffortAsync(claimTransaction, cancellationToken);
 
-                var durability = await attemptDurabilityProbe.CheckAsync(attemptId, cancellationToken);
+                var durability = await ProbeAsync(ticket, attemptId, cancellationToken);
                 if (durability == AttemptDurabilityCheckResult.Persisted)
                 {
                     return Result<CreateCodeReviewAttemptCommandResult>.Success(
@@ -623,7 +692,7 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
                         "Whether the attempt was durably recorded could not be confirmed."));
                 }
 
-                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                await DeleteManifestUnlessAnotherWorkerClaimedAsync(run.Id, attemptId, ticket);
                 dbContext.Attempts.Remove(attempt);
                 dbContext.AttemptInputMessages.Remove(inputMessage);
                 foreach (var row in verificationEvidenceRows)
@@ -632,6 +701,16 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
                 }
 
                 dbContext.Artifacts.Remove(manifestArtifact);
+
+                if (ticket is not null)
+                {
+                    // The step's own compare-and-set (a Stop, an expiry or a restart committed first) or any other refusal of a step
+                    // claim is never reinterpreted as a race that allows a retry: the sequence decides what happens next.
+                    return Result<CreateCodeReviewAttemptCommandResult>.Failure(
+                        exception is DbUpdateConcurrencyException
+                            ? LocalExecutionSequenceErrors.StepAuthorityLost()
+                            : Error.Failure("attempts.persistence_failed", "The attempt could not be durably recorded."));
+                }
 
                 if (command.RepairSourceAttemptId is { } repairSourceOnRace
                     && await dbContext.Attempts.AsNoTracking().AnyAsync(
@@ -651,6 +730,12 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
 
                     return Result<CreateCodeReviewAttemptCommandResult>.Failure(PlanningSequenceErrors.ManualControlBlocked());
 
+                }
+
+                if (await LocalExecutionSequenceFence.RefusedRunSaveAsync(dbContext, run.Id))
+                {
+                    // The database guard of an armed local execution sequence refused this claim at the write seam (ADR-0060).
+                    return Result<CreateCodeReviewAttemptCommandResult>.Failure(LocalExecutionSequenceErrors.ManualControlBlocked());
                 }
 
 
@@ -736,10 +821,10 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
                 // propagates regardless of what it finds, never converted into a Result.
                 await RollbackBestEffortAsync(claimTransaction, CancellationToken.None);
 
-                var durability = await attemptDurabilityProbe.CheckAsync(attemptId, CancellationToken.None);
+                var durability = await ProbeAsync(ticket, attemptId, CancellationToken.None);
                 if (durability == AttemptDurabilityCheckResult.NotPersisted)
                 {
-                    artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                    await DeleteManifestUnlessAnotherWorkerClaimedAsync(run.Id, attemptId, ticket);
                     dbContext.Attempts.Remove(attempt);
                     dbContext.AttemptInputMessages.Remove(inputMessage);
                     foreach (var row in verificationEvidenceRows)
@@ -763,7 +848,7 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
                 // referenced artifact.
                 await RollbackBestEffortAsync(claimTransaction, cancellationToken);
 
-                var durability = await attemptDurabilityProbe.CheckAsync(attemptId, cancellationToken);
+                var durability = await ProbeAsync(ticket, attemptId, cancellationToken);
                 if (durability == AttemptDurabilityCheckResult.Persisted)
                 {
                     return Result<CreateCodeReviewAttemptCommandResult>.Success(
@@ -780,7 +865,7 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
                         "Whether the attempt was durably recorded could not be confirmed."));
                 }
 
-                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                await DeleteManifestUnlessAnotherWorkerClaimedAsync(run.Id, attemptId, ticket);
                 dbContext.Attempts.Remove(attempt);
                 dbContext.AttemptInputMessages.Remove(inputMessage);
                 foreach (var row in verificationEvidenceRows)
@@ -796,6 +881,116 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
 
         return Result<CreateCodeReviewAttemptCommandResult>.Success(
             new CreateCodeReviewAttemptCommandResult(attempt.Id, attempt.AttemptNumber, command.RepairSourceAttemptId));
+    }
+
+    /// <summary>An ordinary claim's sealed manifest is an orphan once the claim is refused. A step claim shares its sealed path with a
+    /// duplicate worker, so the file is removed only when an independent read proves the step was not claimed; absence of proof or
+    /// uncertainty never authorizes deleting a possibly referenced file (ADR-0060).</summary>
+    private async Task DeleteManifestUnlessAnotherWorkerClaimedAsync(Guid runId, Guid attemptId, LocalExecutionStepTicket? ticket)
+    {
+        if (ticket is null || await ProbeAsync(ticket, attemptId, CancellationToken.None) == AttemptDurabilityCheckResult.NotPersisted)
+        {
+            artifactStore.DeleteOrphanedSealedFile(runId, attemptId, ArtifactPurpose.AgentContextManifest);
+        }
+    }
+
+    /// <summary>The independent durability read of this claim: the attempt row for an ordinary claim, or the exact step/attempt
+    /// association for a local execution step. A step claim without a probe is unresolved, never assumed absent.</summary>
+    private async Task<AttemptDurabilityCheckResult> ProbeAsync(
+        LocalExecutionStepTicket? ticket, Guid attemptId, CancellationToken cancellationToken)
+    {
+        if (ticket is null)
+        {
+            return await attemptDurabilityProbe.CheckAsync(attemptId, cancellationToken);
+        }
+
+        return localStepProbe is null
+            ? AttemptDurabilityCheckResult.Unresolved
+            : await localStepProbe.CheckAsync(ticket.StepId, cancellationToken) switch
+            {
+                LocalExecutionStepProbeResult.Claimed => AttemptDurabilityCheckResult.Persisted,
+                LocalExecutionStepProbeResult.NotClaimed => AttemptDurabilityCheckResult.NotPersisted,
+                _ => AttemptDurabilityCheckResult.Unresolved,
+            };
+    }
+
+    /// <summary>A local execution step's final in-transaction read, decided against the state the step's own first statement locked:
+    /// the report is still the sequence's exact validated report of its current checkpoint, and the selected verification executions
+    /// (the latest per enabled recipe, in recipe order) are element-wise the recorded pass, each Passed. Returns the refusal or null.</summary>
+    private async Task<Error?> RevalidateLocalStepAsync(
+        Run run,
+        LocalExecutionStepTicket ticket,
+        Guid workspaceId,
+        GitCheckpoint checkpoint,
+        Guid sealedExecutionReportMessageId,
+        IReadOnlyList<(VerificationExecution Execution, string CommandName, int CommandNumber)> sealedVerification,
+        CancellationToken cancellationToken)
+    {
+        if (ticket.ReportMessageId != sealedExecutionReportMessageId || checkpoint.Id != ticket.SourceCheckpointId)
+        {
+            return LocalExecutionSequenceErrors.StepInputMismatch();
+        }
+
+        var passNumber = await dbContext.LocalExecutionSequenceSteps.AsNoTracking()
+            .Where(candidate => candidate.Id == ticket.StepId && candidate.SequenceId == ticket.SequenceId)
+            .Select(candidate => (int?)candidate.PassNumber)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (passNumber is null)
+        {
+            return LocalExecutionSequenceErrors.StepAuthorityLost();
+        }
+
+        try
+        {
+            var reportValidation = await ValidateExecutionReportAsync(
+                run.Id, sealedExecutionReportMessageId, workspaceId, checkpoint, cancellationToken, asNoTracking: true);
+            if (reportValidation.Error is { } reportError)
+            {
+                return reportError;
+            }
+
+            var verificationValidation = await ValidateVerificationEvidenceAsync(
+                run.ProjectId, checkpoint, cancellationToken, asNoTracking: true);
+            if (verificationValidation.Error is { } verificationError)
+            {
+                return verificationError;
+            }
+
+            var selected = verificationValidation.OrderedExecutions!.Select(item => item.Execution.Id).ToList();
+            var recorded = await LocalExecutionStepAuthority.PassExecutionsAsync(
+                dbContext, ticket.SequenceId, passNumber.Value, cancellationToken);
+            var recordedMembership = recorded
+                .Select((item, index) => item.RecipeOrdinal == index ? item.ExecutionId : Guid.Empty)
+                .ToList();
+            if (!selected.SequenceEqual(recordedMembership)
+                || !selected.SequenceEqual(sealedVerification.Select(item => item.Execution.Id)))
+            {
+                return LocalExecutionSequenceErrors.StepInputMismatch();
+            }
+        }
+        catch (InvalidOperationException)
+        {
+            // A persisted row of the report chain could not be materialized: fixed refusal that echoes nothing stored.
+            return LocalExecutionSequenceErrors.StepInputMismatch();
+        }
+
+        if (await CodeReviewInputIdentity.HasCompetingSuccessfulReviewAsync(
+                dbContext,
+                run.Id,
+                attemptId: Guid.Empty,
+                sealedExecutionReportMessageId,
+                sealedVerification.Select(item => item.Execution.Id).ToArray(),
+                cancellationToken))
+        {
+            return Error.Conflict(
+                "agent_attempts.already_code_reviewed",
+                "This exact implementation and verification evidence set already has a successful code review.");
+        }
+
+        return await dbContext.Attempts.AsNoTracking().AnyAsync(
+            candidate => candidate.RunId == run.Id && candidate.Status == AttemptStatus.Running, cancellationToken)
+            ? Error.Conflict("attempts.run_has_active_attempt", "This run already has an attempt in progress.")
+            : null;
     }
 
     /// <summary>

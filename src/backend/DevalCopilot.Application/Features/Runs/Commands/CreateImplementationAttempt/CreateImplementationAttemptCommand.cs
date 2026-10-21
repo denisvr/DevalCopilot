@@ -1,5 +1,6 @@
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
+using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
 
 namespace DevalCopilot.Application.Features.Runs.Commands.CreateImplementationAttempt;
 
@@ -14,6 +15,14 @@ namespace DevalCopilot.Application.Features.Runs.Commands.CreateImplementationAt
 /// handler performs a fresh, bounded Git evidence capture and writes the sealed context-manifest
 /// artifact, neither of which may run inside the mediator's ambient EF transaction — mirrors
 /// <c>CreateChallengeResolutionAttemptCommand</c> exactly.
+/// <para>
+/// <see cref="LocalStep"/> is the internal identity of a coordinator-composed step of an explicitly authorized local execution
+/// sequence (ADR-0060). It has an internal initializer, so no MVC request can supply it; an ordinary request is unaffected and, while a
+/// sequence holds the run, is refused.
+/// </para>
 /// </summary>
 public sealed record CreateImplementationAttemptCommand(Guid RunId, Guid PlanProposalMessageId, string? Guidance = null)
-    : IManualTransactionCommand<Result<CreateImplementationAttemptCommandResult>>;
+    : IManualTransactionCommand<Result<CreateImplementationAttemptCommandResult>>
+{
+    internal LocalExecutionStepTicket? LocalStep { get; init; }
+}

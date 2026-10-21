@@ -1,4 +1,11 @@
 import { summarizeAgentSupervisionEvent } from './agentSupervisionCopy'
+import { LOCAL_EXECUTION_REASON_CODES, LOCAL_EXECUTION_SEQUENCE_STATES } from './localExecutionSequence'
+import type { LocalExecutionReasonCode, LocalExecutionSequenceStateName } from './localExecutionSequence'
+import {
+  LOCAL_EXECUTION_EVENT_SUMMARIES,
+  LOCAL_EXECUTION_REASON_PHRASE,
+  describeLocalExecutionEventState,
+} from './localExecutionSequenceCopy'
 import { PLANNING_SEQUENCE_REASON_CODES, PLANNING_SEQUENCE_STATES } from './planningSequence'
 import type { PlanningSequenceReasonCode, PlanningSequenceState } from './planningSequence'
 import {
@@ -15,6 +22,33 @@ export const GITHUB_BRANCH_PUBLICATION_APPROVED_EVENT_TYPE = 'run.github_branch_
 const isText = (value: unknown): value is string => typeof value === 'string' && value.length > 0
 
 const PLANNING_SEQUENCE_EVENT_PREFIX = 'planning_sequence.'
+const LOCAL_EXECUTION_EVENT_PREFIX = 'local_execution_sequence.'
+
+/**
+ * The local-execution-sequence events (ADR-0060) are worded from their fixed event type only: no payload text is ever shown. The ended
+ * event names its closed state and reason when both are members of the contract's vocabularies, and is the plain sentence otherwise.
+ */
+function summarizeLocalExecutionEvent(eventType: string, parsed: { state?: unknown; reason?: unknown }): string | null {
+  const kind = eventType.slice(LOCAL_EXECUTION_EVENT_PREFIX.length)
+  if (!Object.hasOwn(LOCAL_EXECUTION_EVENT_SUMMARIES, kind)) {
+    return null
+  }
+
+  const summary = LOCAL_EXECUTION_EVENT_SUMMARIES[kind as keyof typeof LOCAL_EXECUTION_EVENT_SUMMARIES]
+  if (
+    kind === 'ended'
+    && typeof parsed.state === 'string'
+    && (LOCAL_EXECUTION_SEQUENCE_STATES as readonly string[]).includes(parsed.state)
+    && typeof parsed.reason === 'string'
+    && (LOCAL_EXECUTION_REASON_CODES as readonly string[]).includes(parsed.reason)
+  ) {
+    const state = describeLocalExecutionEventState(parsed.state as LocalExecutionSequenceStateName)
+    const reason = LOCAL_EXECUTION_REASON_PHRASE[parsed.reason as LocalExecutionReasonCode]
+    return `The local execution sequence ended: ${state}; ${reason}.`
+  }
+
+  return summary
+}
 
 /**
  * The planning-sequence events (ADR-0055) are worded from their fixed event type only: no payload text is ever shown. The ended event
@@ -73,6 +107,12 @@ export function parseEventSummary(payloadJson: string, eventType?: string): stri
         return planningSummary
       }
     }
+    if (eventType?.startsWith(LOCAL_EXECUTION_EVENT_PREFIX)) {
+      const localSummary = summarizeLocalExecutionEvent(eventType, parsed)
+      if (localSummary !== null) {
+        return localSummary
+      }
+    }
     if (eventType === RUN_ABANDONED_EVENT_TYPE && typeof parsed.reason === 'string') {
       return `Run abandoned by the owner. Reason: ${parsed.reason}`
     }
@@ -104,6 +144,7 @@ export function parseEventSummary(payloadJson: string, eventType?: string): stri
     // A planning-sequence event is worded from its fixed type even when its payload cannot be read; the payload is never echoed.
     const planningSummary = eventType?.startsWith(PLANNING_SEQUENCE_EVENT_PREFIX) ? summarizePlanningSequenceEvent(eventType, {}) : null
     const supervisionSummary = eventType === undefined ? null : summarizeAgentSupervisionEvent(eventType, {})
-    return planningSummary ?? supervisionSummary ?? payloadJson
+    const localSummary = eventType?.startsWith(LOCAL_EXECUTION_EVENT_PREFIX) ? summarizeLocalExecutionEvent(eventType, {}) : null
+    return planningSummary ?? localSummary ?? supervisionSummary ?? payloadJson
   }
 }

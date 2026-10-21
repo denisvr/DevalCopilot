@@ -8,6 +8,7 @@ import { DirectGuidanceEditor } from './DirectGuidanceEditor'
 import { DirectGuidanceFact } from './DirectGuidanceFact'
 import { ProcessEvidenceLine } from './ProcessEvidenceLine'
 import { TokenUsageLine } from './TokenUsageLine'
+import { LOCAL_EXECUTION_DISPATCH_REFUSED_LABEL } from '../localExecutionSequenceCopy'
 
 /** The exact, closed set of Claude implementation adapter contracts this view recognizes; never a prefix match. */
 const KNOWN_ADAPTER_CONTRACTS: readonly string[] = ['claude-implementation-v1', 'claude-implementation-v2']
@@ -50,6 +51,7 @@ function phaseLabel(status: ImplementationAttemptStatusResponse): string {
       CheckpointEvidenceUnavailable: 'Source evidence could not be captured',
       WorkspaceNoLongerEligible: 'Workspace no longer eligible for dispatch',
       InputAlreadyImplemented: 'This plan was already implemented by another attempt',
+      LocalExecutionSequenceDispatchRefused: LOCAL_EXECUTION_DISPATCH_REFUSED_LABEL,
     }[status.outcome] ?? status.outcome
   }
   return status.status ?? ''

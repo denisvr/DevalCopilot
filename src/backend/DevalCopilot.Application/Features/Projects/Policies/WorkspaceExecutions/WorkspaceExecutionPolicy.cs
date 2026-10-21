@@ -1,4 +1,5 @@
 using DevalCopilot.Application.Data;
+using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
@@ -79,11 +80,16 @@ internal static class WorkspaceExecutionPolicy
             return Unavailable(workspaceId);
         }
 
+        // ADR-0060: a linked operation whose row is missing, foreign or incoherent is never a zero count.
+        if (await LocalExecutionOwnership.HasIncoherentLinkAsync(dbContext, projectId, cancellationToken))
+        {
+            return Unavailable(workspaceId);
+        }
+
         var projectRunIds = dbContext.Runs.AsNoTracking().Where(run => run.ProjectId == projectId).Select(run => run.Id);
-        var attempts = dbContext.Attempts.AsNoTracking().Where(attempt => attempt.Kind == AttemptKind.Agent
-            && attempt.Status != AttemptStatus.Completed
-            && attempt.Status != AttemptStatus.Failed
-            && attempt.Status != AttemptStatus.Interrupted);
+        var attempts = dbContext.Attempts.AsNoTracking()
+            .Where(attempt => attempt.Kind == AttemptKind.Agent)
+            .Where(LocalExecutionOwnership.UnresolvedAttempt(dbContext));
         if (excludedAgentAttemptId is { } ownAttemptId)
         {
             attempts = attempts.Where(attempt => attempt.Id != ownAttemptId);
@@ -98,13 +104,7 @@ internal static class WorkspaceExecutionPolicy
                         || !dbContext.GitWorkspaces.Any(owned => owned.Id == attempt.AgentGitWorkspaceId && owned.ProjectId == projectId))),
             cancellationToken);
 
-        var executions = dbContext.VerificationExecutions.AsNoTracking().Where(execution =>
-            execution.Status != VerificationExecutionStatus.Passed
-            && execution.Status != VerificationExecutionStatus.Failed
-            && execution.Status != VerificationExecutionStatus.TimedOut
-            && execution.Status != VerificationExecutionStatus.Cancelled
-            && execution.Status != VerificationExecutionStatus.Interrupted
-            && execution.Status != VerificationExecutionStatus.SourceChanged);
+        var executions = dbContext.VerificationExecutions.AsNoTracking().Where(LocalExecutionOwnership.UnresolvedExecution(dbContext));
         if (excludedVerificationExecutionId is { } ownExecutionId)
         {
             executions = executions.Where(execution => execution.Id != ownExecutionId);

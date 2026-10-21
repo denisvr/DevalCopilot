@@ -26,8 +26,10 @@ public sealed class RecoverInterruptedVerificationOutputArtifactsCommandHandler(
         RecoverInterruptedVerificationOutputArtifactsCommand command,
         CancellationToken cancellationToken)
     {
+        // ADR-0060: an execution linked to a local execution sequence is closed or quarantined by the sequence's own startup command.
         var executions = (await dbContext.VerificationExecutions
-            .Where(execution => execution.Status == VerificationExecutionStatus.Running)
+            .Where(execution => execution.Status == VerificationExecutionStatus.Running
+                && !dbContext.LocalExecutionSequenceSteps.Any(step => step.OperationId == execution.Id))
             .ToListAsync(cancellationToken))
             .OrderBy(execution => execution.ClaimedAtUtc)
             .ThenBy(execution => execution.Id)

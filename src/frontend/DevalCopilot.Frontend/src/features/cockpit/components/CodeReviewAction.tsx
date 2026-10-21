@@ -6,6 +6,7 @@ import { describeAgentClaimPathTimeFitBlock, isAgentClaimPathTimeFitBlocking } f
 import { ProcessEvidenceLine } from './ProcessEvidenceLine'
 import { TokenUsageLine } from './TokenUsageLine'
 import { ACCOUNT_USAGE_OUTCOME_LABELS } from '../accountUsageOutcomeLabels'
+import { LOCAL_EXECUTION_DISPATCH_REFUSED_LABEL } from '../localExecutionSequenceCopy'
 
 interface CodeReviewActionProps {
   executionReportMessageId: string | null
@@ -33,6 +34,7 @@ const OUTCOME_LABEL: Record<string, string> = {
   CheckpointEvidenceUnavailable: 'Source evidence could not be captured',
   WorkspaceNoLongerEligible: 'Workspace no longer eligible for dispatch',
   InputAlreadyCodeReviewed: 'This implementation already has a code review',
+  LocalExecutionSequenceDispatchRefused: LOCAL_EXECUTION_DISPATCH_REFUSED_LABEL,
 }
 
 function phaseLabel(status: CodeReviewAttemptStatusResponse): string {

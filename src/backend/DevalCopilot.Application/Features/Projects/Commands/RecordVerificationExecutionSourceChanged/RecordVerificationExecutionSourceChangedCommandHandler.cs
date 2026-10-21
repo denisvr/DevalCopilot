@@ -35,7 +35,7 @@ public sealed class RecordVerificationExecutionSourceChangedCommandHandler(IDeva
             return NotPending();
         }
 
-        if (await VerificationDispatchAuthority.ConfirmAsync(dbContext, execution, command.Expected, cancellationToken) is { } refusal)
+        if (await VerificationDispatchAuthority.ConfirmAsync(dbContext, execution, command.Expected, cancellationToken, timeProvider) is { } refusal)
         {
             return Result.Failure(refusal);
         }

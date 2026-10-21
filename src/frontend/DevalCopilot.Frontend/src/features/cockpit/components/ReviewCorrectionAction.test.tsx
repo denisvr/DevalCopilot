@@ -53,6 +53,7 @@ describe('ReviewCorrectionAction', () => {
     ['ProviderInvocationFailed', 'The Implementer could not be invoked for correction'],
     ['CheckpointEvidenceUnavailable', 'Source evidence could not be captured'],
     ['WorkspaceNoLongerEligible', 'Workspace no longer eligible for correction'],
+    ['LocalExecutionSequenceDispatchRefused', 'Not started: the local execution sequence no longer authorized dispatching it \\(no provider was invoked, no output recorded, no budget refunded\\)'],
   ])('renders terminal outcome %s', (outcome, label) => {
     renderAction({ status: status({ outcome }) })
     expect(screen.getByText(new RegExp(label))).toBeInTheDocument()

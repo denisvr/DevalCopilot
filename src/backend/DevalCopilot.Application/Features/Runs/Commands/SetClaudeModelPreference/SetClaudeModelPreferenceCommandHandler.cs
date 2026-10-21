@@ -2,6 +2,8 @@ using System.Text.Json;
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
+using DevalCopilot.Application.Features.Runs.Errors;
+using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
 
@@ -34,6 +36,11 @@ public sealed class SetClaudeModelPreferenceCommandHandler(IDevalCopilotDbContex
             return Result<SetClaudeModelPreferenceCommandResult>.Failure(ClaudeModelPreferenceErrors.RunNotFound());
         }
 
+        if (await LocalExecutionSequenceFence.CheckRunAsync(dbContext, command.RunId, cancellationToken) is { } localFence)
+        {
+            return Result<SetClaudeModelPreferenceCommandResult>.Failure(localFence);
+        }
+
         try
         {
             run.SetRequestedClaudeModelRequest(command.RequestedModel, command.RequestedEffort);
@@ -64,6 +71,11 @@ public sealed class SetClaudeModelPreferenceCommandHandler(IDevalCopilotDbContex
         }
         catch (DbUpdateConcurrencyException)
         {
+            if (await LocalExecutionSequenceFence.RefusedRunSaveAsync(dbContext, command.RunId))
+            {
+                return Result<SetClaudeModelPreferenceCommandResult>.Failure(LocalExecutionSequenceErrors.ManualControlBlocked());
+            }
+
             var lifecycle = await dbContext.Runs
                 .AsNoTracking()
                 .Where(candidate => candidate.Id == command.RunId)
@@ -77,6 +89,15 @@ public sealed class SetClaudeModelPreferenceCommandHandler(IDevalCopilotDbContex
                     Result<SetClaudeModelPreferenceCommandResult>.Failure(ClaudeModelPreferenceErrors.ConcurrentChange()),
                 _ => Result<SetClaudeModelPreferenceCommandResult>.Failure(ClaudeModelPreferenceErrors.RunNotEditable()),
             };
+        }
+        catch (DbUpdateException)
+        {
+            if (await LocalExecutionSequenceFence.RefusedRunSaveAsync(dbContext, command.RunId))
+            {
+                return Result<SetClaudeModelPreferenceCommandResult>.Failure(LocalExecutionSequenceErrors.ManualControlBlocked());
+            }
+
+            throw;
         }
 
         return Result<SetClaudeModelPreferenceCommandResult>.Success(new SetClaudeModelPreferenceCommandResult(run.RequestedClaudeModel, run.RequestedClaudeEffort));

@@ -8,6 +8,7 @@ using DevalCopilot.Application.Features.Runs.Commands.RecordAgentAttemptSourceCh
 using DevalCopilot.Application.Features.Runs.Commands.RecordAgentAttemptWorkspaceIneligible;
 using DevalCopilot.Application.Features.Runs.Commands.RecordImplementationInputAlreadyImplemented;
 using DevalCopilot.Application.Features.Runs.Commands.RecordImplementationResult;
+using DevalCopilot.Application.Features.Runs.Commands.RecordLocalExecutionSequenceDispatchRefusal;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Application.Features.Runs.Queries.GetClaudeLaunchTarget;
 using DevalCopilot.Application.Features.Runs.Queries.GetEligibleImplementationAttempts;
@@ -127,6 +128,13 @@ public sealed class ImplementationSupervisor(
             {
                 await DispatchAsync(
                     new RecordImplementationInputAlreadyImplementedCommand(attempt.RunId, attempt.AttemptId), CancellationToken.None);
+            }
+            else if (dispatched.Errors[0].Code == MarkAgentAttemptDispatchedCommandHandler.LocalExecutionSequenceDispatchRefusedCode)
+            {
+                // The linked operation of a local execution sequence whose authority or deadline no longer permits dispatch (ADR-0060): its
+                // own dedicated outcome. The recorder independently proves the association.
+                await DispatchAsync(
+                    new RecordLocalExecutionSequenceDispatchRefusalCommand(attempt.RunId, attempt.AttemptId), CancellationToken.None);
             }
 
             return;

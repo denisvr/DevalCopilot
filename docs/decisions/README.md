@@ -18,14 +18,14 @@ under [Proposed decisions](#proposed-decisions).
 - [ADR-0007: Registration-time repository identity is non-authoritative for mutation exclusion](0007-registration-time-repository-identity-is-non-authoritative-for-mutation-exclusion.md)
 - [ADR-0008: Physical repository identity and tool-owned worktree ownership](0008-physical-repository-identity-and-tool-owned-worktree-ownership.md)
 - [ADR-0009: Separate agent roles, effects, and provider assignments](0009-separate-agent-roles-effects-and-provider-assignments.md)
-  (ADR-0055 narrowly extends its ordering for explicitly authorized read-only planning coordination only)
+  (ADR-0055 narrowly extends its ordering for explicitly authorized read-only planning coordination; ADR-0060 extends it for one separately authorized bounded local execution cycle)
 - [ADR-0010: Add a role-scoped review-correction response contract](0010-add-review-correction-response-contract.md)
-  (its changes-requested-review-only finding source is narrowly extended by ADR-0018)
+  (its changes-requested-review-only finding source is narrowly extended by ADR-0018; ADR-0060 extends per-stage requests only for its explicitly authorized local cycle)
 - [ADR-0011: Require administrator-provisioned policy before Gemini CLI execution](0011-require-administrator-provisioned-policy-before-gemini-cli-execution.md)
 - [ADR-0012: Add a durable run-wide Agent claim budget](0012-add-a-durable-run-wide-agent-claim-budget.md)
 - [ADR-0013: Add a durable run-wide Agent invocation-time budget](0013-add-a-durable-run-wide-agent-invocation-time-budget.md)
 - [ADR-0014: Add manual Agent run intake with durable execution-mode isolation](0014-add-manual-agent-run-intake-with-durable-execution-mode-isolation.md)
-  (ADR-0055 narrowly supersedes per-stage requests only inside one explicitly authorized planning sequence; modes and inert intake remain)
+  (ADR-0055 and ADR-0060 narrowly supersede per-stage requests only inside their separately authorized planning and local execution sequences; modes and inert intake remain)
 - [ADR-0015: Add direct human guidance to explicit mutation requests](0015-add-direct-human-guidance-to-explicit-mutation-requests.md)
   (its request scope is narrowly extended to the diagnosis-origin correction by ADR-0019)
 - [ADR-0016: Add explicit human authorization of one escalated-plan implementation](0016-add-explicit-human-authorization-of-one-escalated-plan-implementation.md)
@@ -33,6 +33,7 @@ under [Proposed decisions](#proposed-decisions).
   single-source-text-form requirement by ADR-0020)
 - [ADR-0017: Review the implemented plan through correction](0017-review-the-implemented-plan-through-correction.md)
 - [ADR-0018: Add explicit local verification failure diagnosis and bounded correction](0018-add-explicit-local-verification-failure-diagnosis-and-bounded-correction.md)
+  (ADR-0060 narrowly supersedes manual-only progression for the exact operations of its separately authorized local cycle; diagnosis eligibility and the shared correction budget remain)
   (its correction request narrowly accepts optional direct human guidance under ADR-0019)
 - [ADR-0019: Add direct human guidance to diagnosis-origin corrections](0019-add-direct-human-guidance-to-diagnosis-origin-corrections.md)
 - [ADR-0020: Correct the escalation explanation and accept its two canonical forms](0020-correct-the-escalation-explanation-and-accept-its-two-canonical-forms.md)
@@ -152,18 +153,21 @@ under [Proposed decisions](#proposed-decisions).
 - [ADR-0056: Observe Agent supervision without granting execution authority](0056-observe-agent-supervision-without-granting-execution-authority.md)
   (accepted, delivered in published AGENT-SUP-01; durable current host-supervision observations across all seven existing Agent contracts, independent stale/deadline attention and truthful cockpit disclosure; no provider-progress proof, execution lease, dispatch authority, cancellation, retry, takeover, ownership release, automatic mutation or publication)
 
-- [ADR-0057: Serialize Agent and verification execution within an owned workspace](0057-serialize-agent-and-verification-execution-within-an-owned-workspace.md)
-  (accepted, delivered in published WORKSPACE-EXCL-01; reciprocal atomic claim/dispatch exclusion across the seven Agent contracts, verification and the existing local-commit reservation, with a protected project-owned disclosure and consistent cockpit withholding; strengthens existing writer exclusion without a scheduler, new execution grant, observation-based authority, lease release, automatic stage advancement or publication)
-
 - [ADR-0059: Configure the recorded mutating admission limit](0059-configure-the-recorded-mutating-admission-limit.md)
   (accepted, implemented in GLOBAL-LIMIT-01 and reviewed GO; reconcile publication with Git and the planner handoff; default two or explicitly selected one, immutable global configuration revisions, atomic safe updates and fresh admission checks with shared protected disclosure/control; lowering below recorded ownership is refused; no queue, new execution grant, lease, cancellation, retry, release or publication)
+
+- [ADR-0060: Coordinate one explicitly authorized local execution sequence](0060-coordinate-one-explicitly-authorized-local-execution-sequence.md)
+  (accepted, selected for LOCAL-COORD-01, not implemented; the owner-authorized opt-in cycle pins one accepted plan, verification recipes and run settings, composes implementation/verification/review/eligible diagnosis and at most two shared corrections, and stops at approved review or escalation; exact atomic operation links, stop-after-current, original-host fencing and conservative quarantine retain effective ownership without process-exit proof; no automatic approval, commit, publication, queue, retry, lease or process-aware recovery)
 
 ## Partially superseded decisions
 
 - [ADR-0001: Build a local-first supervised orchestrator](0001-build-a-local-first-supervised-orchestrator.md)
 
+- [ADR-0057: Serialize Agent and verification execution within an owned workspace](0057-serialize-agent-and-verification-execution-within-an-owned-workspace.md)
+  (delivered in published WORKSPACE-EXCL-01; ADR-0060 narrowly extends effective ownership for its linked dispatched operations without coherent process-exit evidence; existing reciprocal atomic exclusion and exact-owner gates remain)
+
 - [ADR-0058: Bound global admission of existing workspace mutators](0058-bound-global-admission-of-existing-workspace-mutators.md)
-  (delivered in independently verified published GLOBAL-ADMIT-01; its fixed two-owner ceiling and fixed-limit disclosure are narrowly superseded by accepted ADR-0059; existing owner classification, atomic claim/dispatch checks and exact self-exclusion remain accepted; no queue, executor lease, process-liveness proof, automatic execution grant, ownership release or publication)
+  (delivered in independently verified published GLOBAL-ADMIT-01; its fixed two-owner ceiling and fixed-limit disclosure are narrowly superseded by ADR-0059; ADR-0060 narrowly extends effective ownership for its linked dispatched operations without coherent process-exit evidence; atomic claim/dispatch checks and exact self-exclusion remain accepted; no queue, executor lease or process-liveness proof)
 
 ## Proposed decisions
 

@@ -1,6 +1,7 @@
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Runs.Errors;
+using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
@@ -27,24 +28,15 @@ internal static class RunAbandonmentAuthority
     {
         var projectRunIds = dbContext.Runs.AsNoTracking().Where(run => run.ProjectId == projectId).Select(run => run.Id);
 
-        if (await dbContext.Attempts.AsNoTracking().AnyAsync(
-                attempt => projectRunIds.Contains(attempt.RunId)
-                    && attempt.Status != AttemptStatus.Completed
-                    && attempt.Status != AttemptStatus.Failed
-                    && attempt.Status != AttemptStatus.Interrupted,
+        if (await dbContext.Attempts.AsNoTracking().Where(LocalExecutionOwnership.UnresolvedAttempt(dbContext)).AnyAsync(
+                attempt => projectRunIds.Contains(attempt.RunId),
                 cancellationToken))
         {
             return RunAbandonmentErrors.ActiveAttempt();
         }
 
-        if (await dbContext.VerificationExecutions.AsNoTracking().AnyAsync(
-                execution => execution.ProjectId == projectId
-                    && execution.Status != VerificationExecutionStatus.Passed
-                    && execution.Status != VerificationExecutionStatus.Failed
-                    && execution.Status != VerificationExecutionStatus.TimedOut
-                    && execution.Status != VerificationExecutionStatus.Cancelled
-                    && execution.Status != VerificationExecutionStatus.Interrupted
-                    && execution.Status != VerificationExecutionStatus.SourceChanged,
+        if (await dbContext.VerificationExecutions.AsNoTracking().Where(LocalExecutionOwnership.UnresolvedExecution(dbContext)).AnyAsync(
+                execution => execution.ProjectId == projectId,
                 cancellationToken))
         {
             return RunAbandonmentErrors.ActiveVerification();

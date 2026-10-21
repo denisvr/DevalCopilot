@@ -140,7 +140,7 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("VerificationExecutionStatus")
                         .IsRequired()
-                        .HasMaxLength(32)
+                        .HasMaxLength(64)
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
@@ -544,7 +544,7 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasMaxLength(32)
+                        .HasMaxLength(64)
                         .HasColumnType("TEXT");
 
                     b.Property<int>("TimeoutSeconds")
@@ -825,7 +825,7 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("AgentOutcome")
-                        .HasMaxLength(32)
+                        .HasMaxLength(64)
                         .HasColumnType("TEXT");
 
                     b.Property<int?>("AgentOutputTokens")
@@ -1666,6 +1666,342 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_local_commit_operations_run");
 
                     b.ToTable("local_commit_operations", (string)null);
+                });
+
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.LocalExecutionSequence", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("AdvancementDeadlineUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("ArmedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CheckpointId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ConfirmationSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("CorrectionAllowance")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("DetailCode")
+                        .HasMaxLength(96)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("EndedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("FinalEscalationMessageId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("FinalReportMessageId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("FinalReviewAttemptId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FingerprintSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PlanAuthority")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PlanInputsSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("PlanProposalMessageId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReasonCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("RecipeCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("RunId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SettingsSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("StopRequestedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CheckpointId");
+
+                    b.HasIndex("FinalEscalationMessageId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_local_execution_sequences_final_escalation")
+                        .HasFilter("\"FinalEscalationMessageId\" IS NOT NULL");
+
+                    b.HasIndex("FinalReportMessageId");
+
+                    b.HasIndex("FinalReviewAttemptId");
+
+                    b.HasIndex("PlanProposalMessageId");
+
+                    b.HasIndex("ProjectId")
+                        .HasDatabaseName("ix_local_execution_sequences_project");
+
+                    b.HasIndex("RunId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_local_execution_sequences_run");
+
+                    b.HasIndex("WorkspaceId")
+                        .HasDatabaseName("ix_local_execution_sequences_workspace");
+
+                    b.ToTable("local_execution_sequences", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_local_execution_sequences_allowance", "\"CorrectionAllowance\" BETWEEN 0 AND 2");
+
+                            t.HasCheckConstraint("ck_local_execution_sequences_authority", "\"PlanAuthority\" IN ('AcceptedRoot', 'AcceptedRevision', 'HumanAuthorizedRevision')");
+
+                            t.HasCheckConstraint("ck_local_execution_sequences_confirmation", "length(\"ConfirmationSha256\") = 64 AND \"ConfirmationSha256\" NOT GLOB '*[^0-9a-f]*'");
+
+                            t.HasCheckConstraint("ck_local_execution_sequences_final", "(\"State\" = 'ReadyForHumanApproval') = (\"FinalReviewAttemptId\" IS NOT NULL) AND (\"State\" = 'HumanEscalation') = (\"FinalEscalationMessageId\" IS NOT NULL) AND (\"State\" IN ('ReadyForHumanApproval', 'HumanEscalation')) = (\"FinalReportMessageId\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_local_execution_sequences_fingerprint", "length(\"FingerprintSha256\") = 64 AND \"FingerprintSha256\" NOT GLOB '*[^0-9a-f]*'");
+
+                            t.HasCheckConstraint("ck_local_execution_sequences_plan_inputs", "length(\"PlanInputsSha256\") = 64 AND \"PlanInputsSha256\" NOT GLOB '*[^0-9a-f]*'");
+
+                            t.HasCheckConstraint("ck_local_execution_sequences_recipes", "\"RecipeCount\" BETWEEN 1 AND 32");
+
+                            t.HasCheckConstraint("ck_local_execution_sequences_revision", "\"Revision\" >= 1");
+
+                            t.HasCheckConstraint("ck_local_execution_sequences_state", "\"State\" IN ('Armed', 'PreparingStep', 'AwaitingStepResult', 'Stopping', 'ReadyForHumanApproval', 'HumanEscalation', 'Stopped', 'NeedsAttention', 'Interrupted')");
+                        });
+                });
+
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.LocalExecutionSequenceRecipe", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ArgumentsJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CommandName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("CommandNumber")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("ConfiguredAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ExecutablePath")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Ordinal")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("SequenceId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("TimeoutSeconds")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("VerificationCommandId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SequenceId", "CommandNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ix_local_execution_sequence_recipes_number");
+
+                    b.HasIndex("SequenceId", "Ordinal")
+                        .IsUnique()
+                        .HasDatabaseName("ix_local_execution_sequence_recipes_ordinal");
+
+                    b.HasIndex("SequenceId", "VerificationCommandId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_local_execution_sequence_recipes_command");
+
+                    b.ToTable("local_execution_sequence_recipes", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_local_execution_sequence_recipes_enabled", "\"IsEnabled\" = 1");
+
+                            t.HasCheckConstraint("ck_local_execution_sequence_recipes_ordinal", "\"Ordinal\" BETWEEN 0 AND 31");
+
+                            t.HasCheckConstraint("ck_local_execution_sequence_recipes_timeout", "\"TimeoutSeconds\" BETWEEN 1 AND 900");
+                        });
+                });
+
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.LocalExecutionSequenceStep", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("ClaimedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("OperationId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Ordinal")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("PassNumber")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid?>("PredecessorStepId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("PreparationDeadlineUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("PreparationOwnerToken")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("PreparationReservedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReasonCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("RecipeOrdinal")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid?>("ReportMessageId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ReservedOperationId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("ResultDeadlineUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("SequenceId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("SourceCheckpointId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceFingerprintSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("SubjectAttemptId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OperationId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_local_execution_sequence_steps_operation")
+                        .HasFilter("\"OperationId\" IS NOT NULL");
+
+                    b.HasIndex("PredecessorStepId");
+
+                    b.HasIndex("ReportMessageId");
+
+                    b.HasIndex("ReservedOperationId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_local_execution_sequence_steps_reserved_operation");
+
+                    b.HasIndex("SequenceId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_local_execution_sequence_steps_outstanding")
+                        .HasFilter("\"State\" IN ('Reserved', 'Claimed')");
+
+                    b.HasIndex("SourceCheckpointId");
+
+                    b.HasIndex("SubjectAttemptId");
+
+                    b.HasIndex("SequenceId", "Ordinal")
+                        .IsUnique()
+                        .HasDatabaseName("ix_local_execution_sequence_steps_ordinal");
+
+                    b.HasIndex("SequenceId", "PassNumber", "RecipeOrdinal")
+                        .IsUnique()
+                        .HasDatabaseName("ix_local_execution_sequence_steps_membership")
+                        .HasFilter("\"RecipeOrdinal\" IS NOT NULL");
+
+                    b.ToTable("local_execution_sequence_steps", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_local_execution_sequence_steps_kind", "\"Kind\" IN ('Implementation', 'Verification', 'CodeReview', 'VerificationDiagnosis', 'ReviewCorrection', 'DiagnosisCorrection')");
+
+                            t.HasCheckConstraint("ck_local_execution_sequence_steps_operation_link", "(\"State\" IN ('Claimed', 'Concluded')) = (\"OperationId\" IS NOT NULL) AND (\"OperationId\" IS NULL OR \"OperationId\" = \"ReservedOperationId\") AND (\"OperationId\" IS NOT NULL) = (\"ClaimedAtUtc\" IS NOT NULL) AND (\"OperationId\" IS NOT NULL) = (\"ResultDeadlineUtc\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_local_execution_sequence_steps_ordinal", "\"Ordinal\" BETWEEN 0 AND 101");
+
+                            t.HasCheckConstraint("ck_local_execution_sequence_steps_pass", "\"PassNumber\" BETWEEN 0 AND 3");
+
+                            t.HasCheckConstraint("ck_local_execution_sequence_steps_revision", "\"Revision\" >= 1");
+
+                            t.HasCheckConstraint("ck_local_execution_sequence_steps_shape", "((\"Kind\" = 'Implementation') = (\"PassNumber\" = 0)) AND ((\"Kind\" = 'Implementation') = (\"Ordinal\" = 0)) AND ((\"Kind\" = 'Verification') = (\"RecipeOrdinal\" IS NOT NULL)) AND ((\"Kind\" = 'Implementation') = (\"PredecessorStepId\" IS NULL)) AND ((\"Kind\" = 'Implementation') = (\"ReportMessageId\" IS NULL)) AND ((\"Kind\" IN ('ReviewCorrection', 'DiagnosisCorrection')) = (\"SubjectAttemptId\" IS NOT NULL))");
+
+                            t.HasCheckConstraint("ck_local_execution_sequence_steps_state", "\"State\" IN ('Reserved', 'Claimed', 'Concluded', 'Revoked', 'Unresolved')");
+                        });
                 });
 
             modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.PlanningImplementationAuthorization", b =>
@@ -2556,6 +2892,91 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .HasForeignKey("RunId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.LocalExecutionSequence", b =>
+                {
+                    b.HasOne("DevalCopilot.Domain.Features.Projects.GitCheckpoint", null)
+                        .WithMany()
+                        .HasForeignKey("CheckpointId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.CollaborationMessage", null)
+                        .WithMany()
+                        .HasForeignKey("FinalEscalationMessageId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.CollaborationMessage", null)
+                        .WithMany()
+                        .HasForeignKey("FinalReportMessageId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.Attempt", null)
+                        .WithMany()
+                        .HasForeignKey("FinalReviewAttemptId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.CollaborationMessage", null)
+                        .WithMany()
+                        .HasForeignKey("PlanProposalMessageId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.Run", null)
+                        .WithMany()
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DevalCopilot.Domain.Features.Projects.GitWorkspace", null)
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.LocalExecutionSequenceRecipe", b =>
+                {
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.LocalExecutionSequence", null)
+                        .WithMany()
+                        .HasForeignKey("SequenceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.LocalExecutionSequenceStep", b =>
+                {
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.LocalExecutionSequenceStep", null)
+                        .WithMany()
+                        .HasForeignKey("PredecessorStepId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.CollaborationMessage", null)
+                        .WithMany()
+                        .HasForeignKey("ReportMessageId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.LocalExecutionSequence", null)
+                        .WithMany()
+                        .HasForeignKey("SequenceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DevalCopilot.Domain.Features.Projects.GitCheckpoint", null)
+                        .WithMany()
+                        .HasForeignKey("SourceCheckpointId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.Attempt", null)
+                        .WithMany()
+                        .HasForeignKey("SubjectAttemptId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.PlanningImplementationAuthorization", b =>

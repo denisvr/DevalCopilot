@@ -5,6 +5,7 @@ using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Runs.Errors;
 using DevalCopilot.Application.Features.Runs.Policies.ExecutionCapacity;
 using DevalCopilot.Application.Features.Runs.Policies.LocalCommit;
+using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
 using DevalCopilot.Application.Features.Runs.Policies.PlanningSequences;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.Projects;
@@ -64,6 +65,11 @@ public sealed class RequestLocalCommitCommandHandler(
         if (await PlanningSequenceFence.IsWorkspaceBlockedAsync(dbContext, authority.Workspace.Id, cancellationToken))
         {
             return Result<LocalCommitOperationView>.Failure(PlanningSequenceErrors.ManualControlBlocked());
+        }
+
+        if (await LocalExecutionSequenceFence.CheckWorkspaceAsync(dbContext, authority.Workspace.Id, cancellationToken) is { } localFence)
+        {
+            return Result<LocalCommitOperationView>.Failure(localFence);
         }
 
         // ADR-0058: a local commit is one of at most two recorded potentially mutating owners across the database, decided before any
@@ -135,6 +141,11 @@ public sealed class RequestLocalCommitCommandHandler(
         if (await PlanningSequenceFence.IsWorkspaceBlockedAsync(dbContext, current.Workspace.Id, cancellationToken))
         {
             return Result<LocalCommitOperationView>.Failure(PlanningSequenceErrors.ManualControlBlocked());
+        }
+
+        if (await LocalExecutionSequenceFence.CheckWorkspaceAsync(dbContext, current.Workspace.Id, cancellationToken) is { } localFenceAtSeam)
+        {
+            return Result<LocalCommitOperationView>.Failure(localFenceAtSeam);
         }
 
         if (await dbContext.LocalCommitOperations.AsNoTracking().AnyAsync(
@@ -227,6 +238,11 @@ public sealed class RequestLocalCommitCommandHandler(
         }
         catch (DbUpdateException)
         {
+            if (await LocalExecutionSequenceFence.RefusedWorkspaceSaveAsync(dbContext, current.Workspace.Id))
+            {
+                return Result<LocalCommitOperationView>.Failure(LocalExecutionSequenceErrors.ManualControlBlocked());
+            }
+
             return await ReplayAsync(command, requestSha256, cancellationToken)
                 ?? Result<LocalCommitOperationView>.Failure(LocalCommitErrors.OperationConflict());
         }

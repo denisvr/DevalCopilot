@@ -368,6 +368,24 @@ backed by database guards. A dispatch the sequence no longer authorizes ends as 
 ends in Accepted planning or the existing depth-two Human escalation, never in implementation, and startup interrupts every formerly
 advancing sequence without creating or adopting an attempt.
 
+### Explicitly authorized local execution sequence
+
+One explicit, Human-confirmed, single-use arming per ManualAgent run ([ADR-0060](../decisions/0060-coordinate-one-explicitly-authorized-local-execution-sequence.md))
+lets the host's coordinator advance one accepted plan through the existing claims: the initial implementation, then every pinned
+verification recipe once per pass in order, then either the ordinary CodeReview (all recipes passed) or, for ADR-0018's coherent failure
+set, the VerificationDiagnosis, then at most two corrections shared by both origins (review-origin and diagnosis-origin) and up to
+three passes, six Agent claims and `3 * recipes + 6` steps. Each claim is composed through the mediator with an internal ticket whose
+predetermined operation identity, link, inputs, artifacts, counters and any grant consumption commit in the claim's own transaction. The
+whole enabled recipe set, the requested settings and the correction allowance are pinned by value and confirmed with a versioned
+SHA-256 value; the exact linked report and result checkpoint are the only source that advances the sequence. Exhaustion with unresolved
+findings records one fixed host Escalation (never an ordinary exhaustion probe, never a Human extra-correction grant). Timeouts,
+cancellations, adapter failures, invalid output, drift and unknown facts end advancement as NeedsAttention. Manual claims, repairs,
+verification, commit, checkpoint capture, abandonment and recipe or requested-setting changes are fenced in both directions while the
+sequence or any linked unresolved operation (including a dispatched operation without coherent host Exited evidence, even if its row is
+terminal) holds the fence. A dispatch the sequence no longer authorizes ends as `LocalExecutionSequenceDispatchRefused`
+(Agent) or the same status (verification). Startup closes every formerly advancing sequence before any recovery and never resumes,
+redispatches or adopts; a recovery of a linked dispatched operation is intentionally unsupported in this version.
+
 ## Token efficiency
 
 Moved to [Token efficiency](agent-collaboration-context.md#token-efficiency)

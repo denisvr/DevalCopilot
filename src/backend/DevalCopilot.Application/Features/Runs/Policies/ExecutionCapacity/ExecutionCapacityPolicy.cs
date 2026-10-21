@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using DevalCopilot.Application.Data;
+using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
@@ -113,9 +114,13 @@ internal static class ExecutionCapacityPolicy
     private static async Task<ExecutionCapacityReading> ReadCoreAsync(
         IDevalCopilotDbContext dbContext, ExecutionOwner? own, ExecutionCapacityConfiguration configuration, CancellationToken cancellationToken)
     {
-        var unresolvedAttempts = dbContext.Attempts.AsNoTracking().Where(attempt => attempt.Status != AttemptStatus.Completed
-            && attempt.Status != AttemptStatus.Failed
-            && attempt.Status != AttemptStatus.Interrupted);
+        // ADR-0060: a linked operation whose row is missing, foreign or incoherent is never a zero count.
+        if (await LocalExecutionOwnership.HasIncoherentLinkAsync(dbContext, null, cancellationToken))
+        {
+            return Unavailable(configuration);
+        }
+
+        var unresolvedAttempts = dbContext.Attempts.AsNoTracking().Where(LocalExecutionOwnership.UnresolvedAttempt(dbContext));
         if (await unresolvedAttempts.AnyAsync(
                 attempt => attempt.Kind != AttemptKind.Agent && attempt.Kind != AttemptKind.Process && attempt.Kind != AttemptKind.Simulated,
                 cancellationToken))
@@ -142,13 +147,7 @@ internal static class ExecutionCapacityPolicy
             return Unavailable(configuration);
         }
 
-        var unresolvedExecutions = dbContext.VerificationExecutions.AsNoTracking().Where(execution =>
-            execution.Status != VerificationExecutionStatus.Passed
-            && execution.Status != VerificationExecutionStatus.Failed
-            && execution.Status != VerificationExecutionStatus.TimedOut
-            && execution.Status != VerificationExecutionStatus.Cancelled
-            && execution.Status != VerificationExecutionStatus.Interrupted
-            && execution.Status != VerificationExecutionStatus.SourceChanged);
+        var unresolvedExecutions = dbContext.VerificationExecutions.AsNoTracking().Where(LocalExecutionOwnership.UnresolvedExecution(dbContext));
         var verificationOwners = unresolvedExecutions.Where(execution => dbContext.GitWorkspaces.Any(
             workspace => workspace.Id == execution.GitWorkspaceId && workspace.ProjectId == execution.ProjectId));
         var verificationOwnerCount = await verificationOwners.CountAsync(cancellationToken);

@@ -1873,6 +1873,23 @@ verification, local commit and abandonment are withheld, and a click captured fo
 dropped. The sequence never starts implementation. See
 [ADR-0055](../decisions/0055-coordinate-one-explicitly-authorized-read-only-planning-sequence.md).
 
+### Local execution sequence
+
+The **Local execution sequence** region is driven by one run-owned reader (the protected status operation) that both cockpit regions
+share; neither can bypass it, and an unknown, loading or stale reading withholds every mutating start (Agent claims, repairs,
+verification, commit, checkpoint capture, recipe changes, abandonment and the requested-setting and stop-policy controls). A separate
+protected availability operation, keyed by the selected plan, supplies the exact candidate and its confirmation value. **Authorize
+local execution cycle** is offered for the settled exact candidate and shows before submission that verification commands can mutate
+the workspace, the pinned recipes, at most two shared corrections (or the smaller remaining amount), the two-hour advancement bound,
+that approval and commit stay separate and separately authorized, and what **Stop after current operation** means (it never cancels a
+process). Arming and Stop submit once with a ten-second cancellation and are never retried; an ambiguous answer is reconciled through a
+new status read, and no action is enabled until a read that began after the command settled has settled. The status shows armed,
+preparing, awaiting result (claimed, dispatch recorded and recorded exit evidence are bookkeeping, never a Running indicator),
+stopping and the historical outcomes with fixed reason and next-action text. A terminal operation without recorded exit evidence is
+shown as retained ownership with "No supported recovery action in this version". An approved cycle reads "Awaiting Human approval":
+not committed, not published and no proof that its source is still current. Polling is at most once per five seconds while authority
+or a linked owner is unresolved. See [ADR-0060](../decisions/0060-coordinate-one-explicitly-authorized-local-execution-sequence.md).
+
 ### Host observation of the current Agent attempt
 
 The **Host observation** region and a separate header badge describe what the host's own observer last recorded for the run's

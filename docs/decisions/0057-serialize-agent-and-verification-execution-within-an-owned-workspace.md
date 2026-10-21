@@ -1,6 +1,6 @@
 # ADR-0057: Serialize Agent and verification execution within an owned workspace
 
-Status: Accepted
+Status: Partially superseded by ADR-0060 only for effective ownership retained by its linked dispatched operations without coherent process-exit evidence; the remaining decision stays accepted.
 
 ## Context
 

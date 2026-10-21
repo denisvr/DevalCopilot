@@ -134,6 +134,25 @@ public static class RunEventType
     /// <summary>The sequence ended in a terminal, attention or interrupted state with a fixed reason code.</summary>
     public const string PlanningSequenceEnded = "planning_sequence.ended";
 
+    /// <summary>A Human armed one explicitly authorized local execution sequence for the run (ADR-0060). The payload carries identities and
+    /// the pinned tuple only; arming invoked nothing, claimed nothing and consumed no budget.</summary>
+    public const string LocalExecutionSequenceArmed = "local_execution_sequence.armed";
+
+    /// <summary>The coordinator reserved the one preparation intent of the next step (identities and kind only). Not a claim.</summary>
+    public const string LocalExecutionSequenceStepReserved = "local_execution_sequence.step_reserved";
+
+    /// <summary>The reserved step's operation, inputs, artifacts, counters, budget and grant consumption committed atomically with its link.</summary>
+    public const string LocalExecutionSequenceStepClaimed = "local_execution_sequence.step_claimed";
+
+    /// <summary>The coordinator classified the terminal result of a claimed step.</summary>
+    public const string LocalExecutionSequenceStepConcluded = "local_execution_sequence.step_concluded";
+
+    /// <summary>The Human chose Stop after current operation. This is not process cancellation, run Stop or Pause.</summary>
+    public const string LocalExecutionSequenceStopRequested = "local_execution_sequence.stop_requested";
+
+    /// <summary>The sequence ended in a terminal, attention or interrupted state with a fixed reason code.</summary>
+    public const string LocalExecutionSequenceEnded = "local_execution_sequence.ended";
+
     /// <summary>The host registered its own observation of one already claimed Agent attempt in Preparing (ADR-0056). The payload carries
     /// identities and the phase only. It claims, dispatches or starts nothing and proves no provider progress or live process.</summary>
     public const string AgentSupervisionRegistered = "agent_supervision.registered";

@@ -60,7 +60,7 @@ public sealed class AttemptConfiguration : IEntityTypeConfiguration<Attempt>
         // Proposal — the only response contract any Agent attempt ever had before this slice.
         builder.Property(attempt => attempt.AgentResponseContract).HasConversion<string>().HasMaxLength(32);
         builder.Property(attempt => attempt.AgentCheckpointFingerprintSha256).HasMaxLength(64);
-        builder.Property(attempt => attempt.AgentOutcome).HasConversion<string>().HasMaxLength(32);
+        builder.Property(attempt => attempt.AgentOutcome).HasConversion<string>().HasMaxLength(64);
         builder.Property(attempt => attempt.AgentProviderSessionId).HasMaxLength(256);
         builder.Property(attempt => attempt.AgentRequestedModel).HasMaxLength(128);
         builder.Property(attempt => attempt.AgentObservedModel).HasMaxLength(128);

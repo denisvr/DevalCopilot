@@ -3,6 +3,8 @@ using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.EnvironmentReadiness.Queries.GetCodexModelCatalog;
+using DevalCopilot.Application.Features.Runs.Errors;
+using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
@@ -62,6 +64,11 @@ public sealed class SetCodexAssignmentPreferenceCommandHandler(
             return Result<SetCodexAssignmentPreferenceCommandResult>.Failure(CodexAssignmentPreferenceErrors.RunNotEditable());
         }
 
+        if (await LocalExecutionSequenceFence.CheckRunAsync(dbContext, command.RunId, cancellationToken) is { } localFence)
+        {
+            return Result<SetCodexAssignmentPreferenceCommandResult>.Failure(localFence);
+        }
+
         // Deliberately outside any EF transaction and against no tracked entity: a bounded
         // external Codex App Server process invocation must never hold a database transaction —
         // or even an open, uncommitted change to a tracked Run — for its duration.
@@ -110,6 +117,11 @@ public sealed class SetCodexAssignmentPreferenceCommandHandler(
         }
         catch (DbUpdateConcurrencyException)
         {
+            if (await LocalExecutionSequenceFence.RefusedRunSaveAsync(dbContext, command.RunId))
+            {
+                return Result<SetCodexAssignmentPreferenceCommandResult>.Failure(LocalExecutionSequenceErrors.ManualControlBlocked());
+            }
+
             // Lifecycle is a concurrency token (see RunConfiguration): this UPDATE's WHERE clause
             // required the exact Lifecycle value this handler's fresh read observed, and zero rows
             // matched — some other transaction committed a lifecycle transition for this same run
@@ -118,6 +130,15 @@ public sealed class SetCodexAssignmentPreferenceCommandHandler(
             // together), so this is reported exactly as the ordinary in-memory lifecycle rejection
             // above, never as a partial write.
             return Result<SetCodexAssignmentPreferenceCommandResult>.Failure(CodexAssignmentPreferenceErrors.RunNotEditable());
+        }
+        catch (DbUpdateException)
+        {
+            if (await LocalExecutionSequenceFence.RefusedRunSaveAsync(dbContext, command.RunId))
+            {
+                return Result<SetCodexAssignmentPreferenceCommandResult>.Failure(LocalExecutionSequenceErrors.ManualControlBlocked());
+            }
+
+            throw;
         }
 
         return Result<SetCodexAssignmentPreferenceCommandResult>.Success(

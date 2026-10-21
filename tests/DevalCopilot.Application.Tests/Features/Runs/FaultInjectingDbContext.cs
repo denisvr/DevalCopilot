@@ -131,6 +131,12 @@ public sealed class FaultInjectingDbContext(DevalCopilotDbContext inner) : IDeva
 
     public DbSet<PlanningSequenceStep> PlanningSequenceSteps => inner.PlanningSequenceSteps;
 
+    public DbSet<LocalExecutionSequence> LocalExecutionSequences => inner.LocalExecutionSequences;
+
+    public DbSet<LocalExecutionSequenceRecipe> LocalExecutionSequenceRecipes => inner.LocalExecutionSequenceRecipes;
+
+    public DbSet<LocalExecutionSequenceStep> LocalExecutionSequenceSteps => inner.LocalExecutionSequenceSteps;
+
     public DbSet<AgentSupervision> AgentSupervisions => inner.AgentSupervisions;
 
     public DbSet<ExecutionCapacityConfigurationRevision> ExecutionCapacityConfigurations => inner.ExecutionCapacityConfigurations;

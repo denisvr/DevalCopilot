@@ -2,6 +2,7 @@ using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Projects.Policies.WorkspaceExecutions;
 using DevalCopilot.Application.Features.Runs.Policies.ExecutionCapacity;
+using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
 using DevalCopilot.Domain.Features.Projects;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,6 +15,8 @@ namespace DevalCopilot.Application.Features.Projects.Commands.MarkVerificationEx
 /// </summary>
 internal static class VerificationDispatchAuthority
 {
+    public const string LocalExecutionSequenceDispatchRefusedCode = "verification.local_execution_sequence_dispatch_refused";
+
     public static Task<VerificationExecution?> ReadExecutionAsync(
         IDevalCopilotDbContext dbContext, Guid executionId, CancellationToken cancellationToken) =>
         dbContext.VerificationExecutions.AsNoTracking().SingleOrDefaultAsync(candidate => candidate.Id == executionId, cancellationToken);
@@ -25,7 +28,8 @@ internal static class VerificationDispatchAuthority
         IDevalCopilotDbContext dbContext,
         VerificationExecution execution,
         VerificationDispatchSnapshot expected,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        TimeProvider? timeProvider = null)
     {
         if (!VerificationDispatchSnapshot.Of(execution).Equals(expected))
         {
@@ -54,6 +58,18 @@ internal static class VerificationDispatchAuthority
             && checkpointCurrent))
         {
             return Error.Conflict("verification.execution_not_current", "This verification execution is no longer eligible to run.");
+        }
+
+        // ADR-0060: an execution linked to a local execution sequence is dispatchable only while that sequence's exact authority, deadline,
+        // pinned source and pinned recipes still hold. It sits after the source-currency check so an ordinary refusal keeps its own reason
+        // (and a pre-dispatch SourceChanged of a still-authorized link can be recorded), and before the ordinary fences below, which a
+        // linked execution never skips.
+        var local = await LocalExecutionDispatchGate.EvaluateVerificationAsync(
+            dbContext, execution, (timeProvider ?? TimeProvider.System).GetUtcNow(), cancellationToken);
+        if (local.Verdict == LocalExecutionDispatchGate.Verdict.Refused)
+        {
+            return Error.Conflict(
+                LocalExecutionSequenceDispatchRefusedCode, "The local execution sequence no longer authorizes this verification execution.");
         }
 
         // ADR-0057: the one dispatch authority of both pre-launch decisions also requires that nothing but this exact execution owns its
