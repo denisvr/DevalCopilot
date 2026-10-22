@@ -9,11 +9,12 @@ internal sealed record VerificationOutputStorageRow(
     int PurposeCode,
     long? ByteLength,
     int CaptureCode,
-    int TruncatedCode,
+    byte[]? TruncatedStored,
+    bool TruncatedPresent,
     string? RelativeStoragePath,
     bool RelativeStoragePathOversized,
     string? ContentHash,
     bool ContentHashOversized)
 {
-    public VerificationOutputDescriptorRow Descriptor => new(Id, ExecutionId, PurposeCode, ByteLength, CaptureCode, TruncatedCode);
+    public VerificationOutputDescriptorRow Descriptor => new(Id, ExecutionId, PurposeCode, ByteLength, CaptureCode, TruncatedStored, TruncatedPresent);
 }

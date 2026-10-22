@@ -651,6 +651,8 @@ describe('the Agent attempts of a historical run detail', () => {
       'Recorded collaboration inputs',
       // HIST-OUT-01: the collapsed, read-only recorded-output toggle beside it; no output content control exists until it is opened.
       'Recorded collaboration outputs',
+      // LOCAL-INSPECT-01: the collapsed recorded local execution inspection region of the selected run.
+      'Inspect local execution',
       'Close selected run',
     ])
     expect(detail().querySelector('form, input, textarea, [role="textbox"]')).toBeNull()

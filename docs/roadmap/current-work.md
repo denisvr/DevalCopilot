@@ -6,7 +6,81 @@ was prepared ([recovery](development-workflow.md#recovery)). Git and code
 prevail; compare branch, `HEAD`, `origin/main` and staged/unstaged/untracked
 state first.
 
-## Active slice: LOCAL-COORD-01 explicitly authorized local execution sequence (ADR-0060)
+## Active slice: LOCAL-INSPECT-01 recorded local execution inspection (ADR-0061)
+
+This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
+Reconcile publication with Git. This record alone grants no publication authority.
+
+**Delivery phase: correction 1 returned by the Claude executor after review 1 NO-GO, unstaged, uncommitted and unpushed. Consult planner-handoff.md for the subsequent review decision and Git for publication.**
+Baseline: `main`, `HEAD`, local `origin/main` and the live ref were `2912490aed8b3e116fb2b0ef744bf80ad6c62a03`, divergence 0/0, real index
+empty; the three planner inputs (handoff, `decisions/README.md`, new ADR-0061) were preserved. LOCAL-COORD-01 below is historical and was
+not reopened. ADR-0050 stays Proposed, P9 unproven, AI Memory deferred, Increments 4/5/6 incomplete; every standing restriction stays.
+
+### What exists
+
+- **Application.** Three mediator queries (`GetLocalExecutionSequenceInspection`, `GetLocalExecutionStepInspection`,
+  `GetLocalExecutionVerificationOutputWindow`) over one structural reader and one operation proof in
+  `Policies/LocalExecutionInspection`. Bounded untracked scalar projections (database-classified enums, guarded numbers and text, 103 step
+  and 33 recipe rows, recipe-dependent step bound, bool flag read as stored bytes), the whole structure and historical ownership proved
+  per request, the sequence revision read before and after (no retry), Agent proof by exact link/run/workspace/source/contract, verification
+  proof against the pinned recipe including exact ordered arguments under 2 MiB / 128 KiB internal guards, and the window re-proving all of
+  it before the existing `VerifyAndReadSealedAsync`. The ADR-0052 projections and admission are reused; correction 1 narrowly fixes their
+  stored truncation classification. No Domain, schema, execution admission, dispatch, coordinator, recorder, startup or current-status change.
+- **API.** Three authorized bodyless MVC GETs, fixed `local_execution_inspection.not_found / body_not_allowed / query_not_allowed`, an index/step
+  guard (no query) and a window guard (only the exact ordinal `fromOffset` and `maxBytes`, once), API-owned graphs (revision a canonical Int64
+  string; ADR-0052's stream-descriptor shape reused), regenerated client (build-stable).
+- **Frontend.** Strict whole-answer decoders (`localExecutionInspection.ts`), operation-scoped wire clients, `useLocalExecutionInspection`
+  (run, opening, index visit, step visit and stream visit lifetimes), `useLocalExecutionInspectionWindow`, the collapsed "Inspect local
+  execution" region in the evidence rail and the selected run. Narrow extractions: `AgentAttemptDetail` (moved unchanged out of the attempt
+  history panel) and `useRecordedStreamWindow` (the one windowing machine; `useAgentAttemptVerificationWindow` is now a thin wrapper, its
+  tests unchanged), plus exports of existing wire helpers. The existing live control reader and every fence are untouched.
+
+### Correction 1 (Codex review 1 NO-GO: LCI-R1 P2, LCI-R2 P3)
+
+- **LCI-R1 fixed.** `RecordedVerificationProjection.ProjectDescriptor` and `ProjectStorage` (shared with ADR-0052) now read the stored `Truncated`
+  as bytes (bounded to 8, plus a presence flag); `VerificationOutputDescriptorRow.TruncatedCode` recognizes only NULL, the stored digit 1 and
+  the stored digit 0, so 2, -1, 7, 1.5, oversized and other malformed storage is Unavailable before any artifact access. No schema, reader
+  duplication, UI masking or weakening. Permanent regressions: new inspection step/window theories (positive and negative integers, REAL,
+  TEXT, BLOB, oversized; canonical 0/1 Recorded; sibling stream unaffected; zero sealed-store calls), the existing ADR-0052 evidence and window
+  theories extended likewise, and an Api wire regression (3 cases). Red before the fix: 20 Application and 3 Api failures
+  (`logs/executor/local-inspect-01/lci-r1-red-*.log`); green after (`lci-r1-green-*.log`). Compiling mutation restoring nonzero-as-true killed
+  22 tests (hashes restored, rebuilt; `controls.md` control 4).
+- **LCI-R2 fixed.** `CountingArtifactStore`, `RecordingArtifactStore` and `StatementLog` moved to their own files; namespaces and behavior unchanged.
+- **Fresh evidence:** Application (reviewer filter) 381 passed in 1m53s; Api (reviewer filter) 152 passed in 1m11s; Architecture full 192 passed;
+  changed-file `dotnet format --verify-no-changes`, `git diff --check`. **Retained (unchanged scope):** Vitest 7359, lint, build, strict e2e tsc,
+  generated client, and the three journeys (local-execution, planning-sequence, collaboration) from the first return, including their recorded failed
+  first attempts. **Not run:** full Application/Api (no wider policy changed; the shared change is one projection read by the ADR-0052 and
+  ADR-0061 consumers, all covered above).
+
+### Independent correction review evidence
+
+Codex reconciled the 100-path inventory (26 modified, 74 new): the eight additions to review 1 are three shared production projection/row
+files, two existing test files and the three split helpers. No unrelated paths were found. Independent original logs are under
+`logs/planner-review/local-inspect-01/review-02/`; commands below run at the repository root:
+
+- `dotnet test tests/DevalCopilot.Application.Tests/DevalCopilot.Application.Tests.csproj --no-restore --filter 'FullyQualifiedName~GetAgentAttemptVerificationEvidenceQueryHandlerTests|FullyQualifiedName~GetAgentAttemptVerificationOutputWindowQueryHandlerTests|FullyQualifiedName~LocalExecutionStepInspectionTests|FullyQualifiedName~LocalExecutionVerificationOutputWindowTests'`: 281 passed, runner duration 1 m 30 s (`application-consumers.log`).
+- `dotnet test tests/DevalCopilot.Api.IntegrationTests/DevalCopilot.Api.IntegrationTests.csproj --no-restore --filter 'FullyQualifiedName~LocalExecutionInspectionEndpointStorageTests'`: 8 passed, runner duration 57 s (`api-storage.log`).
+- `dotnet test tests/DevalCopilot.Architecture.Tests/DevalCopilot.Architecture.Tests.csproj --no-restore`: 192 passed (`architecture.log`; runner timing in that output).
+- A temporary reviewer mutation in `VerificationOutputDescriptorRow.TruncatedCode` restored malformed-value normalization. The compiling filter
+  `FullyQualifiedName~A_bad_stream_row_is_unavailable_for_that_stream_only_and_hides_neither_its_sibling_nor_the_verification` failed 7/12 cases;
+  exact bytes and SHA-256 were restored and the same `dotnet test` Application command with that filter rebuilt and passed 12/12. Both runs
+  report 13 s runner duration; original logs and `mutation-restoration.json` are retained. No lasting product correction was made by Codex.
+
+The executor's correction green logs retain 381 Application, 152 API and 192 Architecture passing outputs; its reported wall timings differ
+from runner durations because they include command overhead. Exact original invocation headers are absent. The reported 22/55 compiling
+mutation has only its summary locally; the independent control above supplies retained original evidence. First-return complete suite logs
+absent locally remain executor-reported results; no originals are reconstructed and no unchanged suite is rerun merely to replace them.
+
+### First-return evidence (historical)
+
+Application: 10 index, 77 step, 24 window and 71 damage-matrix tests over real file-backed SQLite with whole production-driven cycles; Api: 73
+tests (matrices over one real hosted cycle plus a storage class); Architecture: 192 (new `LocalExecutionInspectionBoundaryTests`); Vitest:
+whole suite; lint, build, strict e2e `tsc`; the existing local-execution journey extended with the inspection section. Three compiling
+controls are logged in `logs/executor/local-inspect-01/controls.md` (one equivalent mutant is kept as an invalid attempt). Observation kept
+for the planner at that first return: ADR-0052's shared `ProjectDescriptor` read any nonzero stored `Truncated` as true. Correction 1 fixes
+that inherited defect as described above. The original report and all failed journey attempts remain retained at their original scope.
+
+## Previous slice (published; historical record): LOCAL-COORD-01 explicitly authorized local execution sequence (ADR-0060)
 
 This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
 Reconcile publication with Git. This record alone grants no publication authority.

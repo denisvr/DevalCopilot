@@ -91,6 +91,9 @@ internal sealed class LocalExecutionSequenceHostedHarness : IAsyncDisposable
 
     public string DatabasePath => databasePath;
 
+    /// <summary>The disposable root of the real filesystem artifact store, for a test that deletes or tampers with a sealed file.</summary>
+    public string ArtifactRoot => artifactRoot;
+
     public DevalCopilotDbContext OpenContext() =>
         new(new DbContextOptionsBuilder<DevalCopilotDbContext>().UseSqlite($"Data Source={databasePath}").Options);
 

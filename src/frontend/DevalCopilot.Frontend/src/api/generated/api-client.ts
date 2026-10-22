@@ -2509,6 +2509,143 @@ export class GetManualRunAbandonmentEndpointClient {
     }
 }
 
+export class GetLocalExecutionVerificationOutputWindowEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getLocalExecutionVerificationOutputWindow(runId: string, stepId: string, stream: string, fromOffset: number | null | undefined, maxBytes: number | null | undefined): Promise<GetLocalExecutionVerificationOutputWindowResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/local-execution-sequence/inspection/steps/{stepId}/artifact-window/{stream}?";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        if (stepId === undefined || stepId === null)
+            throw new globalThis.Error("The parameter 'stepId' must be defined.");
+        url_ = url_.replace("{stepId}", encodeURIComponent("" + stepId));
+        if (stream === undefined || stream === null)
+            throw new globalThis.Error("The parameter 'stream' must be defined.");
+        url_ = url_.replace("{stream}", encodeURIComponent("" + stream));
+        if (fromOffset !== undefined && fromOffset !== null)
+            url_ += "fromOffset=" + encodeURIComponent("" + fromOffset) + "&";
+        if (maxBytes !== undefined && maxBytes !== null)
+            url_ += "maxBytes=" + encodeURIComponent("" + maxBytes) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetLocalExecutionVerificationOutputWindow(_response);
+        });
+    }
+
+    protected processGetLocalExecutionVerificationOutputWindow(response: Response): Promise<GetLocalExecutionVerificationOutputWindowResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = GetLocalExecutionVerificationOutputWindowResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            let resultData400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result400 = ApiProblemDetails.fromJS(resultData400);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ApiProblemDetails.fromJS(resultData404);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<GetLocalExecutionVerificationOutputWindowResponse>(null as any);
+    }
+}
+
+export class GetLocalExecutionStepInspectionEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getLocalExecutionStepInspection(runId: string, stepId: string): Promise<GetLocalExecutionStepInspectionResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/local-execution-sequence/inspection/steps/{stepId}";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        if (stepId === undefined || stepId === null)
+            throw new globalThis.Error("The parameter 'stepId' must be defined.");
+        url_ = url_.replace("{stepId}", encodeURIComponent("" + stepId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetLocalExecutionStepInspection(_response);
+        });
+    }
+
+    protected processGetLocalExecutionStepInspection(response: Response): Promise<GetLocalExecutionStepInspectionResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = GetLocalExecutionStepInspectionResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            let resultData400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result400 = ApiProblemDetails.fromJS(resultData400);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ApiProblemDetails.fromJS(resultData404);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<GetLocalExecutionStepInspectionResponse>(null as any);
+    }
+}
+
 export class GetLocalExecutionSequenceEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -2655,6 +2792,68 @@ export class ArmLocalExecutionSequenceEndpointClient {
             });
         }
         return Promise.resolve<ArmLocalExecutionSequenceResponse>(null as any);
+    }
+}
+
+export class GetLocalExecutionSequenceInspectionEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getLocalExecutionSequenceInspection(runId: string): Promise<GetLocalExecutionSequenceInspectionResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/local-execution-sequence/inspection";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetLocalExecutionSequenceInspection(_response);
+        });
+    }
+
+    protected processGetLocalExecutionSequenceInspection(response: Response): Promise<GetLocalExecutionSequenceInspectionResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = GetLocalExecutionSequenceInspectionResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            let resultData400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result400 = ApiProblemDetails.fromJS(resultData400);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ApiProblemDetails.fromJS(resultData404);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<GetLocalExecutionSequenceInspectionResponse>(null as any);
     }
 }
 
@@ -10717,6 +10916,418 @@ export interface IManualRunAbandonmentResponse {
     abandonedAtUtc?: Date;
 }
 
+export class GetLocalExecutionVerificationOutputWindowResponse implements IGetLocalExecutionVerificationOutputWindowResponse {
+    runId?: string;
+    sequenceId?: string;
+    stepId?: string;
+    executionId?: string | undefined;
+    stream?: string;
+    status?: string;
+    artifact?: AgentAttemptVerificationStreamResponse | undefined;
+    text?: string;
+    nextOffset?: number;
+    totalLength?: number;
+
+    constructor(data?: IGetLocalExecutionVerificationOutputWindowResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.runId = _data["runId"];
+            this.sequenceId = _data["sequenceId"];
+            this.stepId = _data["stepId"];
+            this.executionId = _data["executionId"];
+            this.stream = _data["stream"];
+            this.status = _data["status"];
+            this.artifact = _data["artifact"] ? AgentAttemptVerificationStreamResponse.fromJS(_data["artifact"]) : undefined as any;
+            this.text = _data["text"];
+            this.nextOffset = _data["nextOffset"];
+            this.totalLength = _data["totalLength"];
+        }
+    }
+
+    static fromJS(data: any): GetLocalExecutionVerificationOutputWindowResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GetLocalExecutionVerificationOutputWindowResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["runId"] = this.runId;
+        data["sequenceId"] = this.sequenceId;
+        data["stepId"] = this.stepId;
+        data["executionId"] = this.executionId;
+        data["stream"] = this.stream;
+        data["status"] = this.status;
+        data["artifact"] = this.artifact ? this.artifact.toJSON() : undefined as any;
+        data["text"] = this.text;
+        data["nextOffset"] = this.nextOffset;
+        data["totalLength"] = this.totalLength;
+        return data;
+    }
+}
+
+export interface IGetLocalExecutionVerificationOutputWindowResponse {
+    runId?: string;
+    sequenceId?: string;
+    stepId?: string;
+    executionId?: string | undefined;
+    stream?: string;
+    status?: string;
+    artifact?: AgentAttemptVerificationStreamResponse | undefined;
+    text?: string;
+    nextOffset?: number;
+    totalLength?: number;
+}
+
+export class AgentAttemptVerificationStreamResponse implements IAgentAttemptVerificationStreamResponse {
+    status?: string;
+    artifactId?: string | undefined;
+    byteLength?: number | undefined;
+    captureOutcome?: string | undefined;
+    truncated?: boolean | undefined;
+
+    constructor(data?: IAgentAttemptVerificationStreamResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.status = _data["status"];
+            this.artifactId = _data["artifactId"];
+            this.byteLength = _data["byteLength"];
+            this.captureOutcome = _data["captureOutcome"];
+            this.truncated = _data["truncated"];
+        }
+    }
+
+    static fromJS(data: any): AgentAttemptVerificationStreamResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new AgentAttemptVerificationStreamResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["status"] = this.status;
+        data["artifactId"] = this.artifactId;
+        data["byteLength"] = this.byteLength;
+        data["captureOutcome"] = this.captureOutcome;
+        data["truncated"] = this.truncated;
+        return data;
+    }
+}
+
+export interface IAgentAttemptVerificationStreamResponse {
+    status?: string;
+    artifactId?: string | undefined;
+    byteLength?: number | undefined;
+    captureOutcome?: string | undefined;
+    truncated?: boolean | undefined;
+}
+
+export class GetLocalExecutionStepInspectionResponse implements IGetLocalExecutionStepInspectionResponse {
+    runId?: string;
+    sequenceId?: string;
+    stepId?: string;
+    status?: string;
+    step?: LocalExecutionInspectionStepResponse | undefined;
+    agent?: LocalExecutionInspectionAgentResponse | undefined;
+    verification?: LocalExecutionInspectionVerificationResponse | undefined;
+
+    constructor(data?: IGetLocalExecutionStepInspectionResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.runId = _data["runId"];
+            this.sequenceId = _data["sequenceId"];
+            this.stepId = _data["stepId"];
+            this.status = _data["status"];
+            this.step = _data["step"] ? LocalExecutionInspectionStepResponse.fromJS(_data["step"]) : undefined as any;
+            this.agent = _data["agent"] ? LocalExecutionInspectionAgentResponse.fromJS(_data["agent"]) : undefined as any;
+            this.verification = _data["verification"] ? LocalExecutionInspectionVerificationResponse.fromJS(_data["verification"]) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): GetLocalExecutionStepInspectionResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GetLocalExecutionStepInspectionResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["runId"] = this.runId;
+        data["sequenceId"] = this.sequenceId;
+        data["stepId"] = this.stepId;
+        data["status"] = this.status;
+        data["step"] = this.step ? this.step.toJSON() : undefined as any;
+        data["agent"] = this.agent ? this.agent.toJSON() : undefined as any;
+        data["verification"] = this.verification ? this.verification.toJSON() : undefined as any;
+        return data;
+    }
+}
+
+export interface IGetLocalExecutionStepInspectionResponse {
+    runId?: string;
+    sequenceId?: string;
+    stepId?: string;
+    status?: string;
+    step?: LocalExecutionInspectionStepResponse | undefined;
+    agent?: LocalExecutionInspectionAgentResponse | undefined;
+    verification?: LocalExecutionInspectionVerificationResponse | undefined;
+}
+
+export class LocalExecutionInspectionStepResponse implements ILocalExecutionInspectionStepResponse {
+    stepId?: string;
+    ordinal?: number;
+    kind?: string;
+    passNumber?: number;
+    recipeOrdinal?: number | undefined;
+    recipeName?: string | undefined;
+    recordedState?: string;
+    reasonCode?: string | undefined;
+    sourceCheckpointId?: string;
+    sourceFingerprintSha256?: string;
+    reportMessageId?: string | undefined;
+    subjectAttemptId?: string | undefined;
+    operationId?: string | undefined;
+    preparationReservedAtUtc?: string;
+    preparationDeadlineUtc?: string;
+    claimedAtUtc?: string | undefined;
+    resultDeadlineUtc?: string | undefined;
+
+    constructor(data?: ILocalExecutionInspectionStepResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.stepId = _data["stepId"];
+            this.ordinal = _data["ordinal"];
+            this.kind = _data["kind"];
+            this.passNumber = _data["passNumber"];
+            this.recipeOrdinal = _data["recipeOrdinal"];
+            this.recipeName = _data["recipeName"];
+            this.recordedState = _data["recordedState"];
+            this.reasonCode = _data["reasonCode"];
+            this.sourceCheckpointId = _data["sourceCheckpointId"];
+            this.sourceFingerprintSha256 = _data["sourceFingerprintSha256"];
+            this.reportMessageId = _data["reportMessageId"];
+            this.subjectAttemptId = _data["subjectAttemptId"];
+            this.operationId = _data["operationId"];
+            this.preparationReservedAtUtc = _data["preparationReservedAtUtc"];
+            this.preparationDeadlineUtc = _data["preparationDeadlineUtc"];
+            this.claimedAtUtc = _data["claimedAtUtc"];
+            this.resultDeadlineUtc = _data["resultDeadlineUtc"];
+        }
+    }
+
+    static fromJS(data: any): LocalExecutionInspectionStepResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new LocalExecutionInspectionStepResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["stepId"] = this.stepId;
+        data["ordinal"] = this.ordinal;
+        data["kind"] = this.kind;
+        data["passNumber"] = this.passNumber;
+        data["recipeOrdinal"] = this.recipeOrdinal;
+        data["recipeName"] = this.recipeName;
+        data["recordedState"] = this.recordedState;
+        data["reasonCode"] = this.reasonCode;
+        data["sourceCheckpointId"] = this.sourceCheckpointId;
+        data["sourceFingerprintSha256"] = this.sourceFingerprintSha256;
+        data["reportMessageId"] = this.reportMessageId;
+        data["subjectAttemptId"] = this.subjectAttemptId;
+        data["operationId"] = this.operationId;
+        data["preparationReservedAtUtc"] = this.preparationReservedAtUtc;
+        data["preparationDeadlineUtc"] = this.preparationDeadlineUtc;
+        data["claimedAtUtc"] = this.claimedAtUtc;
+        data["resultDeadlineUtc"] = this.resultDeadlineUtc;
+        return data;
+    }
+}
+
+export interface ILocalExecutionInspectionStepResponse {
+    stepId?: string;
+    ordinal?: number;
+    kind?: string;
+    passNumber?: number;
+    recipeOrdinal?: number | undefined;
+    recipeName?: string | undefined;
+    recordedState?: string;
+    reasonCode?: string | undefined;
+    sourceCheckpointId?: string;
+    sourceFingerprintSha256?: string;
+    reportMessageId?: string | undefined;
+    subjectAttemptId?: string | undefined;
+    operationId?: string | undefined;
+    preparationReservedAtUtc?: string;
+    preparationDeadlineUtc?: string;
+    claimedAtUtc?: string | undefined;
+    resultDeadlineUtc?: string | undefined;
+}
+
+export class LocalExecutionInspectionAgentResponse implements ILocalExecutionInspectionAgentResponse {
+    id?: string;
+    attemptNumber?: number;
+    role?: string;
+    provider?: string;
+    responseContract?: string;
+
+    constructor(data?: ILocalExecutionInspectionAgentResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.id = _data["id"];
+            this.attemptNumber = _data["attemptNumber"];
+            this.role = _data["role"];
+            this.provider = _data["provider"];
+            this.responseContract = _data["responseContract"];
+        }
+    }
+
+    static fromJS(data: any): LocalExecutionInspectionAgentResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new LocalExecutionInspectionAgentResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["id"] = this.id;
+        data["attemptNumber"] = this.attemptNumber;
+        data["role"] = this.role;
+        data["provider"] = this.provider;
+        data["responseContract"] = this.responseContract;
+        return data;
+    }
+}
+
+export interface ILocalExecutionInspectionAgentResponse {
+    id?: string;
+    attemptNumber?: number;
+    role?: string;
+    provider?: string;
+    responseContract?: string;
+}
+
+export class LocalExecutionInspectionVerificationResponse implements ILocalExecutionInspectionVerificationResponse {
+    executionId?: string;
+    executionNumber?: number;
+    commandName?: string;
+    status?: string;
+    outcome?: string | undefined;
+    exitCode?: number | undefined;
+    claimedAtUtc?: string;
+    dispatchedAtUtc?: string | undefined;
+    completedAtUtc?: string | undefined;
+    standardOutput?: AgentAttemptVerificationStreamResponse;
+    standardError?: AgentAttemptVerificationStreamResponse;
+
+    constructor(data?: ILocalExecutionInspectionVerificationResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.executionId = _data["executionId"];
+            this.executionNumber = _data["executionNumber"];
+            this.commandName = _data["commandName"];
+            this.status = _data["status"];
+            this.outcome = _data["outcome"];
+            this.exitCode = _data["exitCode"];
+            this.claimedAtUtc = _data["claimedAtUtc"];
+            this.dispatchedAtUtc = _data["dispatchedAtUtc"];
+            this.completedAtUtc = _data["completedAtUtc"];
+            this.standardOutput = _data["standardOutput"] ? AgentAttemptVerificationStreamResponse.fromJS(_data["standardOutput"]) : undefined as any;
+            this.standardError = _data["standardError"] ? AgentAttemptVerificationStreamResponse.fromJS(_data["standardError"]) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): LocalExecutionInspectionVerificationResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new LocalExecutionInspectionVerificationResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["executionId"] = this.executionId;
+        data["executionNumber"] = this.executionNumber;
+        data["commandName"] = this.commandName;
+        data["status"] = this.status;
+        data["outcome"] = this.outcome;
+        data["exitCode"] = this.exitCode;
+        data["claimedAtUtc"] = this.claimedAtUtc;
+        data["dispatchedAtUtc"] = this.dispatchedAtUtc;
+        data["completedAtUtc"] = this.completedAtUtc;
+        data["standardOutput"] = this.standardOutput ? this.standardOutput.toJSON() : undefined as any;
+        data["standardError"] = this.standardError ? this.standardError.toJSON() : undefined as any;
+        return data;
+    }
+}
+
+export interface ILocalExecutionInspectionVerificationResponse {
+    executionId?: string;
+    executionNumber?: number;
+    commandName?: string;
+    status?: string;
+    outcome?: string | undefined;
+    exitCode?: number | undefined;
+    claimedAtUtc?: string;
+    dispatchedAtUtc?: string | undefined;
+    completedAtUtc?: string | undefined;
+    standardOutput?: AgentAttemptVerificationStreamResponse;
+    standardError?: AgentAttemptVerificationStreamResponse;
+}
+
 export class GetLocalExecutionSequenceResponse implements IGetLocalExecutionSequenceResponse {
     runId?: string;
     status?: string;
@@ -11083,6 +11694,150 @@ export interface ILocalExecutionSequenceFinalResponse {
     reportMessageId?: string;
     reviewAttemptId?: string | undefined;
     escalationMessageId?: string | undefined;
+}
+
+export class GetLocalExecutionSequenceInspectionResponse implements IGetLocalExecutionSequenceInspectionResponse {
+    runId?: string;
+    status?: string;
+    sequence?: LocalExecutionInspectionHeaderResponse | undefined;
+    steps?: LocalExecutionInspectionStepResponse[];
+
+    constructor(data?: IGetLocalExecutionSequenceInspectionResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.runId = _data["runId"];
+            this.status = _data["status"];
+            this.sequence = _data["sequence"] ? LocalExecutionInspectionHeaderResponse.fromJS(_data["sequence"]) : undefined as any;
+            if (Array.isArray(_data["steps"])) {
+                this.steps = [] as any;
+                for (let item of _data["steps"])
+                    this.steps!.push(LocalExecutionInspectionStepResponse.fromJS(item));
+            }
+        }
+    }
+
+    static fromJS(data: any): GetLocalExecutionSequenceInspectionResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GetLocalExecutionSequenceInspectionResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["runId"] = this.runId;
+        data["status"] = this.status;
+        data["sequence"] = this.sequence ? this.sequence.toJSON() : undefined as any;
+        if (Array.isArray(this.steps)) {
+            data["steps"] = [];
+            for (let item of this.steps)
+                data["steps"].push(item ? item.toJSON() : undefined as any);
+        }
+        return data;
+    }
+}
+
+export interface IGetLocalExecutionSequenceInspectionResponse {
+    runId?: string;
+    status?: string;
+    sequence?: LocalExecutionInspectionHeaderResponse | undefined;
+    steps?: LocalExecutionInspectionStepResponse[];
+}
+
+export class LocalExecutionInspectionHeaderResponse implements ILocalExecutionInspectionHeaderResponse {
+    sequenceId?: string;
+    planProposalMessageId?: string;
+    planAuthority?: string;
+    workspaceId?: string;
+    checkpointId?: string;
+    fingerprintSha256?: string;
+    recordedState?: string;
+    reasonCode?: string | undefined;
+    revision?: string;
+    recipeCount?: number;
+    correctionAllowance?: number;
+    armedAtUtc?: string;
+    updatedAtUtc?: string;
+    endedAtUtc?: string | undefined;
+
+    constructor(data?: ILocalExecutionInspectionHeaderResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.sequenceId = _data["sequenceId"];
+            this.planProposalMessageId = _data["planProposalMessageId"];
+            this.planAuthority = _data["planAuthority"];
+            this.workspaceId = _data["workspaceId"];
+            this.checkpointId = _data["checkpointId"];
+            this.fingerprintSha256 = _data["fingerprintSha256"];
+            this.recordedState = _data["recordedState"];
+            this.reasonCode = _data["reasonCode"];
+            this.revision = _data["revision"];
+            this.recipeCount = _data["recipeCount"];
+            this.correctionAllowance = _data["correctionAllowance"];
+            this.armedAtUtc = _data["armedAtUtc"];
+            this.updatedAtUtc = _data["updatedAtUtc"];
+            this.endedAtUtc = _data["endedAtUtc"];
+        }
+    }
+
+    static fromJS(data: any): LocalExecutionInspectionHeaderResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new LocalExecutionInspectionHeaderResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["sequenceId"] = this.sequenceId;
+        data["planProposalMessageId"] = this.planProposalMessageId;
+        data["planAuthority"] = this.planAuthority;
+        data["workspaceId"] = this.workspaceId;
+        data["checkpointId"] = this.checkpointId;
+        data["fingerprintSha256"] = this.fingerprintSha256;
+        data["recordedState"] = this.recordedState;
+        data["reasonCode"] = this.reasonCode;
+        data["revision"] = this.revision;
+        data["recipeCount"] = this.recipeCount;
+        data["correctionAllowance"] = this.correctionAllowance;
+        data["armedAtUtc"] = this.armedAtUtc;
+        data["updatedAtUtc"] = this.updatedAtUtc;
+        data["endedAtUtc"] = this.endedAtUtc;
+        return data;
+    }
+}
+
+export interface ILocalExecutionInspectionHeaderResponse {
+    sequenceId?: string;
+    planProposalMessageId?: string;
+    planAuthority?: string;
+    workspaceId?: string;
+    checkpointId?: string;
+    fingerprintSha256?: string;
+    recordedState?: string;
+    reasonCode?: string | undefined;
+    revision?: string;
+    recipeCount?: number;
+    correctionAllowance?: number;
+    armedAtUtc?: string;
+    updatedAtUtc?: string;
+    endedAtUtc?: string | undefined;
 }
 
 export class GetLocalExecutionSequenceAvailabilityResponse implements IGetLocalExecutionSequenceAvailabilityResponse {
@@ -14551,58 +15306,6 @@ export interface IGetAgentAttemptVerificationOutputWindowResponse {
     text?: string;
     nextOffset?: number;
     totalLength?: number;
-}
-
-export class AgentAttemptVerificationStreamResponse implements IAgentAttemptVerificationStreamResponse {
-    status?: string;
-    artifactId?: string | undefined;
-    byteLength?: number | undefined;
-    captureOutcome?: string | undefined;
-    truncated?: boolean | undefined;
-
-    constructor(data?: IAgentAttemptVerificationStreamResponse) {
-        if (data) {
-            for (var property in data) {
-                if (data.hasOwnProperty(property))
-                    (this as any)[property] = (data as any)[property];
-            }
-        }
-    }
-
-    init(_data?: any) {
-        if (_data) {
-            this.status = _data["status"];
-            this.artifactId = _data["artifactId"];
-            this.byteLength = _data["byteLength"];
-            this.captureOutcome = _data["captureOutcome"];
-            this.truncated = _data["truncated"];
-        }
-    }
-
-    static fromJS(data: any): AgentAttemptVerificationStreamResponse {
-        data = typeof data === 'object' ? data : {};
-        let result = new AgentAttemptVerificationStreamResponse();
-        result.init(data);
-        return result;
-    }
-
-    toJSON(data?: any) {
-        data = typeof data === 'object' ? data : {};
-        data["status"] = this.status;
-        data["artifactId"] = this.artifactId;
-        data["byteLength"] = this.byteLength;
-        data["captureOutcome"] = this.captureOutcome;
-        data["truncated"] = this.truncated;
-        return data;
-    }
-}
-
-export interface IAgentAttemptVerificationStreamResponse {
-    status?: string;
-    artifactId?: string | undefined;
-    byteLength?: number | undefined;
-    captureOutcome?: string | undefined;
-    truncated?: boolean | undefined;
 }
 
 export class GetAgentAttemptVerificationEvidenceResponse implements IGetAgentAttemptVerificationEvidenceResponse {

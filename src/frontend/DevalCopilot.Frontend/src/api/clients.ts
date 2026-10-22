@@ -112,6 +112,11 @@ import {
   AgentAttemptVerificationEvidenceWireClient,
   AgentAttemptVerificationWindowWireClient,
 } from '../features/cockpit/agentAttemptVerificationWire'
+import {
+  LocalExecutionInspectionIndexWireClient,
+  LocalExecutionInspectionStepWireClient,
+  LocalExecutionInspectionWindowWireClient,
+} from '../features/cockpit/localExecutionInspectionWire'
 
 // One instance per endpoint client is enough for this slice; components import the
 // factory functions rather than constructing a client or a URL themselves.
@@ -156,6 +161,10 @@ export const localExecutionSequenceAvailabilityClient = (signal?: AbortSignal) =
 export const armLocalExecutionSequenceClient = (signal?: AbortSignal) => new ArmLocalExecutionSequenceWireClient(getApiBaseUrl(), authenticatedHttp, signal)
 export const stopLocalExecutionSequenceClient = (signal?: AbortSignal) => new StopLocalExecutionSequenceWireClient(getApiBaseUrl(), authenticatedHttp, signal)
 // Hand the parsed bodies to the whole-answer decoders instead of the generated models (see the ADR-0052 wire clients).
+export const localExecutionInspectionIndexClient = () => new LocalExecutionInspectionIndexWireClient(getApiBaseUrl(), authenticatedHttp)
+export const localExecutionInspectionStepClient = () => new LocalExecutionInspectionStepWireClient(getApiBaseUrl(), authenticatedHttp)
+export const localExecutionInspectionWindowClient = () => new LocalExecutionInspectionWindowWireClient(getApiBaseUrl(), authenticatedHttp)
+
 export const agentAttemptVerificationEvidenceClient = () =>
   new AgentAttemptVerificationEvidenceWireClient(getApiBaseUrl(), authenticatedHttp)
 export const agentAttemptVerificationWindowClient = () => new AgentAttemptVerificationWindowWireClient(getApiBaseUrl(), authenticatedHttp)

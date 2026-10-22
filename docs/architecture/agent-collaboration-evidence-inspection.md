@@ -492,3 +492,25 @@ safe integer. Anything else makes only that section unavailable; it is never cla
 siblings, metadata and artifact access usable. A clean exit is not a semantic success, and the counts are not cost,
 quota, remaining capacity, readiness or approval. The browser checks shape and range only; the provider schema and
 provenance remain the host's proof.
+
+**Recorded local execution inspection.**
+[ADR-0061](../decisions/0061-inspect-the-recorded-steps-of-one-local-execution-sequence.md) adds three protected, bodyless GETs under
+`/api/runs/{runId}/local-execution-sequence/inspection`: the recorded index, `.../steps/{stepId}` (one selected operation) and
+`.../steps/{stepId}/artifact-window/{stream}` (`stdout` or `stderr` of the step's verification). They answer from bounded, untracked
+scalar facts only (at most 103 step and 33 pinned-recipe rows, the actual recipe-dependent step bound, stored enums classified, numbers
+and text guarded in the database), never invoke an admission, ownership, eligibility, dispatch or recorder handler, and read no
+latest or current row, Git, filesystem, process, provider or account state. A corrupt, incomplete or concurrently changed (sequence
+revision read before and after) structural set is `Unavailable` as a whole, never a partial index. An unknown run, a missing or foreign
+step, a non-verification step or unsupported stream of a window share the fixed `local_execution_inspection.not_found` 404;
+`body_not_allowed` and `query_not_allowed` are fixed 400s raised before dispatch (the window admits only the exact ordinal keys
+`fromOffset` and `maxBytes`, once each; their values keep ADR-0052's bounds and are refused, never clamped).
+
+A selected Agent step proves the exact linked attempt (reserved/actual equality, Agent kind, run, pinned workspace, source checkpoint
+and fingerprint, the contract of the step's kind) and returns only the existing immutable header; the existing explicit attempt
+evidence, input, output, verification and sealed-window readers keep owning those reads. A selected verification step proves the
+exact execution against its pinned recipe (snapshot name, executable, exact ordered arguments, timeout; the arguments JSON and path
+read only within 2 MiB and 128 KiB internal guards, for the selected recipe only) and the recorded status/outcome/time shapes, and
+returns ADR-0052's two stream descriptors. Every window re-proves the whole structure and that association before
+`IArtifactStore.VerifyAndReadSealedAsync`, reads only the selected stream, and an unproved association (including a coherent step
+with no actual link) has a null `executionId` and reads no byte. The frontend uses the shared windowing machine
+(`useRecordedStreamWindow`: 16 KiB windows, 256 KiB of source bytes per stream visit) and strict whole-answer decoders.

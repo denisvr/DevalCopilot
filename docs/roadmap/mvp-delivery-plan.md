@@ -231,6 +231,10 @@ Human escalation or an attention state. It is a bounded capability, not an Incre
 commit or publication, adds no queue, executor lease, retry, takeover or process-aware recovery (a linked dispatched operation without
 coherent host Exited evidence stays an owner), and every provider-contract boundary below stays open.
 
+**Recorded local execution inspection (partial, under review).** ADR-0061 / LOCAL-INSPECT-01 adds only read-only inspection of that
+recorded cycle (index, one selected step, one sealed verification stream window; current run and run history). It completes no
+increment, grants and changes no authority and leaves queueing, process-aware release, replay and every provider-contract boundary open.
+
 **Agent supervision observations (partial).** ADR-0056 / AGENT-SUP-01 adds, for all seven existing Agent response contracts, a
 durable disclosure of what the host's own observer last reported for the current Agent attempt (phase, last report, absolute deadline,
 first attention) with an independent bounded sweep and startup closure of a previous host's observations. It is operational evidence

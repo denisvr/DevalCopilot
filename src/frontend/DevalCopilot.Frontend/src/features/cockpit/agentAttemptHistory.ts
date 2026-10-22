@@ -65,7 +65,7 @@ const isRecognizedStatus = (value: unknown): value is string => typeof value ===
  * The verified identity a row or an evidence answer names, or null unless it is coherent: a recognized role whose supported provider is
  * exactly the named one, and a recognized response contract that belongs to that role.
  */
-function toVerifiedIdentity(role: unknown, provider: unknown, responseContract: unknown): Omit<AgentAttemptIdentityExpectation, 'attemptId' | 'attemptNumber'> | null {
+export function toVerifiedIdentity(role: unknown, provider: unknown, responseContract: unknown): Omit<AgentAttemptIdentityExpectation, 'attemptId' | 'attemptNumber'> | null {
   if (
     typeof role !== 'string'
     || !Object.hasOwn(SUPPORTED_PAIRS, role)

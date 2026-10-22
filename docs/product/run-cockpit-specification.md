@@ -1828,6 +1828,19 @@ no collaboration message can still be inspected. Nothing is fetched until the ow
   appends the next, and a failed window keeps the text already loaded and offers "Retry" for that same window only. Empty sealed
   output, a missing or tampered sealed file, unavailable or no longer recorded output and read errors are distinct. A view keeps at
   most 256 KiB of source bytes of one output and then says so as a local view limit, not as the end of the capture or the file.
+- **Inspect local execution.** One collapsed "Inspect local execution" region, in the current run's evidence rail and in the selected
+  historical run, reads the recorded local execution sequence of exactly that run
+  ([ADR-0061](../decisions/0061-inspect-the-recorded-steps-of-one-local-execution-sequence.md)). Opening or "Reload recorded sequence"
+  reads the index once (a reload ends the selection and everything under it before reading); it shows the stored bookkeeping header
+  and every recorded step, labelled as a recorded inspection that is not a replay of every instant, process liveness, source
+  currency, an approval, readiness or authority, also while the cycle is still advancing. "Inspect" on one step reads only that step's
+  operation: an Agent step shows its immutable attempt header and the existing selected-attempt detail with its own explicit reads and
+  the existing guarded message inspector for the plan and the report it names; a verification step shows its proved facts (a recorded
+  status is bookkeeping and never a clean exit unless Passed) and two stream descriptors, with an explicit "View", "Load" and "Load next
+  window" per recorded stream under the 256 KiB source-byte budget. Not recorded, unavailable (structure unprovable or changed during
+  the read), no-operation (reserved, revoked or unresolved, nothing guessed) and incoherent answers are distinct and show nothing
+  fabricated. The region sends no command, polling, prefetch, retry, export or mutation and never changes the live status reader or any
+  fence.
   Choosing another member or stream, hiding and viewing a stream again (even at once), closing and reopening, another attempt, run
   or project, a reload and unmount start from zero, and an earlier "Hide" never hides a later choice.
   Everything is literal text with no link, polling, automatic paging, download, export, browser storage or URL state. Rules:

@@ -2648,6 +2648,7 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
       'Show recorded events',
       'Show recorded collaboration',
       'Show Agent attempt history',
+      'Inspect local execution',
       'Close selected run',
     ])
     await expectCollapsedEvents()

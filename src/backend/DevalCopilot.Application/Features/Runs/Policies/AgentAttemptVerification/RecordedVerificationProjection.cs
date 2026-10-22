@@ -25,6 +25,10 @@ internal static class RecordedVerificationProjection
     private const int RelativeStoragePathByteBound = 3072;
     private const int ContentHashByteBound = 71;
 
+    // The nullable Boolean is read as its stored bytes, because a Boolean column is truthy for every nonzero number: only the canonical
+    // stored digits 1 (true) and 0 (false) are recognized, and any other value, however it is stored, is an unrecognized one.
+    private const int TruncatedByteBound = 8;
+
     // A column with INTEGER affinity keeps TEXT, REAL or BLOB it cannot convert, and reading those as a number would silently yield 0 or a
     // truncated value. Numbers sort below TEXT and BLOB, so a numeric range admits only numbers, and `%` casts to an integer, so only a
     // stored INTEGER (never a REAL such as 7.5) equals its own remainder. The modulus has the column CLR type (a wider one makes EF cast
@@ -139,10 +143,8 @@ internal static class RecordedVerificationProjection
             output.CaptureOutcome == VerificationOutputCaptureOutcome.CapturedWithKnownTruncation ? 1
                 : output.CaptureOutcome == VerificationOutputCaptureOutcome.RecoveredAfterHostInterruption ? 2
                 : 0,
-            output.Truncated == null ? 0
-                : output.Truncated == true ? 1
-                : output.Truncated == false ? 2
-                : Unrecognized));
+            ((byte[])(object)output.Truncated!).Length <= TruncatedByteBound ? (byte[])(object)output.Truncated : null,
+            output.Truncated != null));
 
     public static IQueryable<VerificationOutputStorageRow> ProjectStorage(this IQueryable<VerificationOutputArtifact> outputs) =>
         outputs.Select(output => new VerificationOutputStorageRow(
@@ -157,10 +159,8 @@ internal static class RecordedVerificationProjection
             output.CaptureOutcome == VerificationOutputCaptureOutcome.CapturedWithKnownTruncation ? 1
                 : output.CaptureOutcome == VerificationOutputCaptureOutcome.RecoveredAfterHostInterruption ? 2
                 : 0,
-            output.Truncated == null ? 0
-                : output.Truncated == true ? 1
-                : output.Truncated == false ? 2
-                : Unrecognized,
+            ((byte[])(object)output.Truncated!).Length <= TruncatedByteBound ? (byte[])(object)output.Truncated : null,
+            output.Truncated != null,
             ((byte[])(object)output.RelativeStoragePath).Length <= RelativeStoragePathByteBound ? output.RelativeStoragePath : null,
             ((byte[])(object)output.RelativeStoragePath).Length > RelativeStoragePathByteBound,
             ((byte[])(object)output.ContentHash).Length <= ContentHashByteBound ? output.ContentHash : null,

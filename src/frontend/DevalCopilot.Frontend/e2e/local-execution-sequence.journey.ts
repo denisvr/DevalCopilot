@@ -131,9 +131,13 @@ test('the local execution cycle journey: one authorization, both correction orig
   const mark = markInvocations()
   const repository = createJourneyRepository('local-execution-source')
   const posts: string[] = []
+  const gets: string[] = []
   page.on('request', (request) => {
     if (request.method() === 'POST') {
       posts.push(new URL(request.url()).pathname)
+    }
+    if (request.method() === 'GET') {
+      gets.push(new URL(request.url()).pathname)
     }
   })
 
@@ -381,6 +385,53 @@ test('the local execution cycle journey: one authorization, both correction orig
   await expect(page.getByRole('region', { name: 'Local execution sequence', exact: true })).toContainText('Awaiting Human approval')
   await expect(page.getByRole('region', { name: 'Local execution sequence', exact: true }).getByRole('button', { name: 'Authorize local execution cycle' })).toHaveCount(0)
   await expect(page.getByText(FENCE_NOTE)).toHaveCount(0)
+  // 9. LOCAL-INSPECT-01: the recorded inspection of the finished cycle, from the current run and again from Run history. Every read is an
+  // explicit GET of the three inspection routes or of the existing selected-attempt evidence; nothing executes, claims or mutates.
+  const inspectionPaths = (start: number) => gets.slice(start).filter((path) => path.includes('/local-execution-sequence/inspection'))
+  const getsBeforeInspection = gets.length
+  const current = page.getByRole('region', { name: 'Inspect local execution' })
+  await expect(current.getByRole('button', { name: 'Inspect local execution' })).toHaveAttribute('aria-expanded', 'false')
+  expect(inspectionPaths(getsBeforeInspection)).toEqual([])
+  await current.getByRole('button', { name: 'Inspect local execution' }).click()
+  await expect(current).toContainText('Recorded state', { timeout: 30_000 })
+  await expect(current).toContainText('Awaiting Human approval')
+  await expect(current).toContainText('not a coherent replay')
+  expect(inspectionPaths(getsBeforeInspection)).toEqual([`/api/runs/${runId.toLowerCase()}/local-execution-sequence/inspection`])
+  await expect(current.getByRole('button', { name: /^Inspect step \d+$/ })).toHaveCount(12)
+
+  // The implementation step is an Agent step: its immutable attempt header and the existing selected-attempt detail appear.
+  await current.getByRole('button', { name: 'Inspect step 1', exact: true }).click()
+  const stepDetail = current.getByRole('region', { name: 'Selected local execution step' })
+  await expect(stepDetail.getByRole('region', { name: 'Selected Agent attempt evidence' })).toBeVisible({ timeout: 30_000 })
+  expect(inspectionPaths(getsBeforeInspection)).toHaveLength(2)
+
+  // The first verification failed with sealed output: the explicit window is the only read of bytes, once per request.
+  await current.getByRole('button', { name: 'Inspect step 2', exact: true }).click()
+  await expect(stepDetail).toContainText('Failed · process outcome Exited · exit code 1', { timeout: 30_000 })
+  const windowsBefore = inspectionPaths(getsBeforeInspection).filter((path) => path.includes('/artifact-window/')).length
+  expect(windowsBefore).toBe(0)
+  const stepTwo = steps(sequence.Id)[1]
+  await stepDetail.getByRole('button', { name: 'View standard output of this step' }).click()
+  expect(inspectionPaths(getsBeforeInspection).filter((path) => path.includes('/artifact-window/'))).toEqual([])
+  await stepDetail.getByRole('button', { name: 'Load standard output of this step' }).click()
+  await expect(stepDetail).toContainText('bytes read', { timeout: 30_000 })
+  expect(inspectionPaths(getsBeforeInspection).filter((path) => path.includes('/artifact-window/'))).toEqual([
+    `/api/runs/${runId.toLowerCase()}/local-execution-sequence/inspection/steps/${stepTwo.Id.toLowerCase()}/artifact-window/stdout`,
+  ])
+
+  // Run history reopens the same recorded cycle for the selected (here: the same) run, again only on explicit actions.
+  const getsBeforeHistory = gets.length
+  const history = page.getByRole('region', { name: 'Run history' })
+  await history.getByRole('button', { name: 'Show run history' }).click()
+  await history.getByRole('button', { name: 'Inspect run #1', exact: true }).click()
+  const historical = history.getByRole('region', { name: 'Selected run' }).getByRole('region', { name: 'Inspect local execution' })
+  expect(inspectionPaths(getsBeforeHistory)).toEqual([])
+  await historical.getByRole('button', { name: 'Inspect local execution' }).click()
+  await expect(historical).toContainText('Recorded state', { timeout: 30_000 })
+  await expect(historical.getByRole('button', { name: /^Inspect step \d+$/ })).toHaveCount(12)
+  expect(inspectionPaths(getsBeforeHistory)).toEqual([`/api/runs/${runId.toLowerCase()}/local-execution-sequence/inspection`])
+  expect(posts.slice(requestsBeforeReload).filter((path) => path.startsWith('/api/'))).toEqual([])
+
   expect(posts.slice(requestsBeforeReload).filter((path) => path.startsWith('/api/'))).toEqual([])
   expect(sequences()).toHaveLength(1)
   expect(sequences()[0].State).toBe('ReadyForHumanApproval')

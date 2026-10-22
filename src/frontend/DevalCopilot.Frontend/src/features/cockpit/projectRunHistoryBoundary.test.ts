@@ -106,7 +106,8 @@ describe('the run history region boundary', () => {
   it('reads recorded inputs only through their factory, owns them with the shared hooks and keeps them apart from evidence and artifacts', () => {
     const hook = read('./hooks/useAgentAttemptInputs.ts')
     const section = read('./components/SelectedAttemptRecordedInputs.tsx')
-    const panel = read('./components/AgentAttemptHistoryPanel.tsx')
+    // The detail (extracted unchanged from the panel for ADR-0061 reuse) owns the section mounts.
+    const panel = read('./components/AgentAttemptDetail.tsx')
 
     expect(hook).toContain('agentAttemptInputsClient()')
     expect(hook).toContain('useOwnedLifetime')
@@ -153,7 +154,8 @@ describe('the run history region boundary', () => {
     const message = read('./hooks/useAgentAttemptOutputMessage.ts')
     const inspector = read('./components/SelectedAttemptOutputMessage.tsx')
     const section = read('./components/SelectedAttemptRecordedOutputs.tsx')
-    const panel = read('./components/AgentAttemptHistoryPanel.tsx')
+    // The detail (extracted unchanged from the panel for ADR-0061 reuse) owns the section mounts.
+    const panel = read('./components/AgentAttemptDetail.tsx')
 
     expect(outputs).toContain('agentAttemptOutputsClient()')
     expect(message).toContain('agentAttemptOutputMessageClient()')

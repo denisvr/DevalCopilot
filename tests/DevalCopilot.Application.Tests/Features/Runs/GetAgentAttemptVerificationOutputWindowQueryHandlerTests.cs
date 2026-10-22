@@ -416,6 +416,13 @@ public sealed class GetAgentAttemptVerificationOutputWindowQueryHandlerTests : I
     [InlineData("capture-unknown")]
     [InlineData("length-negative")]
     [InlineData("length-text")]
+    [InlineData("truncated-two")]
+    [InlineData("truncated-negative-one")]
+    [InlineData("truncated-seven")]
+    [InlineData("truncated-real")]
+    [InlineData("truncated-text")]
+    [InlineData("truncated-blob")]
+    [InlineData("truncated-oversized")]
     public async Task Invalid_or_oversized_storage_is_unavailable_before_any_file_read(string defect)
     {
         var scene = await _seed.SeedAsync(false, false);
@@ -439,6 +446,13 @@ public sealed class GetAgentAttemptVerificationOutputWindowQueryHandlerTests : I
             "capture-unknown" => $"UPDATE verification_output_artifacts SET CaptureOutcome = 'Weird' WHERE Id = {id}",
             "length-negative" => $"UPDATE verification_output_artifacts SET ByteLength = -1 WHERE Id = {id}",
             "length-text" => $"UPDATE verification_output_artifacts SET ByteLength = {Secret} WHERE Id = {id}",
+            "truncated-two" => $"UPDATE verification_output_artifacts SET Truncated = 2 WHERE Id = {id}",
+            "truncated-negative-one" => $"UPDATE verification_output_artifacts SET Truncated = -1 WHERE Id = {id}",
+            "truncated-seven" => $"UPDATE verification_output_artifacts SET Truncated = 7 WHERE Id = {id}",
+            "truncated-real" => $"UPDATE verification_output_artifacts SET Truncated = 1.5 WHERE Id = {id}",
+            "truncated-text" => $"UPDATE verification_output_artifacts SET Truncated = {Secret} WHERE Id = {id}",
+            "truncated-blob" => $"UPDATE verification_output_artifacts SET Truncated = X'0102' WHERE Id = {id}",
+            "truncated-oversized" => $"UPDATE verification_output_artifacts SET Truncated = {new string('1', 300)} WHERE Id = {id}",
             _ => throw new InvalidOperationException(defect),
         };
         await ExecuteAsync(update);

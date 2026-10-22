@@ -487,6 +487,12 @@ public sealed class GetAgentAttemptVerificationEvidenceQueryHandlerTests : IAsyn
     [InlineData("known-without-truncation")]
     [InlineData("recovered-with-truncation")]
     [InlineData("truncated-text")]
+    [InlineData("truncated-two")]
+    [InlineData("truncated-negative-one")]
+    [InlineData("truncated-seven")]
+    [InlineData("truncated-real")]
+    [InlineData("truncated-blob")]
+    [InlineData("truncated-oversized")]
     [InlineData("artifact-empty")]
     public async Task A_stream_whose_metadata_cannot_be_admitted_is_unavailable_with_no_other_field(string defect)
     {
@@ -505,6 +511,12 @@ public sealed class GetAgentAttemptVerificationEvidenceQueryHandlerTests : IAsyn
             "known-without-truncation" => $"UPDATE verification_output_artifacts SET Truncated = NULL WHERE Id = {id}",
             "recovered-with-truncation" => $"UPDATE verification_output_artifacts SET CaptureOutcome = 'RecoveredAfterHostInterruption' WHERE Id = {id}",
             "truncated-text" => $"UPDATE verification_output_artifacts SET Truncated = {Secret} WHERE Id = {id}",
+            "truncated-two" => $"UPDATE verification_output_artifacts SET Truncated = 2 WHERE Id = {id}",
+            "truncated-negative-one" => $"UPDATE verification_output_artifacts SET Truncated = -1 WHERE Id = {id}",
+            "truncated-seven" => $"UPDATE verification_output_artifacts SET Truncated = 7 WHERE Id = {id}",
+            "truncated-real" => $"UPDATE verification_output_artifacts SET Truncated = 1.5 WHERE Id = {id}",
+            "truncated-blob" => $"UPDATE verification_output_artifacts SET Truncated = X'0102' WHERE Id = {id}",
+            "truncated-oversized" => $"UPDATE verification_output_artifacts SET Truncated = {new string('1', 300)} WHERE Id = {id}",
             "artifact-empty" => $"UPDATE verification_output_artifacts SET Id = {Guid.Empty} WHERE Id = {id}",
             _ => throw new InvalidOperationException(defect),
         };
@@ -516,6 +528,22 @@ public sealed class GetAgentAttemptVerificationEvidenceQueryHandlerTests : IAsyn
         Assert.Equal(RecordedVerificationOutputDescriptor.Unavailable, Assert.Single(result.Members).StandardOutput);
         Assert.Equal(RecordedVerificationOutputDescriptor.NotRecorded, result.Members[0].StandardError);
         Assert.DoesNotContain(Secret, JsonSerializer.Serialize(result), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(1, true)]
+    [InlineData(0, false)]
+    public async Task The_canonical_stored_truncation_values_are_recorded_exactly(int stored, bool expected)
+    {
+        var scene = await _seed.SeedAsync(false, false);
+        var output = await _seed.AddOutputAsync(
+            scene.Members[0].Execution.Id, VerificationOutputPurpose.StandardOutput, "a/out.sealed", RecordedVerificationSeed.ContentHash(), 5);
+        await ExecuteAsync($"UPDATE verification_output_artifacts SET Truncated = {stored} WHERE Id = {output.Id}");
+
+        var descriptor = (await ReadAsync(scene)).Members[0].StandardOutput;
+
+        Assert.Equal(RecordedVerificationOutputDescriptorStatus.Recorded, descriptor.Status);
+        Assert.Equal(expected, descriptor.Truncated);
     }
 
     [Fact]

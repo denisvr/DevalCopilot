@@ -58,21 +58,21 @@ export interface AgentAttemptVerificationExpectation extends AgentAttemptIdentit
   runId: string
 }
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
+export const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
-const isText = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0
-const isInt = (value: unknown, min: number, max: number): value is number =>
+export const isText = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0
+export const isInt = (value: unknown, min: number, max: number): value is number =>
   typeof value === 'number' && Number.isInteger(value) && value >= min && value <= max
-const isByteCount = (value: unknown): value is number => Number.isSafeInteger(value) && (value as number) >= 0
+export const isByteCount = (value: unknown): value is number => Number.isSafeInteger(value) && (value as number) >= 0
 
 // The host writes `DateTime.ToString("O")` of a UTC instant: seven fractional digits and `Z`, nothing else. The instant parser is the
 // proven one the evidence timestamps use.
 const UTC_ROUND_TRIP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{7}Z$/
-const isUtcRoundTrip = (value: unknown): value is string =>
+export const isUtcRoundTrip = (value: unknown): value is string =>
   typeof value === 'string' && UTC_ROUND_TRIP.test(value) && toWireInstant(value) !== null
 
 /** Whether `value` is an object with exactly `keys` as own properties: a closed wire shape, so an unexpected field refuses the answer. */
-function hasExactKeys(value: unknown, keys: readonly string[]): value is Record<string, unknown> {
+export function hasExactKeys(value: unknown, keys: readonly string[]): value is Record<string, unknown> {
   if (!isRecord(value)) {
     return false
   }
@@ -117,7 +117,8 @@ function isSelectedHeader(value: unknown, expected: AgentAttemptVerificationExpe
     && value.responseContract === expected.responseContract
 }
 
-function toDescriptor(raw: unknown): VerificationStreamDescriptor | null {
+/** The closed descriptor of one stream as the host admitted it, or null for any shape or capture tuple the Domain never records. */
+export function toVerificationStreamDescriptor(raw: unknown): VerificationStreamDescriptor | null {
   if (!hasExactKeys(raw, STREAM_KEYS)) {
     return null
   }
@@ -146,8 +147,8 @@ function toMember(raw: unknown, position: number): VerificationMember | null {
     return null
   }
 
-  const standardOutput = toDescriptor(raw.standardOutput)
-  const standardError = toDescriptor(raw.standardError)
+  const standardOutput = toVerificationStreamDescriptor(raw.standardOutput)
+  const standardError = toVerificationStreamDescriptor(raw.standardError)
   if (
     raw.sequence !== position
     || !isText(raw.commandId)
@@ -312,7 +313,7 @@ export function decideVerificationWindowAnswer(raw: unknown, request: Verificati
   const { fromOffset, maxBytes, descriptor } = request
   if (status === 'Ok') {
     const advance = nextOffset - fromOffset
-    const served = toDescriptor(artifact)
+    const served = toVerificationStreamDescriptor(artifact)
     return served !== null
       && served.status === 'Recorded'
       && served.artifactId === descriptor.artifactId

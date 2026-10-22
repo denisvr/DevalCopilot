@@ -1,5 +1,211 @@
 # Planner/reviewer handoff
 
+## Current action: LOCAL-INSPECT-01
+
+Codex selected **LOCAL-INSPECT-01**, resolved in accepted
+[ADR-0061](../decisions/0061-inspect-the-recorded-steps-of-one-local-execution-sequence.md).
+Correction 1 passed **review 2: GO**, limited to the exact content identified in
+`logs/planner-review/local-inspect-01/review-02/publication-go.json` and the
+complete publication prompt. Publication belongs to the **same LOCAL-INSPECT-01
+Claude executor chat**. LOCAL-COORD-01 and its corrections
+are complete and independently published; do not reopen them. Codex retains
+architecture, selection, review and final GO. No subagent or executor research
+decided this selection or review judgment.
+
+### Verified baseline and planner inputs
+
+Before the next slice's planner inputs, Git was clean on main. HEAD, local
+origin/main and freshly queried live refs/heads/main were
+**2912490aed8b3e116fb2b0ef744bf80ad6c62a03**, tree
+`a51db1ec6fbd82e657422f1d8b86035b73a84183`, sole parent
+`7c78c849fdd556ecf3a539dce479e31fc3cc501b`, divergence 0/0 and real index empty.
+The published 313 paths (124 M, 189 A) match the approved inventory SHA-256
+`06abb4b73a98549a03c25fd730c3ec07b07e40503acaeed370d8e2d2a00a7ac9`.
+Independent records: `logs/planner-review/local-coord-01/publication-verification.json`
+and `.md`. Do not reopen that slice or create a publication closure commit.
+The historical records below retain their preparation-phase wording.
+
+Review preflight independently confirmed main, HEAD, local origin/main and the
+fresh live ref at the baseline above, divergence 0/0 and real index empty.
+The corrected implementation has **100 pending paths: 26 modified and 74 new**,
+including the three preserved planner inputs (this handoff,
+docs/decisions/README.md and ADR-0061). All remain unstaged, uncommitted and
+unpushed. Review 1 had 92 paths (21 modified, 71 new). The eight additions to
+that inventory are three shared projection/row files, two existing ADR-0052
+test files and the three split helpers; no unrelated files were found. Final
+reviewer edits are documentation and ignored evidence only. One temporary
+compiling mutation was restored byte-for-byte and rebuilt; no product
+correction, real-index staging or publication occurred in review.
+
+Codex continuity: **CONTINUE_THIS_CHAT**, observed current-thread token_count
+at 2026-10-21T21:10:27.458Z: last usage 203529 / declared window 475000 = 42.85%.
+Source: `logs/planner-review/local-coord-01/continuity-after-publication.json`.
+This is neither account quota nor cumulative session tokens. Older 63.98% and
+17.01% observations are historical. This was the post-publication observation,
+not a new measurement during this active review. Claude continuity is separate:
+the selected slice and all its corrections stay in its current executor chat.
+No self-addressed continuation prompt is needed.
+
+### Review 2 decision and finding dispositions
+
+**GO for the identified reviewed content only.** LCI-R1 and LCI-R2 are resolved.
+
+- **LCI-R1 (P2), resolved.** Both shared projections read at most eight stored
+  truncation bytes and a presence flag. Only null and the canonical digit 0/1
+  shapes are admitted. Permanent tests cover malformed integers, REAL, TEXT,
+  BLOB and oversized values, canonical values, sibling isolation and refusal
+  before artifact reads in the new and existing ADR-0052 consumers, plus the
+  protected API. This narrowly repairs the inherited defect without a schema
+  change, duplicated reader policy or weaker evidence admission.
+- **LCI-R2 (P3), resolved.** `CountingArtifactStore`, `RecordingArtifactStore`
+  and `StatementLog` have their own matching files with unchanged behavior.
+  A lexical scan of the 65 pending C# files finds no multiple top-level types.
+
+Fresh independent review: four affected Application consumer classes **281/281**,
+protected API storage class **8/8**, full Architecture **192/192**. A compiling
+reviewer mutation restoring malformed-value normalization fails seven of the
+12 named stream-metadata cases; original bytes and hashes match after restore,
+and the same 12 cases pass after recompilation. Commands and original outputs
+are under `logs/planner-review/local-inspect-01/review-02/`. The executor's
+correction matrix has retained passing outputs for selected Application
+**381/381**, API **152/152** and Architecture **192/192**, with its preceding
+20 Application and three API red failures kept separately. Its reported
+22/55 mutation outcome lacks a separate original output locally; the independent
+compiling control supplies fresh retained evidence without reconstructing it.
+
+Review 1 and its four failing temporary probes remain recorded under
+`logs/planner-review/local-inspect-01/review-01/`. Its independent selected
+Application 350, API 149 and frontend 241 passes keep their actual scopes.
+Its first frontend invocation executed zero tests due to a missing sandbox
+temporary Vite file; that failure is retained separately. No full Application
+or API pass is claimed.
+
+Executor challenges resolved: retain typed GUID/time materialization and the
+normal fault pipeline permitted by ADR-0061; no blanket raw-byte rewrite is
+required. NoOperation's null payloads follow the contract. Extending the existing
+local-execution journey is accepted; no second full-cycle journey is required.
+The two narrow frontend extractions, test inventories and test-only ArtifactRoot
+property are within scope. The surviving equivalent index mutant remains a
+non-kill. The inherited truncation concern is accepted and resolved by LCI-R1,
+not attributed to this slice's introduction. The planner corrects the ADR index
+status. No new owner authority or architectural reversal is needed.
+
+Unchanged frontend, client and journey evidence is retained at its actual scope.
+Complete first-return suite logs absent locally remain reported results, not
+reconstructed originals. Failed journeys, equivalent controls and all previous
+qualifications remain. The reviewer added exact independent commands/results
+and phase/evidence qualifications to current-work.md; these are documentation
+edits, not new product scope. Publication must verify the explicit approved
+100-path set, expected tree and sole parent from the external GO record,
+then normally fast-forward main and verify the live remote. Any content/state
+mismatch or failed/diverged push stops publication; no force or reconciliation
+is authorized. No separate closure-document commit is required.
+
+### Outcome and sizing decision
+
+The owner can open the recorded local execution cycle, select its exact step
+and inspect its operation and evidence, from either the current run or run
+history. The present cycle view shows identifiers and bookkeeping only; Agent
+history has the detail but no step navigation. Existing ADR-0052 verification
+windows require a review/diagnosis membership and cannot show an earlier failed
+verification when that next attempt never started. Deliver this missing
+inspection path end to end, including truthful refusal states and lifetimes.
+
+This is one coherent bounded outcome: index, selected operation, existing Agent/
+message readers, verification sealed windows and current/historical UI. Splitting
+it into a reference-only panel and later content work would leave the navigation
+gap unresolved. A general replay graph, durable queue and process-aware recovery
+have different unresolved authority/proof requirements and are not included.
+No broader mutating authority is inferred from the local-cycle grant.
+
+### Resolved scope and boundaries
+
+- Three protected bodyless MVC queries under the ADR-0061 routes: recorded
+  index, selected step inspection and one verification stdout/stderr window.
+  Closed API-owned graphs, fixed errors and reproducible generated client.
+- Bounded untracked, guarded scalar reads: at most 103 steps/33 recipes,
+  actual recipe-dependent bound, exact structure/ownership/source references,
+  historical identity rather than latest/current eligibility. A corrupt
+  structural set is Unavailable as a whole, never a plausible partial index.
+- Selected Agent links prove their exact step/run/source/contract and return
+  the existing admitted immutable header. Reuse/extract the existing selected
+  Agent and message detail UI/readers; preserve their consumers and contracts.
+- Verification proves exact pinned snapshot, including ordered arguments,
+  with internal byte caps before materialization. Metadata exposes no paths,
+  arguments, hashes or bytes. The selected sealed stream re-proves association
+  before IArtifactStore.VerifyAndReadSealedAsync; ADR-0052's existing integrity,
+  storage admission, descriptor, cursor and 256-KiB view limits remain.
+- One collapsed explicit inspection panel in the current run and selected
+  historical run. One selected step/operation/stream visit owns each request,
+  callback and result. Explicit reads only, no polling/retry/prefetch/drain,
+  cross-lifetime persistence or effects on the live control reader/fences.
+- Update engineering-context, the inspection architecture companion, cockpit
+  specification and roadmap to describe this bounded inspection and preserve
+  incomplete MVP/qualification status. current-work becomes the executor's
+  implementation-for-review record, without anticipating publication.
+
+No schema/Domain change, admission/dispatch/coordinator/result/startup change,
+current-status contract change, new process/Git/provider/filesystem-source read,
+queue, lease, release, retry, cancellation, takeover, export, automatic approval,
+commit or publication is selected. Only the existing sealed artifact boundary
+may read artifact bytes on explicit window requests. Shared code extraction is
+limited to primitives with identical owners/contracts; no generic graph engine,
+gateway, repository or broad historical-inspector refactor. A conflict requiring
+these changes is a concrete design challenge, not permission to broaden scope.
+
+### Proportional validation
+
+Use real file-backed SQLite and existing feature-owned scenes with isolated
+tests. At Application: empty/not-recorded/reserved/unresolved/claimed/concluded,
+all six step kinds, exact/cross-run/cross-source/foreign-contract links, gaps/
+duplicates/extra rows, unknown enums, oversized fields, recipe-argument drift,
+independent stream metadata failures and all sealed window outcomes. Prove
+historical reads survive legitimate newer runs/checkpoints/recipe changes.
+Prove no writes/events, no admission/dispatch calls, no artifact reads for
+metadata or refused windows, and only the selected stream for an admitted one.
+
+API: complete auth/body/query/identity/error/closed-wire matrix for all three
+operations and representative integrated step/window reads. Frontend: exact
+wire/owner/step/stream admission, explicit network budgets, no implicit content
+load, retained callbacks/late responses, reload/close/A-B-A and historical/current
+isolation. Include absence of mutation requests and unchanged live fences.
+
+Three serial compiling controls kill named tests: loosen the exact step owner/
+source proof; skip pinned verification arguments before window read; drop a
+frontend ended-owner guard. Keep failed/invalid attempts separately, restore
+hashes, touch restored files and rebuild before final evidence. No hash proves
+a historical binary.
+
+Final matrix once on stable sources: relevant feature Application tests plus
+existing Agent inspection/message/window consumers of any extracted code;
+new API operation classes plus their existing bodyless/auth inventory and
+affected historical inspection classes; full architecture; whole Vitest,
+lint/build and strict e2e TypeScript; generated-client reproducibility; changed
+format/diff/document-link checks. Run an authenticated sequence-inspection
+journey through the real host (Agent and verification detail/windows, historical
+reopen, no extra execution request). Run existing local-execution, collaboration
+and planning-sequence journeys serially if shared current-cockpit wiring changes.
+No real provider is required or authorized.
+
+Broaden to full Application/API only if shared admission/transaction/lifecycle,
+host/auth/global wire behavior or evidence policies used outside enumerated
+inspection consumers change, or failures leave impact uncertain. No automatic
+whole Infrastructure/Domain/native/provider campaign; mandatory CI/security and
+release checks remain. Retain unaffected published evidence at its actual scope.
+
+Preserve every historical failure/qualification, the unchanged formatter debt,
+ADR-0050 Proposed, P9 unproven, AI Memory deferred and Increments 4/5/6 incomplete.
+All frozen native/profile/helper/credential evidence and spent allowances in
+the standing constraints below remain untouched. The slice was returned
+unstaged, uncommitted and unpushed for review. Selection itself grants no
+publication authority; only review 2's explicit content-bound GO does.
+
+## Historical LOCAL-COORD-01 planning and review record
+
+Everything below records the preceding slice at its preparation/review phases.
+The verified publication and current next-slice selection above govern present
+workflow state; historical preflights and prompts do not dispatch another slice.
+
 [AGENTS.md](../../AGENTS.md) and the [workflow](development-workflow.md) apply.
 Codex remains planner/reviewer and performed architecture, selection and review
 judgment itself. LOCAL-COORD-01 correction 2 passed **review 3: GO** for the

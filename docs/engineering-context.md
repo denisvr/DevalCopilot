@@ -96,7 +96,9 @@ Human-authorized depth-two) plan. The host composes the existing implementation,
 eligible failure diagnosis and at most two shared corrections through the same claim gates, ending at an approved review awaiting the
 Human's own approval, a Human escalation or an attention state; it never approves, commits or publishes. A linked dispatched operation
 without coherent host Exited evidence stays an effective execution owner (no supported release exists), and a restart never resumes,
-redispatches or adopts. Increments 4 to 6 stay incomplete.
+redispatches or adopts. ADR-0061 / LOCAL-INSPECT-01 (implemented for review, unpublished until its own GO) adds only read-only recorded
+inspection of that cycle: three bodyless GETs (index, selected step, one verification stream window) and one collapsed region in the
+current run and run history; it grants, changes and dispatches nothing. Increments 4 to 6 stay incomplete.
 ADR-0056 adds only operational evidence for all seven Agent response contracts: a
 durable observation of what the host's own observer last reported (phase, last
 report, absolute deadline, first attention) for the current attempt, an independent
