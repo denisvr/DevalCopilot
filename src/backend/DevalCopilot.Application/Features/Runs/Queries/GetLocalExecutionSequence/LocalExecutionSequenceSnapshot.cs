@@ -1,3 +1,4 @@
+using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
 using DevalCopilot.Domain.Features.Runs;
 
 namespace DevalCopilot.Application.Features.Runs.Queries.GetLocalExecutionSequence;
@@ -35,4 +36,6 @@ public sealed record LocalExecutionSequenceSnapshot(
     bool AwaitingReconciliation,
     Guid? OutstandingOperationId,
     IReadOnlyList<LocalExecutionSequenceStepReceipt> Steps,
-    LocalExecutionSequenceFinalReferences? Final);
+    LocalExecutionSequenceFinalReferences? Final,
+    LocalExecutionAdmissionMode AdmissionMode = LocalExecutionAdmissionMode.Immediate,
+    LocalExecutionQueueDisclosure? Queue = null);

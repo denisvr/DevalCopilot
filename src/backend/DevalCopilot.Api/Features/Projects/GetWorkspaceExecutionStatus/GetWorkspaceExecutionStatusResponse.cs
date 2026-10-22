@@ -3,7 +3,7 @@ namespace DevalCopilot.Api.Features.Projects.GetWorkspaceExecutionStatus;
 /// <summary>
 /// Who may execute in the project's latest owned workspace, as read now from existing durable rows (ADR-0057), and nothing else: no path,
 /// payload, transcript, owner collection or inferred liveness. <c>Status</c> is one of NoWorkspace, Idle, AgentAttemptActive,
-/// VerificationActive, CommitReserved, Conflicted and Unavailable, with exactly these tuples. NoWorkspace has no <c>WorkspaceId</c> and
+/// VerificationActive, CommitReserved, PreparationReserved (ADR-0062: a queued local execution cycle holds the workspace with one reserved, unclaimed step preparation, reason <c>queued_preparation_reserved</c>; it is never an Agent or verification process), Conflicted and Unavailable, with exactly these tuples. NoWorkspace has no <c>WorkspaceId</c> and
 /// reason <c>workspace_not_prepared</c>; Idle has the exact latest workspace and no reason; AgentAttemptActive, VerificationActive,
 /// CommitReserved and Conflicted have it with <c>agent_attempt_active</c>, <c>verification_active</c>, <c>local_commit_reserved</c> and
 /// <c>conflicting_execution_owners</c>; Unavailable has the exact latest workspace when it could be read, otherwise none, with

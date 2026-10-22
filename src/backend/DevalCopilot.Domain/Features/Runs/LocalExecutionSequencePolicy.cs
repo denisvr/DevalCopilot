@@ -13,6 +13,16 @@ public static class LocalExecutionSequencePolicy
     public const int MinimumRecipes = 1;
     public const int MaximumRecipes = 32;
 
+    /// <summary>ADR-0062: at most this many live queued cycles (waiting, preparing, claimed or stopping) per authoritative database. It
+    /// bounds pending work; it is not an execution limit.</summary>
+    public const int MaximumQueuedCycles = 64;
+
+    /// <summary>ADR-0062: at most this many queued preparations may be held at once, including unresolved reservations.</summary>
+    public const int MaximumHeldPreparations = 4;
+
+    /// <summary>ADR-0062: one bounded keyset page of host observation.</summary>
+    public const int ObservationPageSize = 32;
+
     /// <summary>The absolute two-hour advancement deadline, measured from arming. It neither extends nor replaces any operation's own
     /// timeout or budget.</summary>
     public static readonly TimeSpan AdvancementWindow = TimeSpan.FromHours(2);
@@ -35,6 +45,15 @@ public static class LocalExecutionSequencePolicy
     public static bool IsCorrectionKind(LocalExecutionStepKind kind) =>
         kind is LocalExecutionStepKind.ReviewCorrection or LocalExecutionStepKind.DiagnosisCorrection;
 
+    /// <summary>
+    /// ADR-0062: whether the step may mutate the workspace, derived only from the closed step/contract mapping and Domain's contract
+    /// table, never from a client or an unchecked stored flag. A verification recipe may mutate; a ReadOnly Agent step owns its
+    /// workspace but consumes no global mutating unit.
+    /// </summary>
+    public static bool IsPotentiallyMutating(LocalExecutionStepKind kind) =>
+        kind == LocalExecutionStepKind.Verification
+        || (Enum.IsDefined(kind) && ContractOf(kind) is { } contract && AgentAttemptContract.For(contract).Effect == AgentEffectKind.WorkspaceMutating);
+
     /// <summary>The existing response contract an Agent step is claimed under. Both correction origins share one contract.</summary>
     public static AgentResponseContract? ContractOf(LocalExecutionStepKind kind) => kind switch
     {
@@ -52,7 +71,7 @@ public static class LocalExecutionSequencePolicy
 
     /// <summary>Automatic authority is still live: it can advance or it drains an already claimed step.</summary>
     public static bool IsAuthorityLive(LocalExecutionSequenceState state) =>
-        IsAdvancing(state) || state == LocalExecutionSequenceState.Stopping;
+        IsAdvancing(state) || state is LocalExecutionSequenceState.Stopping or LocalExecutionSequenceState.WaitingForAdmission;
 
     public static bool IsEnded(LocalExecutionSequenceState state) => !IsAuthorityLive(state);
 

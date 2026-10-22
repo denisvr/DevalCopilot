@@ -1,6 +1,7 @@
-using System.Globalization;
 using Devalente.Shared.AspNetCore.Mvc;
 using Devalente.Shared.Cqrs;
+using Devalente.Shared.Results;
+using DevalCopilot.Application.Features.Runs.Errors;
 using DevalCopilot.Application.Features.Runs.Commands.ArmLocalExecutionSequence;
 using Microsoft.AspNetCore.Mvc;
 
@@ -45,21 +46,9 @@ public sealed class ArmLocalExecutionSequenceEndpoint(IApplicationMediator media
             return problemDetails.CreateResponse(result, HttpContext);
         }
 
-        var value = result.Value;
-        return Ok(new ArmLocalExecutionSequenceResponse(
-            value.SequenceId,
-            value.RunId,
-            value.PlanProposalMessageId,
-            value.WorkspaceId,
-            value.CheckpointId,
-            value.FingerprintSha256,
-            value.ConfirmationSha256,
-            value.State.ToString(),
-            value.RecipeCount,
-            value.CorrectionAllowance,
-            value.ArmedAtUtc.UtcDateTime.ToString("O", CultureInfo.InvariantCulture),
-            value.AdvancementDeadlineUtc.UtcDateTime.ToString("O", CultureInfo.InvariantCulture),
-            value.Revision.ToString(CultureInfo.InvariantCulture),
-            value.Replayed));
+        var response = ArmLocalExecutionSequenceResponses.Map(result.Value);
+        return response is null
+            ? problemDetails.CreateResponse(Result.Failure(LocalExecutionSequenceErrors.PersistenceFailed()), HttpContext)
+            : Ok(response);
     }
 }

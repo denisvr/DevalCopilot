@@ -1,5 +1,6 @@
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
+using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
 using DevalCopilot.Domain.Features.Runs;
 
 namespace DevalCopilot.Application.Features.Runs.Policies.ExecutionCapacity;
@@ -17,8 +18,9 @@ internal static class ExecutionCapacityFence
 {
     /// <summary>Refuses a new owner when as many coherent owners as the persisted limit are recorded, or when the limit or the recorded
     /// ownership is untrustworthy.</summary>
-    public static async Task<Error?> CheckClaimAsync(IDevalCopilotDbContext dbContext, CancellationToken cancellationToken) =>
-        ToError(await ExecutionCapacityPolicy.ReadAsync(dbContext, null, cancellationToken), callerOwners: 0);
+    public static async Task<Error?> CheckClaimAsync(
+        IDevalCopilotDbContext dbContext, CancellationToken cancellationToken, LocalExecutionStepTicket? ownReservation = null) =>
+        ToError(await ExecutionCapacityPolicy.ReadAsync(dbContext, null, cancellationToken, ownReservation), callerOwners: 0);
 
     /// <summary>Refuses dispatching exactly this owner when as many owners as the persisted limit are recorded beside it. The owner must itself be a coherent
     /// counted owner of its own kind; another table's identifier is never excluded.</summary>

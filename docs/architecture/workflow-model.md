@@ -237,8 +237,8 @@ durable escalation; a human may explicitly authorize exactly one additional
 claim, and that authorization is atomically consumed by the claim. This is
 explicit continuation, not generic pause/resume, provider fallback, Gemini,
 snapshots, parallel executors, or automatic orchestration (the only coordination is the read-only planning sequence of ADR-0055,
-which never starts a correction or implementation, and the explicitly authorized local execution sequence of ADR-0060, which
-composes only the existing implementation, verification, review, diagnosis and at most two shared correction claims). Token,
+which never starts a correction or implementation, and the explicitly authorized local execution sequence of ADR-0060, optionally queued
+before admission by ADR-0062, which composes only the existing implementation, verification, review, diagnosis and at most two shared correction claims). Token,
 account-usage, duration, and the remaining Increment 4 controls remain
 deferred.
 

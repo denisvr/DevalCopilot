@@ -24,7 +24,8 @@ public sealed class GetLocalExecutionSequenceAvailabilityQueryHandler(IDevalCopi
             return Refused(query, LocalExecutionSequenceErrors.AlreadyArmedCode);
         }
 
-        var reading = await LocalExecutionCandidateReader.ReadAsync(dbContext, query.RunId, query.PlanProposalMessageId, cancellationToken);
+        var reading = await LocalExecutionCandidateReader.ReadAsync(
+            dbContext, query.RunId, query.PlanProposalMessageId, cancellationToken, query.Mode);
         if (reading.Error is { } error)
         {
             return Refused(query, error.Code);
@@ -56,15 +57,16 @@ public sealed class GetLocalExecutionSequenceAvailabilityQueryHandler(IDevalCopi
             candidate.WorkspaceId,
             candidate.CheckpointId,
             candidate.FingerprintSha256,
-            candidate.ConfirmationSha256,
+            candidate.ConfirmationSha256For(query.Mode),
             candidate.CorrectionAllowance,
             LocalExecutionSequencePolicy.MaximumSteps(recipes.Length),
             recipes,
-            disclosure));
+            disclosure,
+            query.Mode));
     }
 
     private static Result<GetLocalExecutionSequenceAvailabilityQueryResult> Refused(
         GetLocalExecutionSequenceAvailabilityQuery query, string code) =>
         Result<GetLocalExecutionSequenceAvailabilityQueryResult>.Success(new GetLocalExecutionSequenceAvailabilityQueryResult(
-            false, code, query.RunId, query.PlanProposalMessageId, null, null, null, null, null, null, null, null, null));
+            false, code, query.RunId, query.PlanProposalMessageId, null, null, null, null, null, null, null, null, null, query.Mode));
 }

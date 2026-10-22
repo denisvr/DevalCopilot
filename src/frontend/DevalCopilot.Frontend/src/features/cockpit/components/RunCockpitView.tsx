@@ -453,6 +453,7 @@ export function RunCockpitView({
               armWithheldReason={
                 workspaceWithheld ? WORKSPACE_EXECUTION_WITHHELD_POINTER : capacityWithheld ? EXECUTION_CAPACITY_WITHHELD_POINTER : planningSequenceWithheld
               }
+              queueWithheldReason={planningSequenceWithheld}
             />
           )}
           {agentActionsAllowed ? (

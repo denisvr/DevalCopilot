@@ -61,7 +61,8 @@ internal static class LocalExecutionSequenceFence
                 sequence => sequence.State == LocalExecutionSequenceState.Armed
                     || sequence.State == LocalExecutionSequenceState.PreparingStep
                     || sequence.State == LocalExecutionSequenceState.AwaitingStepResult
-                    || sequence.State == LocalExecutionSequenceState.Stopping,
+                    || sequence.State == LocalExecutionSequenceState.Stopping
+                    || sequence.State == LocalExecutionSequenceState.WaitingForAdmission,
                 cancellationToken))
         {
             return true;

@@ -242,7 +242,8 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
 
         // ADR-0057: no other Agent attempt, verification execution or local-commit reservation may own this workspace, decided before
         // any Git work or manifest sealing and again at the write-locked commit seam below.
-        if (await WorkspaceExecutionFence.CheckClaimAsync(dbContext, run.ProjectId, workspace.Id, cancellationToken) is { } workspaceBusy)
+        if (await WorkspaceExecutionFence.CheckClaimAsync(
+            dbContext, run.ProjectId, workspace.Id, cancellationToken, ticket) is { } workspaceBusy)
         {
             return Result<CreateCodeReviewAttemptCommandResult>.Failure(workspaceBusy);
         }
@@ -520,7 +521,7 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
 
                 // ADR-0057: decided under the same write lock, immediately before the claim's own insert, from fresh untracked reads.
                 workspaceExecutionError = await WorkspaceExecutionFence.CheckClaimAsync(
-                    dbContext, run.ProjectId, workspace.Id, cancellationToken);
+                    dbContext, run.ProjectId, workspace.Id, cancellationToken, ticket);
             }
             catch (OperationCanceledException)
             {

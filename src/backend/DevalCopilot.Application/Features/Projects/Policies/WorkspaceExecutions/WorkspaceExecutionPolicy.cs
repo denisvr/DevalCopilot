@@ -62,7 +62,8 @@ internal static class WorkspaceExecutionPolicy
         Guid workspaceId,
         Guid? excludedAgentAttemptId,
         Guid? excludedVerificationExecutionId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        LocalExecutionStepTicket? ownReservation = null)
     {
         var workspace = await dbContext.GitWorkspaces
             .AsNoTracking()
@@ -82,6 +83,13 @@ internal static class WorkspaceExecutionPolicy
 
         // ADR-0060: a linked operation whose row is missing, foreign or incoherent is never a zero count.
         if (await LocalExecutionOwnership.HasIncoherentLinkAsync(dbContext, projectId, cancellationToken))
+        {
+            return Unavailable(workspaceId);
+        }
+
+        // ADR-0062: a caller that is its own queued reservation is excluded only after its exact ticket identity is proved.
+        var ownProof = await LocalExecutionReservationOwnership.ProveOwnAsync(dbContext, ownReservation, cancellationToken);
+        if (!ownProof.IsValid)
         {
             return Unavailable(workspaceId);
         }
@@ -135,13 +143,25 @@ internal static class WorkspaceExecutionPolicy
         var commitReserved = workspace.IsCommitting || (workspace.IsNeedsAttention && coherentOpenOperations > 0);
         var commitUntrusted = untrustedOpenOperations > 0 || (coherentOpenOperations > 0 && !commitReserved);
 
-        var owners = agentOwners + verificationOwners + (commitReserved ? 1 : 0);
+        // ADR-0062: a coherent held queued reservation owns its exact workspace. Waiting admissions own nothing.
+        var reservations = LocalExecutionReservationOwnership.Without(
+            LocalExecutionReservationOwnership.Held(dbContext), ownProof.ExcludedStepId);
+        var reservationOwners = await reservations.CountAsync(
+            admission => dbContext.LocalExecutionSequences.Any(
+                sequence => sequence.Id == admission.SequenceId && sequence.WorkspaceId == workspaceId && sequence.ProjectId == projectId),
+            cancellationToken);
+        var reservationUntrusted = await reservations.CountAsync(
+            admission => dbContext.LocalExecutionSequences.Any(
+                sequence => sequence.Id == admission.SequenceId && sequence.WorkspaceId == workspaceId && sequence.ProjectId != projectId),
+            cancellationToken);
+
+        var owners = agentOwners + verificationOwners + reservationOwners + (commitReserved ? 1 : 0);
         if (owners > 1)
         {
             return new WorkspaceExecutionAssessment(WorkspaceExecutionStatus.Conflicted, workspaceId);
         }
 
-        if (agentUntrusted > 0 || verificationUntrusted > 0 || commitUntrusted)
+        if (agentUntrusted > 0 || verificationUntrusted > 0 || commitUntrusted || reservationUntrusted > 0)
         {
             return Unavailable(workspaceId);
         }
@@ -154,6 +174,11 @@ internal static class WorkspaceExecutionPolicy
         if (verificationOwners == 1)
         {
             return new WorkspaceExecutionAssessment(WorkspaceExecutionStatus.VerificationActive, workspaceId);
+        }
+
+        if (reservationOwners == 1)
+        {
+            return new WorkspaceExecutionAssessment(WorkspaceExecutionStatus.PreparationReserved, workspaceId);
         }
 
         if (commitReserved)

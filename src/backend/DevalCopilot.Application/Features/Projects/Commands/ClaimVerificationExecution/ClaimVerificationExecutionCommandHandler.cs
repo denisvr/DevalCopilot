@@ -341,14 +341,15 @@ public sealed class ClaimVerificationExecutionCommandHandler(
 
         // ADR-0057: an Agent attempt, a local-commit reservation, conflicting or untrustworthy ownership also refuses the claim. Like the
         // read above, it runs before the Git capture and again under the claim transaction's write lock.
-        if (await WorkspaceExecutionFence.CheckClaimAsync(dbContext, command.ProjectId, workspace.Id, cancellationToken) is { } busy)
+        if (await WorkspaceExecutionFence.CheckClaimAsync(
+            dbContext, command.ProjectId, workspace.Id, cancellationToken, command.LocalStep) is { } busy)
         {
             return new AuthorityRead(busy, null);
         }
 
         // ADR-0058: a verification command may mutate, so the claim is also one of at most two recorded potentially mutating owners across
         // the database. Like the reads above, it runs before the Git capture and again under the claim transaction's write lock.
-        if (await ExecutionCapacityFence.CheckClaimAsync(dbContext, cancellationToken) is { } capacityRefusal)
+        if (await ExecutionCapacityFence.CheckClaimAsync(dbContext, cancellationToken, command.LocalStep) is { } capacityRefusal)
         {
             return new AuthorityRead(capacityRefusal, null);
         }

@@ -25,8 +25,8 @@ internal static class AgentSupervisionHostedSupport
         services.AddSingleton<AgentSupervisionObserver>();
     }
 
-    public static AgentSupervisionSweep CreateSweep(ServiceProvider provider) => new(
-        provider.GetRequiredService<IServiceScopeFactory>(),
+    public static AgentSupervisionSweep CreateSweep(ServiceProvider provider, IServiceScopeFactory? scopeFactory = null) => new(
+        scopeFactory ?? provider.GetRequiredService<IServiceScopeFactory>(),
         provider.GetRequiredService<TimeProvider>(),
         NullLogger<AgentSupervisionSweep>.Instance);
 

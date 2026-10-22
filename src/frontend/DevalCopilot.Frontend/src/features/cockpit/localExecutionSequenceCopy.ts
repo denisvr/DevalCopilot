@@ -1,7 +1,10 @@
 import type { GlobalAgentClaimBlock } from './deriveGlobalAgentClaimBlock'
 import type {
+  LocalExecutionAdmissionMode,
   LocalExecutionAvailabilityCandidate,
+  LocalExecutionQueueDisclosure,
   LocalExecutionReasonCode,
+  LocalExecutionWaitingReason,
   LocalExecutionSequenceControl,
   LocalExecutionSequenceDetails,
   LocalExecutionSequenceStateName,
@@ -16,8 +19,10 @@ import { problemOf } from './planningSequenceCopy'
 // only untrusted text the panel shows, and they are rendered as inert text by the component.
 
 export const LOCAL_EXECUTION_ARM_LABEL = 'Authorize local execution cycle'
+export const LOCAL_EXECUTION_QUEUE_LABEL = 'Queue local execution cycle'
 export const LOCAL_EXECUTION_STOP_LABEL = 'Stop after current operation'
 export const LOCAL_EXECUTION_CONFIRM_LABEL = 'Confirm and authorize'
+export const LOCAL_EXECUTION_QUEUE_CONFIRM_LABEL = 'Confirm and queue'
 export const LOCAL_EXECUTION_CANCEL_LABEL = 'Cancel'
 export const LOCAL_EXECUTION_NO_RECOVERY = 'No supported recovery action in this version'
 
@@ -44,7 +49,15 @@ export const LOCAL_EXECUTION_BOOKKEEPING_NOTE =
   'A recorded claim, dispatch marker or exit record is bookkeeping: it is not proof that a process is running or that it has stopped.'
 
 /** The confirmation the Human reads before arming; every line is fixed copy and the recipe list is rendered by the component. */
-export function describeLocalExecutionConfirmation(candidate: LocalExecutionAvailabilityCandidate): readonly string[] {
+export function describeLocalExecutionConfirmation(
+  candidate: LocalExecutionAvailabilityCandidate,
+  mode: LocalExecutionAdmissionMode = 'Immediate',
+): readonly string[] {
+  if (mode === 'WaitForAdmission') {
+    return describeLocalExecutionQueueConfirmation(candidate)
+  }
+
+
   const corrections =
     candidate.correctionAllowance === 0
       ? 'No automatic correction remains in this authorization.'
@@ -57,6 +70,28 @@ export function describeLocalExecutionConfirmation(candidate: LocalExecutionAvai
     'Approval and commit stay separate and separately authorized: a successful cycle only ends at Awaiting Human approval.',
     'Stop after current operation prevents successor operations only. It is not process cancellation, run Stop or Pause.',
     'The host checks the source again when you authorize and authorizes nothing if it changed. This window never advances steps and stores no authority.',
+  ]
+}
+
+/**
+ * The separate confirmation of the queued mode (ADR-0062). It states what queueing means: nothing runs until the host admits the cycle,
+ * source validation is deferred to the moment the admitted work starts, and the original two hours never reset.
+ */
+function describeLocalExecutionQueueConfirmation(candidate: LocalExecutionAvailabilityCandidate): readonly string[] {
+  const corrections =
+    candidate.correctionAllowance === 0
+      ? 'No automatic correction remains in this authorization.'
+      : `At most ${candidate.correctionAllowance} shared ${candidate.correctionAllowance === 1 ? 'correction' : 'corrections'} (the smaller remaining amount) can run automatically.`
+  return [
+    'Queueing authorizes the same fixed cycle as an immediate authorization, but each of its operations first waits until its workspace and the global mutating capacity are free. Nothing starts at this request.',
+    'Waiting claims no operation, consumes no budget and holds no workspace or capacity slot. Each next operation joins the end of the queue.',
+    'The verification commands listed below CAN MUTATE the workspace once they run, inside the isolated workspace with the timeouts shown.',
+    corrections,
+    'The two-hour advancement bound starts now and is never reset while the cycle waits. When it elapses the cycle ends and nothing is started.',
+    'The source is NOT inspected by this request: it is pinned as recorded, and it must still match when an admitted operation starts. If it changed, the cycle ends and never retargets.',
+    'Stop after current operation retires a waiting cycle before any claim. It is not process cancellation. A host restart ends the cycle and never resumes it.',
+    'Approval and commit stay separate and separately authorized: a successful cycle only ends at Awaiting Human approval.',
+    'A waiting reason is the last recorded admission check, not a promise that a slot or process is free now, and no start time is promised.',
   ]
 }
 
@@ -94,6 +129,7 @@ export const LOCAL_EXECUTION_STATE_LABEL: Readonly<Record<LocalExecutionSequence
   Stopped: 'Stopped',
   NeedsAttention: 'Needs attention',
   Interrupted: 'Interrupted',
+  WaitingForAdmission: 'Queued: waiting for admission',
 }
 
 export const LOCAL_EXECUTION_STEP_KIND_LABEL: Readonly<Record<LocalExecutionStepKind, string>> = {
@@ -173,6 +209,8 @@ export function describeLocalExecutionState(sequence: LocalExecutionSequenceDeta
       return 'Needs attention: automatic advancement is closed and nothing is retried.'
     case 'Interrupted':
       return 'Interrupted by a host restart. It never resumes automatically.'
+    case 'WaitingForAdmission':
+      return 'Queued: the next operation is waiting for admission. Nothing is reserved or claimed, and no workspace or capacity slot is held. The reason below is the last recorded admission check.'
   }
 }
 
@@ -198,6 +236,8 @@ const FAILURE_COPY: Readonly<Record<string, string>> = {
   'local_execution_sequence.recipes_too_many': 'At most 32 enabled verification recipes can be pinned.',
   'local_execution_sequence.recipes_incoherent': 'The enabled verification recipes are not a coherent, uniquely numbered set.',
   'local_execution_sequence.settings_unavailable': 'The requested settings, stop policies or budget policies of this run could not be read safely.',
+  'local_execution_sequence.queue_full': 'The bounded queue of local execution cycles is full; nothing was queued. Wait for a queued cycle to end or stop one.',
+  'local_execution_sequence.queue_unavailable': 'The local execution queue order or bound cannot be trusted; nothing was queued.',
   'local_execution_sequence.tuple_stale':
     'The workspace, checkpoint and fingerprint shown are no longer the current source of this project. Nothing was armed; read the availability again.',
   'local_execution_sequence.confirmation_stale':
@@ -276,6 +316,7 @@ const EVENT_STATE_PHRASE: Readonly<Record<LocalExecutionSequenceStateName, strin
   Stopped: 'stopped',
   NeedsAttention: 'needs attention',
   Interrupted: 'interrupted',
+  WaitingForAdmission: 'queued and waiting for admission',
 }
 
 export const describeLocalExecutionEventState = (state: LocalExecutionSequenceStateName): string => EVENT_STATE_PHRASE[state]
@@ -309,4 +350,33 @@ export const LOCAL_EXECUTION_EVENT_SUMMARIES = {
   step_concluded: 'The host recorded the end of a claimed local execution operation.',
   stop_requested: 'A Human chose Stop after current operation. This is not process cancellation, run Stop or Pause.',
   ended: 'The local execution sequence ended.',
+  admission_queued: 'The host recorded the next pending operation of a queued local execution cycle. Nothing was reserved or claimed.',
+  admission_waiting: 'A queued local execution step recorded a changed waiting reason from its last admission check.',
 } as const
+
+/** The fixed words of one recorded waiting reason of a queued cycle (ADR-0062). Never present worker, process or slot availability. */
+export const LOCAL_EXECUTION_WAITING_REASON_LABEL: Readonly<Record<LocalExecutionWaitingReason, string>> = {
+  AwaitingAdmissionCheck: 'Queued, no admission check recorded yet',
+  WaitingForWorkspace: 'Waiting for the workspace (another execution owned it at the last check)',
+  WaitingForCapacity: 'Waiting for global mutating capacity (it was at its limit at the last check)',
+  WaitingForEarlierEligibleWork: 'Waiting behind earlier queued work that competes for the same workspace or capacity',
+  WaitingForPreparationCapacity: 'Waiting for a queued preparation slot (none was available at the last check)',
+  Unavailable: 'Waiting: whether the workspace or capacity is free could not be judged safely',
+}
+
+export const LOCAL_EXECUTION_QUEUE_RECORDED_NOTE =
+  'This reason is the last recorded admission check. It changes only when a check observes a different reason, and it is not proof that a workspace, slot or process is free now. No start time is promised.'
+
+export const LOCAL_EXECUTION_QUEUE_RESERVED_NOTE =
+  "The workspace is reserved for this operation's preparation. The reservation is not an Agent or verification process, and nothing has been claimed or dispatched for it."
+
+export const LOCAL_EXECUTION_QUEUE_UNRESOLVED_NOTE =
+  'A reserved preparation could not be proved unused or claimed. It stays held and excluded; nothing is retried, and no supported recovery action exists in this version.'
+
+/** The fixed one-line description of what a queued cycle is waiting to start. */
+export function describeLocalExecutionQueuePending(queue: LocalExecutionQueueDisclosure): string {
+  const kind = LOCAL_EXECUTION_STEP_KIND_LABEL[queue.kind]
+  const where = queue.kind === 'Implementation' ? '' : ` · pass ${queue.passNumber}`
+  const recipe = queue.recipeOrdinal === null ? '' : ` · recipe position ${queue.recipeOrdinal + 1}`
+  return `${kind}${where}${recipe}`
+}

@@ -14,6 +14,7 @@ export const WORKSPACE_EXECUTION_STATUSES = [
   'CommitReserved',
   'Conflicted',
   'Unavailable',
+  'PreparationReserved',
 ] as const
 export type WorkspaceExecutionStatus = (typeof WORKSPACE_EXECUTION_STATUSES)[number]
 
@@ -26,6 +27,7 @@ export const WORKSPACE_EXECUTION_REASON_BY_STATUS = {
   CommitReserved: 'local_commit_reserved',
   Conflicted: 'conflicting_execution_owners',
   Unavailable: 'workspace_execution_unavailable',
+  PreparationReserved: 'queued_preparation_reserved',
 } as const satisfies Readonly<Record<WorkspaceExecutionStatus, string | null>>
 export type WorkspaceExecutionReasonCode = Exclude<(typeof WORKSPACE_EXECUTION_REASON_BY_STATUS)[WorkspaceExecutionStatus], null>
 
@@ -108,6 +110,7 @@ export const WORKSPACE_EXECUTION_GUIDANCE = {
   AgentAttemptActive: `An Agent attempt is recorded as this workspace's execution owner: it is still running, or it was dispatched and ended without recorded process exit evidence (a local execution sequence keeps such an owner excluded, with no supported recovery action in this version). A recorded owner is not proof of a running process. Inspect it and wait; nothing is cancelled or released here. ${AFTER}`,
   VerificationActive: `A verification is recorded as this workspace's execution owner: it is still running, or it was dispatched and ended without recorded process exit evidence (a local execution sequence keeps such an owner excluded, with no supported recovery action in this version). A recorded owner is not proof of a running process. Inspect it and wait; nothing is cancelled or released here. ${AFTER}`,
   CommitReserved: `A local commit holds this workspace. Inspect it and wait; nothing is cancelled or released here. ${AFTER}`,
+  PreparationReserved: `A queued local execution cycle has reserved this workspace for its next step preparation (ADR-0062). The reservation is not an Agent or verification process and nothing has been claimed or dispatched for it. Wait for it to start or end; nothing is cancelled or released here. ${AFTER}`,
   Conflicted: `More than one execution owner is recorded for this workspace, and none is chosen as the winner. Inspect the recorded attempts, verifications and local commit before any further work. ${AFTER}`,
   Unavailable: `Who owns execution in this workspace could not be judged safely, so starting is withheld. Inspect the recorded evidence before any further work. ${AFTER}`,
 } as const

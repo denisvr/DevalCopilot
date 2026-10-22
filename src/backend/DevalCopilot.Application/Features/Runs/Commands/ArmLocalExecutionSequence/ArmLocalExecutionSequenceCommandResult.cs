@@ -1,3 +1,4 @@
+using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
 using DevalCopilot.Domain.Features.Runs;
 
 namespace DevalCopilot.Application.Features.Runs.Commands.ArmLocalExecutionSequence;
@@ -18,4 +19,6 @@ public sealed record ArmLocalExecutionSequenceCommandResult(
     DateTimeOffset ArmedAtUtc,
     DateTimeOffset AdvancementDeadlineUtc,
     long Revision,
-    bool Replayed);
+    bool Replayed,
+    LocalExecutionAdmissionMode AdmissionMode = LocalExecutionAdmissionMode.Immediate,
+    LocalExecutionQueueDisclosure? Queue = null);

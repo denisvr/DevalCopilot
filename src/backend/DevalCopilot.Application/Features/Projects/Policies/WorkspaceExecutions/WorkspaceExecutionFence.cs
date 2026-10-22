@@ -1,5 +1,6 @@
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
+using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
 
 namespace DevalCopilot.Application.Features.Projects.Policies.WorkspaceExecutions;
 
@@ -13,8 +14,13 @@ internal static class WorkspaceExecutionFence
 {
     /// <summary>Refuses a claim into a workspace that is not Idle: another owner, a reservation, conflicting or untrustworthy ownership.</summary>
     public static async Task<Error?> CheckClaimAsync(
-        IDevalCopilotDbContext dbContext, Guid projectId, Guid workspaceId, CancellationToken cancellationToken) =>
-        ToError(await WorkspaceExecutionPolicy.AssessAsync(dbContext, projectId, workspaceId, null, null, cancellationToken));
+        IDevalCopilotDbContext dbContext,
+        Guid projectId,
+        Guid workspaceId,
+        CancellationToken cancellationToken,
+        LocalExecutionStepTicket? ownReservation = null) =>
+        ToError(await WorkspaceExecutionPolicy.AssessAsync(
+            dbContext, projectId, workspaceId, null, null, cancellationToken, ownReservation));
 
     /// <summary>Refuses dispatching exactly this Agent attempt when anything else owns the workspace. Other attempts of its run and
     /// verification executions are never excluded.</summary>
@@ -35,6 +41,7 @@ internal static class WorkspaceExecutionFence
         WorkspaceExecutionStatus.AgentAttemptActive => WorkspaceExecutionErrors.AgentAttemptActive(),
         WorkspaceExecutionStatus.VerificationActive => WorkspaceExecutionErrors.VerificationActive(),
         WorkspaceExecutionStatus.CommitReserved => CommitReservation.WorkspaceCommitting(),
+        WorkspaceExecutionStatus.PreparationReserved => WorkspaceExecutionErrors.PreparationReserved(),
         WorkspaceExecutionStatus.Conflicted => WorkspaceExecutionErrors.OwnersConflicted(),
         _ => WorkspaceExecutionErrors.Unavailable(),
     };

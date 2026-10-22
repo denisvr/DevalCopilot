@@ -94,6 +94,7 @@ public sealed class GetLocalExecutionSequenceQueryHandler(IDevalCopilotDbContext
         var claimed = steps.FirstOrDefault(step => step.State == LocalExecutionSequenceStepState.Claimed);
         var claimedReceipt = claimed is null ? null : receipts.First(receipt => receipt.StepId == claimed.Id);
         if (sequence.State is LocalExecutionSequenceState.Armed or LocalExecutionSequenceState.PreparingStep
+                or LocalExecutionSequenceState.WaitingForAdmission
             && nowUtc >= sequence.AdvancementDeadlineUtc)
         {
             effectiveState = LocalExecutionSequenceState.NeedsAttention;
@@ -132,6 +133,23 @@ public sealed class GetLocalExecutionSequenceQueryHandler(IDevalCopilotDbContext
         var final = sequence.State is LocalExecutionSequenceState.ReadyForHumanApproval or LocalExecutionSequenceState.HumanEscalation
             ? await ProveFinalReferencesAsync(sequence, steps, attempts, cancellationToken)
             : null;
+        // ADR-0062: the closed queue disclosure of a pending or reserved admission, from recorded rows only. An elapsed waiting admission
+        // that the sweep has not persisted yet is withheld at once; a held (Reserved or Unresolved) reservation stays disclosed because it
+        // still owns its workspace, whatever the cycle's state.
+        var admission = sequence.AdmissionMode == LocalExecutionAdmissionMode.WaitForAdmission
+            ? await dbContext.LocalExecutionAdmissions.AsNoTracking()
+                .Where(candidate => candidate.SequenceId == sequence.Id
+                    && (candidate.State == LocalExecutionAdmissionState.Waiting
+                        || candidate.State == LocalExecutionAdmissionState.Reserved
+                        || candidate.State == LocalExecutionAdmissionState.Unresolved))
+                .OrderByDescending(candidate => candidate.AdmissionNumber)
+                .FirstOrDefaultAsync(cancellationToken)
+            : null;
+        if (admission is { State: LocalExecutionAdmissionState.Waiting } && !LocalExecutionSequencePolicy.IsAuthorityLive(effectiveState))
+        {
+            admission = null;
+        }
+
         var snapshot = new LocalExecutionSequenceSnapshot(
             sequence.Id,
             sequence.PlanProposalMessageId,
@@ -163,7 +181,9 @@ public sealed class GetLocalExecutionSequenceQueryHandler(IDevalCopilotDbContext
             awaitingReconciliation,
             outstanding?.OperationId,
             receipts,
-            final);
+            final,
+            sequence.AdmissionMode,
+            LocalExecutionQueueDisclosures.Of(sequence, admission));
         return (snapshot, fence);
     }
 

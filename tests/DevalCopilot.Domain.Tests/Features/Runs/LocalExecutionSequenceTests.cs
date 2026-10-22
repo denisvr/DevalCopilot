@@ -22,7 +22,10 @@ public sealed class LocalExecutionSequenceTests
         Guid? id = null) => LocalExecutionSequence.Arm(
         id ?? Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), fingerprint ?? Sha, Guid.NewGuid(),
         authority, planInputs ?? new string('b', 64), confirmation ?? new string('c', 64), settings, recipeCount, allowance,
-        armedAt ?? Now);
+        armedAt ?? Now,
+        Interlocked.Increment(ref coordinationNumber));
+
+    private static long coordinationNumber;
 
     [Fact]
     public void Arming_records_the_exact_tuple_in_the_Armed_state_at_revision_one_with_a_two_hour_deadline()
@@ -55,9 +58,9 @@ public sealed class LocalExecutionSequenceTests
         Assert.Throws<ArgumentException>(() => Armed(id: Guid.Empty));
         var good = Guid.NewGuid();
         Assert.Throws<ArgumentException>(() => LocalExecutionSequence.Arm(
-            good, Guid.Empty, good, good, good, Sha, good, LocalExecutionPlanAuthority.AcceptedRoot, Sha, Sha, "s", 1, 0, Now));
+            good, Guid.Empty, good, good, good, Sha, good, LocalExecutionPlanAuthority.AcceptedRoot, Sha, Sha, "s", 1, 0, Now, 1));
         Assert.Throws<ArgumentException>(() => LocalExecutionSequence.Arm(
-            good, good, good, good, good, Sha, Guid.Empty, LocalExecutionPlanAuthority.AcceptedRoot, Sha, Sha, "s", 1, 0, Now));
+            good, good, good, good, good, Sha, Guid.Empty, LocalExecutionPlanAuthority.AcceptedRoot, Sha, Sha, "s", 1, 0, Now, 1));
     }
 
     [Theory]
@@ -352,7 +355,7 @@ public sealed class LocalExecutionSequenceTests
     public void The_state_values_are_the_durable_closed_vocabulary()
     {
         Assert.Equal(
-            ["Armed", "PreparingStep", "AwaitingStepResult", "Stopping", "ReadyForHumanApproval", "HumanEscalation", "Stopped", "NeedsAttention", "Interrupted"],
+            ["Armed", "PreparingStep", "AwaitingStepResult", "Stopping", "ReadyForHumanApproval", "HumanEscalation", "Stopped", "NeedsAttention", "Interrupted", "WaitingForAdmission"],
             Enum.GetNames<LocalExecutionSequenceState>());
     }
 }

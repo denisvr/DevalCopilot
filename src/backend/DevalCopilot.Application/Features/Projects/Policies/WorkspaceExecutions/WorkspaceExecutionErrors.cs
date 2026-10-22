@@ -9,6 +9,7 @@ public static class WorkspaceExecutionErrors
     public const string AgentAttemptActiveCode = "workspace_execution.agent_attempt_active";
     public const string VerificationActiveCode = "workspace_execution.verification_active";
     public const string OwnersConflictedCode = "workspace_execution.owners_conflicted";
+    public const string PreparationReservedCode = "workspace_execution.preparation_reserved";
     public const string UnavailableCode = "workspace_execution.unavailable";
     public const string BodyNotAllowedCode = "workspace_execution.body_not_allowed";
     public const string QueryNotAllowedCode = "workspace_execution.query_not_allowed";
@@ -21,6 +22,9 @@ public static class WorkspaceExecutionErrors
 
     public static Error OwnersConflicted() => Error.Conflict(
         OwnersConflictedCode, "More than one execution is recorded as active in this project's workspace; it needs inspection.");
+
+    public static Error PreparationReserved() => Error.Conflict(
+        PreparationReservedCode, "A queued local execution cycle has reserved this project's workspace for its next step preparation; wait for it to start or end.");
 
     public static Error Unavailable() => Error.Conflict(
         UnavailableCode, "Who may execute in this project's workspace cannot be judged safely; inspect the workspace.");

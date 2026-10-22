@@ -1,7 +1,9 @@
 using System.Collections.Concurrent;
 using Devalente.Shared.Cqrs;
 using DevalCopilot.Application.Features.Runs.Commands.ClaimLocalExecutionSequenceStep;
+using DevalCopilot.Application.Features.Runs.Commands.ObserveLocalExecutionQueue;
 using DevalCopilot.Application.Features.Runs.Commands.ObserveLocalExecutionSequence;
+using DevalCopilot.Application.Features.Runs.Commands.ReserveLocalExecutionAdmission;
 using DevalCopilot.Application.Features.Runs.Commands.ResolveLocalExecutionSequenceStepPreparation;
 using DevalCopilot.Application.Features.Runs.Errors;
 using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
@@ -36,6 +38,12 @@ public sealed class LocalExecutionSequenceCoordinator(IServiceScopeFactory scope
     private readonly ConcurrentDictionary<Guid, Task> preparations = new();
     private readonly SemaphoreSlim preparationSlots = new(MaximumConcurrentPreparations, MaximumConcurrentPreparations);
 
+    // ADR-0062: the rotating keyset cursors. A sweep fixes a high-water number, finishes that finite range page by page and refreshes it
+    // on wrap, so an old set can neither starve later live records nor be kept from a revisit by continuous arrivals.
+    private readonly LocalExecutionAdvancingSweep advancingSweep = new();
+    private long queueCursor;
+    private long? queueHighWater;
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         using var timer = new PeriodicTimer(PollInterval);
@@ -45,8 +53,12 @@ public sealed class LocalExecutionSequenceCoordinator(IServiceScopeFactory scope
             {
                 try
                 {
-                    var sequences = await DispatchAsync(new GetAdvanceableLocalExecutionSequencesQuery(), stoppingToken);
-                    foreach (var sequence in sequences)
+                    await ObserveQueueAsync(stoppingToken);
+                    await ReserveQueuedAdmissionsAsync(stoppingToken);
+
+                    var page = await DispatchAsync(advancingSweep.NextQuery(), stoppingToken);
+                    advancingSweep.Accept(page);
+                    foreach (var sequence in page.Items)
                     {
                         // One in-process worker per sequence: a still-running worker is never doubled by a later tick.
                         var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -70,6 +82,66 @@ public sealed class LocalExecutionSequenceCoordinator(IServiceScopeFactory scope
 
         await Task.WhenAll(inFlight.Values.Concat(preparations.Values).ToArray()).WaitAsync(TimeSpan.FromSeconds(30), CancellationToken.None)
             .ContinueWith(_ => { }, TaskScheduler.Default);
+    }
+
+    /// <summary>One bounded page of the queued-cycle observation. The in-process worker availability it passes is an observation that can
+    /// only label a waiting reason; the database decides every admission.</summary>
+    private async Task ObserveQueueAsync(CancellationToken stoppingToken)
+    {
+        var observed = await DispatchAsync(
+            new ObserveLocalExecutionQueueCommand(queueCursor, queueHighWater, preparationSlots.CurrentCount > 0), stoppingToken);
+        if (observed.IsFailure)
+        {
+            return;
+        }
+
+        if (observed.Value.SweepFinished)
+        {
+            queueCursor = 0;
+            queueHighWater = null;
+            return;
+        }
+
+        queueCursor = observed.Value.LastCoordinationNumber;
+        queueHighWater = observed.Value.HighWaterCoordinationNumber;
+    }
+
+    /// <summary>ADR-0062: the host acquires an in-process preparation worker first, and only then asks the database to reserve the oldest
+    /// eligible admission; a durable reservation is never held merely while waiting for that semaphore. The worker that receives the
+    /// committed ticket alone prepares and claims it, once.</summary>
+    private async Task ReserveQueuedAdmissionsAsync(CancellationToken stoppingToken)
+    {
+        for (var attempt = 0; attempt < MaximumConcurrentPreparations; attempt++)
+        {
+            if (!await preparationSlots.WaitAsync(0, stoppingToken))
+            {
+                return;
+            }
+
+            var handedOver = false;
+            try
+            {
+                var reserved = await DispatchAsync(new ReserveLocalExecutionAdmissionCommand(), stoppingToken);
+                if (reserved.IsFailure || reserved.Value is not { ReservedStep: { } ticket, RunId: { } runId })
+                {
+                    return;
+                }
+
+                var preparation = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                if (preparations.TryAdd(ticket.StepId, preparation.Task))
+                {
+                    handedOver = true;
+                    _ = RunPreparationAsync(runId, ticket.SequenceId, ticket, preparation, stoppingToken, slotHeld: true);
+                }
+            }
+            finally
+            {
+                if (!handedOver)
+                {
+                    preparationSlots.Release();
+                }
+            }
+        }
     }
 
     private async Task RunWorkerAsync(Guid sequenceId, TaskCompletionSource gate, CancellationToken stoppingToken)
@@ -112,11 +184,16 @@ public sealed class LocalExecutionSequenceCoordinator(IServiceScopeFactory scope
     }
 
     private async Task RunPreparationAsync(
-        Guid runId, Guid sequenceId, LocalExecutionStepTicket ticket, TaskCompletionSource gate, CancellationToken stoppingToken)
+        Guid runId,
+        Guid sequenceId,
+        LocalExecutionStepTicket ticket,
+        TaskCompletionSource gate,
+        CancellationToken stoppingToken,
+        bool slotHeld = false)
     {
         try
         {
-            await PrepareAsync(runId, sequenceId, ticket, stoppingToken);
+            await PrepareAsync(runId, sequenceId, ticket, stoppingToken, slotHeld);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
@@ -133,13 +210,18 @@ public sealed class LocalExecutionSequenceCoordinator(IServiceScopeFactory scope
         }
     }
 
-    private async Task PrepareAsync(Guid runId, Guid sequenceId, LocalExecutionStepTicket ticket, CancellationToken stoppingToken)
+    private async Task PrepareAsync(
+        Guid runId, Guid sequenceId, LocalExecutionStepTicket ticket, CancellationToken stoppingToken, bool slotHeld = false)
     {
         // Every outcome other than a proved success is settled by an independent read of the exact step/operation association, never by
         // another claim attempt.
         string? failureCode = null;
         var claimSucceeded = false;
-        await preparationSlots.WaitAsync(stoppingToken);
+        if (!slotHeld)
+        {
+            await preparationSlots.WaitAsync(stoppingToken);
+        }
+
         try
         {
             var claimed = await DispatchAsync(new ClaimLocalExecutionSequenceStepCommand(ticket), stoppingToken);

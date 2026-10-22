@@ -75,6 +75,10 @@ public interface IDevalCopilotDbContext
 
     DbSet<LocalExecutionSequenceStep> LocalExecutionSequenceSteps { get; }
 
+    DbSet<LocalExecutionAdmission> LocalExecutionAdmissions { get; }
+
+    DbSet<LocalExecutionOrderCounter> LocalExecutionOrderCounters { get; }
+
     DbSet<AgentSupervision> AgentSupervisions { get; }
 
     DbSet<ExecutionCapacityConfigurationRevision> ExecutionCapacityConfigurations { get; }

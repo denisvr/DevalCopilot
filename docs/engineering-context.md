@@ -99,6 +99,10 @@ without coherent host Exited evidence stays an effective execution owner (no sup
 redispatches or adopts. ADR-0061 / LOCAL-INSPECT-01 (implemented for review, unpublished until its own GO) adds only read-only recorded
 inspection of that cycle: three bodyless GETs (index, selected step, one verification stream window) and one collapsed region in the
 current run and run history; it grants, changes and dispatches nothing. Increments 4 to 6 stay incomplete.
+ADR-0062 / LOCAL-QUEUE-01 (implemented for review, unpublished until its own GO) adds only an explicit, separately confirmed queued intake
+mode for that same cycle: the cycle waits as a durable pending admission and the host, never the page, reserves the oldest eligible one
+under the write lock before external preparation; it adds no priority, executor lease, retry, takeover or process-aware recovery and
+changes no approval, commit or publication authority. Increments 4 to 6 stay incomplete.
 ADR-0056 adds only operational evidence for all seven Agent response contracts: a
 durable observation of what the host's own observer last reported (phase, last
 report, absolute deadline, first attention) for the current attempt, an independent

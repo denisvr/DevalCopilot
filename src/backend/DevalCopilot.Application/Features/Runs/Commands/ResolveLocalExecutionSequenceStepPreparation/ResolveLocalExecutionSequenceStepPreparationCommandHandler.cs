@@ -65,13 +65,24 @@ public sealed class ResolveLocalExecutionSequenceStepPreparationCommandHandler(
         string reason;
         if (probed == LocalExecutionStepProbeResult.NotClaimed)
         {
+            // ADR-0062: the independent absence probe is read first, but only the write-locked proof of the unused reservation retires a
+            // queued step; any contradiction leaves it held as Unresolved.
             reason = ReasonFor(command.FailureCode);
-            step.Revoke(reason, nowUtc);
+            var outcome = await LocalExecutionReservationRetirement.RetireOrHoldAsync(
+                dbContext, sequence, step, reason, LocalExecutionSequenceReason.PreparationUnresolved, nowUtc, cancellationToken);
+            if (outcome == LocalExecutionReservationRetirement.Outcome.NotQueued)
+            {
+                step.Revoke(reason, nowUtc);
+            }
+            else if (outcome == LocalExecutionReservationRetirement.Outcome.Held)
+            {
+                reason = LocalExecutionSequenceReason.PreparationUnresolved;
+            }
         }
         else
         {
             reason = LocalExecutionSequenceReason.PreparationUnresolved;
-            step.MarkUnresolved(reason, nowUtc);
+            await LocalExecutionReservationRetirement.HoldAsync(dbContext, sequence, step, reason, nowUtc, cancellationToken);
         }
 
         sequence.End(LocalExecutionSequenceState.NeedsAttention, reason, detail, nowUtc);

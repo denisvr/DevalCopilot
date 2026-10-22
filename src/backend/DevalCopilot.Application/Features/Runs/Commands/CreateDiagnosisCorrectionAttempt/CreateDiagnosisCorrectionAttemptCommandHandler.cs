@@ -148,13 +148,14 @@ public sealed class CreateDiagnosisCorrectionAttemptCommandHandler(
 
         // ADR-0057: no other Agent attempt, verification execution or local-commit reservation may own this workspace, decided before
         // any Git work or manifest sealing and again at the write-locked commit seam below.
-        if (await WorkspaceExecutionFence.CheckClaimAsync(dbContext, run.ProjectId, workspace.Id, cancellationToken) is { } workspaceBusy)
+        if (await WorkspaceExecutionFence.CheckClaimAsync(
+            dbContext, run.ProjectId, workspace.Id, cancellationToken, ticket) is { } workspaceBusy)
         {
             return Failure(workspaceBusy);
         }
 
         // ADR-0058: an additional veto, decided before any Git work or sealing and again under the claim transaction's write lock.
-        if (await ExecutionCapacityFence.CheckClaimAsync(dbContext, cancellationToken) is { } capacityRefusal)
+        if (await ExecutionCapacityFence.CheckClaimAsync(dbContext, cancellationToken, ticket) is { } capacityRefusal)
         {
             return Failure(capacityRefusal);
         }
@@ -309,8 +310,8 @@ public sealed class CreateDiagnosisCorrectionAttemptCommandHandler(
 
                 // ADR-0057: decided under the same write lock, immediately before the claim's own insert, from fresh untracked reads.
                 workspaceExecutionError = await WorkspaceExecutionFence.CheckClaimAsync(
-                    dbContext, run.ProjectId, workspace.Id, cancellationToken)
-                    ?? await ExecutionCapacityFence.CheckClaimAsync(dbContext, cancellationToken);
+                    dbContext, run.ProjectId, workspace.Id, cancellationToken, ticket)
+                    ?? await ExecutionCapacityFence.CheckClaimAsync(dbContext, cancellationToken, ticket);
             }
             catch (OperationCanceledException)
             {

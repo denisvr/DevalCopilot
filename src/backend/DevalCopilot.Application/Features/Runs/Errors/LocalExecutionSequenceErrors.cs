@@ -38,6 +38,8 @@ public static class LocalExecutionSequenceErrors
     public const string InvalidRequestCode = "local_execution_sequence.invalid_request";
     public const string BodyTooLargeCode = "local_execution_sequence.body_too_large";
     public const string BodyNotAllowedCode = "local_execution_sequence.body_not_allowed";
+    public const string QueueFullCode = "local_execution_sequence.queue_full";
+    public const string QueueUnavailableCode = "local_execution_sequence.queue_unavailable";
 
     public static Error InvalidRequest() => new(
         InvalidRequestCode, "The request is not exactly the supported local execution sequence request.", ErrorType.Validation);
@@ -132,6 +134,12 @@ public static class LocalExecutionSequenceErrors
 
     public static Error AllowanceReached() => Error.Conflict(
         AllowanceReachedCode, "The authorized automatic correction allowance was reached; nothing was claimed.");
+
+    public static Error QueueFull() => Error.Conflict(
+        QueueFullCode, "The bounded queue of local execution cycles is full; wait for a queued cycle to end or stop one.");
+
+    public static Error QueueUnavailable() => Error.Conflict(
+        QueueUnavailableCode, "The local execution queue order or bound cannot be trusted; nothing was queued.");
 
     public static Error PersistenceFailed() => Error.Failure(
         PersistenceFailedCode, "The local execution sequence could not be durably recorded.");

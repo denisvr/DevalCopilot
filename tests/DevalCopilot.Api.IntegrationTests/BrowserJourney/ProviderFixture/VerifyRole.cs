@@ -18,6 +18,7 @@ public static class VerifyRole
 
         var worktree = location.RequireWorktree(currentDirectory);
         var content = File.ReadAllText(location.RequireCandidateFile(worktree));
+        WaitWhileHeld(location);
         var passed = CandidateEdit.IsCorrect(content);
         InvocationLog.Append(
             location,
@@ -31,5 +32,21 @@ public static class VerifyRole
         Console.Out.Write("verification started\n");
         Console.Error.Write("FAIL " + ManifestInfo.VerificationFailureMarker + ": Total does not add left and right.\n");
         return 1;
+    }
+
+    /// <summary>The owned gate of the contention journey (see <see cref="OwnedLocation.VerifyHoldPath"/>): a bounded wait that logs nothing
+    /// and ends the moment the journey removes the file. A hold that is never released is a refusal, never a pass.</summary>
+    private static void WaitWhileHeld(OwnedLocation location)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(150);
+        while (File.Exists(location.VerifyHoldPath))
+        {
+            if (DateTime.UtcNow > deadline)
+            {
+                throw new FixtureRefusal(FixtureRefusal.UnsupportedInvocation, "The verification hold was never released.");
+            }
+
+            Thread.Sleep(50);
+        }
     }
 }

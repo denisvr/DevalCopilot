@@ -64,6 +64,19 @@ public sealed class GetLocalExecutionSequenceEndpoint(IApplicationMediator media
     /// <summary>The safe mapping: every tuple that is not internally consistent is refused (null) instead of shown.</summary>
     private static LocalExecutionSequenceResponse? ToResponse(LocalExecutionSequenceSnapshot sequence)
     {
+        if (!LocalExecutionQueueMapping.TryMap(sequence.Queue, out var queue)
+            || !Enum.IsDefined(sequence.AdmissionMode)
+            || (sequence.Queue is not null && sequence.AdmissionMode != LocalExecutionAdmissionMode.WaitForAdmission)
+            || (sequence.RecordedState == LocalExecutionSequenceState.WaitingForAdmission
+                && (sequence.AdmissionMode != LocalExecutionAdmissionMode.WaitForAdmission
+                    || sequence.Queue is not { AdmissionState: LocalExecutionAdmissionState.Waiting }))
+            || (sequence.RecordedState == LocalExecutionSequenceState.PreparingStep
+                && sequence.AdmissionMode == LocalExecutionAdmissionMode.WaitForAdmission
+                && sequence.Queue is not { AdmissionState: LocalExecutionAdmissionState.Reserved }))
+        {
+            return null;
+        }
+
         var steps = sequence.Steps;
         var final = sequence.Final;
         var isFinalState = sequence.RecordedState is LocalExecutionSequenceState.ReadyForHumanApproval or LocalExecutionSequenceState.HumanEscalation;
@@ -134,7 +147,9 @@ public sealed class GetLocalExecutionSequenceEndpoint(IApplicationMediator media
                     step.ClaimedAtUtc is { } claimed ? Time(claimed) : null,
                     step.ResultDeadlineUtc is { } deadline ? Time(deadline) : null))
                 .ToArray(),
-            final is null ? null : new LocalExecutionSequenceFinalResponse(final.ReportMessageId, final.ReviewAttemptId, final.EscalationMessageId));
+            final is null ? null : new LocalExecutionSequenceFinalResponse(final.ReportMessageId, final.ReviewAttemptId, final.EscalationMessageId),
+            sequence.AdmissionMode.ToString(),
+            queue);
     }
 
     private static string Time(DateTimeOffset value) => value.UtcDateTime.ToString("O", CultureInfo.InvariantCulture);

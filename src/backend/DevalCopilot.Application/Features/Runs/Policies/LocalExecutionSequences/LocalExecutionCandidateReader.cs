@@ -23,11 +23,15 @@ internal static class LocalExecutionCandidateReader
     internal sealed record Reading(Error? Error, LocalExecutionCandidate? Candidate, Run? Run, GitWorkspace? Workspace, GitCheckpoint? Checkpoint);
 
     public static async Task<Reading> ReadAsync(
-        IDevalCopilotDbContext dbContext, Guid runId, Guid planProposalMessageId, CancellationToken cancellationToken)
+        IDevalCopilotDbContext dbContext,
+        Guid runId,
+        Guid planProposalMessageId,
+        CancellationToken cancellationToken,
+        LocalExecutionAdmissionMode mode = LocalExecutionAdmissionMode.Immediate)
     {
         try
         {
-            return await ReadCoreAsync(dbContext, runId, planProposalMessageId, cancellationToken);
+            return await ReadCoreAsync(dbContext, runId, planProposalMessageId, mode, cancellationToken);
         }
         catch (Exception exception) when (exception is InvalidOperationException or FormatException or JsonException)
         {
@@ -37,7 +41,11 @@ internal static class LocalExecutionCandidateReader
     }
 
     private static async Task<Reading> ReadCoreAsync(
-        IDevalCopilotDbContext dbContext, Guid runId, Guid planProposalMessageId, CancellationToken cancellationToken)
+        IDevalCopilotDbContext dbContext,
+        Guid runId,
+        Guid planProposalMessageId,
+        LocalExecutionAdmissionMode mode,
+        CancellationToken cancellationToken)
     {
         var run = await dbContext.Runs.AsNoTracking().SingleOrDefaultAsync(candidate => candidate.Id == runId, cancellationToken);
         if (run is null)
@@ -71,7 +79,10 @@ internal static class LocalExecutionCandidateReader
             return Refused(LocalExecutionSequenceErrors.PlanningActive());
         }
 
-        if (await RunAbandonmentAuthority.FindBlockerAsync(dbContext, run.ProjectId, cancellationToken) is not null)
+        // ADR-0062: a queued intake may wait behind a coherent workspace owner, but a project blocker is tolerated only after its cause
+        // is proved to be exactly that owner (below); an Immediate arming still refuses it here.
+        var projectBlocker = await RunAbandonmentAuthority.FindBlockerAsync(dbContext, run.ProjectId, cancellationToken);
+        if (projectBlocker is not null && mode == LocalExecutionAdmissionMode.Immediate)
         {
             return Refused(LocalExecutionSequenceErrors.ProjectBusy());
         }
@@ -100,14 +111,25 @@ internal static class LocalExecutionCandidateReader
             return Refused(LocalExecutionSequenceErrors.CheckpointMissing());
         }
 
-        if (await WorkspaceExecutionFence.CheckClaimAsync(dbContext, run.ProjectId, workspace.Id, cancellationToken) is not null)
+        if (mode == LocalExecutionAdmissionMode.Immediate)
         {
-            return Refused(LocalExecutionSequenceErrors.WorkspaceOwned());
-        }
+            if (await WorkspaceExecutionFence.CheckClaimAsync(dbContext, run.ProjectId, workspace.Id, cancellationToken) is not null)
+            {
+                return Refused(LocalExecutionSequenceErrors.WorkspaceOwned());
+            }
 
-        if (await ExecutionCapacityFence.CheckClaimAsync(dbContext, cancellationToken) is not null)
+            if (await ExecutionCapacityFence.CheckClaimAsync(dbContext, cancellationToken) is not null)
+            {
+                return Refused(LocalExecutionSequenceErrors.CapacityUnavailable());
+            }
+        }
+        else
         {
-            return Refused(LocalExecutionSequenceErrors.CapacityUnavailable());
+            var queueRefusal = await CheckQueueAdmissionAsync(dbContext, run.ProjectId, workspace.Id, projectBlocker is not null, cancellationToken);
+            if (queueRefusal is not null)
+            {
+                return Refused(queueRefusal);
+            }
         }
 
         var (plan, planError) = await LocalExecutionPlanEligibility.EvaluateAsync(
@@ -194,6 +216,47 @@ internal static class LocalExecutionCandidateReader
                 command.UpdatedAtUtc))
             .ToList();
         return (null, pins);
+    }
+
+    /// <summary>
+    /// ADR-0062 queue intake. A coherent busy workspace owner (an Agent attempt, a verification execution, a local-commit reservation
+    /// or a queued preparation) and a global AtCapacity reading may be waited for; Conflicted, Unavailable or missing ownership, an
+    /// untrustworthy capacity reading and any project blocker whose cause is not that very owner refuse. The bound of live queued
+    /// cycles reads at most one more than the limit and never materializes a historical set.
+    /// </summary>
+    private static async Task<Error?> CheckQueueAdmissionAsync(
+        IDevalCopilotDbContext dbContext, Guid projectId, Guid workspaceId, bool projectBlocked, CancellationToken cancellationToken)
+    {
+        var assessment = await WorkspaceExecutionPolicy.AssessAsync(dbContext, projectId, workspaceId, null, null, cancellationToken);
+        var idle = assessment.Status == WorkspaceExecutionStatus.Idle;
+        var coherentBusy = assessment.Status is WorkspaceExecutionStatus.AgentAttemptActive
+            or WorkspaceExecutionStatus.VerificationActive or WorkspaceExecutionStatus.CommitReserved
+            or WorkspaceExecutionStatus.PreparationReserved;
+        if (!idle && !coherentBusy)
+        {
+            return LocalExecutionSequenceErrors.WorkspaceOwned();
+        }
+
+        if (projectBlocked && idle)
+        {
+            return LocalExecutionSequenceErrors.ProjectBusy();
+        }
+
+        var capacity = await ExecutionCapacityPolicy.ReadAsync(dbContext, null, cancellationToken);
+        if (capacity.Status == ExecutionCapacityStatus.Unavailable)
+        {
+            return LocalExecutionSequenceErrors.CapacityUnavailable();
+        }
+
+        var live = await dbContext.LocalExecutionSequences.AsNoTracking()
+            .Where(sequence => sequence.AdmissionMode == LocalExecutionAdmissionMode.WaitForAdmission
+                && (sequence.State == LocalExecutionSequenceState.WaitingForAdmission
+                    || sequence.State == LocalExecutionSequenceState.PreparingStep
+                    || sequence.State == LocalExecutionSequenceState.AwaitingStepResult
+                    || sequence.State == LocalExecutionSequenceState.Stopping))
+            .Take(LocalExecutionSequencePolicy.MaximumQueuedCycles + 1)
+            .CountAsync(cancellationToken);
+        return live >= LocalExecutionSequencePolicy.MaximumQueuedCycles ? LocalExecutionSequenceErrors.QueueFull() : null;
     }
 
     private static Reading Refused(Error error) => new(error, null, null, null, null);

@@ -46,7 +46,7 @@ public sealed class StopLocalExecutionSequenceCommandHandler(
         await dbContext.Entry(sequence).ReloadAsync(cancellationToken);
 
         if (sequence.State is not (LocalExecutionSequenceState.Armed or LocalExecutionSequenceState.PreparingStep
-            or LocalExecutionSequenceState.AwaitingStepResult))
+            or LocalExecutionSequenceState.AwaitingStepResult or LocalExecutionSequenceState.WaitingForAdmission))
         {
             // Stopping already, or ended (approved, escalated, stopped, attention or interrupted): idempotent and unchanged.
             return Success(sequence, changed: false);
@@ -62,6 +62,25 @@ public sealed class StopLocalExecutionSequenceCommandHandler(
                 events.Add(LocalExecutionSequenceEvents.Ended(sequence, nowUtc));
                 break;
 
+            case LocalExecutionSequenceState.WaitingForAdmission:
+                {
+                    // ADR-0062: the pending admission retires with the sequence in one commit; it owned nothing and claimed nothing.
+                    var admission = await dbContext.LocalExecutionAdmissions.SingleOrDefaultAsync(
+                        candidate => candidate.SequenceId == sequence.Id && candidate.State == LocalExecutionAdmissionState.Waiting,
+                        cancellationToken);
+                    if (admission is null)
+                    {
+                        return Failure(LocalExecutionSequenceErrors.PersistenceFailed());
+                    }
+
+                    await dbContext.Entry(admission).ReloadAsync(cancellationToken);
+                    admission.Retire(LocalExecutionSequenceReason.StoppedBeforeClaim, nowUtc);
+                    sequence.End(LocalExecutionSequenceState.Stopped, LocalExecutionSequenceReason.StoppedBeforeClaim, detailCode: null, nowUtc);
+                    events.Add(LocalExecutionSequenceEvents.StopRequested(sequence, nowUtc));
+                    events.Add(LocalExecutionSequenceEvents.Ended(sequence, nowUtc));
+                    break;
+                }
+
             case LocalExecutionSequenceState.PreparingStep:
                 {
                     // The claim did not commit first, so its preparation authority is revoked: nothing was claimed or consumed.
@@ -69,8 +88,28 @@ public sealed class StopLocalExecutionSequenceCommandHandler(
                         candidate => candidate.SequenceId == sequence.Id && candidate.State == LocalExecutionSequenceStepState.Reserved,
                         cancellationToken);
                     await dbContext.Entry(step).ReloadAsync(cancellationToken);
-                    step.Revoke(LocalExecutionSequenceReason.StoppedBeforeClaim, nowUtc);
-                    sequence.End(LocalExecutionSequenceState.Stopped, LocalExecutionSequenceReason.StoppedBeforeClaim, detailCode: null, nowUtc);
+
+                    // ADR-0062: a queued reservation owns its workspace, so it retires only with its proved unused shape; anything
+                    // uncertain stays held and the cycle needs attention instead of reporting a Stop it cannot prove.
+                    var outcome = await LocalExecutionReservationRetirement.RetireOrHoldAsync(
+                        dbContext, sequence, step, LocalExecutionSequenceReason.StoppedBeforeClaim,
+                        LocalExecutionSequenceReason.PreparationUnresolved, nowUtc, cancellationToken);
+                    switch (outcome)
+                    {
+                        case LocalExecutionReservationRetirement.Outcome.Held:
+                            sequence.End(
+                                LocalExecutionSequenceState.NeedsAttention, LocalExecutionSequenceReason.PreparationUnresolved, detailCode: null, nowUtc);
+                            break;
+                        default:
+                            if (outcome == LocalExecutionReservationRetirement.Outcome.NotQueued)
+                            {
+                                step.Revoke(LocalExecutionSequenceReason.StoppedBeforeClaim, nowUtc);
+                            }
+
+                            sequence.End(LocalExecutionSequenceState.Stopped, LocalExecutionSequenceReason.StoppedBeforeClaim, detailCode: null, nowUtc);
+                            break;
+                    }
+
                     events.Add(LocalExecutionSequenceEvents.StopRequested(sequence, nowUtc));
                     events.Add(LocalExecutionSequenceEvents.Ended(sequence, nowUtc));
                     break;

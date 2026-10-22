@@ -1,4 +1,3 @@
-using System.Globalization;
 using Devalente.Shared.AspNetCore.Mvc;
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
@@ -40,42 +39,9 @@ public sealed class GetLocalExecutionSequenceAvailabilityEndpoint(
             return problemDetails.CreateResponse(result, HttpContext);
         }
 
-        var value = result.Value;
-        if (value.Available != (value.RefusalCode is null)
-            || value.Available != (value.ConfirmationSha256 is not null)
-            || value.Available != (value.Recipes is not null)
-            || (value.Recipes is { } recipes && (recipes.Count is < 1 or > 32)))
-        {
-            return problemDetails.CreateResponse(Result.Failure(LocalExecutionSequenceErrors.PersistenceFailed()), HttpContext);
-        }
-
-        return Ok(new GetLocalExecutionSequenceAvailabilityResponse(
-            value.RunId,
-            value.PlanProposalMessageId,
-            value.Available,
-            value.RefusalCode,
-            LocalExecutionSequenceText.RefusalText(value.RefusalCode),
-            value.PlanAuthority?.ToString(),
-            value.WorkspaceId,
-            value.CheckpointId,
-            value.FingerprintSha256,
-            value.ConfirmationSha256,
-            value.CorrectionAllowance,
-            value.MaximumSteps,
-            value.Recipes?
-                .Select(recipe => new LocalExecutionSequenceAvailabilityRecipeResponse(
-                    recipe.Ordinal, recipe.CommandId, recipe.CommandNumber, recipe.Name, recipe.TimeoutSeconds))
-                .ToArray(),
-            value.Disclosure is { } disclosure
-                ? new LocalExecutionSequenceAvailabilityDisclosureResponse(
-                    disclosure.CodexModel,
-                    disclosure.CodexEffort,
-                    disclosure.ClaudeModel,
-                    disclosure.ClaudeEffort,
-                    disclosure.ClaudeMaxTurns,
-                    disclosure.CodexAccountUsageStopPercent,
-                    disclosure.CodexTokenStopThreshold?.ToString(CultureInfo.InvariantCulture),
-                    disclosure.ClaudeTokenStopThreshold?.ToString(CultureInfo.InvariantCulture))
-                : null));
+        var response = GetLocalExecutionSequenceAvailabilityResponses.Map(result.Value);
+        return response is null
+            ? problemDetails.CreateResponse(Result.Failure(LocalExecutionSequenceErrors.PersistenceFailed()), HttpContext)
+            : Ok(response);
     }
 }

@@ -126,13 +126,13 @@ public sealed class LocalExecutionSequenceEndpointTests : IClassFixture<ApiWebAp
     }
 
     [Fact]
-    public void Exactly_four_local_execution_sequence_routes_exist_each_authorized_with_its_one_method_and_none_anonymous()
+    public void Exactly_nine_local_execution_sequence_routes_exist_each_authorized_with_its_one_method_and_none_anonymous()
     {
         var endpoints = factory.Services.GetRequiredService<EndpointDataSource>().Endpoints.OfType<RouteEndpoint>()
             .Where(endpoint => endpoint.RoutePattern.RawText?.Contains("local-execution-sequence", StringComparison.OrdinalIgnoreCase) == true)
             .ToList();
 
-        Assert.Equal(4, endpoints.Count);
+        Assert.Equal(9, endpoints.Count);
         var routes = endpoints.Select(
             endpoint => $"{endpoint.Metadata.GetOrderedMetadata<HttpMethodMetadata>().Single().HttpMethods.Single()} {endpoint.RoutePattern.RawText}")
             .ToHashSet();
@@ -143,6 +143,11 @@ public sealed class LocalExecutionSequenceEndpointTests : IClassFixture<ApiWebAp
                 "POST api/runs/{runId:guid}/local-execution-sequence",
                 "GET api/runs/{runId:guid}/local-execution-sequence",
                 "POST api/runs/{runId:guid}/local-execution-sequence/{sequenceId:guid}/stop",
+                "POST api/runs/{runId:guid}/local-execution-sequence/queue",
+                "GET api/runs/{runId:guid}/local-execution-sequence/queue/availability",
+                "GET api/runs/{runId:guid}/local-execution-sequence/inspection",
+                "GET api/runs/{runId:guid}/local-execution-sequence/inspection/steps/{stepId:guid}",
+                "GET api/runs/{runId:guid}/local-execution-sequence/inspection/steps/{stepId:guid}/artifact-window/{stream}",
             },
             routes);
         Assert.All(endpoints, endpoint =>
@@ -445,7 +450,7 @@ public sealed class LocalExecutionSequenceEndpointTests : IClassFixture<ApiWebAp
             new HashSet<string>
             {
                 "sequenceId", "runId", "planProposalMessageId", "workspaceId", "checkpointId", "fingerprintSha256", "confirmationSha256",
-                "state", "recipeCount", "correctionAllowance", "armedAtUtc", "advancementDeadlineUtc", "revision", "replayed",
+                "state", "recipeCount", "correctionAllowance", "armedAtUtc", "advancementDeadlineUtc", "revision", "replayed", "admissionMode", "queue",
             },
             body.EnumerateObject().Select(property => property.Name).ToHashSet());
 

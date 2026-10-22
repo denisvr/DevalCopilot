@@ -64,7 +64,8 @@ public sealed class LocalExecutionSequenceStatusEndpointTests(ApiWebApplicationF
             var sequence = LocalExecutionSequence.Arm(
                 Guid.NewGuid(), scene.RunId, scene.ProjectId, scene.WorkspaceId, scene.CheckpointId, Fingerprint, scene.PlanId,
                 LocalExecutionPlanAuthority.AcceptedRoot, PlanInputsSentinel, new string('7', 64),
-                $"devalcopilot.local-execution-sequence.settings.v1\n{SettingsSentinel}", commands.Count, 2, armedAt);
+                $"devalcopilot.local-execution-sequence.settings.v1\n{SettingsSentinel}", commands.Count, 2, armedAt,
+                LocalExecutionSequenceNumbers.Next());
             db.LocalExecutionSequences.Add(sequence);
             for (var index = 0; index < commands.Count; index++)
             {
@@ -227,7 +228,7 @@ public sealed class LocalExecutionSequenceStatusEndpointTests(ApiWebApplicationF
                 "currentFingerprintSha256", "state", "recordedState", "observedBeforePersisted", "reasonCode", "reasonText", "detailCode",
                 "nextActionCode", "nextActionText", "revision", "recipeCount", "maximumSteps", "correctionAllowance", "correctionsClaimed",
                 "passesStarted", "agentClaims", "armedAtUtc", "advancementDeadlineUtc", "updatedAtUtc", "stopRequestedAtUtc", "endedAtUtc",
-                "awaitingReconciliation", "outstandingOperationId", "steps", "final",
+                "awaitingReconciliation", "outstandingOperationId", "steps", "final", "admissionMode", "queue",
             },
             sequence.EnumerateObject().Select(property => property.Name).ToHashSet());
     }

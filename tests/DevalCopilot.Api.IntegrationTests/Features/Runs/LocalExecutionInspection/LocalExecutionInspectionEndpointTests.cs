@@ -29,7 +29,7 @@ public sealed class LocalExecutionInspectionEndpointTests(LocalExecutionInspecti
 
     private static readonly string[] HeaderMembers =
     [
-        "armedAtUtc", "checkpointId", "correctionAllowance", "endedAtUtc", "fingerprintSha256", "planAuthority", "planProposalMessageId",
+        "admissionMode", "armedAtUtc", "checkpointId", "correctionAllowance", "endedAtUtc", "fingerprintSha256", "planAuthority", "planProposalMessageId",
         "reasonCode", "recipeCount", "recordedState", "revision", "sequenceId", "updatedAtUtc", "workspaceId",
     ];
 
@@ -444,6 +444,7 @@ public sealed class LocalExecutionInspectionEndpointTests(LocalExecutionInspecti
         Assert.Equal(RunId, response.Body.GetProperty("runId").GetGuid());
         var header = response.Body.GetProperty("sequence");
         Assert.Equal(HeaderMembers, Names(header));
+        Assert.Equal("Immediate", header.GetProperty("admissionMode").GetString());
         Assert.Equal(fixture.Sequence.Id, header.GetProperty("sequenceId").GetGuid());
         Assert.Equal(fixture.Sequence.PlanProposalMessageId, header.GetProperty("planProposalMessageId").GetGuid());
         Assert.Equal("AcceptedRoot", header.GetProperty("planAuthority").GetString());

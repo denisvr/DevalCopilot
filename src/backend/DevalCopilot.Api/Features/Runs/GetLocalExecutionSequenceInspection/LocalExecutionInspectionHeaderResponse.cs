@@ -18,4 +18,5 @@ public sealed record LocalExecutionInspectionHeaderResponse(
     int CorrectionAllowance,
     string ArmedAtUtc,
     string UpdatedAtUtc,
-    string? EndedAtUtc);
+    string? EndedAtUtc,
+    string AdmissionMode);

@@ -1,3 +1,5 @@
+using DevalCopilot.Api.Features.Runs.GetLocalExecutionSequence;
+
 namespace DevalCopilot.Api.Features.Runs.ArmLocalExecutionSequence;
 
 /// <summary>The recorded arming receipt: the immutable pinned tuple and the current state. <c>Replayed</c> is true when the identical
@@ -17,4 +19,6 @@ public sealed record ArmLocalExecutionSequenceResponse(
     string ArmedAtUtc,
     string AdvancementDeadlineUtc,
     string Revision,
-    bool Replayed);
+    bool Replayed,
+    string AdmissionMode,
+    LocalExecutionQueueDisclosureResponse? Queue);

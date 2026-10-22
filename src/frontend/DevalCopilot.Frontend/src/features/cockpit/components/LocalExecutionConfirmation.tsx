@@ -1,13 +1,16 @@
-import type { LocalExecutionAvailabilityCandidate } from '../localExecutionSequence'
+import type { LocalExecutionAdmissionMode, LocalExecutionAvailabilityCandidate } from '../localExecutionSequence'
 import {
   LOCAL_EXECUTION_CANCEL_LABEL,
   LOCAL_EXECUTION_CONFIRM_LABEL,
+  LOCAL_EXECUTION_QUEUE_CONFIRM_LABEL,
   describeLocalExecutionConfirmation,
 } from '../localExecutionSequenceCopy'
 
 interface LocalExecutionConfirmationProps {
   planProposalMessageId: string
   candidate: LocalExecutionAvailabilityCandidate
+  /** ADR-0062: the separate confirmation of the queued mode, with its own explanation and label; Immediate is the default. */
+  mode?: LocalExecutionAdmissionMode
   /** Whether the confirmation can be submitted now: settled availability, no pending request, no withheld reason. */
   canConfirm: boolean
   submitting: boolean
@@ -26,6 +29,7 @@ const show = (value: string | number | null): string => (value === null ? 'not r
 export function LocalExecutionConfirmation({
   planProposalMessageId,
   candidate,
+  mode = 'Immediate',
   canConfirm,
   submitting,
   onConfirm,
@@ -33,9 +37,14 @@ export function LocalExecutionConfirmation({
 }: LocalExecutionConfirmationProps) {
   const { disclosure } = candidate
   return (
-    <div className="dc-local-execution-confirmation" role="group" aria-label="Confirm local execution cycle">
+    <div
+      className="dc-local-execution-confirmation"
+      role="group"
+      aria-label={mode === 'WaitForAdmission' ? 'Confirm queued local execution cycle' : 'Confirm local execution cycle'}
+      data-admission-mode={mode}
+    >
       <ul className="dc-local-execution-explanation">
-        {describeLocalExecutionConfirmation(candidate).map((line) => (
+        {describeLocalExecutionConfirmation(candidate, mode).map((line) => (
           <li key={line}>{line}</li>
         ))}
       </ul>
@@ -84,7 +93,13 @@ export function LocalExecutionConfirmation({
         <dd>{show(disclosure.claudeTokenStopThreshold)}</dd>
       </dl>
       <button type="button" disabled={!canConfirm} onClick={onConfirm}>
-        {submitting ? 'Authorizing…' : LOCAL_EXECUTION_CONFIRM_LABEL}
+        {submitting
+          ? mode === 'WaitForAdmission'
+            ? 'Queueing…'
+            : 'Authorizing…'
+          : mode === 'WaitForAdmission'
+            ? LOCAL_EXECUTION_QUEUE_CONFIRM_LABEL
+            : LOCAL_EXECUTION_CONFIRM_LABEL}
       </button>
       <button type="button" disabled={submitting} onClick={onCancel}>
         {LOCAL_EXECUTION_CANCEL_LABEL}

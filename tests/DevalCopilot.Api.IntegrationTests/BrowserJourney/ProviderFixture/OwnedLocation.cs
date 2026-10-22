@@ -19,6 +19,7 @@ public sealed class OwnedLocation
         WorkspaceRoot = Path.Combine(root, "workspaces");
         ArtifactRoot = Path.Combine(root, "artifacts");
         LogPath = Path.Combine(root, "fixture", "invocations.jsonl");
+        VerifyHoldPath = Path.Combine(root, "fixture", "verify.hold");
         UsageScriptPath = Path.Combine(root, "fixture", "account-usage.json");
         UsageCounterPath = Path.Combine(root, "fixture", "account-usage.reads");
     }
@@ -30,6 +31,10 @@ public sealed class OwnedLocation
     public string ArtifactRoot { get; }
 
     public string LogPath { get; }
+
+    /// <summary>The contention journey's owned gate: while a plain file exists here, a verification started in an owned worktree waits
+    /// (and logs nothing) until the journey removes it. It holds no state, writes nothing and never changes a verdict.</summary>
+    public string VerifyHoldPath { get; }
 
     /// <summary>The scripted account-usage answers the journey writes for the closed App Server mode.</summary>
     public string UsageScriptPath { get; }

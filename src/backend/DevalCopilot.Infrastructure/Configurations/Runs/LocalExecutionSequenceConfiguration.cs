@@ -19,10 +19,15 @@ public sealed class LocalExecutionSequenceConfiguration : IEntityTypeConfigurati
             table.HasCheckConstraint(
                 "ck_local_execution_sequences_state",
                 "\"State\" IN ('Armed', 'PreparingStep', 'AwaitingStepResult', 'Stopping', 'ReadyForHumanApproval', "
-                + "'HumanEscalation', 'Stopped', 'NeedsAttention', 'Interrupted')");
+                + "'HumanEscalation', 'Stopped', 'NeedsAttention', 'Interrupted', 'WaitingForAdmission')");
             table.HasCheckConstraint(
                 "ck_local_execution_sequences_authority",
                 "\"PlanAuthority\" IN ('AcceptedRoot', 'AcceptedRevision', 'HumanAuthorizedRevision')");
+            table.HasCheckConstraint("ck_local_execution_sequences_mode", "\"AdmissionMode\" IN ('Immediate', 'WaitForAdmission')");
+            table.HasCheckConstraint("ck_local_execution_sequences_coordination", "typeof(\"CoordinationNumber\") = 'integer' AND \"CoordinationNumber\" >= 1");
+            table.HasCheckConstraint(
+                "ck_local_execution_sequences_queue_state",
+                "\"AdmissionMode\" = 'WaitForAdmission' OR \"State\" <> 'WaitingForAdmission'");
             table.HasCheckConstraint("ck_local_execution_sequences_recipes", "\"RecipeCount\" BETWEEN 1 AND 32");
             table.HasCheckConstraint("ck_local_execution_sequences_allowance", "\"CorrectionAllowance\" BETWEEN 0 AND 2");
             table.HasCheckConstraint("ck_local_execution_sequences_revision", "\"Revision\" >= 1");
@@ -39,6 +44,7 @@ public sealed class LocalExecutionSequenceConfiguration : IEntityTypeConfigurati
         builder.Property(sequence => sequence.PlanInputsSha256).HasMaxLength(64).IsRequired();
         builder.Property(sequence => sequence.SettingsSnapshot).HasMaxLength(LocalExecutionSequence.MaximumSettingsSnapshotLength).IsRequired();
         builder.Property(sequence => sequence.PlanAuthority).HasConversion<string>().HasMaxLength(32).IsRequired();
+        builder.Property(sequence => sequence.AdmissionMode).HasConversion<string>().HasMaxLength(32).IsRequired();
         builder.Property(sequence => sequence.State).HasConversion<string>().HasMaxLength(32).IsRequired();
         builder.Property(sequence => sequence.ReasonCode).HasMaxLength(64);
         builder.Property(sequence => sequence.DetailCode).HasMaxLength(LocalExecutionSequenceReason.MaximumDetailLength);
@@ -49,6 +55,7 @@ public sealed class LocalExecutionSequenceConfiguration : IEntityTypeConfigurati
 
         // One sequence per run for the run's whole lifetime: arming never repeats, retargets or rearms.
         builder.HasIndex(sequence => sequence.RunId).IsUnique().HasDatabaseName("ix_local_execution_sequences_run");
+        builder.HasIndex(sequence => sequence.CoordinationNumber).IsUnique().HasDatabaseName("ix_local_execution_sequences_coordination");
         builder.HasIndex(sequence => sequence.WorkspaceId).HasDatabaseName("ix_local_execution_sequences_workspace");
         builder.HasIndex(sequence => sequence.ProjectId).HasDatabaseName("ix_local_execution_sequences_project");
 

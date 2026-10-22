@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react'
-import { localExecutionSequenceAvailabilityClient } from '../../../api/clients'
+import { localExecutionQueueAvailabilityClient, localExecutionSequenceAvailabilityClient } from '../../../api/clients'
 import { toLocalExecutionSequenceAvailability } from '../localExecutionSequence'
-import type { LocalExecutionSequenceAvailability } from '../localExecutionSequence'
+import type { LocalExecutionAdmissionMode, LocalExecutionSequenceAvailability } from '../localExecutionSequence'
 import { startBoundedRead } from './boundedRead'
 import { useOwnedLifetime, useOwnedState } from './useOwnedLifetime'
 import type { OwnedLifetime } from './useOwnedLifetime'
@@ -48,13 +48,17 @@ const createFlight = (owner: OwnedLifetime | null): Flight => ({ owner, busy: fa
  * `refresh` retained from an ended visit starts no request. It reads once per visit and again when `hint` changes or `refresh` is
  * called; reads never overlap (a trigger meanwhile becomes exactly one further read after the actual request settled), and each has a
  * real ten-second AbortController bound that also ends with the visit. A failed, timed-out or incoherent read masks the last answer.
+ *
+ * ADR-0062: the admission mode is part of the visit. Immediate and queued availability are different operations with different
+ * confirmations; changing the mode starts a fresh visit that never exposes the other mode's answer.
  */
 export function useLocalExecutionSequenceAvailability(
   runId: string | null,
   planProposalMessageId: string | null,
   hint?: number,
+  mode: LocalExecutionAdmissionMode = 'Immediate',
 ): UseLocalExecutionSequenceAvailabilityResult {
-  const key = runId === null || planProposalMessageId === null ? null : JSON.stringify([runId, planProposalMessageId])
+  const key = runId === null || planProposalMessageId === null ? null : JSON.stringify([runId, planProposalMessageId, mode])
   const owner = useOwnedLifetime(key)
   const [frame, commit] = useOwnedState(owner, createFrame)
   const { readCount } = frame
@@ -99,7 +103,10 @@ export function useLocalExecutionSequenceAvailability(
     }
 
     const request = startBoundedRead(
-      (signal) => localExecutionSequenceAvailabilityClient(signal).readAvailability(runId, planProposalMessageId),
+      (signal) =>
+        mode === 'WaitForAdmission'
+          ? localExecutionQueueAvailabilityClient(signal).readQueueAvailability(runId, planProposalMessageId)
+          : localExecutionSequenceAvailabilityClient(signal).readAvailability(runId, planProposalMessageId),
       LOCAL_EXECUTION_AVAILABILITY_TIMEOUT_MS,
     )
     state.cancel = request.cancel
@@ -109,7 +116,7 @@ export function useLocalExecutionSequenceAvailability(
         return
       }
 
-      const decoded = toLocalExecutionSequenceAvailability(answer.raw, runId, planProposalMessageId)
+      const decoded = toLocalExecutionSequenceAvailability(answer.raw, runId, planProposalMessageId, mode)
       settle(decoded === null ? { availability: null, failure: 'invalid' } : { availability: decoded, failure: null })
     })
 
@@ -121,7 +128,7 @@ export function useLocalExecutionSequenceAvailability(
         commit((previous) => ({ ...previous, readCount: previous.readCount + 1 }))
       }
     })
-  }, [owner, commit, runId, planProposalMessageId, hint, readCount, flightOf])
+  }, [owner, commit, runId, planProposalMessageId, mode, hint, readCount, flightOf])
 
   useEffect(
     () => () => {

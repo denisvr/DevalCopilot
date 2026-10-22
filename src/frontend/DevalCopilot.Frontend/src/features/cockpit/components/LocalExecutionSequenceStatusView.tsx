@@ -4,7 +4,12 @@ import {
   LOCAL_EXECUTION_DEADLINE_ELAPSED_NOTE,
   LOCAL_EXECUTION_NO_RECOVERY,
   LOCAL_EXECUTION_PINNED_NOTE,
+  LOCAL_EXECUTION_QUEUE_RECORDED_NOTE,
+  LOCAL_EXECUTION_QUEUE_RESERVED_NOTE,
+  LOCAL_EXECUTION_QUEUE_UNRESOLVED_NOTE,
   LOCAL_EXECUTION_STATE_LABEL,
+  LOCAL_EXECUTION_WAITING_REASON_LABEL,
+  describeLocalExecutionQueuePending,
   describeLocalExecutionState,
 } from '../localExecutionSequenceCopy'
 import { LocalExecutionSequenceStepTable } from './LocalExecutionSequenceStepTable'
@@ -37,6 +42,35 @@ export function LocalExecutionSequenceStatusView({ sequence }: { sequence: Local
         )}
         <p className="dc-local-execution-next">{sequence.nextActionText}</p>
       </div>
+      {sequence.queue !== null && (
+        <dl className="dc-local-execution-queue" aria-label="Local execution queue disclosure" data-admission-state={sequence.queue.admissionState}>
+          <dt>Admission mode</dt>
+          <dd>Queued (waits for admission)</dd>
+          <dt>Pending step</dt>
+          <dd>{describeLocalExecutionQueuePending(sequence.queue)}</dd>
+          <dt>Admission</dt>
+          <dd>
+            {sequence.queue.admissionId} (order {sequence.queue.admissionNumber}, {sequence.queue.admissionState})
+          </dd>
+          <dt>Queued at (UTC)</dt>
+          <dd>{sequence.queue.enqueuedAtUtc}</dd>
+          <dt>Original deadline (UTC)</dt>
+          <dd>{sequence.queue.advancementDeadlineUtc}</dd>
+          <dt>Last recorded admission check</dt>
+          <dd>
+            {LOCAL_EXECUTION_WAITING_REASON_LABEL[sequence.queue.waitingReason]} (recorded {sequence.queue.waitingReasonRecordedAtUtc})
+          </dd>
+        </dl>
+      )}
+      {sequence.queue !== null && (
+        <p className="dc-local-execution-note">
+          {sequence.queue.admissionState === 'Reserved'
+            ? LOCAL_EXECUTION_QUEUE_RESERVED_NOTE
+            : sequence.queue.admissionState === 'Unresolved'
+              ? LOCAL_EXECUTION_QUEUE_UNRESOLVED_NOTE
+              : LOCAL_EXECUTION_QUEUE_RECORDED_NOTE}
+        </p>
+      )}
       <dl className="dc-local-execution-pinned" aria-label="Local execution sequence pinned source">
         <dt>Sequence</dt>
         <dd>{sequence.sequenceId}</dd>
@@ -62,7 +96,7 @@ export function LocalExecutionSequenceStatusView({ sequence }: { sequence: Local
         <dd>{sequence.agentClaims}</dd>
         <dt>Recipes pinned</dt>
         <dd>{sequence.recipeCount}</dd>
-        <dt>Armed at (UTC)</dt>
+        <dt>{sequence.admissionMode === 'WaitForAdmission' ? 'Queued at (UTC)' : 'Armed at (UTC)'}</dt>
         <dd>{sequence.armedAtUtc}</dd>
         <dt>Advancement deadline (UTC)</dt>
         <dd>{sequence.advancementDeadlineUtc}</dd>

@@ -18,6 +18,7 @@ const REASONS: Readonly<Record<WorkspaceExecutionStatus, string | null>> = {
   CommitReserved: 'local_commit_reserved',
   Conflicted: 'conflicting_execution_owners',
   Unavailable: 'workspace_execution_unavailable',
+  PreparationReserved: 'queued_preparation_reserved',
 }
 
 /** The one coherent answer of `status` for `projectId`; `NoWorkspace` carries no workspace, every other status the fixture workspace. */

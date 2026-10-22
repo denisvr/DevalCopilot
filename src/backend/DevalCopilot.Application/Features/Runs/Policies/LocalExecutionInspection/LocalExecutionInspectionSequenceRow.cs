@@ -23,4 +23,5 @@ internal sealed record LocalExecutionInspectionSequenceRow(
     long? Revision,
     DateTimeOffset ArmedAtUtc,
     DateTimeOffset UpdatedAtUtc,
-    DateTimeOffset? EndedAtUtc);
+    DateTimeOffset? EndedAtUtc,
+    int AdmissionModeCode);

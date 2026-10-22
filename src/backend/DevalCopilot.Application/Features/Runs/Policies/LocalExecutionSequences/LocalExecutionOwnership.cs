@@ -59,6 +59,12 @@ internal static class LocalExecutionOwnership
     public static async Task<bool> HasIncoherentLinkAsync(
         IDevalCopilotDbContext dbContext, Guid? projectId, CancellationToken cancellationToken)
     {
+        // ADR-0062: a held pre-claim reservation whose step, sequence or workspace identity is incomplete is never a zero count either.
+        if (await LocalExecutionReservationOwnership.HasIncoherentReservationAsync(dbContext, projectId, cancellationToken))
+        {
+            return true;
+        }
+
         var sequences = dbContext.LocalExecutionSequences.AsNoTracking();
         if (projectId is { } project)
         {

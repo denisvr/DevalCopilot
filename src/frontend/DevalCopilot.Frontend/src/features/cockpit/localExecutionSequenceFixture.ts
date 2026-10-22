@@ -16,13 +16,14 @@ export const LOCAL_CHECKPOINT_ID = localGuid(3)
 export const LOCAL_PLAN_ID = localGuid(4)
 export const LOCAL_FINGERPRINT = 'ab'.repeat(32)
 export const LOCAL_CONFIRMATION = 'cd'.repeat(32)
+export const LOCAL_QUEUE_CONFIRMATION = 'ef'.repeat(32)
 
 const at = (minute: number, second = 0) =>
   `2026-10-09T${String(10 + Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}:${String(second).padStart(2, '0')}.1234567Z`
 
 type Raw = Record<string, unknown>
 
-const LIVE = ['Armed', 'PreparingStep', 'AwaitingStepResult', 'Stopping']
+const LIVE = ['Armed', 'PreparingStep', 'AwaitingStepResult', 'Stopping', 'WaitingForAdmission']
 
 const DEFAULT_KINDS = ['Implementation', 'Verification', 'CodeReview', 'VerificationDiagnosis']
 
@@ -136,6 +137,7 @@ export function localSequenceFor(state: LocalExecutionSequenceStateName, patch: 
     Stopped: { steps: [localStepFor(0, 'revoked')], reason: 'stopped_before_claim', next: 'manual' },
     NeedsAttention: { steps: [localStepFor(0, 'unresolved')], reason: 'preparation_unresolved', next: 'inspect' },
     Interrupted: { steps: [], reason: 'host_restarted', next: 'inspect' },
+    WaitingForAdmission: { steps: [], reason: null, next: 'wait' },
   }
   const chosen = defaults[state]
   const steps = (patch.steps as Raw[] | undefined) ?? chosen.steps
@@ -183,8 +185,44 @@ export function localSequenceFor(state: LocalExecutionSequenceStateName, patch: 
     outstandingOperationId: outstanding,
     steps,
     final,
+    admissionMode: state === 'WaitingForAdmission' ? 'WaitForAdmission' : 'Immediate',
+    queue: state === 'WaitingForAdmission' ? localQueueFor() : null,
     ...patch,
   }
+}
+
+/** The pending Implementation admission of a freshly queued sequence; patch any member to build a contradiction. */
+export function localQueueFor(patch: Raw = {}): Raw {
+  return {
+    admissionId: localGuid(500),
+    admissionNumber: '1',
+    admissionState: 'Waiting',
+    kind: 'Implementation',
+    passNumber: 0,
+    recipeOrdinal: null,
+    enqueuedAtUtc: at(0),
+    advancementDeadlineUtc: at(120),
+    waitingReason: 'AwaitingAdmissionCheck',
+    waitingReasonText: 'Queued. No admission check has been recorded yet; nothing was started.',
+    waitingReasonRecordedAtUtc: at(0),
+    ...patch,
+  }
+}
+
+/** A queued sequence: its recorded mode and the one pending (or reserved) admission its state implies. */
+export function localQueuedSequenceFor(state: LocalExecutionSequenceStateName, patch: Raw = {}): Raw {
+  const reserved = state === 'PreparingStep'
+  return localSequenceFor(state, {
+    admissionMode: 'WaitForAdmission',
+    queue: state === 'WaitingForAdmission' || reserved ? localQueueFor(reserved ? { admissionState: 'Reserved' } : {}) : null,
+    ...patch,
+  })
+}
+
+/** The status of a run whose queued sequence is in `state`. */
+export function localQueuedStatusFor(runId: string, state: LocalExecutionSequenceStateName, patch: Raw = {}, sequencePatch: Raw = {}): Raw {
+  const sequence = localQueuedSequenceFor(state, sequencePatch)
+  return { runId, status: sequence.state, sequence, manualFence: 'Blocked', latestEventSequence: '12', ...patch }
 }
 
 /** The status of a run with a sequence in `state`; the fence agrees with the recorded authority unless patched. */
@@ -230,6 +268,7 @@ const NO_DISCLOSURE: Raw = {
 export const localAvailabilityFor = (runId: string, planId = LOCAL_PLAN_ID, patch: Raw = {}): Raw => ({
   runId,
   planProposalMessageId: planId,
+  admissionMode: 'Immediate',
   available: true,
   refusalCode: null,
   refusalText: null,
@@ -245,15 +284,21 @@ export const localAvailabilityFor = (runId: string, planId = LOCAL_PLAN_ID, patc
   ...patch,
 })
 
+/** An available queue candidate for `planId`: the separately versioned queue confirmation (ADR-0062). */
+export const localQueueAvailabilityFor = (runId: string, planId = LOCAL_PLAN_ID, patch: Raw = {}): Raw =>
+  localAvailabilityFor(runId, planId, { admissionMode: 'WaitForAdmission', confirmationSha256: LOCAL_QUEUE_CONFIRMATION, ...patch })
+
 /** An arming refusal with its fixed code and text and no candidate. */
 export const localRefusedAvailabilityFor = (
   runId: string,
   code = 'local_execution_sequence.project_busy',
   planId = LOCAL_PLAN_ID,
   text = 'Arming is refused for a fixed reason.',
+  admissionMode = 'Immediate',
 ): Raw => ({
   runId,
   planProposalMessageId: planId,
+  admissionMode,
   available: false,
   refusalCode: code,
   refusalText: text,
@@ -285,6 +330,8 @@ export const localArmReceiptFor = (runId: string, patch: Raw = {}): Raw => ({
   checkpointId: LOCAL_CHECKPOINT_ID,
   fingerprintSha256: LOCAL_FINGERPRINT,
   confirmationSha256: LOCAL_CONFIRMATION,
+  admissionMode: 'Immediate',
+  queue: null,
   state: 'Armed',
   recipeCount: 1,
   correctionAllowance: 2,
@@ -294,6 +341,19 @@ export const localArmReceiptFor = (runId: string, patch: Raw = {}): Raw => ({
   replayed: false,
   ...patch,
 })
+
+/** The receipt of queueing the sequence: WaitingForAdmission at revision 1 with its one Waiting admission. */
+export const localQueueReceiptFor = (runId: string, patch: Raw = {}): Raw =>
+  localArmReceiptFor(runId, {
+    confirmationSha256: LOCAL_QUEUE_CONFIRMATION,
+    admissionMode: 'WaitForAdmission',
+    queue: localQueueFor(),
+    state: 'WaitingForAdmission',
+    ...patch,
+  })
+
+/** The exact tuple of the queue candidate: the Immediate tuple with the queue confirmation. */
+export const LOCAL_QUEUE_TUPLE = { ...LOCAL_TUPLE, confirmationSha256: LOCAL_QUEUE_CONFIRMATION }
 
 export const localStopAnswerFor = (runId: string, patch: Raw = {}): Raw => ({
   sequenceId: LOCAL_SEQUENCE_ID,

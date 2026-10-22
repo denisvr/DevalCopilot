@@ -340,6 +340,19 @@ closes previous-launch sequences before any recovery and never resumes, redispat
 guards, four protected operations and one run-owned cockpit reader, no queue, lease, scheduler, retry, takeover or process-aware
 recovery, and grants no approval, commit or publication. Increments 4 to 6 stay incomplete.
 
+**Implemented for review: queued local execution (LOCAL-QUEUE-01).**
+[ADR-0062](../decisions/0062-queue-explicitly-authorized-local-execution-before-admission.md) adds a second, separately confirmed intake mode
+for the same local execution sequence: an explicit queue request pins the accepted plan, workspace, checkpoint and fingerprint and records
+the cycle as WaitingForAdmission with one pending admission, observing no Git and starting nothing. The hosted coordinator, never the page,
+reserves the oldest eligible admission under the write lock after taking a preparation worker, only when the workspace, the global mutating
+capacity and the held-reservation bound (four, Unresolved included) allow it; the reservation is the ordinary Reserved step with its
+preparation token, and the claim's own save consumes the admission. Every entrance (workspace exclusion, global admission, abandonment,
+limit lowering) counts a reserved or unresolved admission as an owner. Waiting owns no workspace or capacity, the order is a guarded
+feature-owned Int64 counter, independent projects never block each other, and startup closes waiting work before any supervisor and never
+resumes it. It adds one table, one counter, mode and state columns, database guards, two protected operations and the cockpit's queue
+offer and truthful waiting disclosure; it adds no executor lease, priority, retry, takeover or process-aware recovery and grants no
+approval, commit or publication. Increments 4 to 6 stay incomplete.
+
 **Delivered partial slice: global mutating admission (GLOBAL-ADMIT-01).**
 [ADR-0058](../decisions/0058-bound-global-admission-of-existing-workspace-mutators.md) adds one ceiling of recorded potentially mutating execution owners per authoritative database (fixed at two there; ADR-0059 makes it the operator's durable choice of one or two, default two, read fresh at every check), derived only from
 existing rows: unresolved Agent attempts whose coherent contract and role Domain classifies WorkspaceMutating (implementation and

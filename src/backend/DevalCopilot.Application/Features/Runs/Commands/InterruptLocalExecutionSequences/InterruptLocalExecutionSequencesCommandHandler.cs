@@ -21,7 +21,8 @@ public sealed class InterruptLocalExecutionSequencesCommandHandler(IDevalCopilot
             .Where(candidate => candidate.State == LocalExecutionSequenceState.Armed
                 || candidate.State == LocalExecutionSequenceState.PreparingStep
                 || candidate.State == LocalExecutionSequenceState.AwaitingStepResult
-                || candidate.State == LocalExecutionSequenceState.Stopping)
+                || candidate.State == LocalExecutionSequenceState.Stopping
+                || candidate.State == LocalExecutionSequenceState.WaitingForAdmission)
             .Select(candidate => new { candidate.Id, candidate.ArmedAtUtc })
             .ToListAsync(cancellationToken);
 
@@ -76,6 +77,16 @@ public sealed class InterruptLocalExecutionSequencesCommandHandler(IDevalCopilot
         foreach (var step in reserved)
         {
             await dbContext.Entry(step).ReloadAsync(cancellationToken);
+            if (sequence.AdmissionMode == LocalExecutionAdmissionMode.WaitForAdmission)
+            {
+                // ADR-0062: a queued reservation owns its workspace, so restart retires it only with the proved unused shape under this
+                // lock (fencing its token in the same commit); an operation or any contradiction keeps it held as Unresolved.
+                await LocalExecutionReservationRetirement.RetireOrHoldAsync(
+                    dbContext, sequence, step, LocalExecutionSequenceReason.HostRestarted, LocalExecutionSequenceReason.HostRestarted, nowUtc,
+                    cancellationToken);
+                continue;
+            }
+
             var operationExists = step.IsAgent
                 ? await dbContext.Attempts.AsNoTracking().AnyAsync(candidate => candidate.Id == step.ReservedOperationId, cancellationToken)
                 : await dbContext.VerificationExecutions.AsNoTracking()
@@ -90,6 +101,16 @@ public sealed class InterruptLocalExecutionSequencesCommandHandler(IDevalCopilot
             }
         }
 
+        // ADR-0062: startup never resumes a waiting admission; it is retired with the interrupted cycle.
+        var waitingAdmissions = await dbContext.LocalExecutionAdmissions
+            .Where(candidate => candidate.SequenceId == sequenceId && candidate.State == LocalExecutionAdmissionState.Waiting)
+            .ToListAsync(cancellationToken);
+        foreach (var admission in waitingAdmissions)
+        {
+            await dbContext.Entry(admission).ReloadAsync(cancellationToken);
+            admission.Retire(LocalExecutionSequenceReason.HostRestarted, nowUtc);
+        }
+
         sequence.End(LocalExecutionSequenceState.Interrupted, LocalExecutionSequenceReason.HostRestarted, detailCode: null, nowUtc);
         dbContext.Events.Add(LocalExecutionSequenceEvents.Ended(sequence, nowUtc));
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -100,6 +121,11 @@ public sealed class InterruptLocalExecutionSequencesCommandHandler(IDevalCopilot
         foreach (var step in reserved)
         {
             dbContext.Entry(step).State = EntityState.Detached;
+        }
+
+        foreach (var admission in waitingAdmissions)
+        {
+            dbContext.Entry(admission).State = EntityState.Detached;
         }
 
         return true;
@@ -116,7 +142,8 @@ public sealed class InterruptLocalExecutionSequencesCommandHandler(IDevalCopilot
                     && sequence.State != LocalExecutionSequenceState.Armed
                     && sequence.State != LocalExecutionSequenceState.PreparingStep
                     && sequence.State != LocalExecutionSequenceState.AwaitingStepResult
-                    && sequence.State != LocalExecutionSequenceState.Stopping)
+                    && sequence.State != LocalExecutionSequenceState.Stopping
+                    && sequence.State != LocalExecutionSequenceState.WaitingForAdmission)
                 && dbContext.Attempts.Any(attempt => attempt.Id == step.OperationId
                     && attempt.Status == AttemptStatus.Running
                     && attempt.AgentDispatchedAtUtc == null))
@@ -183,7 +210,8 @@ public sealed class InterruptLocalExecutionSequencesCommandHandler(IDevalCopilot
                     && sequence.State != LocalExecutionSequenceState.Armed
                     && sequence.State != LocalExecutionSequenceState.PreparingStep
                     && sequence.State != LocalExecutionSequenceState.AwaitingStepResult
-                    && sequence.State != LocalExecutionSequenceState.Stopping)
+                    && sequence.State != LocalExecutionSequenceState.Stopping
+                    && sequence.State != LocalExecutionSequenceState.WaitingForAdmission)
                 && dbContext.VerificationExecutions.Any(execution => execution.Id == step.OperationId
                     && execution.Status == VerificationExecutionStatus.Running
                     && execution.DispatchedAtUtc == null))

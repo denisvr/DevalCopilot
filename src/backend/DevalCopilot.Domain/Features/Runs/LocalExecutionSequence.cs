@@ -33,8 +33,20 @@ public sealed class LocalExecutionSequence
         string settingsSnapshot,
         int recipeCount,
         int correctionAllowance,
-        DateTimeOffset armedAtUtc)
+        DateTimeOffset armedAtUtc,
+        long coordinationNumber,
+        LocalExecutionAdmissionMode admissionMode = LocalExecutionAdmissionMode.Immediate)
     {
+        if (coordinationNumber < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(coordinationNumber));
+        }
+
+        if (!Enum.IsDefined(admissionMode))
+        {
+            throw new ArgumentOutOfRangeException(nameof(admissionMode));
+        }
+
         if (id == Guid.Empty || runId == Guid.Empty || projectId == Guid.Empty || workspaceId == Guid.Empty
             || checkpointId == Guid.Empty || planProposalMessageId == Guid.Empty)
         {
@@ -88,7 +100,11 @@ public sealed class LocalExecutionSequence
             SettingsSnapshot = settingsSnapshot,
             RecipeCount = recipeCount,
             CorrectionAllowance = correctionAllowance,
-            State = LocalExecutionSequenceState.Armed,
+            AdmissionMode = admissionMode,
+            CoordinationNumber = coordinationNumber,
+            State = admissionMode == LocalExecutionAdmissionMode.WaitForAdmission
+                ? LocalExecutionSequenceState.WaitingForAdmission
+                : LocalExecutionSequenceState.Armed,
             Revision = 1,
             ArmedAtUtc = armedAtUtc,
             AdvancementDeadlineUtc = LocalExecutionSequencePolicy.AdvancementDeadlineOf(armedAtUtc),
@@ -127,6 +143,12 @@ public sealed class LocalExecutionSequence
     /// <summary>The smaller of two and the run's remaining shared correction allowance, pinned at arming.</summary>
     public int CorrectionAllowance { get; private set; }
 
+    /// <summary>ADR-0062: immutable. A sequence recorded before the queue existed is Immediate and is never adopted into the queue.</summary>
+    public LocalExecutionAdmissionMode AdmissionMode { get; private set; }
+
+    /// <summary>The stable, strictly increasing Int64 order of this sequence among all sequences, for bounded keyset host observation.</summary>
+    public long CoordinationNumber { get; private set; }
+
     public LocalExecutionSequenceState State { get; private set; }
 
     public string? ReasonCode { get; private set; }
@@ -158,12 +180,26 @@ public sealed class LocalExecutionSequence
 
     public void BeginPreparing(DateTimeOffset nowUtc)
     {
-        if (State is not (LocalExecutionSequenceState.Armed or LocalExecutionSequenceState.AwaitingStepResult))
+        var allowed = AdmissionMode == LocalExecutionAdmissionMode.WaitForAdmission
+            ? State == LocalExecutionSequenceState.WaitingForAdmission
+            : State is LocalExecutionSequenceState.Armed or LocalExecutionSequenceState.AwaitingStepResult;
+        if (!allowed)
         {
             throw new InvalidOperationException($"A step cannot be reserved while the sequence is {State}.");
         }
 
         Advance(LocalExecutionSequenceState.PreparingStep, nowUtc);
+    }
+
+    /// <summary>ADR-0062: a queued cycle whose claimed step concluded records its one pending successor and waits. Never for Immediate.</summary>
+    public void BeginWaiting(DateTimeOffset nowUtc)
+    {
+        if (AdmissionMode != LocalExecutionAdmissionMode.WaitForAdmission || State != LocalExecutionSequenceState.AwaitingStepResult)
+        {
+            throw new InvalidOperationException($"A {AdmissionMode} sequence cannot wait for admission while it is {State}.");
+        }
+
+        Advance(LocalExecutionSequenceState.WaitingForAdmission, nowUtc);
     }
 
     public void MarkAwaitingResult(DateTimeOffset nowUtc)

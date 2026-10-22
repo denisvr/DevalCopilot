@@ -23,6 +23,9 @@ public sealed class AgentSupervisionContentionTests
     private static readonly TimeSpan Tolerated = TimeSpan.FromSeconds(3);
     private static readonly TimeSpan Held = TimeSpan.FromSeconds(6);
 
+    // A separate finite bound for teardown completion proof, never part of a measured stop.
+    private static readonly TimeSpan TeardownBound = TimeSpan.FromSeconds(20);
+
     // The durable event-type strings, written literally on purpose: they are schema.
     private const string Registered = "agent_supervision.registered";
     private const string PhaseEntered = "agent_supervision.phase_entered";
@@ -139,6 +142,34 @@ public sealed class AgentSupervisionContentionTests
     }
 
     [Fact]
+    public async Task A_stopped_sweeps_pending_call_outlives_the_bounded_stop_and_its_scope_settles_only_once_the_writer_releases()
+    {
+        var host = new AgentSupervisionHostInstance(Guid.NewGuid());
+        var clock = new OffsetClock();
+        await using var harness = new PlanningSequenceHostedHarness((services, _) => AgentSupervisionHostedSupport.Register(services, clock, host));
+        var (runId, attemptId) = await SeedRunningAttemptAsync(harness);
+        Assert.True((await harness.SendAsync(new RegisterAgentSupervisionCommand(runId, attemptId, host.Id, Guid.NewGuid()))).IsSuccess);
+        clock.Advance(TimeSpan.FromSeconds(31));
+
+        var release = await HoldWriteLockAsync(harness, TimeSpan.FromSeconds(5));
+        var scopes = new TrackingScopeFactory(harness.Provider.GetRequiredService<IServiceScopeFactory>());
+        var sweep = AgentSupervisionHostedSupport.CreateSweep(harness.Provider, scopes);
+        await sweep.StartAsync(CancellationToken.None);
+        await AgentSupervisionHostedSupport.WaitAsync(() => Task.FromResult(scopes.Active > 0 ? scopes : null));
+
+        var stopWatch = Stopwatch.StartNew();
+        await AgentSupervisionHostedSupport.StopAsync(sweep);
+
+        // The stop is bounded, yet the call it left behind still owns its scope (and its database connection): deleting the database now
+        // is the lifetime gap this regression pins, and only the settled pending Tasks (their scopes disposed inside them) prove the call completed.
+        Assert.True(stopWatch.Elapsed < Tolerated, $"The sweep took {stopWatch.Elapsed.TotalMilliseconds:F0} ms to stop.");
+        Assert.True(scopes.Active > 0, "A call that outlived the bounded stop must still be alive.");
+        await release;
+        await SweepCompletion.WaitForSettledAsync(sweep, TeardownBound);
+        Assert.Equal(0, scopes.Active);
+    }
+
+    [Fact]
     public async Task The_sweep_stops_within_its_bound_while_a_real_writer_holds_the_database_and_later_records_each_attention_once()
     {
         var host = new AgentSupervisionHostInstance(Guid.NewGuid());
@@ -155,7 +186,8 @@ public sealed class AgentSupervisionContentionTests
 
         clock.Advance(TimeSpan.FromSeconds(31));
         var release = await HoldWriteLockAsync(harness, TimeSpan.FromSeconds(8));
-        var blocked = AgentSupervisionHostedSupport.CreateSweep(harness.Provider);
+        var blockedScopes = new TrackingScopeFactory(harness.Provider.GetRequiredService<IServiceScopeFactory>());
+        var blocked = AgentSupervisionHostedSupport.CreateSweep(harness.Provider, blockedScopes);
         await blocked.StartAsync(CancellationToken.None);
         await Task.Delay(TimeSpan.FromSeconds(2.5));
         var stopWatch = Stopwatch.StartNew();
@@ -165,7 +197,8 @@ public sealed class AgentSupervisionContentionTests
 
         Assert.True(stopElapsed < Tolerated, $"The blocked sweep took {stopElapsed.TotalMilliseconds:F0} ms to stop.");
 
-        var sweep = AgentSupervisionHostedSupport.CreateSweep(harness.Provider);
+        var sweepScopes = new TrackingScopeFactory(harness.Provider.GetRequiredService<IServiceScopeFactory>());
+        var sweep = AgentSupervisionHostedSupport.CreateSweep(harness.Provider, sweepScopes);
         await sweep.StartAsync(CancellationToken.None);
         foreach (var (_, attemptId) in observed)
         {
@@ -186,5 +219,12 @@ public sealed class AgentSupervisionContentionTests
                 (await AgentSupervisionHostedSupport.SupervisionEventsAsync(harness.Provider, runId)).Select(runEvent => runEvent.EventType));
             await AssertAttemptUntouchedAsync(harness, attemptId);
         }
+
+        // The bounded stop deliberately leaves a call that outlived it running in its own scope until it settles. The harness deletes the
+        // database next, so the test proves, from the stopped sweeps' own pending Tasks, that no such call (and no connection) is still alive.
+        await SweepCompletion.WaitForSettledAsync(blocked, TeardownBound);
+        await SweepCompletion.WaitForSettledAsync(sweep, TeardownBound);
+        Assert.Equal(0, blockedScopes.Active);
+        Assert.Equal(0, sweepScopes.Active);
     }
 }

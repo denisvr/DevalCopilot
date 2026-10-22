@@ -36,7 +36,8 @@ public sealed class ObserveLocalExecutionSequenceCommandHandler(
             return Failure(LocalExecutionSequenceErrors.NotFound());
         }
 
-        if (!LocalExecutionSequencePolicy.IsAuthorityLive(known.State))
+        // ADR-0062: a waiting queued cycle is observed by its own bounded keyset command, never by this per-sequence decision.
+        if (!LocalExecutionSequencePolicy.IsAuthorityLive(known.State) || known.State == LocalExecutionSequenceState.WaitingForAdmission)
         {
             return Success(known.RunId, known.State, changed: false, ticket: null);
         }
@@ -54,7 +55,7 @@ public sealed class ObserveLocalExecutionSequenceCommandHandler(
 
         var sequence = await dbContext.LocalExecutionSequences.SingleAsync(candidate => candidate.Id == command.SequenceId, cancellationToken);
         await dbContext.Entry(sequence).ReloadAsync(cancellationToken);
-        if (!sequence.IsAuthorityLive)
+        if (!sequence.IsAuthorityLive || sequence.State == LocalExecutionSequenceState.WaitingForAdmission)
         {
             return Success(sequence.RunId, sequence.State, changed: false, ticket: null);
         }
@@ -78,7 +79,7 @@ public sealed class ObserveLocalExecutionSequenceCommandHandler(
         {
             case LocalExecutionSequenceState.Armed:
                 if (steps.Count != 0 || nowUtc >= sequence.AdvancementDeadlineUtc
-                    || !await SourceHoldsAsync(sequence, run, sequence.CheckpointId, sequence.FingerprintSha256, cancellationToken))
+                    || !await LocalExecutionStepAuthority.SourceHoldsAsync(dbContext, sequence, run, sequence.CheckpointId, sequence.FingerprintSha256, cancellationToken))
                 {
                     End(sequence, events, LocalExecutionSequenceState.NeedsAttention,
                         nowUtc >= sequence.AdvancementDeadlineUtc && steps.Count == 0
@@ -88,13 +89,13 @@ public sealed class ObserveLocalExecutionSequenceCommandHandler(
                     break;
                 }
 
-                ticket = Reserve(
+                ticket = await ReserveAsync(
                     sequence, steps, added, events, LocalExecutionStepKind.Implementation, 0, null, null,
-                    sequence.CheckpointId, sequence.FingerprintSha256, null, null, nowUtc);
+                    sequence.CheckpointId, sequence.FingerprintSha256, null, null, nowUtc, cancellationToken);
                 break;
 
             case LocalExecutionSequenceState.PreparingStep:
-                ObservePreparation(sequence, steps, events, nowUtc);
+                await ObservePreparationAsync(sequence, steps, events, nowUtc, cancellationToken);
                 break;
 
             default:
@@ -126,8 +127,12 @@ public sealed class ObserveLocalExecutionSequenceCommandHandler(
 
     /// <summary>A reserved step whose two-minute preparation deadline (or the advancement deadline) elapsed: its authority is revoked.
     /// The claim commits only with the step still Reserved, so nothing was claimed or consumed.</summary>
-    private static void ObservePreparation(
-        LocalExecutionSequence sequence, IReadOnlyList<LocalExecutionSequenceStep> steps, List<RunEvent> events, DateTimeOffset nowUtc)
+    private async Task ObservePreparationAsync(
+        LocalExecutionSequence sequence,
+        IReadOnlyList<LocalExecutionSequenceStep> steps,
+        List<RunEvent> events,
+        DateTimeOffset nowUtc,
+        CancellationToken cancellationToken)
     {
         var reserved = steps.SingleOrDefault(candidate => candidate.State == LocalExecutionSequenceStepState.Reserved);
         if (reserved is null)
@@ -145,8 +150,24 @@ public sealed class ObserveLocalExecutionSequenceCommandHandler(
         var reason = advancementElapsed
             ? LocalExecutionSequenceReason.AdvancementDeadlineElapsed
             : LocalExecutionSequenceReason.PreparationExpired;
-        reserved.Revoke(reason, nowUtc);
-        End(sequence, events, LocalExecutionSequenceState.NeedsAttention, reason, null, nowUtc);
+
+        // ADR-0062: a queued reservation owns its workspace, so it is retired only after the unused shape is proved under this write
+        // lock (fencing its token in the same commit); anything uncertain stays held as Unresolved with attention.
+        var outcome = await LocalExecutionReservationRetirement.RetireOrHoldAsync(
+            dbContext, sequence, reserved, reason, LocalExecutionSequenceReason.PreparationUnresolved, nowUtc, cancellationToken);
+        switch (outcome)
+        {
+            case LocalExecutionReservationRetirement.Outcome.NotQueued:
+                reserved.Revoke(reason, nowUtc);
+                End(sequence, events, LocalExecutionSequenceState.NeedsAttention, reason, null, nowUtc);
+                break;
+            case LocalExecutionReservationRetirement.Outcome.Retired:
+                End(sequence, events, LocalExecutionSequenceState.NeedsAttention, reason, null, nowUtc);
+                break;
+            default:
+                End(sequence, events, LocalExecutionSequenceState.NeedsAttention, LocalExecutionSequenceReason.PreparationUnresolved, null, nowUtc);
+                break;
+        }
     }
 
     /// <summary>AwaitingStepResult or Stopping: the claimed step's operation is observed, never fabricated, terminated or released.</summary>
@@ -247,15 +268,23 @@ public sealed class ObserveLocalExecutionSequenceCommandHandler(
                 }
 
             case LocalExecutionVerdictKind.Reserve:
-                if (!await SourceHoldsAsync(sequence, run, verdict.SourceCheckpointId!.Value, verdict.SourceFingerprintSha256!, cancellationToken))
+                if (!await LocalExecutionStepAuthority.SourceHoldsAsync(dbContext, sequence, run, verdict.SourceCheckpointId!.Value, verdict.SourceFingerprintSha256!, cancellationToken))
                 {
                     End(sequence, events, LocalExecutionSequenceState.NeedsAttention, LocalExecutionSequenceReason.AuthorityChanged, null, nowUtc);
                     return null;
                 }
 
-                return Reserve(
+                // ADR-0062: a queued cycle records its one pending successor and waits; it reserves nothing and owns no slot until the
+                // admission is selected. The successor joins the tail with a fresh, later order number.
+                if (sequence.AdmissionMode == LocalExecutionAdmissionMode.WaitForAdmission)
+                {
+                    await EnqueueSuccessorAsync(sequence, steps, events, verdict, claimed.Id, nowUtc, cancellationToken);
+                    return null;
+                }
+
+                return await ReserveAsync(
                     sequence, steps, added, events, verdict.NextKind, verdict.PassNumber, verdict.RecipeOrdinal, claimed.Id,
-                    verdict.SourceCheckpointId.Value, verdict.SourceFingerprintSha256!, verdict.ReportMessageId, verdict.SubjectAttemptId, nowUtc);
+                    verdict.SourceCheckpointId.Value, verdict.SourceFingerprintSha256!, verdict.ReportMessageId, verdict.SubjectAttemptId, nowUtc, cancellationToken);
 
             default:
                 End(sequence, events, LocalExecutionSequenceState.NeedsAttention, verdict.Reason!, verdict.Detail, nowUtc);
@@ -263,7 +292,43 @@ public sealed class ObserveLocalExecutionSequenceCommandHandler(
         }
     }
 
-    private LocalExecutionStepTicket Reserve(
+    private async Task EnqueueSuccessorAsync(
+        LocalExecutionSequence sequence,
+        IReadOnlyList<LocalExecutionSequenceStep> steps,
+        List<RunEvent> events,
+        LocalExecutionVerdict verdict,
+        Guid predecessorStepId,
+        DateTimeOffset nowUtc,
+        CancellationToken cancellationToken)
+    {
+        var counter = await LocalExecutionOrdering.ReadCounterAsync(dbContext, cancellationToken);
+        var number = LocalExecutionOrdering.Next(counter);
+        if (number is null)
+        {
+            End(sequence, events, LocalExecutionSequenceState.NeedsAttention, LocalExecutionSequenceReason.PreparationFailed, "queue_unavailable", nowUtc);
+            return;
+        }
+
+        var admission = LocalExecutionAdmission.Enqueue(
+            Guid.NewGuid(),
+            sequence.Id,
+            number.Value,
+            steps.Max(step => step.Ordinal) + 1,
+            verdict.NextKind,
+            verdict.PassNumber,
+            verdict.RecipeOrdinal,
+            predecessorStepId,
+            verdict.SourceCheckpointId!.Value,
+            verdict.SourceFingerprintSha256!,
+            verdict.ReportMessageId,
+            verdict.SubjectAttemptId,
+            nowUtc);
+        dbContext.LocalExecutionAdmissions.Add(admission);
+        sequence.BeginWaiting(nowUtc);
+        events.Add(LocalExecutionSequenceEvents.AdmissionQueued(sequence, admission, nowUtc));
+    }
+
+    private async Task<LocalExecutionStepTicket> ReserveAsync(
         LocalExecutionSequence sequence,
         IReadOnlyList<LocalExecutionSequenceStep> steps,
         List<object> added,
@@ -276,7 +341,8 @@ public sealed class ObserveLocalExecutionSequenceCommandHandler(
         string sourceFingerprintSha256,
         Guid? reportMessageId,
         Guid? subjectAttemptId,
-        DateTimeOffset nowUtc)
+        DateTimeOffset nowUtc,
+        CancellationToken cancellationToken)
     {
         var ordinal = steps.Count == 0 ? 0 : steps.Max(step => step.Ordinal) + 1;
         var step = LocalExecutionSequenceStep.Reserve(
@@ -298,57 +364,7 @@ public sealed class ObserveLocalExecutionSequenceCommandHandler(
         added.Add(step);
         sequence.BeginPreparing(nowUtc);
         events.Add(LocalExecutionSequenceEvents.StepReserved(sequence, step, nowUtc));
-        return new LocalExecutionStepTicket(
-            sequence.Id,
-            step.Id,
-            ordinal,
-            kind,
-            step.ReservedOperationId,
-            step.PreparationOwnerToken,
-            sourceCheckpointId,
-            reportMessageId,
-            subjectAttemptId,
-            null);
-    }
-
-    /// <summary>Whether the exact source a step would run against still holds: the run is still a running manual Agent run, the project's
-    /// latest workspace is still the pinned, Ready, owned one with its active lease and its latest checkpoint is exactly the expected
-    /// result, and the pinned recipes and requested settings are unchanged. A newer workspace or an unrelated checkpoint is never followed.</summary>
-    private async Task<bool> SourceHoldsAsync(
-        LocalExecutionSequence sequence, Run run, Guid expectedCheckpointId, string expectedFingerprint, CancellationToken cancellationToken)
-    {
-        if (run.Id != sequence.RunId
-            || run.ProjectId != sequence.ProjectId
-            || run.Lifecycle != RunLifecycle.Running
-            || await CurrentRunExecutionMode.ReadAsync(dbContext, run.Id, cancellationToken) != RunExecutionMode.ManualAgent
-            || !string.Equals(LocalExecutionSettingsSnapshot.Of(run), sequence.SettingsSnapshot, StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        var workspace = await dbContext.GitWorkspaces.AsNoTracking()
-            .Where(candidate => candidate.ProjectId == run.ProjectId)
-            .OrderByDescending(candidate => candidate.WorkspaceNumber)
-            .FirstOrDefaultAsync(cancellationToken);
-        if (workspace is null || workspace.Id != sequence.WorkspaceId || workspace.Status != WorkspaceStatus.Ready)
-        {
-            return false;
-        }
-
-        if (!await dbContext.RepositoryMutationLeases.AsNoTracking().AnyAsync(
-                lease => lease.WorkspaceId == workspace.Id && lease.Status == LeaseStatus.Active, cancellationToken))
-        {
-            return false;
-        }
-
-        var checkpoint = await dbContext.GitCheckpoints.AsNoTracking()
-            .Where(candidate => candidate.WorkspaceId == workspace.Id)
-            .OrderByDescending(candidate => candidate.CheckpointNumber)
-            .FirstOrDefaultAsync(cancellationToken);
-        return checkpoint is not null
-            && checkpoint.Id == expectedCheckpointId
-            && string.Equals(checkpoint.FingerprintSha256, expectedFingerprint, StringComparison.Ordinal)
-            && await LocalExecutionStepAuthority.RecipesHoldAsync(dbContext, sequence, cancellationToken);
+        return await LocalExecutionStepTicketFactory.CreateAsync(dbContext, step, cancellationToken);
     }
 
     private async Task<OperationReading?> ReadOperationAsync(

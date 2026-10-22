@@ -38,18 +38,24 @@ public sealed class ArmLocalExecutionSequenceCommandHandler(
             return replay;
         }
 
-        var early = await LocalExecutionCandidateReader.ReadAsync(dbContext, command.RunId, command.PlanProposalMessageId, cancellationToken);
+        var early = await LocalExecutionCandidateReader.ReadAsync(
+            dbContext, command.RunId, command.PlanProposalMessageId, cancellationToken, command.Mode);
         var earlyError = Compare(command, early);
         if (earlyError is not null)
         {
             return Failure(earlyError);
         }
 
-        var evidence = await evidenceReader.CaptureAsync(early.Workspace!.WorkspacePath, cancellationToken);
-        if (evidence.Outcome != GitWorkspaceEvidenceOutcome.Success
-            || !string.Equals(evidence.FingerprintSha256, command.FingerprintSha256, StringComparison.Ordinal))
+        // ADR-0062: a queued intake observes no Git while another owner may be writing the workspace. It pins the recorded source, and the
+        // exact source must still hold when the admitted preparation starts and at the ordinary dispatch boundary.
+        if (command.Mode == LocalExecutionAdmissionMode.Immediate)
         {
-            return Failure(LocalExecutionSequenceErrors.TupleStale());
+            var evidence = await evidenceReader.CaptureAsync(early.Workspace!.WorkspacePath, cancellationToken);
+            if (evidence.Outcome != GitWorkspaceEvidenceOutcome.Success
+                || !string.Equals(evidence.FingerprintSha256, command.FingerprintSha256, StringComparison.Ordinal))
+            {
+                return Failure(LocalExecutionSequenceErrors.TupleStale());
+            }
         }
 
         await using var transaction = await dbContext.BeginTransactionAsync(cancellationToken);
@@ -70,7 +76,8 @@ public sealed class ArmLocalExecutionSequenceCommandHandler(
             return lockedReplay;
         }
 
-        var fresh = await LocalExecutionCandidateReader.ReadAsync(dbContext, command.RunId, command.PlanProposalMessageId, cancellationToken);
+        var fresh = await LocalExecutionCandidateReader.ReadAsync(
+            dbContext, command.RunId, command.PlanProposalMessageId, cancellationToken, command.Mode);
         var freshError = Compare(command, fresh);
         if (freshError is not null)
         {
@@ -79,6 +86,18 @@ public sealed class ArmLocalExecutionSequenceCommandHandler(
 
         var candidate = fresh.Candidate!;
         var nowUtc = timeProvider.GetUtcNow();
+        var queued = command.Mode == LocalExecutionAdmissionMode.WaitForAdmission;
+
+        // ADR-0062: the coordination order (and the first admission order) come from the feature-owned counter, advanced here under the
+        // write lock and saved in this very transaction. A missing, malformed or exhausted counter fails closed.
+        var counter = await LocalExecutionOrdering.ReadCounterAsync(dbContext, cancellationToken);
+        var coordinationNumber = LocalExecutionOrdering.Next(counter);
+        var admissionNumber = queued && coordinationNumber is not null ? LocalExecutionOrdering.Next(counter) : null;
+        if (coordinationNumber is null || (queued && admissionNumber is null))
+        {
+            return Failure(LocalExecutionSequenceErrors.QueueUnavailable());
+        }
+
         var sequence = LocalExecutionSequence.Arm(
             Guid.NewGuid(),
             candidate.RunId,
@@ -93,7 +112,9 @@ public sealed class ArmLocalExecutionSequenceCommandHandler(
             candidate.SettingsSnapshot,
             candidate.Recipes.Count,
             candidate.CorrectionAllowance,
-            nowUtc);
+            nowUtc,
+            coordinationNumber.Value,
+            command.Mode);
         dbContext.LocalExecutionSequences.Add(sequence);
         foreach (var pin in candidate.Recipes)
         {
@@ -101,7 +122,17 @@ public sealed class ArmLocalExecutionSequenceCommandHandler(
                 Guid.NewGuid(), sequence.Id, pin.Ordinal, await ReadCommandAsync(pin.CommandId, cancellationToken)));
         }
 
-        var recorded = LocalExecutionSequenceEvents.Armed(sequence, nowUtc);
+        LocalExecutionAdmission? first = null;
+        if (queued)
+        {
+            // The initial pending admission pins the exact implementation step and the recorded source: no later latest input is selected.
+            first = LocalExecutionAdmission.Enqueue(
+                Guid.NewGuid(), sequence.Id, admissionNumber!.Value, 0, LocalExecutionStepKind.Implementation, 0, null, null,
+                candidate.CheckpointId, candidate.FingerprintSha256, null, null, nowUtc);
+            dbContext.LocalExecutionAdmissions.Add(first);
+        }
+
+        var recorded = LocalExecutionSequenceEvents.Armed(sequence, nowUtc, first);
         dbContext.Events.Add(recorded);
 
         try
@@ -113,12 +144,27 @@ public sealed class ArmLocalExecutionSequenceCommandHandler(
         {
             // The database guards (a running run with no mutating claim, a coherent tuple, one sequence per run) are the backstop of the
             // reads above. Whatever they refused, nothing was recorded and the refusal is fixed text.
-            return Failure(LocalExecutionSequenceErrors.PriorMutation());
+            return Failure(
+                queued && await QueueIsFullAsync()
+                    ? LocalExecutionSequenceErrors.QueueFull()
+                    : LocalExecutionSequenceErrors.PriorMutation());
         }
 
         await NotifyAsync(sequence.RunId, recorded.Sequence, cancellationToken);
-        return Result<ArmLocalExecutionSequenceCommandResult>.Success(ToResult(sequence, replayed: false));
+        return Result<ArmLocalExecutionSequenceCommandResult>.Success(ToResult(sequence, replayed: false, first));
     }
+
+    /// <summary>Whether the bound of live queued cycles now holds: the database guard of that bound is then the reason a queued save was
+    /// refused. A fresh, unconditional read: the caller's token may already be cancelled.</summary>
+    private async Task<bool> QueueIsFullAsync() =>
+        await dbContext.LocalExecutionSequences.AsNoTracking()
+            .Where(candidate => candidate.AdmissionMode == LocalExecutionAdmissionMode.WaitForAdmission
+                && (candidate.State == LocalExecutionSequenceState.WaitingForAdmission
+                    || candidate.State == LocalExecutionSequenceState.PreparingStep
+                    || candidate.State == LocalExecutionSequenceState.AwaitingStepResult
+                    || candidate.State == LocalExecutionSequenceState.Stopping))
+            .Take(LocalExecutionSequencePolicy.MaximumQueuedCycles + 1)
+            .CountAsync(CancellationToken.None) >= LocalExecutionSequencePolicy.MaximumQueuedCycles;
 
     /// <summary>The run's recorded sequence for the identical normalized tuple (a replay, nothing written), a tuple conflict, or none.</summary>
     private async Task<Result<ArmLocalExecutionSequenceCommandResult>?> ReplayAsync(
@@ -131,12 +177,18 @@ public sealed class ArmLocalExecutionSequenceCommandHandler(
             return null;
         }
 
+        if (recorded.AdmissionMode != command.Mode)
+        {
+            return Failure(LocalExecutionSequenceErrors.TupleConflict());
+        }
+
         return recorded.PlanProposalMessageId == command.PlanProposalMessageId
             && recorded.WorkspaceId == command.WorkspaceId
             && recorded.CheckpointId == command.CheckpointId
             && string.Equals(recorded.FingerprintSha256, command.FingerprintSha256, StringComparison.Ordinal)
             && string.Equals(recorded.ConfirmationSha256, command.ConfirmationSha256, StringComparison.Ordinal)
-                ? Result<ArmLocalExecutionSequenceCommandResult>.Success(ToResult(recorded, replayed: true))
+                ? Result<ArmLocalExecutionSequenceCommandResult>.Success(
+                    ToResult(recorded, replayed: true, await ReadOutstandingAdmissionAsync(recorded, cancellationToken)))
                 : Failure(LocalExecutionSequenceErrors.TupleConflict());
     }
 
@@ -156,7 +208,7 @@ public sealed class ArmLocalExecutionSequenceCommandHandler(
             return LocalExecutionSequenceErrors.TupleStale();
         }
 
-        return string.Equals(candidate.ConfirmationSha256, command.ConfirmationSha256, StringComparison.Ordinal)
+        return string.Equals(candidate.ConfirmationSha256For(command.Mode), command.ConfirmationSha256, StringComparison.Ordinal)
             ? null
             : LocalExecutionSequenceErrors.ConfirmationStale();
     }
@@ -164,7 +216,17 @@ public sealed class ArmLocalExecutionSequenceCommandHandler(
     private async Task<DevalCopilot.Domain.Features.Projects.VerificationCommand> ReadCommandAsync(Guid commandId, CancellationToken cancellationToken) =>
         await dbContext.VerificationCommands.AsNoTracking().SingleAsync(candidate => candidate.Id == commandId, cancellationToken);
 
-    private static ArmLocalExecutionSequenceCommandResult ToResult(LocalExecutionSequence sequence, bool replayed) => new(
+    /// <summary>The queued sequence's one outstanding (waiting or reserved) admission, for the receipt's closed disclosure.</summary>
+    private async Task<LocalExecutionAdmission?> ReadOutstandingAdmissionAsync(LocalExecutionSequence sequence, CancellationToken cancellationToken) =>
+        sequence.AdmissionMode == LocalExecutionAdmissionMode.WaitForAdmission
+            ? await dbContext.LocalExecutionAdmissions.AsNoTracking().SingleOrDefaultAsync(
+                candidate => candidate.SequenceId == sequence.Id
+                    && (candidate.State == LocalExecutionAdmissionState.Waiting || candidate.State == LocalExecutionAdmissionState.Reserved),
+                cancellationToken)
+            : null;
+
+    private static ArmLocalExecutionSequenceCommandResult ToResult(
+        LocalExecutionSequence sequence, bool replayed, LocalExecutionAdmission? admission = null) => new(
         sequence.Id,
         sequence.RunId,
         sequence.PlanProposalMessageId,
@@ -178,7 +240,9 @@ public sealed class ArmLocalExecutionSequenceCommandHandler(
         sequence.ArmedAtUtc,
         sequence.AdvancementDeadlineUtc,
         sequence.Revision,
-        replayed);
+        replayed,
+        sequence.AdmissionMode,
+        LocalExecutionQueueDisclosures.Of(sequence, admission));
 
     private static Result<ArmLocalExecutionSequenceCommandResult> Failure(Error error) =>
         Result<ArmLocalExecutionSequenceCommandResult>.Failure(error);

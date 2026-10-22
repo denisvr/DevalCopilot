@@ -31,6 +31,7 @@ public sealed class GetWorkspaceExecutionStatusQueryHandler(IDevalCopilotDbConte
         WorkspaceExecutionStatus.AgentAttemptActive => "agent_attempt_active",
         WorkspaceExecutionStatus.VerificationActive => "verification_active",
         WorkspaceExecutionStatus.CommitReserved => "local_commit_reserved",
+        WorkspaceExecutionStatus.PreparationReserved => "queued_preparation_reserved",
         WorkspaceExecutionStatus.Conflicted => "conflicting_execution_owners",
         _ => "workspace_execution_unavailable",
     };

@@ -112,11 +112,28 @@ public sealed partial class ProviderFixtureContractTests : IDisposable
         }
 
         using var process = Process.Start(info)!;
-        process.StandardInput.Write(standardInput);
-        process.StandardInput.Close();
         var output = process.StandardOutput.ReadToEndAsync();
         var error = process.StandardError.ReadToEndAsync();
+        // The fixture checks ownership before it reads standard input, so a legitimate refusal may close the pipe while this write is still in
+        // progress. That one outcome is recorded and judged only after the child's own result is known; it never hides a delivery failure of an
+        // invocation that was not refused (exit code zero).
+        IOException? deliveryFailure = null;
+        try
+        {
+            process.StandardInput.Write(standardInput);
+            process.StandardInput.Close();
+        }
+        catch (IOException exception)
+        {
+            deliveryFailure = exception;
+        }
+
         Assert.True(process.WaitForExit(30_000), "The fixture did not exit.");
+        if (deliveryFailure is not null && process.ExitCode == 0)
+        {
+            throw deliveryFailure;
+        }
+
         return new Result(process.ExitCode, output.Result, error.Result);
     }
 

@@ -57,7 +57,10 @@ internal static class ExecutionCapacityPolicy
     /// limit is read first, fresh and untracked: a missing or malformed latest revision is Unavailable with no limit, and an ownership
     /// reading that cannot be trusted keeps the validated limit but states no count.</summary>
     public static async Task<ExecutionCapacityReading> ReadAsync(
-        IDevalCopilotDbContext dbContext, ExecutionOwner? own, CancellationToken cancellationToken)
+        IDevalCopilotDbContext dbContext,
+        ExecutionOwner? own,
+        CancellationToken cancellationToken,
+        LocalExecutionStepTicket? ownReservation = null)
     {
         ExecutionCapacityConfiguration? configuration;
         try
@@ -76,7 +79,7 @@ internal static class ExecutionCapacityPolicy
 
         try
         {
-            return await ReadCoreAsync(dbContext, own, current, cancellationToken);
+            return await ReadCoreAsync(dbContext, own, current, ownReservation, cancellationToken);
         }
         catch (Exception exception) when (exception is InvalidOperationException or FormatException)
         {
@@ -112,7 +115,11 @@ internal static class ExecutionCapacityPolicy
     }
 
     private static async Task<ExecutionCapacityReading> ReadCoreAsync(
-        IDevalCopilotDbContext dbContext, ExecutionOwner? own, ExecutionCapacityConfiguration configuration, CancellationToken cancellationToken)
+        IDevalCopilotDbContext dbContext,
+        ExecutionOwner? own,
+        ExecutionCapacityConfiguration configuration,
+        LocalExecutionStepTicket? ownReservation,
+        CancellationToken cancellationToken)
     {
         // ADR-0060: a linked operation whose row is missing, foreign or incoherent is never a zero count.
         if (await LocalExecutionOwnership.HasIncoherentLinkAsync(dbContext, null, cancellationToken))
@@ -191,12 +198,39 @@ internal static class ExecutionCapacityPolicy
             return Unavailable(configuration);
         }
 
+        // ADR-0062: a held queued reservation owns its workspace, and consumes one unit here only when its step is potentially mutating
+        // by Domain's closed mapping. The caller's own reservation is excluded only after its exact ticket proof; waiting owns nothing.
+        var ownProof = await LocalExecutionReservationOwnership.ProveOwnAsync(dbContext, ownReservation, cancellationToken);
+        if (!ownProof.IsValid)
+        {
+            return Unavailable(configuration);
+        }
+
+        var heldReservations = LocalExecutionReservationOwnership.Without(
+            LocalExecutionReservationOwnership.Held(dbContext), ownProof.ExcludedStepId);
+        var reservationWorkspaces = heldReservations.Join(
+            dbContext.LocalExecutionSequences.AsNoTracking(),
+            admission => admission.SequenceId,
+            sequence => sequence.Id,
+            (admission, sequence) => sequence.WorkspaceId);
+        if (await reservationWorkspaces.GroupBy(workspaceId => workspaceId).AnyAsync(group => group.Count() > 1, cancellationToken)
+            || await reservationWorkspaces.AnyAsync(
+                workspaceId => agentOwners.Any(attempt => attempt.AgentGitWorkspaceId == workspaceId)
+                    || verificationOwners.Any(execution => execution.GitWorkspaceId == workspaceId)
+                    || commitOwners.Any(operation => operation.GitWorkspaceId == workspaceId),
+                cancellationToken))
+        {
+            return Unavailable(configuration);
+        }
+
+        var reservationOwnerCount = await heldReservations.CountAsync(LocalExecutionReservationOwnership.Mutating(), cancellationToken);
+
         if (own is { } self && !await IsCountedAsync(self, agentOwners, verificationOwners, commitOwners, cancellationToken))
         {
             return Unavailable(configuration);
         }
 
-        var total = (long)agentOwnerCount + verificationOwnerCount + commitOwnerCount;
+        var total = (long)agentOwnerCount + verificationOwnerCount + commitOwnerCount + reservationOwnerCount;
         var owners = (int)Math.Min(total, int.MaxValue);
         return new ExecutionCapacityReading(
             total >= configuration.Limit ? ExecutionCapacityStatus.AtCapacity : ExecutionCapacityStatus.Available,

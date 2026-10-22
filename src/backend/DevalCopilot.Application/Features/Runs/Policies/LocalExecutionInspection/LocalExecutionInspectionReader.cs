@@ -96,7 +96,9 @@ internal static class LocalExecutionInspectionReader
             || sequence.PlanProposalMessageId == Guid.Empty
             || !LocalExecutionSequencePolicy.IsLowercaseSha256(sequence.Fingerprint)
             || sequence.PlanAuthorityCode is < 1 or > 3
-            || sequence.StateCode is < 1 or > 9
+            || sequence.StateCode is < 1 or > 10
+            || sequence.AdmissionModeCode is < 1 or > 2
+            || (sequence.StateCode == 10 && sequence.AdmissionModeCode != 2)
             || sequence.RecipeCount is not { } recipeCount
             || sequence.CorrectionAllowance is not { } correctionAllowance
             || sequence.Revision is not { } revision
@@ -167,7 +169,8 @@ internal static class LocalExecutionInspectionReader
             correctionAllowance,
             sequence.ArmedAtUtc,
             sequence.UpdatedAtUtc,
-            sequence.EndedAtUtc);
+            sequence.EndedAtUtc,
+            (LocalExecutionAdmissionMode)(sequence.AdmissionModeCode - 1));
         return new LocalExecutionInspectionStructure(run.Id, run.ProjectId, header, steps);
     }
 

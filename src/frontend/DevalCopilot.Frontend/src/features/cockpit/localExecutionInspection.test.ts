@@ -312,3 +312,29 @@ describe('decideLocalExecutionWindowAnswer', () => {
     expect(CHECKPOINT).toHaveLength(36)
   })
 })
+
+describe('toLocalExecutionInspectionIndex: the recorded admission mode (ADR-0062)', () => {
+  const headerOf = (raw: unknown) => {
+    const accepted = index(raw)
+    return accepted?.status === "Recorded" ? accepted.sequence : null
+  }
+  const withHeader = (patch: Record<string, unknown>) => ({ ...recordedIndexFor(), sequence: headerFor(patch) })
+
+  it('accepts and exposes the recorded Immediate and queued modes', () => {
+    expect(headerOf(recordedIndexFor())?.admissionMode).toBe('Immediate')
+    expect(headerOf(withHeader({ admissionMode: 'WaitForAdmission' }))?.admissionMode).toBe('WaitForAdmission')
+  })
+
+  it('refuses a missing, unknown or differently cased mode', () => {
+    const { admissionMode: _omitted, ...missing } = headerFor()
+    expect(index({ ...recordedIndexFor(), sequence: missing })).toBeNull()
+    expect(index(withHeader({ admissionMode: 'Queued' }))).toBeNull()
+    expect(index(withHeader({ admissionMode: 'waitForAdmission' }))).toBeNull()
+  })
+
+  it('refuses a recorded waiting state that is not queued, and accepts it as queued bookkeeping', () => {
+    const waiting = { recordedState: 'WaitingForAdmission', reasonCode: null, endedAtUtc: null, revision: '1' }
+    expect(index(withHeader({ ...waiting, admissionMode: 'Immediate' }))).toBeNull()
+    expect(headerOf({ ...withHeader({ ...waiting, admissionMode: 'WaitForAdmission' }), steps: [] })?.recordedState).toBe('WaitingForAdmission')
+  })
+})

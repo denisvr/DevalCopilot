@@ -8,7 +8,34 @@ namespace DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequence
 /// post-commit hint.</summary>
 internal static class LocalExecutionSequenceEvents
 {
-    public static RunEvent Armed(LocalExecutionSequence sequence, DateTimeOffset nowUtc) => Record(
+    public static RunEvent Armed(LocalExecutionSequence sequence, DateTimeOffset nowUtc, LocalExecutionAdmission? admission = null) =>
+        sequence.AdmissionMode == LocalExecutionAdmissionMode.WaitForAdmission
+            ? ArmedQueued(sequence, admission, nowUtc)
+            : ArmedImmediate(sequence, nowUtc);
+
+    /// <summary>ADR-0062: the one Human event of a queue intake, with the queued mode and the initial pending admission identity.</summary>
+    private static RunEvent ArmedQueued(LocalExecutionSequence sequence, LocalExecutionAdmission? admission, DateTimeOffset nowUtc) => Record(
+        sequence.RunId,
+        null,
+        RunEventType.LocalExecutionSequenceArmed,
+        ParticipantIdentity.ForHuman(),
+        new
+        {
+            sequenceId = sequence.Id,
+            workspaceId = sequence.WorkspaceId,
+            checkpointId = sequence.CheckpointId,
+            fingerprintSha256 = sequence.FingerprintSha256,
+            planProposalMessageId = sequence.PlanProposalMessageId,
+            recipeCount = sequence.RecipeCount,
+            correctionAllowance = sequence.CorrectionAllowance,
+            maximumSteps = LocalExecutionSequencePolicy.MaximumSteps(sequence.RecipeCount),
+            admissionMode = sequence.AdmissionMode.ToString(),
+            admissionId = admission?.Id,
+            admissionNumber = admission?.AdmissionNumber,
+        },
+        nowUtc);
+
+    private static RunEvent ArmedImmediate(LocalExecutionSequence sequence, DateTimeOffset nowUtc) => Record(
         sequence.RunId,
         null,
         RunEventType.LocalExecutionSequenceArmed,
@@ -68,6 +95,36 @@ internal static class LocalExecutionSequenceEvents
                 outcome,
             },
             nowUtc);
+
+    public static RunEvent AdmissionQueued(LocalExecutionSequence sequence, LocalExecutionAdmission admission, DateTimeOffset nowUtc) => Record(
+        sequence.RunId,
+        null,
+        RunEventType.LocalExecutionAdmissionQueued,
+        ParticipantIdentity.ForOrchestrator(),
+        new
+        {
+            sequenceId = sequence.Id,
+            admissionId = admission.Id,
+            admissionNumber = admission.AdmissionNumber,
+            ordinal = admission.Ordinal,
+            kind = admission.Kind.ToString(),
+            pass = admission.PassNumber,
+        },
+        nowUtc);
+
+    public static RunEvent AdmissionWaiting(LocalExecutionSequence sequence, LocalExecutionAdmission admission, DateTimeOffset nowUtc) => Record(
+        sequence.RunId,
+        null,
+        RunEventType.LocalExecutionAdmissionWaiting,
+        ParticipantIdentity.ForOrchestrator(),
+        new
+        {
+            sequenceId = sequence.Id,
+            admissionId = admission.Id,
+            admissionNumber = admission.AdmissionNumber,
+            reason = admission.WaitingReason,
+        },
+        nowUtc);
 
     public static RunEvent StopRequested(LocalExecutionSequence sequence, DateTimeOffset nowUtc) => Record(
         sequence.RunId,

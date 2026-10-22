@@ -104,8 +104,10 @@ import {
 } from '../features/cockpit/planningSequenceWire'
 import {
   ArmLocalExecutionSequenceWireClient,
+  LocalExecutionQueueAvailabilityWireClient,
   LocalExecutionSequenceAvailabilityWireClient,
   LocalExecutionSequenceStatusWireClient,
+  QueueLocalExecutionSequenceWireClient,
   StopLocalExecutionSequenceWireClient,
 } from '../features/cockpit/localExecutionSequenceWire'
 import {
@@ -159,6 +161,8 @@ export const stopPlanningSequenceClient = () => new StopPlanningSequenceWireClie
 export const localExecutionSequenceStatusClient = (signal?: AbortSignal) => new LocalExecutionSequenceStatusWireClient(getApiBaseUrl(), authenticatedHttp, signal)
 export const localExecutionSequenceAvailabilityClient = (signal?: AbortSignal) => new LocalExecutionSequenceAvailabilityWireClient(getApiBaseUrl(), authenticatedHttp, signal)
 export const armLocalExecutionSequenceClient = (signal?: AbortSignal) => new ArmLocalExecutionSequenceWireClient(getApiBaseUrl(), authenticatedHttp, signal)
+export const localExecutionQueueAvailabilityClient = (signal?: AbortSignal) => new LocalExecutionQueueAvailabilityWireClient(getApiBaseUrl(), authenticatedHttp, signal)
+export const queueLocalExecutionSequenceClient = (signal?: AbortSignal) => new QueueLocalExecutionSequenceWireClient(getApiBaseUrl(), authenticatedHttp, signal)
 export const stopLocalExecutionSequenceClient = (signal?: AbortSignal) => new StopLocalExecutionSequenceWireClient(getApiBaseUrl(), authenticatedHttp, signal)
 // Hand the parsed bodies to the whole-answer decoders instead of the generated models (see the ADR-0052 wire clients).
 export const localExecutionInspectionIndexClient = () => new LocalExecutionInspectionIndexWireClient(getApiBaseUrl(), authenticatedHttp)

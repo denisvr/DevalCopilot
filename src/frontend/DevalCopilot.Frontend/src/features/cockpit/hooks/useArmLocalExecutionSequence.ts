@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react'
-import { armLocalExecutionSequenceClient } from '../../../api/clients'
+import { armLocalExecutionSequenceClient, queueLocalExecutionSequenceClient } from '../../../api/clients'
 import { toLocalExecutionArmReceipt } from '../localExecutionSequence'
-import type { LocalExecutionArmReceipt, LocalExecutionArmTuple } from '../localExecutionSequence'
+import type { LocalExecutionAdmissionMode, LocalExecutionArmReceipt, LocalExecutionArmTuple } from '../localExecutionSequence'
 import { LocalExecutionAnswerInvalid, localExecutionFailureMessage } from '../localExecutionSequenceCopy'
 import { startBoundedCommand } from './boundedCommand'
 import type { BoundedCommand } from './boundedCommand'
@@ -55,8 +55,12 @@ export function useArmLocalExecutionSequence(
   reader: Pick<UseLocalExecutionSequenceResult, 'beginCommand'>,
   onSettled: () => void,
   onReceipt?: (receipt: LocalExecutionArmReceipt) => void,
+  mode: LocalExecutionAdmissionMode = 'Immediate',
 ): UseArmLocalExecutionSequenceResult {
-  const ownerKey = JSON.stringify([runId, candidate])
+  // ADR-0062: the admission mode is part of the owner. Immediate arming and queueing are different operations with different
+  // confirmations, so changing the mode (like the run or the candidate) ends the owner, and a handler retained from the other mode is
+  // dropped before any request is sent.
+  const ownerKey = JSON.stringify([runId, candidate, mode])
   const { busy, error, run } = useRunScopedAction(ownerKey)
   const command = useRef<BoundedCommand | null>(null)
 
@@ -83,11 +87,15 @@ export function useArmLocalExecutionSequence(
             throw new LocalExecutionCommandNotStarted()
           }
 
-          const sent = startBoundedCommand((signal) => armLocalExecutionSequenceClient(signal).armLocalExecutionSequenceRaw(requestRunId, tuple))
+          const sent = startBoundedCommand((signal) =>
+            mode === 'WaitForAdmission'
+              ? queueLocalExecutionSequenceClient(signal).queueLocalExecutionSequenceRaw(requestRunId, tuple)
+              : armLocalExecutionSequenceClient(signal).armLocalExecutionSequenceRaw(requestRunId, tuple),
+          )
           command.current = sent
           try {
             const raw = await sent.result
-            receipt = toLocalExecutionArmReceipt(raw, requestRunId, tuple)
+            receipt = toLocalExecutionArmReceipt(raw, requestRunId, tuple, mode)
             if (receipt === null) {
               throw new LocalExecutionAnswerInvalid()
             }
@@ -111,7 +119,7 @@ export function useArmLocalExecutionSequence(
         },
       )
     },
-    [run, runId, candidate, ownerKey, reader, onSettled, onReceipt],
+    [run, runId, candidate, ownerKey, reader, onSettled, onReceipt, mode],
   )
 
   return { requesting: busy, error, arm }

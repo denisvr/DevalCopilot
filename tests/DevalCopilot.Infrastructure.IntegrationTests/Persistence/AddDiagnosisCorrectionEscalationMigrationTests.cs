@@ -334,7 +334,7 @@ public sealed class AddDiagnosisCorrectionEscalationMigrationTests : IAsyncLifet
         // Downgrading to this historical migration removes its table and every later migration's tables, including ADR-0029's
         // durable local-commit operation storage; it must never leave a later schema object behind.
         Assert.Equal(
-            ["agent_supervisions", "diagnosis_correction_escalations", "execution_capacity_configurations", "github_branch_publication_approvals", "github_observation_targets", "github_repository_identity_bindings", "local_commit_authority_members", "local_commit_operations", "local_execution_sequence_recipes", "local_execution_sequence_steps", "local_execution_sequences", "planning_sequence_steps", "planning_sequences"],
+            ["agent_supervisions", "diagnosis_correction_escalations", "execution_capacity_configurations", "github_branch_publication_approvals", "github_observation_targets", "github_repository_identity_bindings", "local_commit_authority_members", "local_commit_operations", "local_execution_admissions", "local_execution_order_counters", "local_execution_sequence_recipes", "local_execution_sequence_steps", "local_execution_sequences", "planning_sequence_steps", "planning_sequences"],
             tablesBefore.Except(tablesAfter).OrderBy(name => name));
         Assert.Empty(tablesAfter.Except(tablesBefore));
         await using var reopened = CreateContext();

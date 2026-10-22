@@ -4,7 +4,12 @@ import { useLocalExecutionSequenceAvailability } from '../hooks/useLocalExecutio
 import { useOwnedLifetime, useOwnedState } from '../hooks/useOwnedLifetime'
 import { useStopLocalExecutionSequence } from '../hooks/useStopLocalExecutionSequence'
 import type { UseLocalExecutionSequenceResult } from '../hooks/useLocalExecutionSequence'
-import type { LocalExecutionArmReceipt, LocalExecutionArmTuple, LocalExecutionStopAnswer } from '../localExecutionSequence'
+import type {
+  LocalExecutionAdmissionMode,
+  LocalExecutionArmReceipt,
+  LocalExecutionArmTuple,
+  LocalExecutionStopAnswer,
+} from '../localExecutionSequence'
 import {
   LOCAL_EXECUTION_ARM_LABEL,
   LOCAL_EXECUTION_AVAILABILITY_FAILED,
@@ -12,6 +17,7 @@ import {
   LOCAL_EXECUTION_CONFIRMATION_DRIFT,
   LOCAL_EXECUTION_NEVER_RESUMES,
   LOCAL_EXECUTION_NO_PLAN,
+  LOCAL_EXECUTION_QUEUE_LABEL,
   LOCAL_EXECUTION_READING,
   LOCAL_EXECUTION_STATE_LABEL,
   LOCAL_EXECUTION_STOP_LABEL,
@@ -32,22 +38,32 @@ interface LocalExecutionSequencePanelProps {
   latestEventSequence?: number
   /** The fixed reason another veto (workspace ownership or capacity) withholds arming; it only ever vetoes. */
   armWithheldReason?: string | null
+  /** ADR-0062: why a queue request is withheld. Workspace busy and global capacity at its limit are exactly what queueing waits for, so they
+   *  are never a reason here; only a conflicting live authority of the run is. Defaults to none. */
+  queueWithheldReason?: string | null
 }
 
-// What the run-and-plan visit owns beyond the readers: the draft confirmation (bound to the availability it came from), whether it was
-// discarded because that availability changed, and the answers of requests this window sent.
+// What the run-and-plan visit owns beyond the readers: the draft confirmation (bound to its admission mode and to the availability it
+// came from), whether it was discarded because that availability changed, and the answers of requests this window sent.
 interface Interaction {
+  draftMode: LocalExecutionAdmissionMode | null
   draftIdentity: string | null
   drifted: boolean
   receipt: LocalExecutionArmReceipt | null
   stopAnswer: LocalExecutionStopAnswer | null
 }
 
-const createInteraction = (): Interaction => ({ draftIdentity: null, drifted: false, receipt: null, stopAnswer: null })
+const createInteraction = (): Interaction => ({ draftMode: null, draftIdentity: null, drifted: false, receipt: null, stopAnswer: null })
 
 const NO_COMMANDS = { beginCommand: () => null }
 
-function tupleOf(planProposalMessageId: string, availability: ReturnType<typeof useLocalExecutionSequenceAvailability>['availability']): LocalExecutionArmTuple | null {
+const MODES: readonly LocalExecutionAdmissionMode[] = ['Immediate', 'WaitForAdmission']
+
+const LIVE_STATES = ['Armed', 'PreparingStep', 'AwaitingStepResult', 'Stopping', 'WaitingForAdmission']
+
+type Availability = ReturnType<typeof useLocalExecutionSequenceAvailability>['availability']
+
+function tupleOf(planProposalMessageId: string, availability: Availability): LocalExecutionArmTuple | null {
   const candidate = availability?.candidate ?? null
   return candidate === null
     ? null
@@ -61,12 +77,13 @@ function tupleOf(planProposalMessageId: string, availability: ReturnType<typeof 
 }
 
 /**
- * The explicit local execution cycle of a run (ADR-0060). Everything it says comes from the run's one shared status and the settled
- * availability of the one selected plan. Arming is offered only for the settled exact candidate while no sequence is recorded and the
- * fence is established; it opens a confirmation bound to the availability it came from, which is discarded (and arming withheld with
- * fixed copy) when run, plan or availability changes. After arming it shows the closed status truthfully and a Stop after current
- * operation control only while the sequence is live. Unknown, loading, masked or failed status offers neither. There is no resume,
- * rearm, retry or cancel control, and every host text is literal text.
+ * The explicit local execution cycle of a run (ADR-0060, ADR-0062). Everything it says comes from the run's one shared status and the
+ * settled availability of the one selected plan, read separately for each admission mode. Authorizing now or queueing is offered only for
+ * the settled exact candidate of that mode while no sequence is recorded and the fence is established; each opens its own confirmation
+ * bound to the mode and the availability it came from, which is discarded (and the request withheld with fixed copy) when run, plan, mode
+ * or availability changes. A queued cycle shows its recorded waiting reason truthfully (the last recorded admission check, never a
+ * promise that anything is free now) and a Stop after current operation control while it is live. Unknown, loading, masked or failed
+ * status offers neither. There is no resume, rearm, retry or cancel control, no UI-side advancement, and every host text is literal text.
  */
 export function LocalExecutionSequencePanel({
   runId,
@@ -74,6 +91,7 @@ export function LocalExecutionSequencePanel({
   planProposalMessageId,
   latestEventSequence,
   armWithheldReason = null,
+  queueWithheldReason = null,
 }: LocalExecutionSequencePanelProps) {
   const reader = localExecutionSequence !== null && localExecutionSequence.runId === runId ? localExecutionSequence : null
   const status = reader?.status ?? null
@@ -85,38 +103,143 @@ export function LocalExecutionSequencePanel({
   // must not end the availability visit the confirmed tuple came from: dropping it would discard the draft, change the arm owner and
   // cancel the very request being sent. While the command is confirming the plan's availability visit therefore stays open.
   const availabilityPlan = control === 'none' || reader?.confirming === true ? planProposalMessageId : null
-  const availabilityRead = useLocalExecutionSequenceAvailability(runId, availabilityPlan, latestEventSequence)
-  const { availability, reading: availabilityReading, failure: availabilityFailure } = availabilityRead
-  const refreshAvailability = availabilityRead.refresh
-  const identity = availability?.available ? JSON.stringify(availability) : null
+  const immediateRead = useLocalExecutionSequenceAvailability(runId, availabilityPlan, latestEventSequence, 'Immediate')
+  const queueRead = useLocalExecutionSequenceAvailability(runId, availabilityPlan, latestEventSequence, 'WaitForAdmission')
+  const reads = { Immediate: immediateRead, WaitForAdmission: queueRead } as const
+  const identities = {
+    Immediate: immediateRead.availability?.available ? JSON.stringify(immediateRead.availability) : null,
+    WaitForAdmission: queueRead.availability?.available ? JSON.stringify(queueRead.availability) : null,
+  } as const
 
   const owner = useOwnedLifetime(JSON.stringify([runId, planProposalMessageId]))
-  const [{ draftIdentity, drifted, receipt, stopAnswer }, commit] = useOwnedState(owner, createInteraction)
-  const draftValid = draftIdentity !== null && draftIdentity === identity
+  const [{ draftMode, draftIdentity, drifted, receipt, stopAnswer }, commit] = useOwnedState(owner, createInteraction)
+  const draftIdentityNow = draftMode === null ? null : identities[draftMode]
+  const draftReading = draftMode === null ? false : reads[draftMode].reading
+  const draftValid = draftMode !== null && draftIdentity !== null && draftIdentity === draftIdentityNow
 
   useEffect(() => {
-    if (draftIdentity !== null && draftIdentity !== identity && !availabilityReading) {
-      commit((previous) => ({ ...previous, draftIdentity: null, drifted: true }))
+    if (draftMode !== null && draftIdentity !== null && draftIdentity !== draftIdentityNow && !draftReading) {
+      commit((previous) => ({ ...previous, draftMode: null, draftIdentity: null, drifted: true }))
     }
-  }, [draftIdentity, identity, availabilityReading, commit])
+  }, [draftMode, draftIdentity, draftIdentityNow, draftReading, commit])
 
   const onReceipt = useCallback(
-    (next: LocalExecutionArmReceipt) => commit((previous) => ({ ...previous, receipt: next, draftIdentity: null, drifted: false })),
+    (next: LocalExecutionArmReceipt) => commit((previous) => ({ ...previous, receipt: next, draftMode: null, draftIdentity: null, drifted: false })),
     [commit],
   )
   const onStopAnswer = useCallback((next: LocalExecutionStopAnswer) => commit((previous) => ({ ...previous, stopAnswer: next })), [commit])
-  const onArmSettled = useCallback(() => refreshAvailability(), [refreshAvailability])
+  const refreshImmediate = immediateRead.refresh
+  const refreshQueue = queueRead.refresh
+  const onArmSettled = useCallback(() => {
+    refreshImmediate()
+    refreshQueue()
+  }, [refreshImmediate, refreshQueue])
 
   const commands = reader ?? NO_COMMANDS
-  const tuple = planProposalMessageId === null || !draftValid ? null : tupleOf(planProposalMessageId, availability)
-  const armAction = useArmLocalExecutionSequence(runId, tuple, commands, onArmSettled, onReceipt)
+  const tuples = {
+    Immediate:
+      planProposalMessageId === null || !draftValid || draftMode !== 'Immediate' ? null : tupleOf(planProposalMessageId, immediateRead.availability),
+    WaitForAdmission:
+      planProposalMessageId === null || !draftValid || draftMode !== 'WaitForAdmission'
+        ? null
+        : tupleOf(planProposalMessageId, queueRead.availability),
+  } as const
+  const armAction = useArmLocalExecutionSequence(runId, tuples.Immediate, commands, onArmSettled, onReceipt, 'Immediate')
+  const queueAction = useArmLocalExecutionSequence(runId, tuples.WaitForAdmission, commands, onArmSettled, onReceipt, 'WaitForAdmission')
+  const actions = { Immediate: armAction, WaitForAdmission: queueAction } as const
+  const requesting = armAction.requesting || queueAction.requesting
   const stopAction = useStopLocalExecutionSequence(runId, sequence?.sequenceId ?? null, commands, onStopAnswer)
 
-  const canOpen =
-    control === 'none' && availability?.available === true && !availabilityReading && armWithheldReason === null && !armAction.requesting
-  const canConfirm = canOpen && draftValid && tuple !== null
-  const stoppable = sequence !== null && control !== 'unknown' && ['Armed', 'PreparingStep', 'AwaitingStepResult'].includes(sequence.state)
+  const canOpen = (mode: LocalExecutionAdmissionMode) =>
+    control === 'none'
+    && reads[mode].availability?.available === true
+    && !reads[mode].reading
+    && (mode === 'WaitForAdmission' ? queueWithheldReason : armWithheldReason) === null
+    && !requesting
+  const stoppable =
+    sequence !== null && control !== 'unknown' && ['Armed', 'PreparingStep', 'AwaitingStepResult', 'WaitingForAdmission'].includes(sequence.state)
   const alreadyStopping = sequence !== null && control !== 'unknown' && sequence.state === 'Stopping'
+
+  const renderOffer = (mode: LocalExecutionAdmissionMode) => {
+    const read = reads[mode]
+    const { availability, failure } = read
+    const label = mode === 'WaitForAdmission' ? LOCAL_EXECUTION_QUEUE_LABEL : LOCAL_EXECUTION_ARM_LABEL
+    if (failure !== null) {
+      // One notice and one retry for every failed read, shown at the first failed mode so the same sentence never repeats.
+      if (MODES.find((candidate) => reads[candidate].failure !== null) !== mode) {
+        return null
+      }
+
+      return (
+        <div key={mode} data-admission-mode={mode}>
+          <p className="dc-local-execution-error" role="status">
+            {LOCAL_EXECUTION_AVAILABILITY_FAILED}
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              for (const candidate of MODES) {
+                if (reads[candidate].failure !== null) {
+                  reads[candidate].refresh()
+                }
+              }
+            }}
+          >
+            Read availability again
+          </button>
+        </div>
+      )
+    }
+
+    if (availability === null) {
+      return (
+        <p key={mode} role="status" data-admission-mode={mode}>
+          {LOCAL_EXECUTION_AVAILABILITY_READING}
+        </p>
+      )
+    }
+
+    if (!availability.available || availability.candidate === null) {
+      return (
+        <p key={mode} className="dc-local-execution-refusal" data-admission-mode={mode}>
+          {mode === 'WaitForAdmission' ? 'Queueing' : 'Arming'} is not available: {describeLocalExecutionRefusalCode(availability.refusalCode)}
+        </p>
+      )
+    }
+
+    if (draftValid && draftMode === mode) {
+      const tuple = tuples[mode]
+      return (
+        <LocalExecutionConfirmation
+          key={mode}
+          planProposalMessageId={availability.planProposalMessageId}
+          candidate={availability.candidate}
+          mode={mode}
+          canConfirm={canOpen(mode) && tuple !== null && !actions[mode].requesting}
+          submitting={actions[mode].requesting}
+          onConfirm={() => {
+            if (tuple !== null) {
+              void actions[mode].arm(runId, tuple)
+            }
+          }}
+          onCancel={() => commit((previous) => ({ ...previous, draftMode: null, draftIdentity: null, drifted: false }))}
+        />
+      )
+    }
+
+    return (
+      <div key={mode} data-admission-mode={mode}>
+        <button
+          type="button"
+          disabled={!canOpen(mode) || draftMode !== null}
+          onClick={() => commit((previous) => ({ ...previous, draftMode: mode, draftIdentity: identities[mode], drifted: false }))}
+        >
+          {label}
+        </button>
+        {read.reading && <p className="dc-local-execution-note">{LOCAL_EXECUTION_AVAILABILITY_READING}</p>}
+      </div>
+    )
+  }
 
   let body
   if (reader === null || control === 'unknown' || status === null) {
@@ -137,46 +260,10 @@ export function LocalExecutionSequencePanel({
     let arming
     if (planProposalMessageId === null) {
       arming = <p className="dc-local-execution-note">{LOCAL_EXECUTION_NO_PLAN}</p>
-    } else if (availabilityFailure !== null) {
-      arming = (
-        <>
-          <p className="dc-local-execution-error" role="status">
-            {LOCAL_EXECUTION_AVAILABILITY_FAILED}
-          </p>
-          <button type="button" onClick={refreshAvailability}>
-            Read availability again
-          </button>
-        </>
-      )
-    } else if (availability === null) {
-      arming = <p role="status">{LOCAL_EXECUTION_AVAILABILITY_READING}</p>
-    } else if (!availability.available || availability.candidate === null) {
-      arming = <p className="dc-local-execution-refusal">Arming is not available: {describeLocalExecutionRefusalCode(availability.refusalCode)}</p>
     } else {
       arming = (
         <>
-          {draftValid ? (
-            <LocalExecutionConfirmation
-              planProposalMessageId={availability.planProposalMessageId}
-              candidate={availability.candidate}
-              canConfirm={canConfirm && !armAction.requesting}
-              submitting={armAction.requesting}
-              onConfirm={() => {
-                if (tuple !== null) {
-                  void armAction.arm(runId, tuple)
-                }
-              }}
-              onCancel={() => commit((previous) => ({ ...previous, draftIdentity: null, drifted: false }))}
-            />
-          ) : (
-            <button
-              type="button"
-              disabled={!canOpen}
-              onClick={() => commit((previous) => ({ ...previous, draftIdentity: identity, drifted: false }))}
-            >
-              {LOCAL_EXECUTION_ARM_LABEL}
-            </button>
-          )}
+          {MODES.map((mode) => renderOffer(mode))}
           {drifted && (
             <p className="dc-local-execution-note" role="status">
               {LOCAL_EXECUTION_CONFIRMATION_DRIFT}
@@ -187,7 +274,11 @@ export function LocalExecutionSequencePanel({
               {armWithheldReason}
             </p>
           )}
-          {availabilityReading && <p className="dc-local-execution-note">{LOCAL_EXECUTION_AVAILABILITY_READING}</p>}
+          {queueWithheldReason !== null && queueWithheldReason !== armWithheldReason && (
+            <p className="dc-local-execution-note" role="status">
+              {queueWithheldReason}
+            </p>
+          )}
         </>
       )
     }
@@ -195,12 +286,18 @@ export function LocalExecutionSequencePanel({
     body = (
       <>
         <p className="dc-local-execution-state" data-state="None">
-          No local execution cycle is authorized for this run. Nothing runs until one is authorized or a stage is requested explicitly.
+          No local execution cycle is authorized for this run. Nothing runs until one is authorized or queued, or a stage is requested
+          explicitly.
         </p>
         {arming}
         {armAction.error && (
           <p className="dc-local-execution-error" role="alert">
             {armAction.error}
+          </p>
+        )}
+        {queueAction.error && (
+          <p className="dc-local-execution-error" role="alert">
+            {queueAction.error}
           </p>
         )}
       </>
@@ -212,9 +309,13 @@ export function LocalExecutionSequencePanel({
       <>
         {acknowledged && (
           <p className="dc-local-execution-receipt" role="status">
-            {acknowledged.replayed
-              ? 'Already authorized: the recorded receipt for this tuple was returned. Nothing was armed again.'
-              : 'Authorized by this window: the cycle was recorded, and the host now claims its operations.'}
+            {acknowledged.admissionMode === 'WaitForAdmission'
+              ? acknowledged.replayed
+                ? 'Already queued: the recorded receipt for this tuple was returned. Nothing was queued again.'
+                : 'Queued by this window: the cycle was recorded and waits for admission. Nothing was started, reserved or claimed.'
+              : acknowledged.replayed
+                ? 'Already authorized: the recorded receipt for this tuple was returned. Nothing was armed again.'
+                : 'Authorized by this window: the cycle was recorded, and the host now claims its operations.'}
           </p>
         )}
         {stopped && (
@@ -247,9 +348,7 @@ export function LocalExecutionSequencePanel({
             {stopAction.error}
           </p>
         )}
-        {!['Armed', 'PreparingStep', 'AwaitingStepResult', 'Stopping'].includes(sequence.state) && (
-          <p className="dc-local-execution-note">{LOCAL_EXECUTION_NEVER_RESUMES}</p>
-        )}
+        {!LIVE_STATES.includes(sequence.state) && <p className="dc-local-execution-note">{LOCAL_EXECUTION_NEVER_RESUMES}</p>}
       </>
     )
   }

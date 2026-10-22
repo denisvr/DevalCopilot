@@ -73,5 +73,6 @@ public sealed class GetLocalExecutionSequenceInspectionEndpoint(IApplicationMedi
         header.CorrectionAllowance,
         Time(header.ArmedAtUtc),
         Time(header.UpdatedAtUtc),
-        header.EndedAtUtc is { } ended ? Time(ended) : null);
+        header.EndedAtUtc is { } ended ? Time(ended) : null,
+        header.AdmissionMode.ToString());
 }

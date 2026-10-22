@@ -1903,6 +1903,15 @@ shown as retained ownership with "No supported recovery action in this version".
 not committed, not published and no proof that its source is still current. Polling is at most once per five seconds while authority
 or a linked owner is unresolved. See [ADR-0060](../decisions/0060-coordinate-one-explicitly-authorized-local-execution-sequence.md).
 
+Queued mode ([ADR-0062](../decisions/0062-queue-explicitly-authorized-local-execution-before-admission.md)). While no cycle is recorded the
+region reads the Immediate and the queue availability separately and offers "Authorize local execution cycle" and "Queue local execution
+cycle" as different buttons with different confirmations (the mode is part of the draft, the availability visit and the request owner, so a
+draft or handler of the other mode is dropped). A queued cycle reads "Queued: waiting for admission" with its recorded waiting reason and
+the time it was recorded: the last durable admission observation, never current worker, process or slot availability, and with no promised
+position or start time. Stop after current operation is offered while it waits. The workspace panel names a queued preparation reservation
+as its own owner status, and historical inspection shows the recorded mode and state. Nothing in the page starts, reserves or reorders work.
+Workspace busy and global capacity at its limit never disable the queue offer (they are what queueing waits for); only a conflicting live planning sequence withholds it.
+
 ### Host observation of the current Agent attempt
 
 The **Host observation** region and a separate header badge describe what the host's own observer last recorded for the run's

@@ -61,6 +61,7 @@ export const headerFor = (patch: Record<string, unknown> = {}) => ({
   armedAtUtc: instant(0),
   updatedAtUtc: instant(50),
   endedAtUtc: instant(50),
+  admissionMode: 'Immediate',
   ...patch,
 })
 

@@ -26,10 +26,11 @@ export const LOCAL_EXECUTION_SEQUENCE_STATES = [
   'Stopped',
   'NeedsAttention',
   'Interrupted',
+  'WaitingForAdmission',
 ] as const
 export type LocalExecutionSequenceStateName = (typeof LOCAL_EXECUTION_SEQUENCE_STATES)[number]
 
-const LIVE_STATES: readonly LocalExecutionSequenceStateName[] = ['Armed', 'PreparingStep', 'AwaitingStepResult', 'Stopping']
+const LIVE_STATES: readonly LocalExecutionSequenceStateName[] = ['Armed', 'PreparingStep', 'AwaitingStepResult', 'Stopping', 'WaitingForAdmission']
 
 /** Whether a (recorded or effective) state still holds automatic authority. */
 export const isLocalExecutionSequenceLive = (state: LocalExecutionSequenceStateName): boolean => LIVE_STATES.includes(state)
@@ -51,6 +52,24 @@ export const LOCAL_EXECUTION_PLAN_AUTHORITIES = ['AcceptedRoot', 'AcceptedRevisi
 export type LocalExecutionPlanAuthority = (typeof LOCAL_EXECUTION_PLAN_AUTHORITIES)[number]
 
 export type LocalExecutionManualFence = 'Blocked' | 'Released' | 'Unavailable'
+
+/** ADR-0062: how a sequence reaches its operations. A sequence recorded before the queue existed is Immediate and is never adopted. */
+export const LOCAL_EXECUTION_ADMISSION_MODES = ['Immediate', 'WaitForAdmission'] as const
+export type LocalExecutionAdmissionMode = (typeof LOCAL_EXECUTION_ADMISSION_MODES)[number]
+
+export const LOCAL_EXECUTION_ADMISSION_STATES = ['Waiting', 'Reserved', 'Unresolved'] as const
+export type LocalExecutionAdmissionState = (typeof LOCAL_EXECUTION_ADMISSION_STATES)[number]
+
+/** The closed waiting reasons: the last durably recorded admission observation, never present worker, process or slot availability. */
+export const LOCAL_EXECUTION_WAITING_REASONS = [
+  'AwaitingAdmissionCheck',
+  'WaitingForWorkspace',
+  'WaitingForCapacity',
+  'WaitingForEarlierEligibleWork',
+  'WaitingForPreparationCapacity',
+  'Unavailable',
+] as const
+export type LocalExecutionWaitingReason = (typeof LOCAL_EXECUTION_WAITING_REASONS)[number]
 
 export const LOCAL_EXECUTION_REASON_CODES = [
   'review_approved',
@@ -103,6 +122,7 @@ export const LOCAL_EXECUTION_ARMING_REFUSAL_CODES = [
   'local_execution_sequence.recipes_too_many',
   'local_execution_sequence.recipes_incoherent',
   'local_execution_sequence.settings_unavailable',
+  'local_execution_sequence.queue_full',
 ] as const
 export type LocalExecutionArmingRefusalCode = (typeof LOCAL_EXECUTION_ARMING_REFUSAL_CODES)[number]
 
@@ -172,6 +192,25 @@ export interface LocalExecutionSequenceDetails {
   outstandingOperationId: string | null
   steps: readonly LocalExecutionStep[]
   final: LocalExecutionFinal | null
+  admissionMode: LocalExecutionAdmissionMode
+  /** The pending or reserved admission of a queued sequence; null for an Immediate one or when no admission is outstanding. */
+  queue: LocalExecutionQueueDisclosure | null
+}
+
+/** ADR-0062: the closed disclosure of one queued cycle's pending admission. It is never an operation step and promises no start time. */
+export interface LocalExecutionQueueDisclosure {
+  admissionId: string
+  /** Canonical Int64 text, never converted to a number. */
+  admissionNumber: string
+  admissionState: LocalExecutionAdmissionState
+  kind: LocalExecutionStepKind
+  passNumber: number
+  recipeOrdinal: number | null
+  enqueuedAtUtc: string
+  advancementDeadlineUtc: string
+  waitingReason: LocalExecutionWaitingReason
+  waitingReasonText: string
+  waitingReasonRecordedAtUtc: string
 }
 
 export interface LocalExecutionSequenceStatus {
@@ -218,6 +257,7 @@ export interface LocalExecutionAvailabilityCandidate {
 export interface LocalExecutionSequenceAvailability {
   runId: string
   planProposalMessageId: string
+  admissionMode: LocalExecutionAdmissionMode
   available: boolean
   refusalCode: LocalExecutionArmingRefusalCode | null
   refusalText: string | null
@@ -236,6 +276,8 @@ export interface LocalExecutionArmTuple {
 export interface LocalExecutionArmReceipt {
   sequenceId: string
   runId: string
+  admissionMode: LocalExecutionAdmissionMode
+  queue: LocalExecutionQueueDisclosure | null
   state: LocalExecutionSequenceStateName
   recipeCount: number
   correctionAllowance: number
@@ -329,6 +371,7 @@ const REASONS_BY_STATE: Readonly<Record<LocalExecutionSequenceStateName, readonl
     'capacity_refused',
   ],
   Interrupted: ['host_restarted'],
+  WaitingForAdmission: [],
 }
 
 function expectedNextAction(state: LocalExecutionSequenceStateName, awaitingReconciliation: boolean): LocalExecutionNextActionCode {
@@ -336,6 +379,7 @@ function expectedNextAction(state: LocalExecutionSequenceStateName, awaitingReco
     case 'Armed':
     case 'PreparingStep':
     case 'AwaitingStepResult':
+    case 'WaitingForAdmission':
       return 'wait_or_stop_after_current_operation'
     case 'Stopping':
       return 'wait_for_current_operation_to_finish'
@@ -381,6 +425,7 @@ const STEP_KEYS = [
 ]
 const FINAL_KEYS = ['escalationMessageId', 'reportMessageId', 'reviewAttemptId']
 const SEQUENCE_KEYS = [
+  'admissionMode',
   'advancementDeadlineUtc',
   'agentClaims',
   'armedAtUtc',
@@ -402,6 +447,7 @@ const SEQUENCE_KEYS = [
   'passesStarted',
   'planAuthority',
   'planProposalMessageId',
+  'queue',
   'reasonCode',
   'reasonText',
   'recipeCount',
@@ -416,6 +462,7 @@ const SEQUENCE_KEYS = [
 ]
 const STATUS_KEYS = ['latestEventSequence', 'manualFence', 'runId', 'sequence', 'status']
 const AVAILABILITY_KEYS = [
+  'admissionMode',
   'available',
   'checkpointId',
   'confirmationSha256',
@@ -443,6 +490,7 @@ const DISCLOSURE_KEYS = [
   'codexTokenStopThreshold',
 ]
 const RECEIPT_KEYS = [
+  'admissionMode',
   'advancementDeadlineUtc',
   'armedAtUtc',
   'checkpointId',
@@ -450,6 +498,7 @@ const RECEIPT_KEYS = [
   'correctionAllowance',
   'fingerprintSha256',
   'planProposalMessageId',
+  'queue',
   'recipeCount',
   'replayed',
   'revision',
@@ -457,6 +506,19 @@ const RECEIPT_KEYS = [
   'sequenceId',
   'state',
   'workspaceId',
+]
+const QUEUE_KEYS = [
+  'admissionId',
+  'admissionNumber',
+  'admissionState',
+  'advancementDeadlineUtc',
+  'enqueuedAtUtc',
+  'kind',
+  'passNumber',
+  'recipeOrdinal',
+  'waitingReason',
+  'waitingReasonRecordedAtUtc',
+  'waitingReasonText',
 ]
 const STOP_KEYS = ['changed', 'reasonCode', 'revision', 'runId', 'sequenceId', 'state']
 
@@ -621,6 +683,8 @@ function stepsAgreeWithState(recorded: LocalExecutionSequenceStateName, steps: r
   switch (recorded) {
     case 'Armed':
       return steps.length === 0
+    case 'WaitingForAdmission':
+      return steps.length === 0 || last?.state === 'Concluded'
     case 'PreparingStep':
       return last?.state === 'Reserved'
     case 'AwaitingStepResult':
@@ -632,6 +696,55 @@ function stepsAgreeWithState(recorded: LocalExecutionSequenceStateName, steps: r
       return last?.state === 'Concluded'
     default:
       return true
+  }
+}
+
+/**
+ * The closed queue disclosure of one pending or reserved admission (ADR-0062), judged against the sequence it belongs to. It is never an
+ * operation step: it carries no operation, no process fact and no start time, only the recorded admission observation.
+ */
+function toQueue(raw: unknown, armedAtMilliseconds: number, advancementDeadlineUtc: string): LocalExecutionQueueDisclosure | null {
+  if (!hasExactKeys(raw, QUEUE_KEYS)) {
+    return null
+  }
+
+  const { kind, recipeOrdinal } = raw
+  if (
+    !isGuid(raw.admissionId)
+    || !isInt64Text(raw.admissionNumber, CANONICAL_POSITIVE)
+    || !isOneOf(LOCAL_EXECUTION_ADMISSION_STATES, raw.admissionState)
+    || !isOneOf(LOCAL_EXECUTION_STEP_KINDS, kind)
+    || !isIntegerIn(raw.passNumber, 0, LOCAL_EXECUTION_SEQUENCE_MAXIMUM_PASSES)
+    || (kind === 'Implementation') !== (raw.passNumber === 0)
+    || (kind === 'Verification') !== (recipeOrdinal !== null)
+    || !(recipeOrdinal === null || isIntegerIn(recipeOrdinal, 0, LOCAL_EXECUTION_SEQUENCE_MAXIMUM_RECIPES - 1))
+    || !isUtcRoundTrip(raw.enqueuedAtUtc)
+    || raw.advancementDeadlineUtc !== advancementDeadlineUtc
+    || !isOneOf(LOCAL_EXECUTION_WAITING_REASONS, raw.waitingReason)
+    || !isHostText(raw.waitingReasonText)
+    || !isUtcRoundTrip(raw.waitingReasonRecordedAtUtc)
+  ) {
+    return null
+  }
+
+  const enqueuedAt = instantOf(raw.enqueuedAtUtc)
+  const recordedAt = instantOf(raw.waitingReasonRecordedAtUtc)
+  if (enqueuedAt === null || recordedAt === null || enqueuedAt < armedAtMilliseconds || recordedAt < enqueuedAt) {
+    return null
+  }
+
+  return {
+    admissionId: raw.admissionId,
+    admissionNumber: raw.admissionNumber,
+    admissionState: raw.admissionState,
+    kind,
+    passNumber: raw.passNumber,
+    recipeOrdinal: recipeOrdinal as number | null,
+    enqueuedAtUtc: raw.enqueuedAtUtc,
+    advancementDeadlineUtc,
+    waitingReason: raw.waitingReason,
+    waitingReasonText: raw.waitingReasonText,
+    waitingReasonRecordedAtUtc: raw.waitingReasonRecordedAtUtc,
   }
 }
 
@@ -684,7 +797,7 @@ function toDetails(raw: unknown): LocalExecutionSequenceDetails | null {
   // The effective state is the recorded one, except that an elapsed deadline reads as NeedsAttention before the host persisted it.
   if (observedBeforePersisted) {
     const allowed: readonly LocalExecutionReasonCode[] =
-      recordedState === 'Armed'
+      recordedState === 'Armed' || recordedState === 'WaitingForAdmission'
         ? ['advancement_deadline_elapsed']
         : recordedState === 'PreparingStep'
           ? ['advancement_deadline_elapsed', 'preparation_expired']
@@ -715,13 +828,50 @@ function toDetails(raw: unknown): LocalExecutionSequenceDetails | null {
     return null
   }
 
-  if ((recordedState === 'Armed' || recordedState === 'PreparingStep' || recordedState === 'AwaitingStepResult') && raw.stopRequestedAtUtc !== null) {
+  if (
+    (recordedState === 'Armed' || recordedState === 'PreparingStep' || recordedState === 'AwaitingStepResult' || recordedState === 'WaitingForAdmission')
+    && raw.stopRequestedAtUtc !== null
+  ) {
     return null
   }
 
   const steps = toSteps(raw.steps, recipeCount)
   if (steps === null || !stepsAgreeWithState(recordedState, steps)) {
     return null
+  }
+
+  // ADR-0062: the mode is immutable, a queued sequence is never Armed, and its disclosure is exactly the one pending or reserved admission
+  // its recorded state implies. An elapsed waiting admission read before persistence discloses none; a reserved or unresolved one stays.
+  const admissionMode = raw.admissionMode
+  if (!isOneOf(LOCAL_EXECUTION_ADMISSION_MODES, admissionMode) || (admissionMode === 'WaitForAdmission' && recordedState === 'Armed')) {
+    return null
+  }
+
+  const queue = raw.queue === null ? null : toQueue(raw.queue, armedAt, raw.advancementDeadlineUtc)
+  if (raw.queue !== null && queue === null) {
+    return null
+  }
+
+  if (admissionMode === 'Immediate' ? recordedState === 'WaitingForAdmission' || queue !== null : false) {
+    return null
+  }
+
+  if (admissionMode === 'WaitForAdmission') {
+    const expected =
+      recordedState === 'WaitingForAdmission'
+        ? observedBeforePersisted
+          ? null
+          : 'Waiting'
+        : recordedState === 'PreparingStep'
+          ? 'Reserved'
+          : undefined
+    if (expected !== undefined ? queue?.admissionState !== (expected ?? undefined) : queue !== null && queue.admissionState !== 'Unresolved') {
+      return null
+    }
+
+    if (queue?.admissionState === 'Unresolved' && isLocalExecutionSequenceLive(recordedState)) {
+      return null
+    }
   }
 
   // The counters are exactly what the recorded steps imply.
@@ -783,6 +933,8 @@ function toDetails(raw: unknown): LocalExecutionSequenceDetails | null {
     outstandingOperationId: raw.outstandingOperationId,
     steps,
     final,
+    admissionMode,
+    queue,
   }
 }
 
@@ -900,9 +1052,11 @@ export function toLocalExecutionSequenceAvailability(
   raw: unknown,
   expectedRunId: string,
   expectedPlanId: string,
+  expectedMode: LocalExecutionAdmissionMode = 'Immediate',
 ): LocalExecutionSequenceAvailability | null {
   if (
     !hasExactKeys(raw, AVAILABILITY_KEYS)
+    || raw.admissionMode !== expectedMode
     || raw.runId !== expectedRunId
     || raw.planProposalMessageId !== expectedPlanId
     || !isBoolean(raw.available)
@@ -933,6 +1087,7 @@ export function toLocalExecutionSequenceAvailability(
     return {
       runId: expectedRunId,
       planProposalMessageId: expectedPlanId,
+      admissionMode: expectedMode,
       available: true,
       refusalCode: null,
       refusalText: null,
@@ -968,6 +1123,7 @@ export function toLocalExecutionSequenceAvailability(
   return {
     runId: expectedRunId,
     planProposalMessageId: expectedPlanId,
+    admissionMode: expectedMode,
     available: false,
     refusalCode: raw.refusalCode as LocalExecutionArmingRefusalCode,
     refusalText: raw.refusalText,
@@ -983,9 +1139,11 @@ export function toLocalExecutionArmReceipt(
   raw: unknown,
   expectedRunId: string,
   expectedTuple: LocalExecutionArmTuple,
+  expectedMode: LocalExecutionAdmissionMode = 'Immediate',
 ): LocalExecutionArmReceipt | null {
   if (
     !hasExactKeys(raw, RECEIPT_KEYS)
+    || raw.admissionMode !== expectedMode
     || raw.runId !== expectedRunId
     || raw.planProposalMessageId !== expectedTuple.planProposalMessageId
     || raw.workspaceId !== expectedTuple.workspaceId
@@ -1000,7 +1158,7 @@ export function toLocalExecutionArmReceipt(
     || !isUtcRoundTrip(raw.advancementDeadlineUtc)
     || !isLocalRevisionText(raw.revision)
     || !isBoolean(raw.replayed)
-    || (!raw.replayed && (raw.state !== 'Armed' || raw.revision !== '1'))
+    || (!raw.replayed && (raw.state !== (expectedMode === 'Immediate' ? 'Armed' : 'WaitingForAdmission') || raw.revision !== '1'))
   ) {
     return null
   }
@@ -1011,9 +1169,22 @@ export function toLocalExecutionArmReceipt(
     return null
   }
 
+  // ADR-0062: only a queued receipt carries a disclosure; a first queue receipt always carries the initial Waiting admission.
+  const queue = raw.queue === null ? null : toQueue(raw.queue, armedAt, raw.advancementDeadlineUtc)
+  if (
+    (raw.queue !== null && queue === null)
+    || (expectedMode === 'Immediate' && queue !== null)
+    || (expectedMode === 'WaitForAdmission' && !raw.replayed && queue?.admissionState !== 'Waiting')
+    || (expectedMode === 'WaitForAdmission' && raw.state === 'Armed')
+  ) {
+    return null
+  }
+
   return {
     sequenceId: raw.sequenceId,
     runId: expectedRunId,
+    admissionMode: expectedMode,
+    queue,
     state: raw.state,
     recipeCount: raw.recipeCount,
     correctionAllowance: raw.correctionAllowance,
@@ -1041,7 +1212,7 @@ export function toLocalExecutionStopAnswer(raw: unknown, expectedRunId: string, 
   }
 
   const { state, reasonCode, changed } = raw
-  if (state === 'Armed' || state === 'PreparingStep' || state === 'AwaitingStepResult') {
+  if (state === 'Armed' || state === 'PreparingStep' || state === 'AwaitingStepResult' || state === 'WaitingForAdmission') {
     return null
   }
 
@@ -1049,7 +1220,14 @@ export function toLocalExecutionStopAnswer(raw: unknown, expectedRunId: string, 
     return null
   }
 
-  if (changed && !(state === 'Stopping' || (state === 'Stopped' && reasonCode === 'stopped_before_claim'))) {
+  if (
+    changed
+    && !(
+      state === 'Stopping'
+      || (state === 'Stopped' && reasonCode === 'stopped_before_claim')
+      || (state === 'NeedsAttention' && reasonCode === 'preparation_unresolved')
+    )
+  ) {
     return null
   }
 

@@ -18,4 +18,5 @@ public sealed record LocalExecutionInspectionHeader(
     int CorrectionAllowance,
     DateTimeOffset ArmedAtUtc,
     DateTimeOffset UpdatedAtUtc,
-    DateTimeOffset? EndedAtUtc);
+    DateTimeOffset? EndedAtUtc,
+    LocalExecutionAdmissionMode AdmissionMode = LocalExecutionAdmissionMode.Immediate);

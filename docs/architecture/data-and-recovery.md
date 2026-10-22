@@ -293,6 +293,20 @@ operation without coherent host Exited evidence (a timeout, cancellation, adapte
 owner: terminal status never proves the process or its descendants stopped. There is no supported release, force-release, cancel, retry
 or takeover in this version; the cockpit says so. Exited here is the host's proof about the invoked process only.
 
+### Queued local execution reservations and startup
+
+[ADR-0062](../decisions/0062-queue-explicitly-authorized-local-execution-before-admission.md) keeps a queued cycle's order and its holds in
+durable rows only. A pending admission (Waiting) owns no workspace, capacity or preparation token; a Reserved admission (the ordinary
+Reserved step and its token, created atomically with the reservation) and an Unresolved one are held and count as owners in every
+entrance. The order is a guarded, monotonic Int64 counter owned by the feature, never a rowid, a timestamp or a Guid. Stop, the
+advancement deadline and startup retire a reservation only when the write lock proves it unused: the token is fenced in the same save and
+no operation exists in either operation family. Any contradiction or uncertainty keeps the admission held as Unresolved, quarantine and
+Exited proof keep their unchanged meaning, and there is no release, cancel, retry or takeover. Startup closes waiting and advancing
+queued cycles before artifact recovery, workspace reconciliation or any supervisor, and never resumes, re-reserves or adopts them.
+
+The downgrade of the queue migration is refused while any Reserved or Unresolved admission exists (a named CHECK aborts it before any guard, row or table changes), because the previous schema cannot represent that held authority; nothing releases it.
+
+
 ## Retention and deletion
 
 MVP retention is explicit even for a local tool:

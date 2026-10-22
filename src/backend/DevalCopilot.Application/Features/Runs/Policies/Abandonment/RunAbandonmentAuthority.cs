@@ -65,6 +65,15 @@ internal static class RunAbandonmentAuthority
             return RunAbandonmentErrors.WorkspaceBusy();
         }
 
+        // ADR-0062: a held queued step preparation is a workspace being prepared; it is never released by abandoning.
+        if (await LocalExecutionReservationOwnership.Held(dbContext).AnyAsync(
+                admission => dbContext.LocalExecutionSequences.Any(
+                    sequence => sequence.Id == admission.SequenceId && sequence.ProjectId == projectId),
+                cancellationToken))
+        {
+            return RunAbandonmentErrors.WorkspaceBusy();
+        }
+
         return null;
     }
 }

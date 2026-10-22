@@ -26,44 +26,61 @@ internal sealed record LocalExecutionCandidate(
     IReadOnlyList<LocalExecutionRecipePin> Recipes)
 {
     public const string ConfirmationVersion = "devalcopilot.local-execution-sequence.confirmation.v1";
+    public const string QueueConfirmationVersion = "devalcopilot.local-execution-sequence.queue-confirmation.v1";
     public const string PlanInputsVersion = "devalcopilot.local-execution-sequence.plan-inputs.v1";
 
     /// <summary>The versioned SHA-256 of the canonical encoding: a version line, then one <c>name=value</c> line per member where a value
     /// is the UTF-8 byte length, a colon and the text (an absent value is <c>-</c>), strings compared ordinally, identifiers in
     /// lowercase <c>D</c> form, integers in invariant form and instants as UTC ticks. Recipes are listed in pinned order with their
     /// count first, so the encoding is injective.</summary>
-    public string ConfirmationSha256
-    {
-        get
-        {
-            var builder = new Canonical(ConfirmationVersion);
-            builder.Add("run", RunId);
-            builder.Add("project", ProjectId);
-            builder.Add("plan", PlanProposalMessageId);
-            builder.Add("authority", PlanAuthority.ToString());
-            builder.Add("planInputs", PlanInputsSha256);
-            builder.Add("workspace", WorkspaceId);
-            builder.Add("checkpoint", CheckpointId);
-            builder.Add("fingerprint", FingerprintSha256);
-            builder.Add("settings", SettingsSnapshot);
-            builder.Add("allowance", CorrectionAllowance);
-            builder.Add("recipeCount", Recipes.Count);
-            foreach (var recipe in Recipes)
-            {
-                builder.Add("recipe.ordinal", recipe.Ordinal);
-                builder.Add("recipe.id", recipe.CommandId);
-                builder.Add("recipe.number", recipe.CommandNumber);
-                builder.Add("recipe.name", recipe.Name);
-                builder.Add("recipe.path", recipe.ExecutablePath);
-                builder.Add("recipe.arguments", recipe.ArgumentsJson);
-                builder.Add("recipe.timeout", recipe.TimeoutSeconds);
-                builder.Add("recipe.enabled", recipe.IsEnabled ? "1" : "0");
-                builder.Add("recipe.configuredTicks", recipe.ConfiguredAtUtc.UtcTicks);
-                builder.Add("recipe.updatedTicks", recipe.UpdatedAtUtc.UtcTicks);
-            }
+    public string ConfirmationSha256 => Confirm(ConfirmationVersion, queue: false);
 
-            return builder.Hash();
+    /// <summary>ADR-0062: the separately versioned confirmation of the queued mode. It binds the mode, the queue policy (the bounded
+    /// cycle count, the original advancement window and the deferred physical source check) and this very candidate, so an Immediate
+    /// confirmation can never authorize queueing and a queued one can never authorize Immediate execution.</summary>
+    public string QueueConfirmationSha256 => Confirm(QueueConfirmationVersion, queue: true);
+
+    public string ConfirmationSha256For(LocalExecutionAdmissionMode mode) =>
+        mode == LocalExecutionAdmissionMode.WaitForAdmission ? QueueConfirmationSha256 : ConfirmationSha256;
+
+    private string Confirm(string version, bool queue)
+    {
+        var builder = new Canonical(version);
+        if (queue)
+        {
+            builder.Add("mode", LocalExecutionAdmissionMode.WaitForAdmission.ToString());
+            builder.Add("queue.maximumCycles", LocalExecutionSequencePolicy.MaximumQueuedCycles);
+            builder.Add("queue.windowTicks", LocalExecutionSequencePolicy.AdvancementWindow.Ticks);
+            builder.Add("queue.maximumPreparations", LocalExecutionSequencePolicy.MaximumHeldPreparations);
+            builder.Add("queue.sourceCheck", "deferred");
         }
+
+        builder.Add("run", RunId);
+        builder.Add("project", ProjectId);
+        builder.Add("plan", PlanProposalMessageId);
+        builder.Add("authority", PlanAuthority.ToString());
+        builder.Add("planInputs", PlanInputsSha256);
+        builder.Add("workspace", WorkspaceId);
+        builder.Add("checkpoint", CheckpointId);
+        builder.Add("fingerprint", FingerprintSha256);
+        builder.Add("settings", SettingsSnapshot);
+        builder.Add("allowance", CorrectionAllowance);
+        builder.Add("recipeCount", Recipes.Count);
+        foreach (var recipe in Recipes)
+        {
+            builder.Add("recipe.ordinal", recipe.Ordinal);
+            builder.Add("recipe.id", recipe.CommandId);
+            builder.Add("recipe.number", recipe.CommandNumber);
+            builder.Add("recipe.name", recipe.Name);
+            builder.Add("recipe.path", recipe.ExecutablePath);
+            builder.Add("recipe.arguments", recipe.ArgumentsJson);
+            builder.Add("recipe.timeout", recipe.TimeoutSeconds);
+            builder.Add("recipe.enabled", recipe.IsEnabled ? "1" : "0");
+            builder.Add("recipe.configuredTicks", recipe.ConfiguredAtUtc.UtcTicks);
+            builder.Add("recipe.updatedTicks", recipe.UpdatedAtUtc.UtcTicks);
+        }
+
+        return builder.Hash();
     }
 
     /// <summary>The SHA-256 of the plan's ordered input message identities and, when a Human grant authorized it, that grant.</summary>

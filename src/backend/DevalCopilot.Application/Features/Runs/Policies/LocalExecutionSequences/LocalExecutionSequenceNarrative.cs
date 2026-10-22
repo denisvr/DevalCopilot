@@ -16,7 +16,8 @@ internal static class LocalExecutionSequenceNarrative
 
     public static string NextActionOf(LocalExecutionSequenceState state, bool awaitingReconciliation) => state switch
     {
-        LocalExecutionSequenceState.Armed or LocalExecutionSequenceState.PreparingStep or LocalExecutionSequenceState.AwaitingStepResult => Wait,
+        LocalExecutionSequenceState.Armed or LocalExecutionSequenceState.PreparingStep or LocalExecutionSequenceState.AwaitingStepResult
+            or LocalExecutionSequenceState.WaitingForAdmission => Wait,
         LocalExecutionSequenceState.Stopping => WaitForDrain,
         _ when awaitingReconciliation => NoSupportedRecovery,
         LocalExecutionSequenceState.ReadyForHumanApproval => AwaitHumanApproval,

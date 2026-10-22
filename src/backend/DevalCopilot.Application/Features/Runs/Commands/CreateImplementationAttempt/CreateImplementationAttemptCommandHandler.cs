@@ -331,13 +331,14 @@ public sealed class CreateImplementationAttemptCommandHandler(
 
         // ADR-0057: no other Agent attempt, verification execution or local-commit reservation may own this workspace, decided before
         // any provider observation, Git work or manifest sealing and again at the write-locked commit seam below.
-        if (await WorkspaceExecutionFence.CheckClaimAsync(dbContext, run.ProjectId, workspace.Id, cancellationToken) is { } workspaceBusy)
+        if (await WorkspaceExecutionFence.CheckClaimAsync(
+            dbContext, run.ProjectId, workspace.Id, cancellationToken, ticket) is { } workspaceBusy)
         {
             return Result<CreateImplementationAttemptCommandResult>.Failure(workspaceBusy);
         }
 
         // ADR-0058: an additional veto, decided before any provider observation, Git work or sealing and again at the commit seam below.
-        if (await ExecutionCapacityFence.CheckClaimAsync(dbContext, cancellationToken) is { } capacityRefusal)
+        if (await ExecutionCapacityFence.CheckClaimAsync(dbContext, cancellationToken, ticket) is { } capacityRefusal)
         {
             return Result<CreateImplementationAttemptCommandResult>.Failure(capacityRefusal);
         }
@@ -615,8 +616,9 @@ public sealed class CreateImplementationAttemptCommandHandler(
         try
         {
             // ADR-0058: the global ceiling is decided under the same write lock, in the same cleanup, right after the workspace's ownership.
-            workspaceBusyAtSeam = await WorkspaceExecutionFence.CheckClaimAsync(dbContext, run.ProjectId, workspace.Id, cancellationToken)
-                ?? await ExecutionCapacityFence.CheckClaimAsync(dbContext, cancellationToken);
+            workspaceBusyAtSeam = await WorkspaceExecutionFence.CheckClaimAsync(
+                dbContext, run.ProjectId, workspace.Id, cancellationToken, ticket)
+                ?? await ExecutionCapacityFence.CheckClaimAsync(dbContext, cancellationToken, ticket);
         }
         catch (OperationCanceledException) when (fenceTransaction is not null)
         {

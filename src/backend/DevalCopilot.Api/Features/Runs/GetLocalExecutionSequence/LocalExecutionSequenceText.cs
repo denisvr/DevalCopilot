@@ -48,6 +48,20 @@ internal static class LocalExecutionSequenceText
         _ => null,
     };
 
+    public static string WaitingReasonText(string reason) => reason switch
+    {
+        LocalExecutionWaitingReason.AwaitingAdmissionCheck => "Queued. No admission check has been recorded yet; nothing was started.",
+        LocalExecutionWaitingReason.WaitingForWorkspace =>
+            "Recorded: another execution owned this project's workspace at the last admission check. Nothing was started.",
+        LocalExecutionWaitingReason.WaitingForCapacity =>
+            "Recorded: the global mutating capacity was at its limit at the last admission check. Nothing was started.",
+        LocalExecutionWaitingReason.WaitingForEarlierEligibleWork =>
+            "Recorded: an earlier queued step that competes for the same workspace or capacity is admitted first. Nothing was started.",
+        LocalExecutionWaitingReason.WaitingForPreparationCapacity =>
+            "Recorded: no queued preparation slot was available at the last admission check. Nothing was started.",
+        _ => "Recorded: whether the workspace or capacity was free could not be judged safely. Nothing was started.",
+    };
+
     public static string NextActionText(string? nextActionCode) => nextActionCode switch
     {
         "wait_or_stop_after_current_operation" => "Wait, or choose Stop after current operation.",
@@ -75,6 +89,7 @@ internal static class LocalExecutionSequenceText
         LocalExecutionSequenceErrors.CheckpointMissingCode => LocalExecutionSequenceErrors.CheckpointMissing().Description,
         LocalExecutionSequenceErrors.WorkspaceOwnedCode => LocalExecutionSequenceErrors.WorkspaceOwned().Description,
         LocalExecutionSequenceErrors.CapacityUnavailableCode => LocalExecutionSequenceErrors.CapacityUnavailable().Description,
+        LocalExecutionSequenceErrors.QueueFullCode => LocalExecutionSequenceErrors.QueueFull().Description,
         LocalExecutionSequenceErrors.RecipesMissingCode => LocalExecutionSequenceErrors.RecipesMissing().Description,
         LocalExecutionSequenceErrors.RecipesTooManyCode => LocalExecutionSequenceErrors.RecipesTooMany().Description,
         LocalExecutionSequenceErrors.RecipesIncoherentCode => LocalExecutionSequenceErrors.RecipesIncoherent().Description,

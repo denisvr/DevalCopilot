@@ -97,9 +97,29 @@ internal static class LocalExecutionStepAuthority
 
         var leaseIsActive = await dbContext.RepositoryMutationLeases.AsNoTracking()
             .AnyAsync(lease => lease.WorkspaceId == workspace.Id && lease.Status == LeaseStatus.Active, cancellationToken);
-        return leaseIsActive
-            ? (null, new LocalExecutionStepLink(sequence!, step))
-            : (LocalExecutionSequenceErrors.StepSourceChanged(), null);
+        if (!leaseIsActive)
+        {
+            return (LocalExecutionSequenceErrors.StepSourceChanged(), null);
+        }
+
+        // ADR-0062: the claim's own save also transfers the reservation to the operation, so the tracked admission travels with the link.
+        LocalExecutionAdmission? admission = null;
+        if (sequence!.AdmissionMode == LocalExecutionAdmissionMode.WaitForAdmission)
+        {
+            admission = await dbContext.LocalExecutionAdmissions.SingleOrDefaultAsync(candidate => candidate.StepId == step.Id, cancellationToken);
+            if (admission is null)
+            {
+                return (LocalExecutionSequenceErrors.StepAuthorityLost(), null);
+            }
+
+            await dbContext.Entry(admission).ReloadAsync(cancellationToken);
+            if (!IsReservedFor(admission, sequence, step))
+            {
+                return (LocalExecutionSequenceErrors.StepAuthorityLost(), null);
+            }
+        }
+
+        return (null, new LocalExecutionStepLink(sequence, step, admission));
     }
 
     /// <summary>The recorded verification operations of one pass, ordered by their pinned recipe position. Callers compare this whole
@@ -151,6 +171,13 @@ internal static class LocalExecutionStepAuthority
             return LocalExecutionSequenceErrors.StepAuthorityLost();
         }
 
+        // ADR-0062: a queued step is claimable only through its exact Reserved admission; an Immediate step has none.
+        var admissionError = await CheckAdmissionAsync(dbContext, sequence, step, cancellationToken);
+        if (admissionError is not null)
+        {
+            return admissionError;
+        }
+
         if (nowUtc >= step.PreparationDeadlineUtc || nowUtc >= sequence.AdvancementDeadlineUtc)
         {
             return LocalExecutionSequenceErrors.StepExpired();
@@ -170,6 +197,82 @@ internal static class LocalExecutionStepAuthority
         }
 
         return await RecipesHoldAsync(dbContext, sequence, cancellationToken) ? null : LocalExecutionSequenceErrors.StepSourceChanged();
+    }
+
+    /// <summary>Whether the exact source a step would run against still holds in recorded rows: the run is still a running manual Agent
+    /// run, the project's latest workspace is still the pinned, Ready, owned one with its active lease and its latest checkpoint is exactly
+    /// the expected result, and the pinned recipes and requested settings are unchanged. A newer workspace or an unrelated checkpoint is
+    /// never followed. It performs no Git observation; physical freshness belongs to the ordinary claim and dispatch.</summary>
+    public static async Task<bool> SourceHoldsAsync(
+        IDevalCopilotDbContext dbContext,
+        LocalExecutionSequence sequence,
+        Run run,
+        Guid expectedCheckpointId,
+        string expectedFingerprint,
+        CancellationToken cancellationToken)
+    {
+        if (run.Id != sequence.RunId
+            || run.ProjectId != sequence.ProjectId
+            || run.Lifecycle != RunLifecycle.Running
+            || await CurrentRunExecutionMode.ReadAsync(dbContext, run.Id, cancellationToken) != RunExecutionMode.ManualAgent
+            || !string.Equals(LocalExecutionSettingsSnapshot.Of(run), sequence.SettingsSnapshot, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var workspace = await dbContext.GitWorkspaces.AsNoTracking()
+            .Where(candidate => candidate.ProjectId == run.ProjectId)
+            .OrderByDescending(candidate => candidate.WorkspaceNumber)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (workspace is null || workspace.Id != sequence.WorkspaceId || workspace.Status != WorkspaceStatus.Ready)
+        {
+            return false;
+        }
+
+        if (!await dbContext.RepositoryMutationLeases.AsNoTracking().AnyAsync(
+                lease => lease.WorkspaceId == workspace.Id && lease.Status == LeaseStatus.Active, cancellationToken))
+        {
+            return false;
+        }
+
+        var checkpoint = await dbContext.GitCheckpoints.AsNoTracking()
+            .Where(candidate => candidate.WorkspaceId == workspace.Id)
+            .OrderByDescending(candidate => candidate.CheckpointNumber)
+            .FirstOrDefaultAsync(cancellationToken);
+        return checkpoint is not null
+            && checkpoint.Id == expectedCheckpointId
+            && string.Equals(checkpoint.FingerprintSha256, expectedFingerprint, StringComparison.Ordinal)
+            && await RecipesHoldAsync(dbContext, sequence, cancellationToken);
+    }
+
+    internal static bool IsReservedFor(LocalExecutionAdmission admission, LocalExecutionSequence sequence, LocalExecutionSequenceStep step) =>
+        admission.SequenceId == sequence.Id
+        && admission.StepId == step.Id
+        && admission.State == LocalExecutionAdmissionState.Reserved
+        && admission.Ordinal == step.Ordinal
+        && admission.Kind == step.Kind
+        && admission.PassNumber == step.PassNumber
+        && admission.RecipeOrdinal == step.RecipeOrdinal
+        && admission.SourceCheckpointId == step.SourceCheckpointId
+        && string.Equals(admission.SourceFingerprintSha256, step.SourceFingerprintSha256, StringComparison.Ordinal)
+        && admission.ReportMessageId == step.ReportMessageId
+        && admission.SubjectAttemptId == step.SubjectAttemptId
+        && admission.PredecessorStepId == step.PredecessorStepId;
+
+    /// <summary>A queued sequence's step must have exactly one Reserved admission with the step's whole identity; an Immediate sequence
+    /// must have none. Any missing, foreign or inconsistent link loses the step's authority instead of being repaired.</summary>
+    private static async Task<Error?> CheckAdmissionAsync(
+        IDevalCopilotDbContext dbContext, LocalExecutionSequence sequence, LocalExecutionSequenceStep step, CancellationToken cancellationToken)
+    {
+        var admissions = await dbContext.LocalExecutionAdmissions.AsNoTracking()
+            .Where(candidate => candidate.SequenceId == sequence.Id && (candidate.StepId == step.Id || candidate.Ordinal == step.Ordinal))
+            .ToListAsync(cancellationToken);
+        if (sequence.AdmissionMode == LocalExecutionAdmissionMode.Immediate)
+        {
+            return admissions.Count == 0 ? null : LocalExecutionSequenceErrors.StepAuthorityLost();
+        }
+
+        return admissions.Count == 1 && IsReservedFor(admissions[0], sequence, step) ? null : LocalExecutionSequenceErrors.StepAuthorityLost();
     }
 
     /// <summary>The project's whole enabled recipe set still equals the pinned set in every execution-relevant member and order.</summary>

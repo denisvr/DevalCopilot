@@ -17,6 +17,8 @@ namespace DevalCopilot.Infrastructure.IntegrationTests.Persistence;
 public abstract class LocalExecutionSequenceMigrationTestBase : IAsyncLifetime
 {
     protected const string PriorMigration = "20261020170119_AddExecutionCapacityConfiguration";
+    protected const string SequenceMigration = "20261020215343_AddLocalExecutionSequence";
+    protected const string QueueMigration = "20261022152738_AddLocalExecutionQueue";
     protected const string BlockedMessage = "local_execution_sequence.manual_control_blocked";
     protected const string NotEligibleMessage = "local_execution_sequence.run_not_eligible";
     protected const string TupleMessage = "local_execution_sequence.tuple_incoherent";
@@ -25,7 +27,25 @@ public abstract class LocalExecutionSequenceMigrationTestBase : IAsyncLifetime
 
     protected static readonly DateTimeOffset Now = new(2026, 10, 20, 9, 0, 0, TimeSpan.Zero);
     protected static readonly string Fingerprint = new('a', 64);
-    protected static readonly string[] TriggerNames =
+    protected static string[] TriggerNames => SequenceTriggerNames
+        .Concat(QueueTriggerNames)
+        .OrderBy(name => name, StringComparer.Ordinal)
+        .ToArray();
+
+    /// <summary>The ADR-0062 triggers: the queue bound, the admission lifecycle and order guards.</summary>
+    protected static readonly string[] QueueTriggerNames =
+    [
+        "trg_local_execution_admission_immutable",
+        "trg_local_execution_admission_insert_bound",
+        "trg_local_execution_admission_insert_shape",
+        "trg_local_execution_counter_monotonic",
+        "trg_local_execution_counter_retained",
+        "trg_local_execution_queue_bound",
+        "trg_local_execution_step_admission",
+    ];
+
+    /// <summary>The ADR-0060 triggers.</summary>
+    protected static readonly string[] SequenceTriggerNames =
     [
         "trg_local_execution_guard_arming",
         "trg_local_execution_guard_attempts",
@@ -186,7 +206,12 @@ public abstract class LocalExecutionSequenceMigrationTestBase : IAsyncLifetime
 
     protected static LocalExecutionSequence Arm(Scene scene, int recipeCount = 2, int allowance = 2) => LocalExecutionSequence.Arm(
         Guid.NewGuid(), scene.Run.Id, scene.Run.ProjectId, scene.Workspace.Id, scene.Checkpoint.Id, Fingerprint, scene.PlanMessageId,
-        LocalExecutionPlanAuthority.AcceptedRoot, new string('b', 64), new string('c', 64), "v1;settings", recipeCount, allowance, Now);
+        LocalExecutionPlanAuthority.AcceptedRoot, new string('b', 64), new string('c', 64), "v1;settings", recipeCount, allowance, Now,
+        NextCoordination());
+
+    private static long coordinationNumber;
+
+    protected static long NextCoordination() => Interlocked.Increment(ref coordinationNumber);
 
     /// <summary>Adds an armed sequence and its pinned recipes (one per requested recipe, in scene command order).</summary>
     protected static LocalExecutionSequence AddArmed(DevalCopilotDbContext context, Scene scene, int recipeCount = 2, int allowance = 2)
@@ -263,6 +288,8 @@ public abstract class LocalExecutionSequenceMigrationTestBase : IAsyncLifetime
         ["SettingsSnapshot"] = "'v1;settings'",
         ["RecipeCount"] = "2",
         ["CorrectionAllowance"] = "2",
+        ["AdmissionMode"] = "'Immediate'",
+        ["CoordinationNumber"] = NextCoordination().ToString(System.Globalization.CultureInfo.InvariantCulture),
         ["State"] = "'Armed'",
         ["ReasonCode"] = "NULL",
         ["DetailCode"] = "NULL",

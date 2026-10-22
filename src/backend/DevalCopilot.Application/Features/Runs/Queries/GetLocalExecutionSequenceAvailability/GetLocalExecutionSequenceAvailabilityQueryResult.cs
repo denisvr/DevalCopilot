@@ -17,4 +17,5 @@ public sealed record GetLocalExecutionSequenceAvailabilityQueryResult(
     int? CorrectionAllowance,
     int? MaximumSteps,
     IReadOnlyList<LocalExecutionSequenceAvailabilityRecipe>? Recipes,
-    LocalExecutionSequenceAvailabilityDisclosure? Disclosure);
+    LocalExecutionSequenceAvailabilityDisclosure? Disclosure,
+    LocalExecutionAdmissionMode AdmissionMode = LocalExecutionAdmissionMode.Immediate);

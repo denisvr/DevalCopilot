@@ -1,8 +1,11 @@
 import {
   ArmLocalExecutionSequenceEndpointClient,
   ArmLocalExecutionSequenceRequest,
+  GetLocalExecutionQueueAvailabilityEndpointClient,
   GetLocalExecutionSequenceAvailabilityEndpointClient,
   GetLocalExecutionSequenceEndpointClient,
+  QueueLocalExecutionSequenceEndpointClient,
+  QueueLocalExecutionSequenceRequest,
   StopLocalExecutionSequenceEndpointClient,
 } from '../../api/generated/api-client'
 import type {
@@ -110,5 +113,48 @@ export class StopLocalExecutionSequenceWireClient extends StopLocalExecutionSequ
     return response.status === 200
       ? parsedBody<StopLocalExecutionSequenceResponse>(response)
       : super.processStopLocalExecutionSequence(response)
+  }
+}
+
+/** ADR-0062: the recorded queue availability of one explicitly selected plan; the plan is the single required query key. */
+export class LocalExecutionQueueAvailabilityWireClient extends GetLocalExecutionQueueAvailabilityEndpointClient {
+  constructor(baseUrl: string, http: FetchLike, signal?: AbortSignal) {
+    super(baseUrl, withAbortSignal(http, signal))
+  }
+
+  readQueueAvailability(runId: string, planProposalMessageId: string): Promise<unknown> {
+    return this.getLocalExecutionQueueAvailability(runId, planProposalMessageId)
+  }
+
+  protected override processGetLocalExecutionQueueAvailability(response: Response): Promise<GetLocalExecutionSequenceAvailabilityResponse> {
+    return response.status === 200
+      ? parsedBody<GetLocalExecutionSequenceAvailabilityResponse>(response)
+      : super.processGetLocalExecutionQueueAvailability(response)
+  }
+}
+
+/** ADR-0062: the explicit queueing of one run's local execution sequence; the body is exactly the five members of the request. */
+export class QueueLocalExecutionSequenceWireClient extends QueueLocalExecutionSequenceEndpointClient {
+  constructor(baseUrl: string, http: FetchLike, signal?: AbortSignal) {
+    super(baseUrl, withAbortSignal(http, signal))
+  }
+
+  queueLocalExecutionSequenceRaw(runId: string, tuple: LocalExecutionArmTuple): Promise<unknown> {
+    return this.queueLocalExecutionSequence(
+      runId,
+      new QueueLocalExecutionSequenceRequest({
+        planProposalMessageId: tuple.planProposalMessageId,
+        workspaceId: tuple.workspaceId,
+        checkpointId: tuple.checkpointId,
+        fingerprintSha256: tuple.fingerprintSha256,
+        confirmationSha256: tuple.confirmationSha256,
+      }),
+    )
+  }
+
+  protected override processQueueLocalExecutionSequence(response: Response): Promise<ArmLocalExecutionSequenceResponse> {
+    return response.status === 200
+      ? parsedBody<ArmLocalExecutionSequenceResponse>(response)
+      : super.processQueueLocalExecutionSequence(response)
   }
 }

@@ -6,7 +6,177 @@ was prepared ([recovery](development-workflow.md#recovery)). Git and code
 prevail; compare branch, `HEAD`, `origin/main` and staged/unstaged/untracked
 state first.
 
-## Active slice: LOCAL-INSPECT-01 recorded local execution inspection (ADR-0061)
+## Active slice: LOCAL-QUEUE-01 queued local execution (ADR-0062)
+
+This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
+Reconcile publication with Git. This record alone grants no publication authority.
+
+**Delivery phase: correction 1 returned by the Claude executor after review 1 NO-GO, unstaged, uncommitted and unpushed. No GO exists.**
+Baseline: `main`, `HEAD`, local `origin/main` and the live ref were `c1e9392161ca8d62ffc157e8a74a7ae0e7e625b1`, divergence 0/0, real index
+empty; the three planner inputs (handoff, `decisions/README.md`, new ADR-0062) were preserved and not edited. LOCAL-INSPECT-01 below is
+historical and was not reopened. ADR-0050 stays Proposed, P9 unproven, AI Memory deferred, Increments 4/5/6 incomplete; every standing
+restriction stays.
+
+### What exists
+
+- **Domain / schema.** Admission mode, the `WaitingForAdmission` state, `LocalExecutionAdmission` (Waiting, Reserved, Consumed, Retired,
+  Unresolved), a feature-owned guarded Int64 counter, database guards and the migration `AddLocalExecutionQueue` (with manual SQLite rebuild).
+- **Application.** Separate queue availability and intake with their own confirmation, replay and conflict by mode, the 64-live-cycle bound,
+  keyset observation, the global evaluator, atomic reservation creating the ordinary Reserved step and token, ownership predicates counting
+  reserved and unresolved admissions in every entrance, transfer in the claim's own save, retire-or-hold for Stop, deadline and startup.
+- **API.** Two authorized MVC operations (queue availability GET with the single strict query key, queue POST with the strict 1 KiB body), mode
+  and queue disclosure in the receipt, status and inspection header, regenerated client (build-stable).
+- **Frontend.** Mode-aware decoders, hooks and panel (both offers read separately, the mode is part of draft, visit and request owner), truthful
+  waiting disclosure with no promised start, event labels, the workspace owner status `PreparationReserved`, the inspection mode.
+
+### Evidence (logs under `logs/executor/local-queue-01/`, git-ignored)
+
+- **Fresh, final matrix:** Domain 1,757; Architecture 192; Application full 7,871 passed and 1 failed; Infrastructure full 3,360 passed, 4 skipped, 3
+  failed; Api full 3,260; Vitest 7,398; lint, build and strict e2e `tsc` pass; the generated client hash is unchanged after a non-incremental
+  Api build (0 warnings, 0 errors); `git diff --check` clean; `dotnet format` has 22 findings, 21 in files this slice does not touch (recorded as
+  pre-existing) and one in the new `LocalExecutionQueueHost.cs`, fixed and verified.
+- **Original failures retained:** the 1 Application failure (event-type allow-list lacked the two new events) and the 3 Infrastructure failures
+  (migration Down table lists lacked the two new tables) were expected drift, fixed in tests only, and pass on targeted reruns; the earlier five
+  Api drift failures are in `api-existing-1.log`. A first frontend build failed on type errors in a new test (Vitest does not typecheck), fixed.
+- **Journeys, run one at a time and each green:** local-execution (33 s), planning-sequence (20 s), collaboration (1.9 m) and the new
+  `local-execution-queue.journey.ts` (38 s: one queue POST, twelve consumed admissions in order, no Human approval or commit). The queue journey's
+  first attempt failed because the provider double accepts the planner root only for a repository named `local-execution-source`; it uses that name.
+- **Four compiling controls (`controls.log`; each mutant killed, hashes restored, touched, rebuilt):** 1 omit Reserved from ownership, 17 of 71
+  queue tests failed; 2 remove the admission consumption in the claim save, 20 of 71 failed (the first attempt was an invalid CS9113 mutant,
+  retained as `control-2-INVALID-attempt-CS9113.log`); 3 startup leaves a waiting admission, the startup test failed 1 of 5; 4 the availability
+  visit key ignores the mode, 1 of 4 hook tests failed. Control 4 is the nearest honest equivalent of the requested ended frontend owner guard.
+  The first rebuild after the controls failed on a parallel clean build and on a transient file lock (CS2012; the compiler named Microsoft Defender as a possible holder, which is unproven); the retry was clean and
+  the queue, startup and hook tests passed again afterwards.
+- **Not run:** no real provider, native, profile, helper or credential experiment; no quarantine release, process cancellation or Human approval.
+
+### Correction 1 (Codex review 1 NO-GO: LCQ-R1 P2, LCQ-R2 P2, LCQ-R3 P2, LCQ-R4 P3, LCQ-V1 P2)
+
+Returned unstaged, uncommitted and unpushed; no GO exists. ADR-0062's authority, budgets, quarantine and frozen-experiment boundaries are unchanged.
+
+- **LCQ-R1 fixed.** One shared identity predicate (`LocalExecutionReservationOwnership.Coherent` / `IdentityHoldsAsync` / `KindMappingHolds`) now proves run→project,
+  workspace, pinned and source checkpoint with fingerprint, the complete admission/step tuple and the closed kind mapping, and is used by ownership counting,
+  retirement (Stop, preparation expiry, startup, settled failure) and `ProveOwnAsync`, which additionally proves every ticket-carried identity (owner token,
+  reserved operation, source checkpoint, report, subject attempt, recipe, ordinal, kind). Contradictions stay held/Unavailable; no external observation or
+  current eligibility is required. Permanent: `LocalExecutionQueueIdentityTests` (25). With the new checks removed 7 fail (`correction-1/r1-red.log`).
+- **LCQ-R2 fixed.** `AddLocalExecutionQueue.Down` first aborts through the named CHECK `held_reservations_block_downgrade` when any Reserved or Unresolved
+  admission exists, before any guard, row, table or history change; no release mechanism. Tests prove table, guards, counter and history are preserved, that a
+  downgrade is allowed again once nothing is held, and the existing waiting-only reversal still passes (`LocalExecutionQueueMigrationTests`, 35).
+- **LCQ-R3 fixed.** The advancing feed carries a fixed high-water (`AdvanceableLocalExecutionSequencesPage`, `LocalExecutionAdvancingSweep` used by the
+  coordinator). `LocalExecutionAdvancingSweepTests` drives 34 old records, then 64 arrivals across sweeps, and proves the finite range, the revisit of the oldest
+  record and its elapsed two-hour deadline ending it NeedsAttention.
+- **LCQ-R4 fixed.** `RowExtensions` moved to `RowExtensions.cs`, unchanged.
+- **LCQ-V1 done.** `e2e/local-execution-queue.journey.ts` now sets the limit to one through its rendered control, holds a second project's rendered manual
+  verification with the owned gate file `fixture/verify.hold` (verification double only, two pinned contract tests, no production hook, no SQL seeding), queues
+  through the rendered confirmation, proves WaitingForAdmission/WaitingForCapacity with zero invocations and no steps over a held interval, releases only the
+  gate, observes host progression to Awaiting Human approval with exactly one browser request after queueing, and reloads. The journey exposed a real UI defect,
+  fixed: workspace/capacity withholding disabled the queue offer; `queueWithheldReason` now withholds queueing only for a conflicting planning sequence (panel test added).
+  Permanent no-resume regression: `LocalExecutionQueueStartupNoResumeTests`.
+- **Controls (`correction-1/controls.log`, hashes restored, touched, rebuilt):** 5 startup leaves waiting authority live (1 of 2 fail); 6 advancing sweep ignores the
+  high-water (1 of 3); 7 downgrade refusal removed (4 of 35). The earlier controls 1-4 stand (retirement omission is supplementary; mode-visit-key accepted).
+
+**Fresh final evidence (runner durations):** Architecture 192 (8 s wall); Infrastructure Persistence plus transaction classes 750 passed (2 m 3 s); full Application 7,902 passed
+(15 m 53 s); full Api 3,262 passed (11 m 9 s); whole Vitest 7,399 (296 files); lint, build, strict e2e `tsc` and `test:harness` pass; generated client hash unchanged
+(`ba3b20f58e4aa132`); journeys run one at a time: local-execution 34 s, planning-sequence 22 s, collaboration 116 s, queue/contention 52 s, all green; changed-file format clean.
+**Retained (unaffected):** Domain 1,757. **Not run:** full Infrastructure adapters (migration change scoped to Persistence), Domain rerun.
+**Historical failed attempts retained:** the first-return full Application (1 failed) and Infrastructure (3 failed) runs; five Api drift failures; CS9113 invalid control;
+parallel-build and CS2012 build failures (Defender is only a possible attribution); contention journey attempts 1-4 (`journey-contention-1..4.log`: missing host binaries,
+queue offer withheld by the capacity gate, an Authorize-button assertion that was wrong at the limit, a wrong invocation count). The reviewer's temporary probe is not counted.
+
+
+#### LCQ-R1 follow-up (planner-found recipe omission) and final-source validation
+
+- **Finding reproduced, then fixed.** `ProveOwnAsync` accepted `ticket.RecipeId == null` for any step, so an otherwise exact Reserved Verification ticket with its recipe
+  omitted bypassed the recipe comparison. New permanent regressions on a real queued Verification reservation (`LocalExecutionQueueIdentityTests`): the exact ticket
+  excludes only its own reservation (workspace Idle, zero capacity owners), the omitted-recipe ticket and a substituted-recipe ticket are refused by BOTH the workspace and
+  the capacity policy. Control 8 (`correction-1/controls.log`) restores the old predicate: exactly the omission test fails (1 of 28); hash restored.
+- **Closed ticket shape and the factory.** Verification requires the exact pinned recipe; Agent steps require null. Evidence that shaped the fix: both production
+  reservation sites always built tickets with `RecipeId = null`, so the stricter proof alone would have refused every legitimate queued verification. The new
+  `LocalExecutionStepTicketFactory` is now the single creation point (queued `ReserveLocalExecutionAdmission` and Immediate `ObserveLocalExecutionSequence`, whose `Reserve`
+  became `ReserveAsync`); it reads the recipe's `VerificationCommandId` for a Verification step. Existing claim-side defenses are unchanged.
+- **Stable dispositions:** LCQ-R1 fixed (including the omission case); LCQ-R2 fixed; LCQ-R3 fixed; LCQ-R4 fixed; LCQ-V1 done (contention journey and no-resume regression).
+
+**Final-source results (sources include the factory change):**
+
+- Fresh: Architecture 192/192 (9 s, `final2-architecture.log`); full Application 7,905/7,905 (930 s, exit 0, `final2-application.log`); queue classes 104/104 before that run.
+- **Interrupted attempt, preserved:** `final2-api.log` has no terminal result (the session ended mid-run): 158 failed cases, 152 of them `git init -q failed:` with empty stderr, the rest
+  `GitInvocationFailed`/conflicts from Git-dependent seeding; all in `LocalCommit` classes, beginning as one burst about 4 m 32 s in. Counts are log observations, not a suite total.
+  No runner was active afterwards; `git init` works by hand; no cause was proven. TEMP holds about 7,100 leftover `devalcopilot*` directories (not cleaned here).
+- **Bounded diagnostic:** the whole `Features.Runs.LocalCommit` namespace run alone, serially: 787/787 passed in 10 m 17 s (`diag-localcommit-api.log`), no Git failure.
+- **Full API on the final sources, serial, new log (`final3-api.log`): FAILED 2, passed 3,260, total 3,262, 13 m 52 s.** The failures are
+  `ProviderFixtureContractTests.A_working_directory_that_is_not_an_owned_worktree_is_refused_for_every_mutating_or_reading_role` (`IOException: The pipe is being closed` while the test
+  writes stdin to a double that already refused and exited) and `AgentSupervisionContentionTests.The_sweep_stops_within_its_bound_while_a_real_writer_holds_the_database_and_later_records_each_attention_once`
+  (teardown could not delete a planning harness database still in use). Both passed 3 of 3 times when rerun alone together with their classes (`diag-two-failures-1..3.log`, 4 tests, 31 s each).
+  They touch neither the ticket factory, the ownership proof, nor queue code, but a timing-sensitive race in each is a plausible reading, not a proven cause. **No clean complete API run exists
+  on the final sources**; this is a retained limitation, and the earlier clean full API run (3,262) is scoped to the sources before the factory change.
+- Journeys, one at a time on the final sources after rebuilding the journey host (`final3-*`): local-execution 50 s, planning-sequence 25 s, collaboration 122 s, queue/contention 58 s, all green. A previous
+  `final2` journey leg never ran (interrupted).
+- **Retained at recorded scope (unaffected by the factory change):** Persistence plus transaction classes 750/750; Domain 1,757; whole Vitest 7,399, lint, build, strict e2e `tsc`, `test:harness`,
+  generated-client hash `ba3b20f58e4aa132`; controls 1-7 and 8 above.
+- **Not run:** a clean complete API pass on the final sources; full Infrastructure adapter suites; Domain after the correction.
+
+
+### Correction 2 (Codex review 2 NO-GO: LCQ-V2 P2, test validation and lifetimes)
+
+Test-only; no production source changed. Returned unstaged, uncommitted and unpushed; no GO exists. Dispositions: LCQ-R1 to LCQ-R4 and LCQ-V1 stay resolved; **LCQ-V2 fixed**.
+
+- **Stdin helper (confirmed defect).** `ProviderFixtureContractTests.Run` wrote stdin before observing the child, but the real fixture checks ownership before reading stdin, so a
+  legitimate early refusal closed the pipe first. `Run` now starts the output reads first, records an `IOException` from the stdin write and rethrows it only when the child
+  exited with code 0; a refusal (non-zero exit) stays observable with its exit code, output and no-effect assertions. The fixture is unchanged and no IOException is blanket-ignored.
+  Permanent regressions (`ProviderFixtureContractTests.EarlyRefusal.cs`): a 1 MiB payload to an early ownership refusal (exit 65, no invocation log) and a passing verification with an
+  undelivered megabyte, which must still throw. Red before the helper fix: 1 of 2 failed with `The pipe is being closed` (`correction-2/stdin-red.log`); green after: the
+  `ProviderFixture` classes 215/215 (`stdin-green.log`).
+- **Contention teardown (source-level lifetime gap, exact holder unproven).** The production sweep deliberately lets a call that outlived its bounded stop keep running in its own scope. New test-owned
+  evidence `TrackingScopeFactory` (a decorator counting created and fully disposed scopes, via a `CreateSweep(provider, scopeFactory)` overload) lets the test prove completion by the scopes' own
+  disposal, never by a delay. Permanent regressions: `A_stopped_sweeps_pending_call_outlives_the_bounded_stop_and_its_scope_settles_only_once_the_writer_releases` (stop under 3 s, `Active > 0` after stop,
+  0 after the writer releases) and the main contention test now awaits both sweeps' scopes before the harness deletes its database. Production shutdown bound, late-write fences, exactly-once
+  attention and the Attempt assertions are unchanged; no sleeps, swallowed deletes, repeated deletes or pool clearing were added. A temporary end-of-test diagnostic recorded 0 pending scopes in each of 6
+  isolated runs (`pending-at-end.txt`; removed, hash restored), so the failed full run's exact lock holder is not identified and remains unproven; the lifetime gap itself is demonstrated by the source and the new
+  regression. The contention class passed 3 of 3 afterwards (`contention-green-1..3.log`, 4 tests each).
+- **Final-source validation (sources include both test corrections):** Architecture 192/192 (3 s); `AgentSupervisionContentionTests` plus `ProviderFixture` classes 219/219 (58 s); **one complete full API run,
+  serial, new log: 3,265/3,265 passed, 11 m 41 s, exit 0 (`correction-2/final-api.log`).**
+- **Retained at recorded scope (inputs unchanged by this correction):** full Application 7,905/7,905; Persistence plus transaction classes 750/750; Domain 1,757; whole Vitest 7,399, lint, build, strict e2e `tsc`,
+  `test:harness`, generated-client hash `ba3b20f58e4aa132`; the four serial final-source journeys (local-execution 50 s, planning-sequence 25 s, collaboration 122 s, queue/contention 58 s). The fixture
+  executable and the journey harness were not changed in this correction (only test helpers), so the harness checks and journeys were not rerun.
+- **Preserved earlier attempts:** the first-return full Application/Infrastructure failures; five Api drift failures; CS9113 invalid control; build-collision and CS2012 failures (Microsoft Defender named by the
+  compiler as a possible holder, unproven); contention journey attempts 1-4; the interrupted `final2-api.log` (158 reported failed cases, 152 `git init -q failed:`, no terminal result, cause unknown); the
+  `final3-api.log` run (3,260 passed, 2 failed, pre-correction-2 sources) with its isolated reruns; and one transient build with 6 errors during this correction (log not captured; the next build was clean).
+- **Remaining limitations:** the exact cause of the 158-case Git burst and of the full-run database lock is unproven; Domain and the full Infrastructure adapter suites were not rerun; about 7,100 leftover
+  `devalcopilot*` temporary directories were left untouched.
+- **Reconciled inventory:** `main`, `HEAD` and local `origin/main` are `c1e9392161ca8d62ffc157e8a74a7ae0e7e625b1`; index empty; 107 modified and 58 untracked with full expansion. Against review 2's 104/56 the additions
+  are the modified `ProviderFixtureContractTests.cs`, `AgentSupervisionContentionTests.cs` and `AgentSupervisionHostedSupport.cs`, and the new `ProviderFixtureContractTests.EarlyRefusal.cs` and `TrackingScopeFactory.cs`.
+
+
+### Correction 3 (Codex review 3: LCQ-V2 residual, the sweep-call completion proof)
+
+Test-only; no production source changed. Returned unstaged, uncommitted and unpushed; no GO exists. The stdin fix, the clean complete API run, LCQ-R1 to LCQ-R4 and LCQ-V1 are accepted and untouched.
+
+- **Residual finding.** `TrackingScopeFactory` counts scopes only after `inner.CreateScope` returns, so `WhenIdleAsync` could complete while a real sweep call was still paused during scope
+  acquisition (or queued before the factory); the reviewer reproduced `Active == 0` with an incomplete `pendingInventory` (retained probe `review-02/PlannerLocalQueueScopeEntryTests.cs`). This shows an
+  insufficient teardown oracle, not the cause of the historical database lock.
+- **Correction.** New test-owned `SweepCompletion` (`WaitForSettledAsync`, `SnapshotPending`): it requires the sweep loop's own `ExecuteTask` to have ended, snapshots the sweep's `pendingInventory`
+  and `pendingObservations` Tasks by narrow reflection that fails explicitly (never a zero count) when a field is missing or of another type, and waits for all of them to settle (their scopes are
+  disposed inside those Tasks) under a separate 20 s teardown bound outside the measured stop. A faulted or canceled call counts as settled. Both stopped sweeps of the main contention test and the
+  earlier outlives-the-stop regression now use it before harness disposal; scope counting stays only as supplementary evidence. No production API, shutdown drain, sleep, retry or deletion handling was added.
+- **Permanent regressions (`SweepCompletionTests`, 3):** with a gate at scope acquisition the helper is invoked directly and is still pending after a real second while the pending inventory is
+  incomplete and `Active` is zero; after the gate is released in `finally` it completes and the call is complete; the helper fails explicitly for a never-started sweep or a loop that has not ended;
+  and it fails explicitly (naming `pendingInventory`) for a service lacking the private bookkeeping. Control 9 (`correction-3/controls.log`): a helper that ignores the pending calls fails the gated
+  regression (1 of 3); hash restored, touched, rebuilt.
+- **Fresh results (final test sources):** `SweepCompletionTests` 3/3 (`completion-green-1.log`); `Features.Runs.AgentSupervisions` plus `ProviderFixture` classes 250/250 in 52 s (exit 0, 60 s wall,
+  `affected-green.log`); Architecture 192/192; changed-file format findings none.
+- **Retained at the actual scope:** the complete clean API run 3,265/3,265 (11 m 41 s) on the sources before this follow-up (test-source scope: before `SweepCompletion` and the helper switch); full Application
+  7,905/7,905; Persistence plus transaction classes 750/750; Domain 1,757; whole Vitest 7,399, lint, build, strict e2e `tsc`, `test:harness`, generated-client hash `ba3b20f58e4aa132`; the four serial
+  final-source journeys. **Not run:** another full API run (not required for this test-only follow-up), Domain and full Infrastructure adapters.
+- **Preserved:** every earlier failed or interrupted attempt and qualification above, including the `final2` Git burst (158 cases, cause unknown), `final3` (2 failed), the CS9113/build-collision/CS2012 attempts
+  (the compiler named Microsoft Defender as a possible holder, unproven) and the transient 6-error build.
+- **Inventory:** `main`, `HEAD` and local `origin/main` are `c1e9392161ca8d62ffc157e8a74a7ae0e7e625b1`; index empty; 107 modified and 60 untracked with full expansion (new: `SweepCompletion.cs`, `SweepCompletionTests.cs`).
+
+
+### Risks and notes for the planner
+
+- The queue journey now proves waiting behind a held owner and release; ordering among several queued cycles is proved by the Application tests, not in a browser.
+- The queued journey cannot share an invocation with the existing local-execution journey (same fixed repository name).
+
+## Previous slice (historical record): LOCAL-INSPECT-01 recorded local execution inspection (ADR-0061)
 
 This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
 Reconcile publication with Git. This record alone grants no publication authority.

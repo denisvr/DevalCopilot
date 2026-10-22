@@ -75,7 +75,8 @@ public sealed class LocalExecutionSequenceStartupTests : IDisposable
         var sequence = LocalExecutionSequence.Arm(
             Guid.NewGuid(), scene.RunId, scene.ProjectId, scene.WorkspaceId, scene.CheckpointId, LocalExecutionSequenceApiSeed.Fingerprint,
             scene.PlanId, LocalExecutionPlanAuthority.AcceptedRoot, new string('9', 64), new string('7', 64),
-            "devalcopilot.local-execution-sequence.settings.v1\n", commands.Count, 2, DateTimeOffset.UtcNow.AddMinutes(-1));
+            "devalcopilot.local-execution-sequence.settings.v1\n", commands.Count, 2, DateTimeOffset.UtcNow.AddMinutes(-1),
+            LocalExecutionSequenceNumbers.Next());
         db.LocalExecutionSequences.Add(sequence);
         for (var index = 0; index < commands.Count; index++)
         {
@@ -168,6 +169,59 @@ public sealed class LocalExecutionSequenceStartupTests : IDisposable
         Assert.Equal(AttemptStatus.Running, linked.Status);
         Assert.NotNull(linked.AgentDispatchedAtUtc);
         Assert.Null(linked.AgentOutcome);
+        Assert.Equal(attemptsBefore, await context.Attempts.AsNoTracking().CountAsync());
+    }
+
+    [Fact]
+    public async Task Host_startup_closes_a_waiting_queued_cycle_and_retires_its_pending_admission_without_advancing_anything()
+    {
+        await using (var migrate = OpenContext())
+        {
+            await migrate.Database.MigrateAsync();
+        }
+
+        Guid sequenceId;
+        Guid admissionId;
+        int attemptsBefore;
+        await using (var db = OpenContext())
+        {
+            var scene = await LocalExecutionSequenceApiSeed.SeedAsync(db);
+            var commands = await db.VerificationCommands.AsNoTracking()
+                .Where(command => command.ProjectId == scene.ProjectId).OrderBy(command => command.CommandNumber).ToListAsync();
+            var sequence = LocalExecutionSequence.Arm(
+                Guid.NewGuid(), scene.RunId, scene.ProjectId, scene.WorkspaceId, scene.CheckpointId, LocalExecutionSequenceApiSeed.Fingerprint,
+                scene.PlanId, LocalExecutionPlanAuthority.AcceptedRoot, new string('9', 64), new string('7', 64),
+                "devalcopilot.local-execution-sequence.settings.v1\n", commands.Count, 2, DateTimeOffset.UtcNow.AddMinutes(-1),
+                LocalExecutionSequenceNumbers.Next(), LocalExecutionAdmissionMode.WaitForAdmission);
+            db.LocalExecutionSequences.Add(sequence);
+            for (var index = 0; index < commands.Count; index++)
+            {
+                db.LocalExecutionSequenceRecipes.Add(LocalExecutionSequenceRecipe.Pin(Guid.NewGuid(), sequence.Id, index, commands[index]));
+            }
+
+            var admission = LocalExecutionAdmission.Enqueue(
+                Guid.NewGuid(), sequence.Id, LocalExecutionSequenceNumbers.Next(), 0, LocalExecutionStepKind.Implementation, 0, null, null,
+                scene.CheckpointId, LocalExecutionSequenceApiSeed.Fingerprint, null, null, DateTimeOffset.UtcNow.AddMinutes(-1));
+            db.LocalExecutionAdmissions.Add(admission);
+            await db.SaveChangesAsync();
+            sequenceId = sequence.Id;
+            admissionId = admission.Id;
+            attemptsBefore = await db.Attempts.AsNoTracking().CountAsync();
+        }
+
+        using (var host = HostOver())
+        {
+            using var client = host.CreateClient();
+        }
+
+        await using var context = OpenContext();
+        var closed = await context.LocalExecutionSequences.AsNoTracking().SingleAsync(candidate => candidate.Id == sequenceId);
+        Assert.Equal(LocalExecutionSequenceState.Interrupted, closed.State);
+        Assert.Equal(LocalExecutionSequenceReason.HostRestarted, closed.ReasonCode);
+        var retired = await context.LocalExecutionAdmissions.AsNoTracking().SingleAsync(candidate => candidate.Id == admissionId);
+        Assert.Equal(LocalExecutionAdmissionState.Retired, retired.State);
+        Assert.Null(retired.StepId);
+        Assert.Empty(await context.LocalExecutionSequenceSteps.AsNoTracking().Where(step => step.SequenceId == sequenceId).ToListAsync());
         Assert.Equal(attemptsBefore, await context.Attempts.AsNoTracking().CountAsync());
     }
 

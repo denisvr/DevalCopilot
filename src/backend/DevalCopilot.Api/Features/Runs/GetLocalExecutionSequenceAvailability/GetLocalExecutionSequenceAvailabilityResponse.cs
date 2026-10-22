@@ -17,4 +17,5 @@ public sealed record GetLocalExecutionSequenceAvailabilityResponse(
     int? CorrectionAllowance,
     int? MaximumSteps,
     IReadOnlyList<LocalExecutionSequenceAvailabilityRecipeResponse>? Recipes,
-    LocalExecutionSequenceAvailabilityDisclosureResponse? Disclosure);
+    LocalExecutionSequenceAvailabilityDisclosureResponse? Disclosure,
+    string AdmissionMode);

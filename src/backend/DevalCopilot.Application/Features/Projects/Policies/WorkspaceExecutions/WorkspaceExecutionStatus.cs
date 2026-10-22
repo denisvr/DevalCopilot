@@ -24,4 +24,8 @@ public enum WorkspaceExecutionStatus
 
     /// <summary>Ownership cannot be judged safely from the recorded facts.</summary>
     Unavailable = 6,
+
+    /// <summary>ADR-0062: a queued local execution cycle holds the workspace with one reserved, unclaimed step preparation. It is not an
+    /// Agent or verification process.</summary>
+    PreparationReserved = 7,
 }

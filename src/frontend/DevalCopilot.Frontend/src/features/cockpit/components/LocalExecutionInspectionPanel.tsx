@@ -72,6 +72,15 @@ export function LocalExecutionInspectionPanel({ runId }: { runId: string | null 
                   </dd>
                 </div>
                 <div>
+                  <dt>Admission mode</dt>
+                  <dd>
+                    {header.admissionMode === 'WaitForAdmission' ? 'Queued (waits for admission)' : 'Immediate'}
+                    {header.recordedState === 'WaitingForAdmission'
+                      ? ' · recorded as waiting: bookkeeping, not current eligibility, and no pending step is an operation'
+                      : ''}
+                  </dd>
+                </div>
+                <div>
                   <dt>Plan authority</dt>
                   <dd>{header.planAuthority}</dd>
                 </div>

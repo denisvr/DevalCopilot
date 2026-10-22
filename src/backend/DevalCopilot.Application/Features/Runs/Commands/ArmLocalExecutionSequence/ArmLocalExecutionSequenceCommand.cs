@@ -1,5 +1,6 @@
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
+using DevalCopilot.Domain.Features.Runs;
 
 namespace DevalCopilot.Application.Features.Runs.Commands.ArmLocalExecutionSequence;
 
@@ -18,4 +19,5 @@ public sealed record ArmLocalExecutionSequenceCommand(
     Guid WorkspaceId,
     Guid CheckpointId,
     string FingerprintSha256,
-    string ConfirmationSha256) : IManualTransactionCommand<Result<ArmLocalExecutionSequenceCommandResult>>;
+    string ConfirmationSha256,
+    LocalExecutionAdmissionMode Mode = LocalExecutionAdmissionMode.Immediate) : IManualTransactionCommand<Result<ArmLocalExecutionSequenceCommandResult>>;

@@ -33,4 +33,8 @@ public enum LocalExecutionSequenceState
 
     /// <summary>A host restart closed advancement. It never resumes, redispatches or adopts a result.</summary>
     Interrupted = 8,
+
+    /// <summary>ADR-0062: a queued cycle waits for its next pending admission. Nothing is reserved, claimed or owned; the waiting reason is
+    /// the last recorded admission observation, never proof of a free workspace, slot or process.</summary>
+    WaitingForAdmission = 9,
 }

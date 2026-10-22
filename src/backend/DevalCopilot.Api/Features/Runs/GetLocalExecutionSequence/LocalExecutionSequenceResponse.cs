@@ -37,4 +37,6 @@ public sealed record LocalExecutionSequenceResponse(
     bool AwaitingReconciliation,
     Guid? OutstandingOperationId,
     IReadOnlyList<LocalExecutionSequenceStepResponse> Steps,
-    LocalExecutionSequenceFinalResponse? Final);
+    LocalExecutionSequenceFinalResponse? Final,
+    string AdmissionMode,
+    LocalExecutionQueueDisclosureResponse? Queue);

@@ -74,6 +74,7 @@ internal static class LocalExecutionInspectionProjection
                 : sequence.State == LocalExecutionSequenceState.Stopped ? 7
                 : sequence.State == LocalExecutionSequenceState.NeedsAttention ? 8
                 : sequence.State == LocalExecutionSequenceState.Interrupted ? 9
+                : sequence.State == LocalExecutionSequenceState.WaitingForAdmission ? 10
                 : 0,
             ((byte[])(object)sequence.ReasonCode!).Length <= ReasonByteBound ? sequence.ReasonCode : null,
             sequence.ReasonCode != null && ((byte[])(object)sequence.ReasonCode).Length > ReasonByteBound,
@@ -92,7 +93,10 @@ internal static class LocalExecutionInspectionProjection
                 : null,
             sequence.ArmedAtUtc,
             sequence.UpdatedAtUtc,
-            sequence.EndedAtUtc));
+            sequence.EndedAtUtc,
+            sequence.AdmissionMode == LocalExecutionAdmissionMode.Immediate ? 1
+                : sequence.AdmissionMode == LocalExecutionAdmissionMode.WaitForAdmission ? 2
+                : 0));
 
     /// <summary>The sequence revision alone, as a guarded positive safe integer, for the read-before/read-after comparison.</summary>
     public static IQueryable<long?> ProjectRevision(this IQueryable<LocalExecutionSequence> sequences) =>

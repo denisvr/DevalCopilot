@@ -10,6 +10,7 @@ import {
 } from './agentAttemptVerification'
 import type { RecordedVerificationStreamDescriptor, VerificationStream, VerificationStreamDescriptor, VerificationWindowAnswer } from './agentAttemptVerification'
 import {
+  LOCAL_EXECUTION_ADMISSION_MODES,
   LOCAL_EXECUTION_PLAN_AUTHORITIES,
   LOCAL_EXECUTION_REASON_CODES,
   LOCAL_EXECUTION_SEQUENCE_MAXIMUM_CORRECTIONS,
@@ -23,6 +24,7 @@ import {
   maximumLocalExecutionSteps,
 } from './localExecutionSequence'
 import type {
+  LocalExecutionAdmissionMode,
   LocalExecutionPlanAuthority,
   LocalExecutionReasonCode,
   LocalExecutionSequenceStateName,
@@ -85,6 +87,8 @@ export interface LocalExecutionInspectionHeader {
   armedAtUtc: string
   updatedAtUtc: string
   endedAtUtc: string | null
+  /** ADR-0062: the recorded, immutable admission mode. A recorded waiting state is bookkeeping, never current eligibility. */
+  admissionMode: LocalExecutionAdmissionMode
 }
 
 /** One recorded step. `operationId` is a recorded link, not proof of the operation or of any outcome. */
@@ -132,6 +136,7 @@ const HEADER_KEYS = [
   'armedAtUtc',
   'updatedAtUtc',
   'endedAtUtc',
+  'admissionMode',
 ] as const
 const STEP_KEYS = [
   'stepId',
@@ -204,6 +209,8 @@ function toHeader(raw: unknown): LocalExecutionInspectionHeader | null {
     || !isGuid(raw.checkpointId)
     || !isSha256(raw.fingerprintSha256)
     || !isOneOf(LOCAL_EXECUTION_SEQUENCE_STATES, recordedState)
+    || !isOneOf(LOCAL_EXECUTION_ADMISSION_MODES, raw.admissionMode)
+    || (recordedState === 'WaitingForAdmission' && raw.admissionMode !== 'WaitForAdmission')
     || !isLocalRevisionText(raw.revision)
     || BigInt(raw.revision) > BigInt(Number.MAX_SAFE_INTEGER)
     || !isInt(raw.recipeCount, 1, LOCAL_EXECUTION_SEQUENCE_MAXIMUM_RECIPES)
@@ -240,6 +247,7 @@ function toHeader(raw: unknown): LocalExecutionInspectionHeader | null {
     armedAtUtc: raw.armedAtUtc,
     updatedAtUtc: raw.updatedAtUtc,
     endedAtUtc: live ? null : (endedAtUtc as string),
+    admissionMode: raw.admissionMode,
   }
 }
 

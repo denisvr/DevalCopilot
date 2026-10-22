@@ -18,10 +18,16 @@ namespace DevalCopilot.Infrastructure.IntegrationTests.Persistence;
 public sealed class LocalExecutionSequenceMigrationTests : LocalExecutionSequenceMigrationTestBase
 {
     private static readonly string[] TableNames =
-        ["local_execution_sequence_recipes", "local_execution_sequence_steps", "local_execution_sequences"];
+    [
+        "local_execution_admissions",
+        "local_execution_order_counters",
+        "local_execution_sequence_recipes",
+        "local_execution_sequence_steps",
+        "local_execution_sequences",
+    ];
 
     [Fact]
-    public async Task The_upgrade_adds_three_tables_and_fifteen_guards_and_gives_no_historical_row_a_sequence()
+    public async Task The_upgrade_adds_five_tables_and_twenty_two_guards_and_gives_no_historical_row_a_sequence()
     {
         await MigrateToAsync(PriorMigration);
         Guid runId;
@@ -33,14 +39,14 @@ public sealed class LocalExecutionSequenceMigrationTests : LocalExecutionSequenc
             await seed.SaveChangesAsync();
         }
 
-        Assert.Empty(await ReadNamesAsync("table", "local_execution_sequence%"));
+        Assert.Empty(await ReadNamesAsync("table", "local_execution%"));
         Assert.Empty(await ReadNamesAsync("trigger", "trg_local_execution%"));
 
         await MigrateToAsync(null);
 
-        Assert.Equal(TableNames, await ReadNamesAsync("table", "local_execution_sequence%"));
+        Assert.Equal(TableNames, await ReadNamesAsync("table", "local_execution%"));
         Assert.Equal(TriggerNames, await ReadNamesAsync("trigger", "trg_local_execution%"));
-        Assert.Equal(15, TriggerNames.Length);
+        Assert.Equal(22, TriggerNames.Length);
         await using var verify = CreateContext();
         Assert.Empty(await verify.LocalExecutionSequences.AsNoTracking().ToListAsync());
         Assert.Empty(await verify.LocalExecutionSequenceRecipes.AsNoTracking().ToListAsync());
@@ -52,7 +58,7 @@ public sealed class LocalExecutionSequenceMigrationTests : LocalExecutionSequenc
     }
 
     [Fact]
-    public async Task The_reverse_migration_drops_exactly_the_three_tables_and_fifteen_guards_and_keeps_every_other_row()
+    public async Task The_reverse_migration_drops_exactly_the_five_tables_and_twenty_two_guards_and_keeps_every_other_row()
     {
         await MigrateToAsync(null);
         var tablesBefore = await ReadNamesAsync("table");
@@ -68,7 +74,7 @@ public sealed class LocalExecutionSequenceMigrationTests : LocalExecutionSequenc
 
         await MigrateToAsync(PriorMigration);
 
-        Assert.Empty(await ReadNamesAsync("table", "local_execution_sequence%"));
+        Assert.Empty(await ReadNamesAsync("table", "local_execution%"));
         Assert.Empty(await ReadNamesAsync("trigger", "trg_local_execution%"));
         Assert.Equal(tablesBefore.Except(TableNames).OrderBy(name => name), await ReadNamesAsync("table"));
         Assert.Equal(triggersBefore.Except(TriggerNames).OrderBy(name => name), await ReadNamesAsync("trigger"));
@@ -82,7 +88,7 @@ public sealed class LocalExecutionSequenceMigrationTests : LocalExecutionSequenc
 
         await MigrateToAsync(null);
         Assert.Equal(TriggerNames, await ReadNamesAsync("trigger", "trg_local_execution%"));
-        Assert.Equal(TableNames, await ReadNamesAsync("table", "local_execution_sequence%"));
+        Assert.Equal(TableNames, await ReadNamesAsync("table", "local_execution%"));
     }
 
     [Fact]
@@ -400,16 +406,16 @@ public sealed class LocalExecutionSequenceMigrationTests : LocalExecutionSequenc
 
         await AssertRefusedAsync(() => LocalExecutionSequence.Arm(
             Guid.NewGuid(), scene.Run.Id, scene.Run.ProjectId, other.Workspace.Id, other.Checkpoint.Id, Fingerprint, scene.PlanMessageId,
-            LocalExecutionPlanAuthority.AcceptedRoot, new string('b', 64), new string('c', 64), "s", 1, 2, Now));
+            LocalExecutionPlanAuthority.AcceptedRoot, new string('b', 64), new string('c', 64), "s", 1, 2, Now, NextCoordination()));
         await AssertRefusedAsync(() => LocalExecutionSequence.Arm(
             Guid.NewGuid(), scene.Run.Id, scene.Run.ProjectId, scene.Workspace.Id, other.Checkpoint.Id, Fingerprint, scene.PlanMessageId,
-            LocalExecutionPlanAuthority.AcceptedRoot, new string('b', 64), new string('c', 64), "s", 1, 2, Now));
+            LocalExecutionPlanAuthority.AcceptedRoot, new string('b', 64), new string('c', 64), "s", 1, 2, Now, NextCoordination()));
         await AssertRefusedAsync(() => LocalExecutionSequence.Arm(
             Guid.NewGuid(), scene.Run.Id, scene.Run.ProjectId, scene.Workspace.Id, scene.Checkpoint.Id, Fingerprint, other.PlanMessageId,
-            LocalExecutionPlanAuthority.AcceptedRoot, new string('b', 64), new string('c', 64), "s", 1, 2, Now));
+            LocalExecutionPlanAuthority.AcceptedRoot, new string('b', 64), new string('c', 64), "s", 1, 2, Now, NextCoordination()));
         await AssertRefusedAsync(() => LocalExecutionSequence.Arm(
             Guid.NewGuid(), scene.Run.Id, other.Run.ProjectId, scene.Workspace.Id, scene.Checkpoint.Id, Fingerprint, scene.PlanMessageId,
-            LocalExecutionPlanAuthority.AcceptedRoot, new string('b', 64), new string('c', 64), "s", 1, 2, Now));
+            LocalExecutionPlanAuthority.AcceptedRoot, new string('b', 64), new string('c', 64), "s", 1, 2, Now, NextCoordination()));
     }
 
     [Theory]

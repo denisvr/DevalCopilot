@@ -235,6 +235,11 @@ coherent host Exited evidence stays an owner), and every provider-contract bound
 recorded cycle (index, one selected step, one sealed verification stream window; current run and run history). It completes no
 increment, grants and changes no authority and leaves queueing, process-aware release, replay and every provider-contract boundary open.
 
+**Queued local execution (partial, under review).** ADR-0062 / LOCAL-QUEUE-01 adds an explicitly queued intake mode for that cycle:
+a durable pending admission, a coordinator-owned reservation of the oldest eligible admission before external preparation, ownership
+accounting in every existing entrance, truthful waiting disclosure and a startup that never resumes waiting work. It completes no
+increment, adds no priority, executor lease, retry, takeover or process-aware release, and leaves every provider-contract boundary open.
+
 **Agent supervision observations (partial).** ADR-0056 / AGENT-SUP-01 adds, for all seven existing Agent response contracts, a
 durable disclosure of what the host's own observer last reported for the current Agent attempt (phase, last report, absolute deadline,
 first attention) with an independent bounded sweep and startup closure of a previous host's observations. It is operational evidence

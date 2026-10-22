@@ -1668,10 +1668,177 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                     b.ToTable("local_commit_operations", (string)null);
                 });
 
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.LocalExecutionAdmission", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("AdmissionNumber")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("EnqueuedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Ordinal")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("PassNumber")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid?>("PredecessorStepId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReasonCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("RecipeOrdinal")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid?>("ReportMessageId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("SequenceId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("SourceCheckpointId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceFingerprintSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("StepId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("SubjectAttemptId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("WaitingReason")
+                        .IsRequired()
+                        .HasMaxLength(48)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("WaitingReasonRecordedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AdmissionNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ix_local_execution_admissions_number");
+
+                    b.HasIndex("PredecessorStepId");
+
+                    b.HasIndex("ReportMessageId");
+
+                    b.HasIndex("SequenceId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_local_execution_admissions_outstanding")
+                        .HasFilter("\"State\" IN ('Waiting', 'Reserved')");
+
+                    b.HasIndex("SourceCheckpointId");
+
+                    b.HasIndex("State")
+                        .HasDatabaseName("ix_local_execution_admissions_state");
+
+                    b.HasIndex("StepId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_local_execution_admissions_step")
+                        .HasFilter("\"StepId\" IS NOT NULL");
+
+                    b.HasIndex("SubjectAttemptId");
+
+                    b.HasIndex("SequenceId", "Ordinal")
+                        .IsUnique()
+                        .HasDatabaseName("ix_local_execution_admissions_ordinal");
+
+                    b.ToTable("local_execution_admissions", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_local_execution_admissions_fingerprint", "length(\"SourceFingerprintSha256\") = 64 AND \"SourceFingerprintSha256\" NOT GLOB '*[^0-9a-f]*'");
+
+                            t.HasCheckConstraint("ck_local_execution_admissions_kind", "\"Kind\" IN ('Implementation', 'Verification', 'CodeReview', 'VerificationDiagnosis', 'ReviewCorrection', 'DiagnosisCorrection')");
+
+                            t.HasCheckConstraint("ck_local_execution_admissions_number", "typeof(\"AdmissionNumber\") = 'integer' AND \"AdmissionNumber\" >= 1");
+
+                            t.HasCheckConstraint("ck_local_execution_admissions_ordinal", "typeof(\"Ordinal\") = 'integer' AND \"Ordinal\" BETWEEN 0 AND 101");
+
+                            t.HasCheckConstraint("ck_local_execution_admissions_pass", "\"PassNumber\" BETWEEN 0 AND 3");
+
+                            t.HasCheckConstraint("ck_local_execution_admissions_reason", "(\"State\" IN ('Retired', 'Unresolved')) = (\"ReasonCode\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_local_execution_admissions_revision", "\"Revision\" >= 1");
+
+                            t.HasCheckConstraint("ck_local_execution_admissions_shape", "((\"Kind\" = 'Implementation') = (\"PassNumber\" = 0)) AND ((\"Kind\" = 'Implementation') = (\"Ordinal\" = 0)) AND ((\"Kind\" = 'Verification') = (\"RecipeOrdinal\" IS NOT NULL)) AND ((\"Kind\" = 'Implementation') = (\"PredecessorStepId\" IS NULL)) AND ((\"Kind\" = 'Implementation') = (\"ReportMessageId\" IS NULL)) AND ((\"Kind\" IN ('ReviewCorrection', 'DiagnosisCorrection')) = (\"SubjectAttemptId\" IS NOT NULL))");
+
+                            t.HasCheckConstraint("ck_local_execution_admissions_state", "\"State\" IN ('Waiting', 'Reserved', 'Consumed', 'Retired', 'Unresolved')");
+
+                            t.HasCheckConstraint("ck_local_execution_admissions_step_link", "(\"State\" NOT IN ('Reserved', 'Consumed', 'Unresolved') OR \"StepId\" IS NOT NULL) AND (\"State\" <> 'Waiting' OR \"StepId\" IS NULL)");
+
+                            t.HasCheckConstraint("ck_local_execution_admissions_waiting_reason", "\"WaitingReason\" IN ('AwaitingAdmissionCheck', 'WaitingForWorkspace', 'WaitingForCapacity', 'WaitingForEarlierEligibleWork', 'WaitingForPreparationCapacity', 'Unavailable')");
+                        });
+                });
+
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.LocalExecutionOrderCounter", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("LastNumber")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("local_execution_order_counters", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_local_execution_order_counters_last", "typeof(\"LastNumber\") = 'integer' AND \"LastNumber\" >= 0");
+
+                            t.HasCheckConstraint("ck_local_execution_order_counters_revision", "\"Revision\" >= 0");
+
+                            t.HasCheckConstraint("ck_local_execution_order_counters_singleton", "\"Id\" = 1");
+                        });
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            LastNumber = 0L,
+                            Revision = 0L
+                        });
+                });
+
             modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.LocalExecutionSequence", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AdmissionMode")
+                        .IsRequired()
+                        .HasMaxLength(32)
                         .HasColumnType("TEXT");
 
                     b.Property<DateTimeOffset>("AdvancementDeadlineUtc")
@@ -1687,6 +1854,9 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("TEXT");
+
+                    b.Property<long>("CoordinationNumber")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("CorrectionAllowance")
                         .HasColumnType("INTEGER");
@@ -1765,6 +1935,10 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CheckpointId");
 
+                    b.HasIndex("CoordinationNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ix_local_execution_sequences_coordination");
+
                     b.HasIndex("FinalEscalationMessageId")
                         .IsUnique()
                         .HasDatabaseName("ix_local_execution_sequences_final_escalation")
@@ -1794,17 +1968,23 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("ck_local_execution_sequences_confirmation", "length(\"ConfirmationSha256\") = 64 AND \"ConfirmationSha256\" NOT GLOB '*[^0-9a-f]*'");
 
+                            t.HasCheckConstraint("ck_local_execution_sequences_coordination", "typeof(\"CoordinationNumber\") = 'integer' AND \"CoordinationNumber\" >= 1");
+
                             t.HasCheckConstraint("ck_local_execution_sequences_final", "(\"State\" = 'ReadyForHumanApproval') = (\"FinalReviewAttemptId\" IS NOT NULL) AND (\"State\" = 'HumanEscalation') = (\"FinalEscalationMessageId\" IS NOT NULL) AND (\"State\" IN ('ReadyForHumanApproval', 'HumanEscalation')) = (\"FinalReportMessageId\" IS NOT NULL)");
 
                             t.HasCheckConstraint("ck_local_execution_sequences_fingerprint", "length(\"FingerprintSha256\") = 64 AND \"FingerprintSha256\" NOT GLOB '*[^0-9a-f]*'");
 
+                            t.HasCheckConstraint("ck_local_execution_sequences_mode", "\"AdmissionMode\" IN ('Immediate', 'WaitForAdmission')");
+
                             t.HasCheckConstraint("ck_local_execution_sequences_plan_inputs", "length(\"PlanInputsSha256\") = 64 AND \"PlanInputsSha256\" NOT GLOB '*[^0-9a-f]*'");
+
+                            t.HasCheckConstraint("ck_local_execution_sequences_queue_state", "\"AdmissionMode\" = 'WaitForAdmission' OR \"State\" <> 'WaitingForAdmission'");
 
                             t.HasCheckConstraint("ck_local_execution_sequences_recipes", "\"RecipeCount\" BETWEEN 1 AND 32");
 
                             t.HasCheckConstraint("ck_local_execution_sequences_revision", "\"Revision\" >= 1");
 
-                            t.HasCheckConstraint("ck_local_execution_sequences_state", "\"State\" IN ('Armed', 'PreparingStep', 'AwaitingStepResult', 'Stopping', 'ReadyForHumanApproval', 'HumanEscalation', 'Stopped', 'NeedsAttention', 'Interrupted')");
+                            t.HasCheckConstraint("ck_local_execution_sequences_state", "\"State\" IN ('Armed', 'PreparingStep', 'AwaitingStepResult', 'Stopping', 'ReadyForHumanApproval', 'HumanEscalation', 'Stopped', 'NeedsAttention', 'Interrupted', 'WaitingForAdmission')");
                         });
                 });
 
@@ -2892,6 +3072,42 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .HasForeignKey("RunId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.LocalExecutionAdmission", b =>
+                {
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.LocalExecutionSequenceStep", null)
+                        .WithMany()
+                        .HasForeignKey("PredecessorStepId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.CollaborationMessage", null)
+                        .WithMany()
+                        .HasForeignKey("ReportMessageId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.LocalExecutionSequence", null)
+                        .WithMany()
+                        .HasForeignKey("SequenceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DevalCopilot.Domain.Features.Projects.GitCheckpoint", null)
+                        .WithMany()
+                        .HasForeignKey("SourceCheckpointId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.LocalExecutionSequenceStep", null)
+                        .WithMany()
+                        .HasForeignKey("StepId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.Attempt", null)
+                        .WithMany()
+                        .HasForeignKey("SubjectAttemptId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.LocalExecutionSequence", b =>

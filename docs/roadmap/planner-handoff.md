@@ -1,204 +1,324 @@
 # Planner/reviewer handoff
 
-## Current action: LOCAL-INSPECT-01
+## Current action: LOCAL-QUEUE-01
 
-Codex selected **LOCAL-INSPECT-01**, resolved in accepted
-[ADR-0061](../decisions/0061-inspect-the-recorded-steps-of-one-local-execution-sequence.md).
-Correction 1 passed **review 2: GO**, limited to the exact content identified in
-`logs/planner-review/local-inspect-01/review-02/publication-go.json` and the
-complete publication prompt. Publication belongs to the **same LOCAL-INSPECT-01
-Claude executor chat**. LOCAL-COORD-01 and its corrections
-are complete and independently published; do not reopen them. Codex retains
-architecture, selection, review and final GO. No subagent or executor research
-decided this selection or review judgment.
+Codex selected **LOCAL-QUEUE-01**, resolved in accepted
+[ADR-0062](../decisions/0062-queue-explicitly-authorized-local-execution-before-admission.md).
+Correction 3 is **reviewed GO (review 4)** for the exact approved content.
+Publish in the **same LOCAL-QUEUE-01 Claude executor chat**, then return the
+publication report for independent verification. The LOCAL-INSPECT-01 chat and slice are
+complete; do not reopen them.
+Codex performed architecture, selection and final planning judgment itself;
+no subagent or executor research decided them. The publication prompt's exact
+content identity and preconditions bound this GO; selection alone grants no commit/push.
 
-### Verified baseline and planner inputs
+### Verified delivery and planner inputs
 
-Before the next slice's planner inputs, Git was clean on main. HEAD, local
-origin/main and freshly queried live refs/heads/main were
-**2912490aed8b3e116fb2b0ef744bf80ad6c62a03**, tree
-`a51db1ec6fbd82e657422f1d8b86035b73a84183`, sole parent
-`7c78c849fdd556ecf3a539dce479e31fc3cc501b`, divergence 0/0 and real index empty.
-The published 313 paths (124 M, 189 A) match the approved inventory SHA-256
-`06abb4b73a98549a03c25fd730c3ec07b07e40503acaeed370d8e2d2a00a7ac9`.
-Independent records: `logs/planner-review/local-coord-01/publication-verification.json`
-and `.md`. Do not reopen that slice or create a publication closure commit.
-The historical records below retain their preparation-phase wording.
+LOCAL-INSPECT-01 is independently verified published on main as
+**c1e9392161ca8d62ffc157e8a74a7ae0e7e625b1**, tree
+`895631a0be5cbd5fdb0aa22ca39b283a2dbe4c66`, sole parent
+`2912490aed8b3e116fb2b0ef744bf80ad6c62a03`. HEAD, local origin/main and fresh
+live refs/heads/main matched; divergence 0/0, real index and working tree clean.
+Its exact 100 paths (74 A, 26 M) match the review-2 GO inventory and tree.
+Records: `logs/planner-review/local-inspect-01/publication-verification.json`
+and `.md`. LCI-R1 and LCI-R2 are resolved. Do not reopen it or make a closure
+commit. Historical checkpoint wording records its preparation phase.
 
-Review preflight independently confirmed main, HEAD, local origin/main and the
-fresh live ref at the baseline above, divergence 0/0 and real index empty.
-The corrected implementation has **100 pending paths: 26 modified and 74 new**,
-including the three preserved planner inputs (this handoff,
-docs/decisions/README.md and ADR-0061). All remain unstaged, uncommitted and
-unpushed. Review 1 had 92 paths (21 modified, 71 new). The eight additions to
-that inventory are three shared projection/row files, two existing ADR-0052
-test files and the three split helpers; no unrelated files were found. Final
-reviewer edits are documentation and ignored evidence only. One temporary
-compiling mutation was restored byte-for-byte and rebuilt; no product
-correction, real-index staging or publication occurred in review.
+Review 1 preflight confirmed main, HEAD and local origin/main at that baseline,
+divergence 0/0 and real index empty. The incoming diff has **149 paths: 101
+modified and 48 new**, including the preserved planner inputs (this handoff,
+docs/decisions/README.md and ADR-0062). Final reviewer edits are documentation
+and ignored evidence only. Temporary tests were retained by matching hash and
+removed before recompiling permanent tests. No product correction, staging,
+commit or push occurred in review.
 
-Codex continuity: **CONTINUE_THIS_CHAT**, observed current-thread token_count
-at 2026-10-21T21:10:27.458Z: last usage 203529 / declared window 475000 = 42.85%.
-Source: `logs/planner-review/local-coord-01/continuity-after-publication.json`.
-This is neither account quota nor cumulative session tokens. Older 63.98% and
-17.01% observations are historical. This was the post-publication observation,
-not a new measurement during this active review. Claude continuity is separate:
-the selected slice and all its corrections stay in its current executor chat.
-No self-addressed continuation prompt is needed.
+Codex continuity is **CONTINUE_THIS_CHAT**: observed token_count at
+2026-10-22T14:48:49.232Z, last context 119598 / declared window 475000 = 25.18%.
+Source: `logs/planner-review/local-inspect-01/continuity-after-publication.json`.
+This is not account quota or cumulative session usage. Older percentages are
+historical; Claude continuity is separate. No self-addressed prompt is needed.
 
-### Review 2 decision and finding dispositions
+### Review 4: correction 3 GO, publication pending
 
-**GO for the identified reviewed content only.** LCI-R1 and LCI-R2 are resolved.
+All findings are resolved: LCQ-R1 through LCQ-R4, LCQ-V1 and LCQ-V2. The final
+SweepCompletion helper establishes loop completion, snapshots the inventory and
+observation Tasks and awaits their terminal completion, including scope disposal.
+Missing or unexpected bookkeeping fails explicitly. Both stopped sweeps use it;
+the scope counter is supplementary. The gated permanent regression and control 9
+cover the earlier false zero-count proof. No production shutdown change occurred.
 
-- **LCI-R1 (P2), resolved.** Both shared projections read at most eight stored
-  truncation bytes and a presence flag. Only null and the canonical digit 0/1
-  shapes are admitted. Permanent tests cover malformed integers, REAL, TEXT,
-  BLOB and oversized values, canonical values, sibling isolation and refusal
-  before artifact reads in the new and existing ADR-0052 consumers, plus the
-  protected API. This narrowly repairs the inherited defect without a schema
-  change, duplicated reader policy or weaker evidence admission.
-- **LCI-R2 (P3), resolved.** `CountingArtifactStore`, `RecordingArtifactStore`
-  and `StatementLog` have their own matching files with unchanged behavior.
-  A lexical scan of the 65 pending C# files finds no multiple top-level types.
+Final independent completion/contention tests rebuild and pass 7/7 (36 s).
+Executor final affected supervision/fixture classes pass 250/250 and Architecture
+192/192. The complete clean API result 3265/3265 is retained at its actual
+pre-completion-follow-up test scope under review 3's explicit proportional matrix
+revision; do not present it as a full run of the new completion tests. Application
+7905/7905, Persistence/transactions 750/750, Domain 1757, frontend 7399/tooling
+and the four serial journeys retain their recorded scopes and limitations.
 
-Fresh independent review: four affected Application consumer classes **281/281**,
-protected API storage class **8/8**, full Architecture **192/192**. A compiling
-reviewer mutation restoring malformed-value normalization fails seven of the
-12 named stream-metadata cases; original bytes and hashes match after restore,
-and the same 12 cases pass after recompilation. Commands and original outputs
-are under `logs/planner-review/local-inspect-01/review-02/`. The executor's
-correction matrix has retained passing outputs for selected Application
-**381/381**, API **152/152** and Architecture **192/192**, with its preceding
-20 Application and three API red failures kept separately. Its reported
-22/55 mutation outcome lacks a separate original output locally; the independent
-compiling control supplies fresh retained evidence without reconstructing it.
+Verified prepublication: main; HEAD, local origin/main and live refs/heads/main
+all c1e9392161ca8d62ffc157e8a74a7ae0e7e625b1; 0/0; real index empty; 167 paths
+(107 modified, 60 added), all explained by the selected slice and corrections.
+No reviewer temporary test remains. Hygiene checked 245 local link targets in
+10 pending documents, no missing targets or conflict markers; diff check passes.
+The approved path list and tree identity are external to this tracked content
+under `logs/planner-review/local-queue-01/review-04/` and in the GO prompt.
 
-Review 1 and its four failing temporary probes remain recorded under
-`logs/planner-review/local-inspect-01/review-01/`. Its independent selected
-Application 350, API 149 and frontend 241 passes keep their actual scopes.
-Its first frontend invocation executed zero tests due to a missing sandbox
-temporary Vite file; that failure is retained separately. No full Application
-or API pass is claimed.
+The failed/interrupted attempts remain historical evidence. The old Git burst
+and database lock holder remain unidentified; the six-error build had no captured
+log. Formatter debt, full Infrastructure/provider/native limits and CI/security/
+release gates are unchanged. No content edit or closure commit is part of the
+authorized publication. After the normal fast-forward push, independently verify
+commit/tree/sole parent/path inventory/live ref/clean state and assess chat
+continuity from current observed usage before selecting another slice.
 
-Executor challenges resolved: retain typed GUID/time materialization and the
-normal fault pipeline permitted by ADR-0061; no blanket raw-byte rewrite is
-required. NoOperation's null payloads follow the contract. Extending the existing
-local-execution journey is accepted; no second full-cycle journey is required.
-The two narrow frontend extractions, test inventories and test-only ArtifactRoot
-property are within scope. The surviving equivalent index mutant remains a
-non-kill. The inherited truncation concern is accepted and resolved by LCI-R1,
-not attributed to this slice's introduction. The planner corrects the ADR index
-status. No new owner authority or architectural reversal is needed.
+### Review 3: correction 2 dispositions and remaining completion proof (historical)
 
-Unchanged frontend, client and journey evidence is retained at its actual scope.
-Complete first-return suite logs absent locally remain reported results, not
-reconstructed originals. Failed journeys, equivalent controls and all previous
-qualifications remain. The reviewer added exact independent commands/results
-and phase/evidence qualifications to current-work.md; these are documentation
-edits, not new product scope. Publication must verify the explicit approved
-100-path set, expected tree and sole parent from the external GO record,
-then normally fast-forward main and verify the live remote. Any content/state
-mismatch or failed/diverged push stops publication; no force or reconciliation
-is authorized. No separate closure-document commit is required.
+Git remains main/c1e9392, local origin/main equal, 0/0, index empty. There are
+165 pending paths (107 modified, 58 new); the five additions to the pending set
+since review 2 are the expected stdin-helper and supervision-test changes.
 
-### Outcome and sizing decision
+LCQ-R1 through LCQ-R4 and LCQ-V1 remain resolved. LCQ-V2's stdin helper is
+resolved: output drains start first, early refusal remains observable, and the
+permanent successful-invocation negative case rejects undelivered stdin.
+The full API run is now complete and green, 3265/3265. Independent fixture/
+contention classes pass 219/219; after removing the temporary reviewer probe,
+the permanent affected tests rebuild and pass 6/6. Preserve the unproven prior
+Git burst/database holder and the unlogged six-error build as qualifications.
 
-The owner can open the recorded local execution cycle, select its exact step
-and inspect its operation and evidence, from either the current run or run
-history. The present cycle view shows identifiers and bookkeeping only; Agent
-history has the detail but no step navigation. Existing ADR-0052 verification
-windows require a review/diagnosis membership and cannot show an earlier failed
-verification when that next attempt never started. Deliver this missing
-inspection path end to end, including truthful refusal states and lifetimes.
+**LCQ-V2 remains NO-GO only for the sweep-call completion proof.** A gated
+reviewer test starts a real sweep, pauses scope acquisition, stops the loop and
+observes its still-pending inventory Task. Active is zero and WhenIdleAsync
+returns completed while that Task is held. TrackingScopeFactory counts scopes
+after inner.CreateScope returns; a call queued before entering CreateScope is
+also outside that count. The counter is useful evidence for created scopes,
+but zero does not prove every pending call has ended. Moving the increment
+earlier covers only acquisition, not the queued-task case.
 
-This is one coherent bounded outcome: index, selected operation, existing Agent/
-message readers, verification sealed windows and current/historical UI. Splitting
-it into a reference-only panel and later content work would leave the navigation
-gap unresolved. A general replay graph, durable queue and process-aware recovery
-have different unresolved authority/proof requirements and are not included.
-No broader mutating authority is inferred from the local-cycle grant.
+Use a test-owned completion helper: establish the sweep loop's ExecuteTask has
+ended, snapshot its pending inventory and observation Tasks, then await those
+Tasks (which include scope disposal) under a separate finite teardown bound.
+Test-only reflection of these private Task fields is accepted here to observe
+owned work without adding a production API or changing shutdown semantics;
+missing/unexpected fields must fail the test, never fall back to count zero.
+Adapt the retained gated probe into a permanent regression: draining must stay
+pending while the gate is held, then complete after release. Cover both stopped
+sweeps before deleting the harness database. Keep the stop stopwatch/contract,
+event/Attempt assertions and conservative production behavior unchanged.
 
-### Resolved scope and boundaries
+The exact probe, failing output and removal hash are under review-02's
+correction2 files; review-03/review-03.md records this decision. The probe was
+removed and permanent API binaries rebuilt. No production correction occurred.
 
-- Three protected bodyless MVC queries under the ADR-0061 routes: recorded
-  index, selected step inspection and one verification stdout/stderr window.
-  Closed API-owned graphs, fixed errors and reproducible generated client.
-- Bounded untracked, guarded scalar reads: at most 103 steps/33 recipes,
-  actual recipe-dependent bound, exact structure/ownership/source references,
-  historical identity rather than latest/current eligibility. A corrupt
-  structural set is Unavailable as a whole, never a plausible partial index.
-- Selected Agent links prove their exact step/run/source/contract and return
-  the existing admitted immutable header. Reuse/extract the existing selected
-  Agent and message detail UI/readers; preserve their consumers and contracts.
-- Verification proves exact pinned snapshot, including ordered arguments,
-  with internal byte caps before materialization. Metadata exposes no paths,
-  arguments, hashes or bytes. The selected sealed stream re-proves association
-  before IArtifactStore.VerifyAndReadSealedAsync; ADR-0052's existing integrity,
-  storage admission, descriptor, cursor and 256-KiB view limits remain.
-- One collapsed explicit inspection panel in the current run and selected
-  historical run. One selected step/operation/stream visit owns each request,
-  callback and result. Explicit reads only, no polling/retry/prefetch/drain,
-  cross-lifetime persistence or effects on the live control reader/fences.
-- Update engineering-context, the inspection architecture companion, cockpit
-  specification and roadmap to describe this bounded inspection and preserve
-  incomplete MVP/qualification status. current-work becomes the executor's
-  implementation-for-review record, without anticipating publication.
+**Explicit validation revision:** because correction 2 now has a clean full API
+run on unchanged production sources, this remaining test-only completion fix
+needs permanent red/green gate coverage, the complete affected supervision
+classes and Architecture. Retain API 3265/3265 at its actual pre-follow-up test
+source scope and the already valid Application, Persistence, frontend and
+journey evidence. Do not repeat the entire API matrix for this narrow follow-up
+unless shared production/executable harness changes or new failures justify it.
+This supersedes review 2's requirement for another full API run after each
+test-only correction; CI/security/release gates remain. Return unstaged,
+uncommitted and unpushed in the same executor chat; no GO exists.
 
-No schema/Domain change, admission/dispatch/coordinator/result/startup change,
-current-status contract change, new process/Git/provider/filesystem-source read,
-queue, lease, release, retry, cancellation, takeover, export, automatic approval,
-commit or publication is selected. Only the existing sealed artifact boundary
-may read artifact bytes on explicit window requests. Shared code extraction is
-limited to primitives with identical owners/contracts; no generic graph engine,
-gateway, repository or broad historical-inspector refactor. A conflict requiring
-these changes is a concrete design challenge, not permission to broaden scope.
+### Review 2: correction 1 dispositions and LCQ-V2 boundary (historical)
 
-### Proportional validation
+Review 2 confirms main, HEAD and local origin/main at c1e9392, divergence 0/0,
+empty index and 160 pending paths (104 modified, 56 new). The additional new
+file since the 55-file checkpoint is LocalExecutionStepTicketFactory.cs; it
+is expected, not unexplained inventory. ADR-0062 retains its reviewed hash.
 
-Use real file-backed SQLite and existing feature-owned scenes with isolated
-tests. At Application: empty/not-recorded/reserved/unresolved/claimed/concluded,
-all six step kinds, exact/cross-run/cross-source/foreign-contract links, gaps/
-duplicates/extra rows, unknown enums, oversized fields, recipe-argument drift,
-independent stream metadata failures and all sealed window outcomes. Prove
-historical reads survive legitimate newer runs/checkpoints/recipe changes.
-Prove no writes/events, no admission/dispatch calls, no artifact reads for
-metadata or refused windows, and only the selected stream for an admitted one.
+**LCQ-R1, LCQ-R2, LCQ-R3, LCQ-R4 and LCQ-V1 are resolved.** The shared
+historical identity proof now gates retirement and exact self-exclusion. The
+recipe omission is refused, and both reservation paths use the factory that
+fills the pinned recipe for Verification and null for Agent steps. Downgrade
+refuses held admissions before persistent changes. The advancing feed has a
+fixed high-water, RowExtensions is split, and the owned-gate browser journey
+proves waiting behind a real owner, zero cycle invocations while waiting,
+release-driven progress and reload without step-start requests. Startup's
+no-resume control and the accepted mode-visit-key control cover their hazards.
 
-API: complete auth/body/query/identity/error/closed-wire matrix for all three
-operations and representative integrated step/window reads. Frontend: exact
-wire/owner/step/stream admission, explicit network budgets, no implicit content
-load, retained callbacks/late responses, reload/close/A-B-A and historical/current
-isolation. Include absence of mutation requests and unchanged live fences.
+Independent reviewer checks: Application queue 104/104; protected API queue/
+startup 17/17; migration 35/35; queue panel 6/6. Source, logs and restoration
+records are under `logs/planner-review/local-queue-01/review-01/` (correction1
+files); the decision is under `review-02/review-02.md`. The temporary API probe
+is retained by hash and removed; permanent API tests were rebuilt afterwards.
 
-Three serial compiling controls kill named tests: loosen the exact step owner/
-source proof; skip pinned verification arguments before window read; drop a
-frontend ended-owner guard. Keep failed/invalid attempts separately, restore
-hashes, touch restored files and rebuild before final evidence. No hash proves
-a historical binary.
+**LCQ-V2 (P2), final API validation: NO-GO.** final3-api.log is a complete
+failed run (3260 passed, 2 failed), not a clean final matrix. A deterministic
+reviewer probe reproduces the stdin helper defect: an ownership refusal occurs
+before stdin is read, and a write larger than the pipe buffer raises IOException
+in ProviderFixtureContractTests.Run instead of returning the refusal result.
+Correct the test helper so expected early refusal remains observable, preserving
+exit/output/no-effect assertions and exposing unexpected stdin delivery failure
+on successful invocations. Do not make the fixture accept or read unowned input.
 
-Final matrix once on stable sources: relevant feature Application tests plus
-existing Agent inspection/message/window consumers of any extracted code;
-new API operation classes plus their existing bodyless/auth inventory and
-affected historical inspection classes; full architecture; whole Vitest,
-lint/build and strict e2e TypeScript; generated-client reproducibility; changed
-format/diff/document-link checks. Run an authenticated sequence-inspection
-journey through the real host (Agent and verification detail/windows, historical
-reopen, no extra execution request). Run existing local-execution, collaboration
-and planning-sequence journeys serially if shared current-cockpit wiring changes.
-No real provider is required or authorized.
+The other failure is database deletion during planning-harness teardown in
+AgentSupervisionContentionTests. The source permits sweep-owned calls to outlive
+bounded StopAsync; the test does not prove all such calls/scopes have settled
+before deletion. This is an identified lifecycle gap, not proof of the failed
+run's exact lock holder. Diagnose with owned-work/completion evidence, then fix
+test lifetime if confirmed. Keep the production stop bound and every durable
+event/outcome assertion. Do not hide deletion failures, add blind sleeps or
+change production shutdown/ownership semantics. If evidence shows a different
+cause, report it before broadening the correction.
 
-Broaden to full Application/API only if shared admission/transaction/lifecycle,
-host/auth/global wire behavior or evidence policies used outside enumerated
-inspection consumers change, or failures leave impact uncertain. No automatic
-whole Infrastructure/Domain/native/provider campaign; mandatory CI/security and
-release checks remain. Retain unaffected published evidence at its actual scope.
+This is a bounded test-validation correction of the same slice, not a new
+product feature. Preserve the interrupted Git-failure attempt, its unproven
+cause, the standalone LocalCommit 787/787 diagnostic and the three isolated
+passes of the two failing tests. Passing alone does not resolve the lifecycle
+gaps. Add permanent deterministic regressions, run affected classes, Architecture
+and one full API suite on final sources. Retain final Application 7905/7905,
+Persistence/transaction 750/750, frontend and the four final journeys if their
+inputs remain unchanged; repeat journeys only if executable harness changes
+invalidate them. No blanket matrix restart, temp cleanup, skip or publication.
 
-Preserve every historical failure/qualification, the unchanged formatter debt,
-ADR-0050 Proposed, P9 unproven, AI Memory deferred and Increments 4/5/6 incomplete.
-All frozen native/profile/helper/credential evidence and spent allowances in
-the standing constraints below remain untouched. The slice was returned
-unstaged, uncommitted and unpushed for review. Selection itself grants no
-publication authority; only review 2's explicit content-bound GO does.
+### Review 1: NO-GO and correction boundary (historical)
+
+- **LCQ-R1 (P2), reservation identity.** Retirement does not prove full run/
+  project/workspace/checkpoint ownership: moving only runs.ProjectId to another
+  valid project makes Stop, expiry and startup retire the reservation despite
+  the mismatch. Prove coherence and preserve unresolved ownership instead.
+  ProveOwnAsync also ignores ticket source/input identity: an otherwise exact
+  ticket with a different source gets Idle self-exclusion. Correct ownership,
+  retirement and exact self-exclusion together, with permanent regressions.
+  No successful forged operation dispatch is claimed; ordinary claim validation
+  is a separate defense and does not make this proof complete.
+- **LCQ-R2 (P2), unsafe downgrade.** Down drops admissions unconditionally.
+  Independent tests show successful downgrade with the table gone for Reserved
+  and Unresolved reservations. Reject before dropping guards or durable changes
+  while held/untrustworthy authority cannot be represented by the old schema;
+  add no release action. Prove unchanged data/guards/history on refusal and keep
+  safe waiting/historical reversals.
+- **LCQ-R3 (P2), finite advancing sweep.** Waiting observation has a high-water,
+  but GetAdvanceableLocalExecutionSequencesQuery/advanceCursor do not. Continuous
+  arrivals can keep pages full and prevent revisiting older preparing/claimed/
+  stopping records. Carry a fixed high-water through this sweep too and test
+  revisits/deadlines with arrivals, not just a finite page of more than 32 rows.
+- **LCQ-R4 (P3), one type per file.** Move RowExtensions out of the new
+  LocalExecutionQueueMigrationTests.cs into its matching file, preserving
+  namespace/behavior. It is the sole multi-type file found among 115 pending
+  C# files; separate partial declarations are not violations.
+- **LCQ-V1 (P2), selected contention evidence.** The single-cycle journey never
+  waits behind an owner. Complete the dispatched held-owner/zero-waiting-
+  invocation/release/progression/reload journey, using a production-created
+  verification owner in another owned test project at limit one if convenient.
+  Keep the fixed provider-root name and isolated invocation; neither prevents
+  this proof. Also add a compiling startup control leaving a queued sequence
+  advanceable across startup. Omitting retirement while the sequence still
+  becomes Interrupted cannot exercise resumption; retain that control as valid
+  supplementary evidence.
+
+Independent results: permanent Application queue **71/71**, protected API queue/
+startup **17/17**, frontend queue/sequence consumers **291/291**. Six reviewer
+probes fail on R1/R2. Their initial compile failure was an incorrect reviewer
+import (zero tests); it stays separate. Exact retained probe, failed outputs,
+restoration identity and passing fresh recompilation without the probe are under
+`logs/planner-review/local-queue-01/review-01/`.
+
+Executor challenges: accept the mode-visit-key mutation as the frontend ownership
+control; no replacement needed. Accept separate Playwright invocations and
+targeted reruns after test-only list fixes at their actual scope. These waive
+neither the held-owner journey nor startup resumption control. Full Application
+7871/7872 and Infrastructure 3360 passed / 3 failed / 4 skipped remain failed
+original runs, not clean full reruns. Keep invalid CS9113 and build failures;
+CS2012 names a possible Defender lock, not a proven cause. Formatter debt and
+every earlier qualification remain untouched.
+
+Correct in the same chat. Start with permanent red/green regressions. Shared
+proof/gate changes require full Application/API once on final sources; migration
+changes require full Persistence plus affected transaction classes, not every
+Infrastructure adapter. Run Architecture and changed frontend/harness consumers,
+the contention journey and serial coexistence journeys when the shared harness
+changes. Retain unaffected evidence at its scope; record exact commands/timings
+and original failures. Return unstaged, uncommitted and unpushed. No GO exists.
+
+### Owner authority and coherent outcome
+
+On 2026-10-22 the owner explicitly answered **Authorize that bounded local
+queue**: design and select an opt-in queue of existing local cycles, pinning
+plan/source/verification/settings/budgets, revalidating after workspace/capacity
+waiting within the original two hours, with restart closure and no operation
+resume/redispatch. Quarantine release, process cancellation, extra corrections,
+Human approval, commit and publication remain excluded. This is design and
+implementation-selection authority, not running a product cycle or an experiment.
+
+The user can confirm one cycle now, see why its next step is waiting, stop it
+before a claim, and have the original host admit it when the exact authority
+and ordinary guards hold. A mere visible queue would leave the reservation-to-
+claim race unresolved. Intake, pending descriptors, fair eligible selection,
+pre-claim reservation/atomic transfer, lifecycle and both-region disclosure are
+therefore one coherent slice. Process-aware recovery, all-manual-operation
+queueing and provider/session work require different proofs and stay outside it.
+
+### Resolved implementation boundary
+
+- Preserve Immediate behavior and confirmations. Add explicit queue availability
+  and POST routes from ADR-0062 with separate mode-bound confirmation and strict
+  wire guards. Queue only the existing ManualAgent accepted-plan cycle; at most
+  64 live queued cycles per database. Recorded source is checked physically
+  when preparation starts, never observed through a competing workspace writer.
+- Persist mode, pending admissions and stable order. Use a feature-owned
+  coordination counter and bounded keyset host observation; no unbounded
+  historical loads or oldest-32 starvation. FIFO is among eligible queued
+  steps; blocked projects do not block independent ones. Each successor joins
+  the tail. Waiting consumes no operation, budget or workspace/global slot.
+- Before external preparation, atomically reserve the exact workspace and,
+  only for a potentially mutating kind, one current global unit. Acquire a
+  preparation worker first; at most four queued preparations. Every entrance
+  obeys the shared reservation ownership. Exact internal ticket proof permits
+  self-exclusion; transfer reservation to operation in the claim's own save.
+  No claim/dispatch retry, extra operation step or repeated preparation.
+- Stop/deadline/startup may retire only a fully proved unused reservation under
+  the write lock with a fenced token. Contradiction/uncertainty stays held.
+  Claimed/dispatched ownership and original Exited quarantine proof are unchanged.
+  Restart closes all formerly queued work before supervisors; never resumes it.
+- Extend the ONE live sequence reader, both-region fences/confirmation and
+  current/historical disclosure without presenting waiting/preparation as a
+  process. Extend ADR-0061's recorded mode/state only; keep operation/stream
+  proofs, truncation admission and window limits. Update the owning system,
+  workflow, recovery, evidence, cockpit, context and roadmap documents plus
+  current-work as implementation-for-review facts.
+
+Additive Domain/persistence/EF migration and the affected Application claims,
+ownership, coordinator/startup, MVC/client and frontend/test changes are selected.
+No generic scheduler/queue engine, provider package/flag, new execution mode,
+process lease, cancellation, retry, takeover, operation release, automatic
+approval/commit/publication, dependency or frozen-experiment change is selected.
+Any incompatible proof or migration/compatibility requirement is a challenge
+to resolve before dependent work, not permission to weaken this contract.
+
+### Validation and return
+
+Use production-driven file-backed SQLite cycles and independent connections
+for queue order, both limits and limit-change orderings, every competing manual
+entrance, exact self-exclusion/transfer, rollback/commit uncertainty and malformed
+links. Cover all six kinds, complete passes/both correction origins, exhaustion,
+stale pins, 64-cycle cap and paging beyond 32 records. Stop/expiry/startup at
+each reservation/claim/dispatch seam must preserve conservative ownership and
+produce no resumed work or duplicate process. Include old Immediate, manual,
+planning, result recording and unrelated-project regressions.
+
+Develop with focused tests first. Once stable: feature Domain tests, full
+Architecture, full Infrastructure Persistence and affected transaction-boundary
+classes, full Application and full API (shared ownership/all entrances/startup
+change), whole Vitest, lint/build and strict e2e TypeScript, client reproducibility,
+changed-file format/diff and document/inbound-link checks. Broaden Infrastructure
+to adapters/Git/process only if their inputs change or evidence raises a concern.
+No real provider/native campaign or automatic whole Infrastructure/Domain run.
+
+One authenticated deterministic real-host queue journey must wait behind a held
+owner, show zero waiting invocations and progress after its owned test gate is
+released, without browser per-step starts; reload its recorded state. Existing
+local-execution, planning and collaboration journeys run serially for coexistence.
+Use hosted/Application lifecycle permutations rather than adding production
+test hooks. Four serial compiling controls from ADR-0062 kill named regressions;
+preserve invalid attempts, restore hashes, touch and rebuild. Keep commands,
+timings and original failures in concise logs, with fresh/retained/not-run scope.
+
+Preserve all historical failures/qualifications and the standing restrictions
+below. Return the whole slice unstaged, uncommitted and unpushed for Codex review.
+The publication GO, if earned, will identify its exact final content separately.
+
 
 ## Historical LOCAL-COORD-01 planning and review record
 
@@ -658,9 +778,10 @@ untouched; no historical result is reconstructed by this selection.
   Later passes prove neither flakiness nor irrelevance. TEST-48-01 cannot cover
   hung submissions; retention beside disposal failure is unproven.
 - Increments 4/5/6 incomplete. Account/context, raw Git read, non-Windows limits:
-  [current-work](current-work.md#open-risks). Production code and necessary
-  tests are selected only for LOCAL-COORD-01 under accepted ADR-0060 and the
-  owner's new bounded-cycle decision. PLAN-COORD-01, AGENT-SUP-01,
-  WORKSPACE-EXCL-01, GLOBAL-ADMIT-01 and GLOBAL-LIMIT-01 are published. No broader
-  mutation, queue, lease, retry, recovery, approval, commit or publication
-  authority follows. No dependency, experiment, capture-limit or standards edit.
+  [current-work](current-work.md#open-risks). Production code and necessary tests
+  are now selected only for LOCAL-QUEUE-01 under ADR-0062 and the owner's
+  bounded-queue decision above. PLAN-COORD-01, AGENT-SUP-01, WORKSPACE-EXCL-01,
+  GLOBAL-ADMIT-01, GLOBAL-LIMIT-01, LOCAL-COORD-01 and LOCAL-INSPECT-01 are
+  published. The queue grant adds no broader mutation, executor lease, operation
+  retry/resume, quarantine release, recovery, approval, commit or publication
+  authority. No dependency, experiment, capture-limit or standards edit.

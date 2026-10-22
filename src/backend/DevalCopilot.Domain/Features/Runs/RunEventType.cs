@@ -153,6 +153,14 @@ public static class RunEventType
     /// <summary>The sequence ended in a terminal, attention or interrupted state with a fixed reason code.</summary>
     public const string LocalExecutionSequenceEnded = "local_execution_sequence.ended";
 
+    /// <summary>ADR-0062: a queued cycle recorded its one pending next admission after a classified step (identities, fixed kind, pass and
+    /// order number only). It reserved nothing, claimed nothing and consumed no budget.</summary>
+    public const string LocalExecutionAdmissionQueued = "local_execution_sequence.admission_queued";
+
+    /// <summary>ADR-0062: a pending admission recorded a changed fixed waiting reason. Appended only on an actual change, never per
+    /// observation tick. It describes a recorded observation, not present worker, process or slot availability.</summary>
+    public const string LocalExecutionAdmissionWaiting = "local_execution_sequence.admission_waiting";
+
     /// <summary>The host registered its own observation of one already claimed Agent attempt in Preparing (ADR-0056). The payload carries
     /// identities and the phase only. It claims, dispatches or starts nothing and proves no provider progress or live process.</summary>
     public const string AgentSupervisionRegistered = "agent_supervision.registered";
