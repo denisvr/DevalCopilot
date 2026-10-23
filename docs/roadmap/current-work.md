@@ -6,12 +6,209 @@ was prepared ([recovery](development-workflow.md#recovery)). Git and code
 prevail; compare branch, `HEAD`, `origin/main` and staged/unstaged/untracked
 state first.
 
-## Active slice: LOCAL-QUEUE-INSPECT-01 recorded queue-admission inspection (ADR-0063)
+## Active slice: LOCAL-QUEUE-OVERVIEW-01 outstanding queue-admission overview (ADR-0064)
 
 This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
 Reconcile publication with Git. This record alone grants no publication authority.
 
-**Delivery phase: first return by a new Claude executor chat, unstaged, uncommitted and unpushed. No GO exists.**
+**Delivery phase: correction 1 returned by the same Claude executor chat after Codex review 1 NO-GO (LQO-R1, P3), unstaged, uncommitted and unpushed.
+No GO exists.** The first return (unchanged below) is followed by [Correction 1](#correction-1-codex-review-1-no-go-lqo-r1-p3).
+Baseline: `main`, `HEAD`, local `origin/main` and the live `refs/heads/main` were `1e58dda4b1f4a0b3292c56c4cc86fb0f15c49d66`
+(LOCAL-QUEUE-INSPECT-01, independently verified published), divergence 0/0, real index empty; exactly the three planner documents
+(`planner-handoff.md`, `decisions/README.md`, `mvp-delivery-plan.md`) and the new ADR-0064 were pending and are preserved byte-for-byte, not
+edited. LOCAL-QUEUE-INSPECT-01 below is a historical record and was not reopened or republished. ADR-0050 stays Proposed, P9 unproven, AI
+Memory deferred, Increments 4/5/6 incomplete; every standing restriction stays.
+
+### What exists
+
+- **Application.** `GetLocalExecutionQueueInspectionQuery` (one query, returned directly, no `Result`) over **one** provider-neutral untracked EF
+  statement, `LocalExecutionQueueInspectionStatement`: the candidates are the admissions whose stored state is not a *recognized* Consumed or Retired
+  one (`CASE ... = 0`, so unknown, null-like, look-alike or malformed states stay candidates), in `AdmissionNumber`/`Id` order, `Take(69)`;
+  each is left-joined to its sequence and to *every* sequence of the same run (a window `ROW_NUMBER() <= 2` over the run, so a duplicate shows as a
+  second root), the registered project (identity and a name bounded to 800 stored bytes before conversion; the path is never selected), the run, and
+  the bounded ledger (a window `ROW_NUMBER() <= 103` per candidate sequence, the existing per-sequence guard) with every ADR-0063 historical reference
+  (step, workspace, initial and source checkpoint, report message, pinned recipe). The final ceiling is `69 * 104 + 1 = 7,177` rows. The two inner
+  windows are restricted by `IN (candidate sequence ids)`, so their work follows the candidate set, not the table. `LocalExecutionQueueInspectionProof`
+  proves each candidate's rows with the **unchanged** `LocalExecutionAdmissionHistoryProof` (whole ledger, single root, two-root duplicate guard,
+  every reference), then requires the candidate to be exactly the proved last admission (identity, order number, state), a candidate state of
+  Waiting, Reserved or Unresolved, the run's own project with a nonblank name of at most 200 units, strictly increasing order numbers, distinct
+  sequences and runs, at most 64 candidate sequences that have not ended, at most four held, and 68 entries in all (a 69th candidate or any
+  count/bound/reference defect is the closed `Unavailable`, never a partial list). Statuses `Empty` / `Recorded` / `Unavailable`.
+  The ADR-0063 projection moved, unchanged in meaning, out of `LocalExecutionAdmissionHistoryStatement` into
+  `LocalExecutionAdmissionHistoryProjection.RowOf` (one expression, also exposed as `Project`) over the join shape
+  `LocalExecutionAdmissionHistoryJoin`; the per-run statement and reader are otherwise untouched. A run that is absent reads as `Guid.Empty`,
+  which the proof already refuses. No split read, N+1, revision sandwich, write lock, transaction, retry, ownership/eligibility/capacity read,
+  schema, migration, Domain or scheduler change.
+- **API.** One authorized bodyless, queryless MVC GET `/api/local-execution-queue/inspection` (`LocalExecutionQueueBaseEndpoint`,
+  `GetLocalExecutionQueueInspectionEndpoint`) reusing `LocalExecutionInspectionBodylessGuardFilter` and its fixed non-echoing 400s, with the API-owned
+  closed graph `{ status, entries[] }` whose entry is `{ projectId, projectName, runId, sequence, admission }`; `sequence` and `admission` are the
+  existing ADR-0063 header and row response types (the endpoint's two mappers became `internal`). Regenerated client: additive, 152 lines, 0 removed.
+- **Frontend.** Strict whole-answer decoder `localExecutionQueueInspection.ts` (it reuses the now-exported ADR-0063 header and admission decoders and
+  adds the entry, membership, order, 64/4/68 and state-fits-sequence rules), `LocalExecutionQueueInspectionWireClient` (a parsed-body facade that
+  carries its own `AbortSignal` into the actual request), `useLocalExecutionQueueInspection` (host-session, opening, visit and selection lifetimes
+  over the unchanged owned-lifetime primitives; one GET per open or reload with a real `AbortController` and a ten-second bound that aborts the
+  request itself; reload and close discard rows and selection at once and abort the request; `select` rechecks the exact admission, sequence, run and
+  project in the visit's validated overview when it runs and selects the held entry, never the caller's object; each selection has its own key, so even
+  re-selecting the same entry is a new lifetime) and `LocalExecutionQueueInspectionRegion`, mounted once in `App` right after the global
+  limit control, independent of project selection. A row's "Select recorded cycle" renders the **existing** `LocalExecutionInspectionPanel` for
+  exactly that run (collapsed; its own explicit actions remain required); "Clear selected recorded cycle" ends a selection. Fixed copy states that it
+  is a recorded snapshot, not every active cycle, queue position, eligibility, process activity, free capacity or a start promise, that a passed
+  deadline is only a record, and that empty is not idle. No polling, SignalR, retry, prefetch, browser storage or command control.
+- **Journey.** `e2e/local-execution-queue.journey.ts` now (5c) selects the other project (which has no run), opens the global region (collapsed, no read
+  until opened; exactly one outstanding admission: the Waiting cycle, the held owner's running verification is not an admission), selects the cycle,
+  proves selection read nothing and left the selected project untouched, then opens the inspector and its ledger explicitly (exact GETs), switches back
+  without a re-read, and (7b) after the cycle progressed to Awaiting Human approval shows the region still holds its earlier snapshot, then reloads it
+  explicitly: rows and selection vanish and the empty answer (the Consumed tail is absent) says it does not mean no cycle is active. The existing
+  ledger/evidence assertions are unchanged.
+- **Documentation.** `agent-collaboration-evidence-inspection.md` (new "Recorded outstanding queue admission overview"),
+  `run-cockpit-specification.md` ("Outstanding queue admissions (LOCAL-QUEUE-OVERVIEW-01)"), `engineering-context.md` and this file.
+
+### Evidence (logs under `logs/executor/local-queue-overview-01/`, git-ignored; commands run at the repository root)
+
+- **Fresh, final matrix on the final restored sources (after both controls, hashes restored, targets touched, projects rebuilt, client regenerated twice
+  and the test projects rebuilt again; `final-source-manifest-before.sha256` holds the hash of every changed or new non-document file):**
+  - Application, `--no-build --no-restore --filter 'FullyQualifiedName~LocalExecutionQueueInspection|FullyQualifiedName~LocalExecutionAdmissionHistory|FullyQualifiedName~LocalExecutionInspection'`:
+    **442 passed**, 0 failed, 3 m 11 s (`final-application.log`): 88 new (`LocalExecutionQueueInspectionTests` 13, `...BoundTests` 15, `...DamageTests` 43,
+    `...ConsistencyTests` 17) plus the 354 existing ADR-0061/0063 tests. Real file-backed SQLite, production-created cycles, independent connections.
+  - Api, same filter: **116 passed** (20 new: `LocalExecutionQueueInspectionEndpointTests` 18 and `...EndpointStorageTests` 2; 96 existing), 1 m 13 s
+    (`final-api.log`): route/authorization metadata, 401/405/body/query matrices, closed wire, per-run cross-check, storage damage, actual OpenAPI.
+  - Architecture, full project: **196/196** (`final-architecture.log`); 192 existing plus the 4 of the new `LocalExecutionQueueInspectionBoundaryTests`;
+    the existing `LocalExecutionInspectionBoundaryTests` (which also scans the extracted projection) still passes unchanged.
+  - Frontend: whole Vitest **7,527 passed** in 307 files (`final-vitest.log`; +73 tests in 6 new files: decoder 21, contract 11, hook 19, transport 6, region 10,
+    App 6); `oxlint` exit 0 with only the existing warnings, none in the new files (`final-lint.log`); `npm run build` (includes `tsc -b`) pass
+    (`final-build-frontend.log`); the recorded strict e2e `tsc` flag set exit 0 (`final-e2e-tsc.log`).
+  - Generated client: a non-incremental serial Api build (`--no-incremental -p:UseSharedCompilation=false -m:1`, 0 warnings, 0 errors) reproduced
+    `api-client.ts` byte-identically (hash `d10178d9ca4887e9`, 860,484 bytes, before and after; the LOCAL-QUEUE-INSPECT-01 hash was `ed2855a042d5354c`);
+    the diff is 152 added lines and none removed (`22-client-reproducibility.log`).
+  - Journeys, one Playwright invocation at a time on the final binaries (`final-journey-*.log`): queue **49.9 s passed** (the extended journey; 55.2 s with start-up), existing local-execution **29.0 s passed**, planning-sequence **16.1 s passed**, collaboration **1.9 m passed** (shared-harness consumers: the new region mounts in `App`); the duplicate-React-key console errors are the existing ones. Two earlier development runs of the queue journey are kept (`19-...run-1.log` failed on my own assertion, `20-...run-2.log` passed).
+  - Hygiene: `dotnet format --verify-no-changes` clean over all 29 changed or new C# files (`final-dotnet-format.log`); `git diff --check` clean; the new non-document files have no CR, trailing space or tab and only the existing `·` and `…` as non-ASCII (the architecture, product and context documents add none; this record names them once); `check-doc-links.js` (negative-controlled) found 0 broken relative links or fragments in the changed documents; the pre-matrix and post-matrix hash manifests of every changed or new non-document file are byte-identical (`final-source-manifest-before/after.sha256`, 47 files).
+- **Compiling controls (`controls/control-1.sh`, `control-2.sh` with their mutation scripts; each refuses a no-op or a changed baseline, mutates, builds or
+  typechecks, runs the named tests, restores from a byte backup and the baseline hash is verified equal afterwards; then the targets were touched and
+  rebuilt):**
+  1. Exclude ended sequences from overview membership (`LocalExecutionQueueInspectionStatement`: an extra `Where` requiring a sequence that has not ended):
+     compiled; **8 of the 28 selected tests failed**: `...Tests.An_unresolved_reservation_on_an_ended_sequence_is_listed_with_its_ended_header_and_its_unresolved_step_link`,
+     `...BoundTests.The_largest_coherent_answer_is_the_per_run_ledger_tail_of_every_entry_and_names_the_registered_project`,
+     `...Overflow_is_detected_even_when_every_one_of_the_sixty_nine_candidates_is_individually_coherent` and five rows of
+     `...The_exact_bounds_are_recorded_in_full_and_every_overflow_is_unavailable_never_a_truncated_list` ((64,0,4), (62,2,2), (64,0,5), (60,0,5), (61,3,2))
+     (`controls/control-1.result.txt`). Baseline hash `0e571704...` equal before and after.
+  2. Remove the ended selection owner scoping of `useLocalExecutionQueueInspection.clearSelection` (the owner-active check and the serial scoping together):
+     typechecked; **1 of 19 failed**: `lets a retained clear of an earlier selection do nothing to a newer one, and the current clear end exactly its own`
+     (`controls/control-2.result.txt`). Baseline hash `0b1a9bec...` equal before and after. The informational single-layer variant `control-2b`
+     (only the owner-active check removed) **survived (19 of 19 passed)**: an equivalent mutant, because the serial comparison still protects a replacement
+     selection within the same visit (the shared visit-owned commit protects only an ended visit; see Correction 1). It is reported, not counted as a kill.
+- **Retained at their actual scopes (not fresh final runs):** Domain 1,757; Persistence plus transaction classes 750; full Application 7,905 and full Api 3,265
+  (LOCAL-QUEUE-01 sources, before LOCAL-QUEUE-INSPECT-01); the last LOCAL-QUEUE-INSPECT-01 focused Application 354/Api 96, Architecture 192 and Vitest 7,454 at
+  their own published sources. This slice changed no Domain, schema, migration, scheduler, ownership/capacity gate or shared lifetime primitive, so no
+  broadening trigger applied; the existing ADR-0061/0063 suites that share the extracted projection were re-run fresh (the filter above).
+- **Not run:** full Application/Api/Infrastructure suites, Domain, Persistence, dependency audit, real provider or native experiment, CI, security and release
+  gates. Nothing was committed, pushed, staged or published.
+
+
+### Preserved development attempts and failures
+
+- Extraction `01-extraction-first-attempt-FAILED-ctor-shape-157-of-157.log`: the first shared-projection attempt joined the entities through a constructor-built
+  record; EF could not bind `EF.Property` over a constructor member, so **all 157** existing ADR-0063 tests failed at translation. The join shape became an
+  initializer class (`LocalExecutionAdmissionHistoryJoin`) and `02-extraction-regression-admission-history.log` shows the unchanged per-run suite passing
+  157 of 157 on it. Per-run semantics were proved, not assumed.
+- Bound tests `05-bound-tests-first-run.log`: 11 of 15 failed on **my fixture ordering**, not the product: bulk clones took admission and coordination
+  numbers above the production counters (a later production queue then collided and was refused as `prior_mutation`), and clones are recorded owners that
+  took the capacity a later production reservation needed (a null reservation). The fixture now creates every production template first and clones after;
+  `06-bound-tests-second-run.log` passes 15 of 15.
+- Damage tests `07-damage-tests-first-run.log`: 42 of 43 passed; one case (`run_project_differs_from_the_sequence_project`) hit the unique
+  `(ProjectId, ExecutionNumber)` index in my SQL and now also sets an unused execution number; `08-damage-tests-second-run.log` passes the 40 damage cases.
+- Architecture `10-architecture-first-run-FAILED-contrived-regex.log`: 1 of 196 failed on a contrived multi-line regex of my own boundary test (it
+  matched the statement's own legitimate `join run in ...`); removed, `11-architecture-second-run.log` 196 of 196.
+- Frontend `14-contract-and-hook-tests-first-run.log`: 2 of 30 failed on my assertions (the generated model keeps an explicit null, so the claimed
+  undefined was wrong; a decoded entry is a different object from the one decoded in the test). Fixed in the tests only. `16-region-tests-first-run.log`
+  was truncated by me to its first 3000 bytes to drop a huge DOM dump (a mistake against the preserve-output rule, disclosed in the file): the one failure
+  was `getByText(/not ended/)` matching two rows.
+- Journey `19-queue-journey-development-run-1.log` failed once: my new "no write" assertion also counted the two SignalR `/hubs/run` negotiate POSTs that
+  a project switch legitimately opens; it now filters to `/api/` requests like the journey's other assertions. `20-queue-journey-development-run-2.log`
+  passed. The `21-final-build-first-attempt-FAILED-msbuild-one-project.log` is a mistyped multi-project `dotnet build` (MSB1008), rerun per project.
+
+
+### Challenges, limits and risks for review
+
+- **No challenge was needed.** EF Core 10 translated the ADR's permitted shape on SQLite: a 69-row candidate subquery, correlated per-candidate `Take`s
+  (as `ROW_NUMBER() ... <= n` windows, never APPLY), and left joins of every reference, in one statement. The race tests prove one SELECT naming every
+  joined table, a competing change to each joined fact (including the candidate's own state and the project name) committed just before it read whole,
+  and a write committed while it runs never reaches the answer.
+- **Work is bounded in result, not in scan.** The candidate predicate is a `CASE` over the stored state (the only way to keep unknown, null-like and
+  look-alike states as candidates), so SQLite cannot use `ix_local_execution_admissions_state`; it walks the admission-number index until 69 candidates
+  or the end. Admissions are retained for the run lifetime, so with a long history of Consumed rows an explicit read costs a scan of that history even
+  when the answer is Empty. This is acceptable for a local, explicit, owner-triggered read and is not hidden by a schema change (none is selected); a
+  partial index would be a separate, schema-bearing decision. The candidate subquery appears three times in the statement (membership and the two
+  `IN` restrictions); `OrderBy(AdmissionNumber).ThenBy(Id)` makes it a total order, so all three read the identical set from the one snapshot.
+- **A candidate whose own sequence row is missing, a missing run, a missing project, a blank, oversized or NUL-padded project name, a second sequence of
+  the run, an Immediate sequence with an outstanding admission and a candidate that is not the proved tail are all `Unavailable`**; 40 cases prove each
+  (Application damage class), plus the unchanged ADR-0063 proof cases through representative reference damage. An unknown state and its look-alikes
+  (`consumed`, `Retired ` with a trailing space, `Consumed` plus a NUL, an integer, a blob, an empty text) are `Unavailable`, never absence. A SQL NULL
+  state cannot be stored (the column is NOT NULL, which `ignore_check_constraints` does not relax), so it is covered by the classification expression
+  but not by a stored-value test. A project name stored as a non-text value is rendered as its text; it is descriptive metadata, as the ADR says.
+- **The second control needed the whole selection scoping removed.** In `useLocalExecutionQueueInspection.clearSelection` the serial comparison protects a
+  replacement selection within the same visit, and the shared visit-owned `useOwnedState` commit protects an ended visit; that commit alone does **not**
+  protect a newer selection inside a still-active visit. Removing only the owner-active check (informational `control-2b`) therefore survives because the
+  serial comparison remains, an equivalent mutant I report rather than count; the compiling control removes the whole selection scoping and is killed by
+  the named hook test. (My first wording said the shared commit independently protected a newer selection; that was imprecise and is corrected here and
+  in Correction 1.) The shared primitives were not touched.
+- **The projection extraction needs an expression binder.** EF cannot zip two projections, so the global statement binds the shared
+  `LocalExecutionAdmissionHistoryProjection.RowOf` expression, the candidate and the project label into one row with a small
+  `ParameterBinding` expression visitor in `LocalExecutionQueueInspectionProjection`. It is internal to the operation, adds no generic query framework or
+  persistence port, and the architecture test pins the reuse.
+- **Fixtures are test-only storage writes.** The 64/68/69 counts use one production-created template per state cloned by SQL through an unpooled
+  connection that keeps foreign keys, checks and every unique index on and drops only the seven guard triggers a clone (which has no plan message of its
+  own) would trip; they are labeled in code. Production-created cycles prove every representative state (Waiting, Reserved, ended Unresolved, Consumed
+  and Retired exclusions, expired deadline, changed waiting reason, multi-project order, longer ledgers).
+- **A selected inspector and the overview are independent snapshots**: the overview can still list a cycle whose inspector now shows a later state until
+  the owner reloads; the region says so, and the journey demonstrates it (7b).
+- Existing tests edited: none. Existing production files edited: `LocalExecutionAdmissionHistoryStatement.cs` (projection extracted),
+  `GetLocalExecutionAdmissionHistoryEndpoint.cs` (two mappers `internal`), `localExecutionAdmissionHistory.ts` (two decoders exported), `App.tsx`,
+  `clients.ts`, `cockpit.css` and the generated client.
+
+### Correction 1 (Codex review 1 NO-GO: LQO-R1 P3)
+
+Preflight (verified before editing): `main`, `HEAD` and local `origin/main` both `1e58dda4b1f4a0b3292c56c4cc86fb0f15c49d66`, index empty, 55 pending
+paths (15 modified, 40 untracked files). Codex's review edits to `planner-handoff.md`, `decisions/README.md` and `mvp-delivery-plan.md` are preserved
+and were not touched; the original selection hashes describe the earlier dispatch.
+
+- **LQO-R1 (P3): one top-level type per file. Fixed.** `ClonedCycle` moved unchanged (same namespace, `internal sealed record`, same members and XML
+  comment) from `LocalExecutionQueueInspectionClones.cs` into the new `ClonedCycle.cs` in the same directory. The fixture class, every test and all
+  production code are unchanged; no behavior was touched. A lexical scan of all 30 changed or new C# files (the new file included) finds no file with more
+  than one column-0 top-level declaration (negative-controlled on a two-type sample), and each of the two affected files now has one.
+- **Fresh correction evidence (`logs/executor/local-queue-overview-01/correction1-*.log`):** incremental rebuild of Application.Tests (0 warnings, 0
+  errors); `LocalExecutionQueueInspectionBoundTests` **15 passed** of 15; full Architecture **196 passed** of 196 (the project was rebuilt for the run);
+  `dotnet format --verify-no-changes` clean for `ClonedCycle.cs` and `LocalExecutionQueueInspectionClones.cs`; the type scan above; `git diff --check` and
+  the changed-document link/fragment check (0 broken) are recorded in this return's report.
+- **Retained at their actual scopes, not rerun:** the first-return final matrix (Application 442, Api 116, Architecture 196 before this split, Vitest 7,527,
+  lint, build, strict e2e `tsc`, client reproducibility and the four serial journeys), both compiling controls and their hashes, and the manifest of every
+  non-document source file at that matrix. This split changed one test file layout only, so no new regression, mutation, separate generated-client
+  reproducibility run, full backend or frontend matrix or journey was required or run. The post-matrix manifest is superseded for the two C# files by
+  `correction1-05-hashes.txt`; every other manifest entry is unchanged by this correction. **Planner review clarification:** the Architecture build
+  did automatically execute NSwag, as `correction1-03-architecture.log` shows; the generated client's complete SHA-256 still equals the prior manifest.
+  This was not a separate reproducibility check, and no client content changed.
+- **Precise guard explanation (control 2 accepted; 2b is not a kill).** The selection serial comparison in `clearSelection` protects a replacement
+  selection within the same visit; the shared visit-owned commit protects an ended visit. That commit alone does not protect a newer selection inside a
+  still-active visit. Control 2 removes the whole scoping and is killed by its named same-visit regression; the informational `control-2b` survivor
+  (owner-active check removed, serial comparison kept) is an equivalent mutant and is not counted as a kill.
+- **Evidence-loss qualification.** `16-region-tests-first-run.log` contains only a fragment of the original output and an executor note; the omitted
+  original output is lost. Its original full-run counts and complete diagnosis remain executor-reported (the fragment supports the multiple-match
+  error). Current passing runs do not restore it, and the file is preserved unchanged.
+- **Scale qualification.** The overview bounds materialized results (69 candidates, 103 rows per ledger, 7,177 rows overall), not the scan of retained
+  admission history nor SQLite execution time. No schema, index or performance work is selected, and nothing here is a latency qualification.
+- Every earlier failure, warning and evidence qualification stays as recorded (the 157-test extraction failure, the bound, damage, architecture,
+  frontend and journey development failures, the first mistyped build, the existing duplicate-React-key browser console errors and the retained
+  scopes above). The resolved ADR and scope were not edited or broadened.
+- **Not run:** the full Application, Api, Infrastructure, Domain and Persistence suites, whole Vitest, lint, `npm run build`, the strict e2e `tsc`, client
+  reproducibility check, the journeys and any control (not required for this unchanged-behavior move), dependency audit, real provider or native experiment, CI,
+  security and release gates. Nothing was committed, pushed, staged or published.
+
+## Previous slice (published; historical record): LOCAL-QUEUE-INSPECT-01 recorded queue-admission inspection (ADR-0063)
+
+This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
+Reconcile publication with Git. This record alone grants no publication authority.
+
+**Delivery phase (historical): first return by a new Claude executor chat, unstaged, uncommitted and unpushed at that time; the slice is since
+published (1e58dda) and independently verified. Consult Git.**
 Baseline: `main`, `HEAD`, local `origin/main` and the live `refs/heads/main` were `8b9a824f0a68317432794afed80ab12250b16721` (LOCAL-QUEUE-01,
 independently verified published), divergence 0/0, real index empty; exactly the three planner documents (`planner-handoff.md`,
 `decisions/README.md`, `mvp-delivery-plan.md`) and the new ADR-0063 were pending and are preserved byte-for-byte, not edited. LOCAL-QUEUE-01

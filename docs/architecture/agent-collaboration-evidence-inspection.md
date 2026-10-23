@@ -551,3 +551,41 @@ run, a return to an earlier run and unmounting end the ledger's request owner, s
 selects and opens nothing of another visit. A linked-step action delegates to the inspector's own selected-step selection and works
 only for a step in that inspector's currently accepted index of the same sequence; otherwise the row says the recorded sequence must be
 reloaded, and nothing is searched, selected in its place or read for another run.
+
+**Recorded outstanding queue admission overview.**
+[ADR-0064](../decisions/0064-inspect-outstanding-local-execution-queue-admissions-across-projects.md) adds a fifth protected,
+bodyless and queryless GET, `/api/local-execution-queue/inspection`, behind the same body/query guard and fixed errors. It lists, for
+the whole authoritative database and independent of any project, run or latest row, every admission that is Waiting, Reserved or
+Unresolved (including an Unresolved reservation retained on an ended sequence) in strictly increasing recorded admission order, each
+with its registered project's identity and name, its run, the stored sequence header and the admission, which must be the proved last
+admission of that sequence. The closed statuses are `Empty` (no such admission is recorded, which is neither an idle host, no active
+cycle, no owner nor free capacity: a cycle whose latest admission is Consumed, an Immediate cycle and a manual operation are not
+listed), `Recorded` (one through 68 entries) and `Unavailable` (any candidate, reference, storage, count, bound or historical-proof
+defect, with no partial list or count). The entry's sequence and admission have exactly the ADR-0063 header and row shapes.
+
+Membership starts from the admissions and excludes only a recognized Consumed or Retired state, classified by the database, so an
+unknown, null or malformed stored state, an orphan admission or a missing run, project or sequence stays a candidate that makes the
+answer `Unavailable` instead of disappearing as an absence. At most 69 candidates are read in admission-number order, so an overflow
+is detected and never truncated into an apparently complete list: at most 64 candidates may sit on a sequence that has not ended, at
+most four may be held (Reserved or Unresolved), and the order numbers, sequences and runs must be distinct. One provider-neutral EF
+statement (`LocalExecutionQueueInspectionStatement`) reads the candidates, each candidate's sequence together with any other sequence of
+the same run (so a duplicate is seen), its registered project label (the stored name is bounded to 800 bytes before conversion, then
+must be nonblank and at most 200 UTF-16 units; the repository path is never read), the bounded ledger (at most 103 rows per sequence,
+and 69 x 104 + 1 rows in all, so join expansion proves itself) and every historical reference. The projection of
+`LocalExecutionAdmissionHistoryProjection` is the one ADR-0063 reads per run, extracted without changing that reader, and
+`LocalExecutionQueueInspectionProof` runs the unchanged `LocalExecutionAdmissionHistoryProof` over each candidate's rows: the answer
+is one database snapshot, with no split read, N+1 enumeration, revision sandwich, write lock, transaction or retry. A recorded deadline
+that passed changes neither membership nor stored state, and the read consults no live ownership, eligibility, capacity, Git,
+filesystem, process, provider or artifact state and proves no operation; the recorded reservation is bookkeeping, never a live
+process or ownership proof or a release action.
+
+The frontend (`localExecutionQueueInspection.ts`, `LocalExecutionQueueInspectionWireClient`, `useLocalExecutionQueueInspection`,
+`LocalExecutionQueueInspectionRegion`) decodes the whole closed answer with the same header and admission decoders and mirrors the
+host's membership, order and bound rules. The one collapsed region belongs to the authenticated host session, beside the global
+recorded-execution limit; opening or reloading performs one GET carrying a real `AbortSignal` and a ten-second bound, closing performs
+none, and nothing polls, retries, prefetches or follows the selected project. Each opening, overview visit and selection owns its
+callbacks and results: closing, reloading (which discards the prior rows and selection at once, so a failed reload never shows old
+rows as fresh), selecting another cycle, a return to an earlier one and unmounting end the earlier lifetime and abort its request, and
+a retained callback of an ended lifetime populates and selects nothing. Selecting a row rechecks its exact admission, sequence, run
+and project in the visit's validated overview and renders the existing local execution inspector for that run, whose own explicit open,
+ledger, step and window actions stay required; the two reads are independent snapshots, not an atomic replay.

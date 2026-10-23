@@ -259,6 +259,68 @@ test('the queued local execution cycle journey: waiting behind a held owner at l
     await waitingInspector.getByRole('button', { name: 'Hide local execution inspection' }).click()
     await expect(waitingInspector.getByRole('button', { name: 'Inspect local execution' })).toHaveAttribute('aria-expanded', 'false')
 
+    // 5c. LOCAL-QUEUE-OVERVIEW-01: the global outstanding-admission region, discovered from ANOTHER selected project. The region is
+    // collapsed and reads nothing until opened; the held owner's running verification is a recorded owner but not an admission, so the
+    // one outstanding admission is this cycle's Waiting one, labelled with its registered project. Selecting it renders the existing
+    // inspector for exactly its run, reads nothing by itself and leaves the selected project (and its "no run yet") untouched; the
+    // inspector and its ledger then read only on their own explicit actions. Switching projects back neither re-reads nor resets it.
+    // Every request here is an explicit GET and nothing is written.
+    const overviewPath = '/api/local-execution-queue/inspection'
+    const indexPath = `/api/runs/${runId.toLowerCase()}/local-execution-sequence/inspection`
+    const overviewReads = (start: number) => gets.slice(start).filter((path) => path === overviewPath)
+    const getsBeforeOverview = gets.length
+    const postsBeforeOverview = posts.length
+    const attemptsBeforeOverview = data.attempts().length
+    const ownerExecutionsBeforeOverview = JSON.stringify(ownerData.executions())
+    const admissionRowsBeforeOverview = JSON.stringify(admissions(waiting.Id))
+    const waitingNumber = admissions(waiting.Id)[0].AdmissionNumber
+
+    await selectProject(page, OWNER_PROJECT)
+    await expect(page.getByText(`${OWNER_PROJECT} has no run yet.`)).toBeVisible({ timeout: 30_000 })
+    const overview = page.getByRole('region', { name: 'Inspect outstanding queue admissions' })
+    const openOverview = overview.getByRole('button', { name: 'Inspect outstanding queue admissions' })
+    await expect(openOverview).toHaveAttribute('aria-expanded', 'false')
+    expect(overviewReads(getsBeforeOverview)).toEqual([])
+    await openOverview.click()
+    await expect(overview).toContainText('Last recorded admission check: Waiting for global mutating capacity', { timeout: 30_000 })
+    expect(overviewReads(getsBeforeOverview)).toEqual([overviewPath])
+    await expect(overview.getByRole('listitem')).toHaveCount(1)
+    await expect(overview).toContainText(
+      `Project ${PROJECT} · run ${runId.toLowerCase()} · recorded order ${waitingNumber} · Waiting (recorded; owns no workspace, slot or step)`,
+    )
+    await expect(overview).toContainText('Recorded sequence state: Queued: waiting for admission')
+
+    await overview.getByRole('button', { name: new RegExp(`^Select recorded cycle: project ${PROJECT}, recorded order ${waitingNumber}$`) }).click()
+    const selectedInspector = overview.getByRole('region', { name: 'Inspect local execution' })
+    await expect(overview).toContainText(`Selected recorded cycle: project ${PROJECT} · run ${runId.toLowerCase()}`)
+    await expect(selectedInspector.getByRole('button', { name: 'Inspect local execution' })).toHaveAttribute('aria-expanded', 'false')
+    expect(gets.slice(getsBeforeOverview).filter((path) => path.includes('/local-execution-sequence/inspection'))).toEqual([])
+    await expect(page.getByText(`${OWNER_PROJECT} has no run yet.`)).toBeVisible()
+    await expect(page.getByRole('button', { name: new RegExp(`^${OWNER_PROJECT}`) })).toHaveAttribute('data-selected', 'true')
+
+    await selectedInspector.getByRole('button', { name: 'Inspect local execution' }).click()
+    await expect(selectedInspector).toContainText('Recorded state', { timeout: 30_000 })
+    expect(gets.slice(getsBeforeOverview).filter((path) => path.includes('/local-execution-sequence/inspection'))).toEqual([indexPath])
+    const selectedLedger = selectedInspector.getByRole('region', { name: 'Inspect queue admissions' })
+    await selectedLedger.getByRole('button', { name: 'Inspect queue admissions' }).click()
+    await expect(selectedLedger).toContainText('Queued sequence', { timeout: 30_000 })
+    expect(gets.slice(getsBeforeOverview).filter((path) => path.includes('/local-execution-sequence/inspection'))).toEqual([indexPath, admissionsPath])
+    await expect(selectedLedger).toContainText('Waiting (recorded; owns no workspace, slot or step)')
+    await expect(selectedLedger.getByRole('button', { name: /Open linked step/ })).toHaveCount(0)
+
+    await selectProject(page, PROJECT)
+    await expect(page.getByRole('heading', { name: OBJECTIVE })).toBeVisible({ timeout: 30_000 })
+    await expect(overview).toContainText(`Selected recorded cycle: project ${PROJECT}`)
+    await expect(overview.getByRole('button', { name: 'Hide outstanding queue admissions' })).toHaveAttribute('aria-expanded', 'true')
+    expect(overviewReads(getsBeforeOverview)).toEqual([overviewPath])
+    expect(posts.slice(postsBeforeOverview).filter((path) => path.startsWith('/api/'))).toEqual([])
+    expect(JSON.stringify(admissions(waiting.Id))).toBe(admissionRowsBeforeOverview)
+    expect(steps(waiting.Id)).toEqual([])
+    expect(data.attempts()).toHaveLength(attemptsBeforeOverview)
+    expect(data.executions()).toEqual([])
+    expect(JSON.stringify(ownerData.executions())).toBe(ownerExecutionsBeforeOverview)
+    expect(readInvocations(markQueued).filter((entry) => entry.kind !== 'probe')).toEqual([])
+
     // 6. Release ONLY the owned gate: the owner finishes by itself, and the host alone reserves, claims and advances the cycle.
     rmSync(gate, { force: true })
     await expect.poll(() => ownerData.executions().map((execution) => execution.Status), { timeout: 60_000 }).toEqual(['Failed'])
@@ -311,6 +373,30 @@ test('the queued local execution cycle journey: waiting behind a held owner at l
     expect(data.checkpointReviews().filter((review) => review.ActorKind === 'Human')).toEqual([])
     expect(data.localCommitOperationCount()).toBe(0)
     expect(data.gitHubObservationTargets()).toEqual([])
+
+    // 7b. LOCAL-QUEUE-OVERVIEW-01: the open overview is an explicit snapshot, so after the whole cycle progressed it STILL shows its earlier
+    // Waiting row and its selected inspector, and it read nothing by itself (no polling, no refresh by the host's events or the project
+    // selection). Only the explicit reload reads it again: the prior rows and the selection are discarded at once, and the answer no
+    // longer lists the cycle, whose last admission is Consumed. Empty is not idle: the sentence says so, and the Consumed ledger is
+    // unchanged and still available through the per-run ledger.
+    await expect(overview).toContainText(`Selected recorded cycle: project ${PROJECT}`)
+    await expect(overview).toContainText('Waiting (recorded; owns no workspace, slot or step)')
+    expect(overviewReads(getsBeforeOverview)).toEqual([overviewPath])
+    const getsBeforeOverviewReload = gets.length
+    const postsBeforeOverviewReload = posts.length
+    await overview.getByRole('button', { name: 'Reload outstanding queue admissions' }).click()
+    await expect(overview).toContainText('No Waiting, Reserved or Unresolved admission is recorded', { timeout: 30_000 })
+    expect(overviewReads(getsBeforeOverviewReload)).toEqual([overviewPath])
+    await expect(overview).toContainText('This does not mean no cycle is active')
+    await expect(overview.getByRole('listitem')).toHaveCount(0)
+    await expect(overview.getByRole('region', { name: 'Inspect local execution' })).toHaveCount(0)
+    await expect(overview).not.toContainText('Selected recorded cycle')
+    await expect(overview).not.toContainText('Waiting (recorded; owns no workspace, slot or step)')
+    expect(posts.slice(postsBeforeOverviewReload).filter((path) => path.startsWith('/api/'))).toEqual([])
+    expect(admissions(sequence.Id).every((admission) => admission.State === 'Consumed')).toBe(true)
+    await overview.getByRole('button', { name: 'Hide outstanding queue admissions' }).click()
+    await expect(overview.getByRole('button', { name: 'Inspect outstanding queue admissions' })).toHaveAttribute('aria-expanded', 'false')
+    expect(overviewReads(getsBeforeOverview)).toEqual([overviewPath, overviewPath])
 
     // 8. The fence is released at the end; a reload reads the durable result back and requests nothing.
     await expect(page.getByText(FENCE_NOTE)).toHaveCount(0, { timeout: 30_000 })

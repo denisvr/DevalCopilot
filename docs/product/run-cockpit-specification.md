@@ -1986,6 +1986,30 @@ the actual write settled has settled, the old reading is masked and mutating sta
 write is shown as unconfirmed (it may have committed), never as success or rollback, and is never retried. The region guidance names the
 validated limit.
 
+### Outstanding queue admissions (LOCAL-QUEUE-OVERVIEW-01)
+
+One collapsed region, "Inspect outstanding queue admissions", sits beside the global limit control, visible without a project
+([ADR-0064](../decisions/0064-inspect-outstanding-local-execution-queue-admissions-across-projects.md)). It belongs to the authenticated
+host session, not to the selected project: opening it, or "Reload outstanding queue admissions", reads once the recorded Waiting,
+Reserved and Unresolved admissions of every queued cycle in the database; closed, it reads nothing, and neither a project change, an
+evidence refresh nor time reads or resets it. Each row names the registered project (literal text, a descriptive label), the run, the
+recorded admission order (not a queue position), the admission's kind, pass and recipe, its state and fixed reason, the recorded
+sequence state, the last recorded admission check with its own time, and the recorded times, including the recorded advancement
+deadline: a deadline that passed is still only a record, and nothing here ends, releases or changes anything. The region says plainly
+that it is a recorded snapshot, not every active cycle (a cycle whose latest admission is Consumed is not listed), an exact queue
+position, current eligibility, process activity, free capacity or a promised start, and the empty answer says that it does not mean no
+cycle is active, no owner exists or any capacity is free. Empty, unavailable (nothing proved, nothing shown), a failed or timed-out
+read and an incoherent answer are distinct.
+
+A row's "Select recorded cycle" renders the existing "Inspect local execution" inspector for exactly that run, collapsed, below the
+list; selecting reads nothing and changes neither the selected project nor its run, and the inspector's own explicit open, ledger,
+linked-step and window actions remain the only further reads. Reloading discards the earlier rows and the selected inspector at once
+(a failed or incoherent reload never shows old rows as a fresh answer); closing, selecting another cycle (or the same one again),
+a session loss and unmounting end the selection, and a late answer or retained callback of an ended visit shows and selects nothing.
+The one read carries a real abort signal and a ten-second bound. The region mounts no queue, order, stop, retry, release, resume,
+approval, commit or execution control. Rules:
+[inspection contract](../architecture/agent-collaboration-evidence-inspection.md#agent-attempt-history-and-evidence-inspection).
+
 ## Evidence surface
 
 The right rail provides contextual evidence categories:

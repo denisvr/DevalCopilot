@@ -126,7 +126,7 @@ const ADMISSION_KEYS = [
 
 const isCorrection = (kind: LocalExecutionStepKind): boolean => kind === 'ReviewCorrection' || kind === 'DiagnosisCorrection'
 
-function toHeader(raw: unknown): LocalExecutionAdmissionHistoryHeader | null {
+export function toHeader(raw: unknown): LocalExecutionAdmissionHistoryHeader | null {
   if (!hasExactKeys(raw, HEADER_KEYS)) {
     return null
   }
@@ -173,7 +173,7 @@ function toHeader(raw: unknown): LocalExecutionAdmissionHistoryHeader | null {
 }
 
 /** One admission member on its own: the fixed vocabularies, the closed kind shape, the reason and link shape of its state and its times. */
-function toAdmission(raw: unknown): LocalExecutionAdmissionRecord | null {
+export function toAdmission(raw: unknown): LocalExecutionAdmissionRecord | null {
   if (!hasExactKeys(raw, ADMISSION_KEYS)) {
     return null
   }

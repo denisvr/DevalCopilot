@@ -1,166 +1,223 @@
 # Planner/reviewer handoff
 
-## Current action: LOCAL-QUEUE-INSPECT-01
+## Current action: LOCAL-QUEUE-OVERVIEW-01
 
-Implementation of accepted [ADR-0063](../decisions/0063-inspect-recorded-local-execution-queue-admissions.md)
-is **reviewed GO (review 1)**. Publish the exact approved content in the **same
-LOCAL-QUEUE-INSPECT-01 Claude executor chat**, then return the publication report
-for independent verification. The LOCAL-QUEUE-01 executor chat is complete.
-Codex resolved the architecture, scope and review itself. Selection alone grants
-no publication; this GO is bounded by its external content identity and prompt.
+Implementation of accepted [ADR-0064](../decisions/0064-inspect-outstanding-local-execution-queue-admissions-across-projects.md)
+is **reviewed GO (review 2)**. LQO-R1 is resolved. Publish only the exact approved
+content in the **same LOCAL-QUEUE-OVERVIEW-01 Claude executor chat**, then return
+the publication report for independent verification. Codex resolved the
+architecture and review itself; this GO selects no new slice or executor.
+
+### Review 2: GO, publication pending
+
+Verified main, HEAD and local origin/main at 1e58dda; the fresh live remote also
+matches, divergence 0/0, index empty. Reviewed set: 56 paths, 15 modified and
+41 new. ClonedCycle.cs is the only additional path since review 1. Recombining
+its declaration/comment with the fixture reproduces the original file's exact
+manifest hash; the other 46 non-document inputs are unchanged. The ADR is
+unchanged and every changed/new C# file now has one top-level type.
+
+LQO-R1 is resolved without a behavior or assertion change. Independent rebuilt
+BoundTests pass 15/15 (16.3795 s); executor BoundTests 15/15, full Architecture
+196/196, changed-file format and type scan pass. Review 1's independent
+Application 245/API 20/frontend 73 and the executor's broader selected matrix
+remain retained at their actual scopes, as allowed by the explicit correction
+matrix. No repeated full run or new control is needed for this file-only move.
+
+The correction records the exact selection-guard coverage, original lost-output
+qualification and unbounded-history-scan limitation. Planner review clarified
+one evidence detail: correction1-03-architecture.log includes automatic NSwag
+generation during its build, although no separate regeneration/reproducibility
+run was selected. The client's complete hash remains equal to the prior final
+manifest. No product correction or extra qualification is inferred.
+
+Final hygiene and exact paths/tree are recorded outside tracked content under
+logs/planner-review/local-queue-overview-01/review-02/. The publication prompt
+names the expected parent, approved tree and inventory hash. Make no further
+product/documentation edits or closure commit. A mismatch, failed push or
+diverged remote stops without force or history reconciliation. Older NO-GO and
+implementation wording below/current-work record their preparation phases;
+they neither reopen this correction nor authorize a second publication.
+
+### Review 1: NO-GO (historical)
+
+Reviewed Git: main at 1e58dda, local origin/main equal, index empty; 55 pending
+paths (15 modified, 40 new). All four original planner inputs matched selection
+hashes before these planner review edits. All 47 non-document source files also
+matched the executor's final restored manifest. No unrelated path was found.
+
+**LQO-R1 (P3): one top-level type per file.**
+LocalExecutionQueueInspectionClones.cs declares both ClonedCycle (line 8) and
+LocalExecutionQueueInspectionClones (line 18). Move ClonedCycle unchanged into
+ClonedCycle.cs in the same namespace. Do not alter fixture or query behavior.
+The lexical scan found no other new C# file with multiple top-level types.
+
+Independent evidence: Application new overview plus shared admission history
+245/245 (2.0189 min), API new overview 20/20 (12.3539 s), six frontend files
+73/73 (2.02 s). The first independent build failed with zero reported warnings
+or errors; its short log is retained, with no cause inferred. The subsequent
+test invocation rebuilt successfully. Executor final matrix and four serial
+journey logs were inspected at their actual scopes, not rerun in full.
+
+Accepted interpretations: the narrow expression-bound projection preserves the
+historical reader and one-statement snapshot; count clones are labeled test-only
+and do not replace production-created representative states. A stored NULL state
+is prevented by NOT NULL, so it has expression inspection, not a stored-row test.
+The candidate scan can traverse retained history; the ADR bounds materialization,
+not query work or latency. This explicit read is accepted with that scale limit;
+no index/schema change or performance qualification is inferred.
+
+Both required controls are accepted. Control 2 removes selection scoping and
+kills its same-visit regression; 2b's single-layer removal survives. Precisely,
+the serial comparison protects a replaced selection within one visit, and the
+shared visit-owned commit protects an ended visit. That commit alone does not
+protect a newer selection inside the same still-active visit. Retain the control
+outputs and record this narrower explanation in the correction report.
+
+Evidence loss: 16-region-tests-first-run.log is only a retained fragment plus an
+executor-authored note; the omitted original output cannot be independently
+verified or reconstructed. Its fragment supports a multiple-match error, while
+the original full-run counts/diagnosis remain executor-reported. Independent
+current passes do not restore those bytes. Preserve the file and qualification;
+no further cleanup or replacement is authorized. Existing duplicate-key browser
+warnings also occur in earlier retained journey logs; they remain unresolved.
+
+Correction matrix is explicitly reduced for this unchanged-behavior test-file
+split: rebuild and run LocalExecutionQueueInspectionBoundTests, full Architecture,
+format both C# files, lexical type scan, diff and changed-document link checks.
+Retain other backend/frontend/client/journey/control results at their checked
+source scopes; no routine full matrix, new regression or mutation is needed.
+Behavior or wider source changes return for scope/matrix review. Update
+current-work with LQO-R1, the precise guard explanation and evidence limits, then
+return for review 2. Details: logs/planner-review/local-queue-overview-01/review-01/.
 
 ### Independently verified publication and continuity
 
-LOCAL-QUEUE-01 is published on main as
-**8b9a824f0a68317432794afed80ab12250b16721**, tree
-`56f4f31212101a4a91ec9dc3e23387adc963e5b6`, sole parent
-`c1e9392161ca8d62ffc157e8a74a7ae0e7e625b1`. Fresh live refs/heads/main,
-HEAD and local origin/main agree; divergence 0/0; index and working tree were
-clean before these planner inputs. The exact approved set is 167 paths,
-107 modified and 60 added. LCQ-R1 through LCQ-R4 and LCQ-V1/LCQ-V2 are resolved.
-No second commit or closure-document diff is needed. The implementation record's
-prepublication wording is historical, not an instruction to publish again.
+LOCAL-QUEUE-INSPECT-01 is published as
+**1e58dda4b1f4a0b3292c56c4cc86fb0f15c49d66**, tree
+`64668042f01b8dbcb91378d913249ec8c9388998`, sole parent
+`8b9a824f0a68317432794afed80ab12250b16721`. Fresh live refs/heads/main,
+HEAD and local origin/main agree, divergence 0/0, clean index and working tree
+before these planner inputs. The exact approved set is 53 paths, 15 modified
+and 38 added. No second commit or closure-document diff is needed; older
+prepublication wording records its preparation phase, never a repeat instruction.
 
-Records: `logs/planner-review/local-queue-01/publication-verification.json`,
-`continuity-after-publication.json`, review-04 GO and all earlier review/control
-logs. Detailed historical planning/reviews are preserved in this handoff at
-8b9a824 and ignored evidence, not copied into the active selection.
+Records: `logs/planner-review/local-queue-inspect-01/publication-verification.json`,
+`continuity-after-publication.json` and review-01's exact-content GO.
+The review and planning history is retained in this handoff at 1e58dda and
+ignored logs, without copying its full dispatch into the active selection.
 
-Codex: **CONTINUE_THIS_CHAT**. Observed token_count at
-2026-10-23T09:39:41.534Z: last context 169958 / declared window 475000 = 35.78%.
-This is current observed context, not cumulative tokens or account quota.
-Source is the session record named by continuity-after-publication.json.
-Claude continuity is separate: the next selected slice starts a new executor.
+Codex: **CONTINUE_THIS_CHAT**. Observed session token_count at
+2026-10-23T14:45:13.922Z: last context 38516 / declared window 475000 = 8.11%.
+This is observed context after publication, not cumulative tokens or account quota;
+the continuity record names the source. Claude continuity is separate: start a
+new executor for the selected slice and keep all its corrections there.
 
-### Review 1: GO, publication pending
+### Outcome, sizing and resolved authority
 
-Prepublication Git: main, HEAD and local origin/main at
-8b9a824f0a68317432794afed80ab12250b16721, divergence 0/0, index empty. The
-reviewed set has 53 paths (15 modified, 38 new), all within scope. The first
-return's file-count arithmetic differs; no unexplained path was found. The
-four planner inputs were hash-verified unchanged by the executor before review.
+Discover this database's outstanding queue admissions across projects, including
+an ended sequence's coherent Unresolved reservation, and explicitly select its
+existing recorded inspector without changing the active project/run.
+Per-run ledger inspection is delivered; the global recorded-owner count is
+neither a Waiting list nor a complete cycle list.
 
-No blocking finding. Independent Application inspection consumers pass 354/354
-(2 m 32 s), protected API inspection consumers 96/96 (1 m 10 s), frontend's
-five new decoder/wire/owner/surface files 55/55 (15.34 s wall). Executor final
-Architecture 192/192, whole Vitest 7454 and tooling, generated client stability
-and the two serial final journeys satisfy the selected matrix. Full prior suites
-remain retained at their old scopes, never fresh results for the new query.
-Both compiling controls kill the named permanent tests and restored hashes
-match the freshly checked sources. Invalid/failed earlier attempts remain.
+Ship bounded membership, one coherent read, strict transport/decoder, the global
+region and exact nested inspection together. They share one acceptance path.
+Execution recovery, release and any further continuation require a separate
+authority contract and cannot be inferred from this read-only view. As with
+ADR-0061/0063, no new owner execution grant is needed for inspection.
 
-The retained journey-queue-1 failure is explicitly dispositioned: its expected
-Passed/exit-0 assertion selected a first-pass verification that actually Failed
-with exit 1, as the failed log itself shows. Current source requires that actual
-Failed/exit-1 evidence for linked step 2 and opens linked review step 8 in run
-history, checking exact GET paths and no mutations. Separately inspected final
-logs show queue 1 passed (48.0 s) and local-execution 1 passed (29.9 s); the
-corrected development queue run also passed (47.1 s). The original failure is
-preserved, not relabeled as a pass. Detailed independent disposition is in
-`logs/planner-review/local-queue-inspect-01/review-01/journey-failure-disposition.md`.
+ADR-0064 is the authoritative resolved contract. In particular:
 
-Executor interpretations resolved: the single provider-neutral EF statement
-and WAL snapshot tests meet the consistency contract. Recipe count/bounds and
-the membership/name of referenced recipes suffice for this ledger; it neither
-recertifies unused pinned recipe flags/order nor proves an operation outcome.
-The existing sequence/selected-operation inspectors keep those separate proofs.
-The recorded lifecycle matrix is supported by the production-driven cases;
-the historical monotonic-clock and typed GUID/time conventions remain qualified.
-Reloading the sequence index unmounts and ends the ledger visit; reopening
-explicitly is correct, not a promise to preserve an ended owner's state.
+- Membership starts at admissions: Waiting/Reserved/Unresolved, including ended
+  held records; only recognized Consumed/Retired are excluded. Unknown/orphan
+  candidates cannot disappear as absence. Expiry changes no recorded membership.
+- At most 68 entries, read 69 to detect overflow; at most 64 non-ended candidate
+  sequences and four held candidates. Exact ascending admission numbers and one
+  candidate per sequence/run. Empty does not mean idle/free/no active cycle.
+- One provider-neutral EF statement for membership, registered project label,
+  roots and bounded ledgers/references. Reuse ADR-0063's pure whole-ledger proof;
+  every candidate must be its proved tail, with the same two-root duplicate guard.
+  Bound materialization and completeness,
+  including individual ledger overflow, without N+1, split reads or revision
+  sandwiches. A narrow shared historical projection extraction is allowed, with
+  unchanged per-run semantics. Translation difficulty requires a challenge.
+- One protected bodyless/queryless GET
+  `/api/local-execution-queue/inspection`; exactly status/entries, closed
+  Empty/Recorded/Unavailable and complete API-owned entry/header/admission shapes.
+  A defect makes the whole reading unavailable. No partial list or count.
+- One explicit collapsed global region near the existing capacity control,
+  independent of project selection. No polling/automatic refresh. Selected entry
+  renders the existing explicit inspector; no new routing or command controls.
+  Each opening/reload/selection owns callbacks/results; reload ends old selection.
+  The new GET has a real AbortSignal and ten-second bound. Do not retrofit older
+  inspection transports or change shared owned-lifetime primitives.
+- No runtime ownership/eligibility policy, schema, scheduler or execution change.
+  A recorded reservation is not a live process/ownership proof or release action.
 
-Hygiene: 236 local links/fragments checked, no errors or conflict markers;
-diff check clean, with the existing generated-client line-ending advisory.
-No production correction or temporary reviewer test was introduced. Planner
-review edits are only this handoff, the decision index and MVP status wording.
-Exact approved paths/tree and the review evidence are external to the tracked
-content under `logs/planner-review/local-queue-inspect-01/review-01/`.
-The publication prompt supplies the expected parent, tree and inventory hash.
-No further product/documentation edits or closure commit are authorized.
+Four frozen planner inputs: this handoff, ADR-0064, decisions/README.md and
+mvp-delivery-plan.md. Executor preserves them unless Codex resolves a material
+challenge, and updates current-work plus affected architecture/product/context
+documentation. Do not mass-rewrite old preparation-phase wording.
 
-### Outcome, sizing and authority
+### Proportional final matrix
 
-Inspect every recorded admission of one queued local cycle, including a wait
-retired without an operation, in current-run Usage & Evidence and selected run
-history. An explicit action on a proved linked step opens its existing operation
-evidence. The live status exposes only outstanding admission bookkeeping, while
-the existing step index cannot represent an admission that created no step.
+Focused red/green during development; once stable, one final matrix after
+restored controls. Incremental build before the group; reuse current binaries.
+One build/generator/mutation writer; browser journeys run serially.
 
-Ship the protected bounded read, all five admission states, strict client,
-ended-request ownership, exact step links and both surfaces together. They share
-one recorded-run proof and acceptance path. A cross-project queue census requires
-a different bounded membership/snapshot contract; scheduler/recovery changes need
-separate authority. Neither belongs in this recorded-run outcome. No new owner
-execution grant is needed for read-only inspection (the ADR-0061 precedent).
-
-### Resolved boundary
-
-- One bodyless/queryless protected GET under the existing inspection route:
-  `/api/runs/{runId}/local-execution-sequence/inspection/admissions`.
-- Closed NotRecorded/NotQueued/Recorded/Unavailable graph; unknown run fixed
-  inspection 404. Immediate with any admission is unavailable, never queued.
-- One provider-neutral guarded EF statement for the root, bounded ledger and
-  reference facts. No split-query race, write lock, retry or mutation. Sequence
-  revision alone cannot detect waiting-reason changes. Challenge translation
-  limitations before changing this design.
-- At most 103 admission rows to prove overflow; enforce Domain's smaller
-  recipe-dependent bound. Prove historical root, source, report, predecessor,
-  correction origin, ordering, lifecycle and the entire admission/step tuple.
-  Waiting and retired-without-step rows remain inspectable without an operation.
-- No live SourceHolds/ownership/admission reads or latest-source substitution.
-  Existing historical projection guards and pure Domain mappings are reusable;
-  do not change execution gates to support inspection.
-- Explicit collapsed reads, reload and direct step drill-down through the
-  existing local inspector. If its index lacks a linked step, require explicit
-  index reload; no unrelated-history search or substituted evidence. Closed
-  panels, history selection and ended A-B-A/opening owners obey ADR-0063.
-- Four frozen planner inputs: this handoff, ADR-0063, decisions/README.md and
-  mvp-delivery-plan.md. Executor updates current-work and affected architecture
-  documentation, preserving these resolved inputs unless a challenge is resolved.
-
-### Proportional validation and acceptance
-
-Build once before a group and reuse only current restored binaries. Focused
-red/green during development; one final matrix on stable input, no overlapping
-build/generator/mutation writers. Keep exact commands, timings and source scope.
-
-| Boundary | Final evidence | Broaden only when |
+| Boundary | Final evidence | Broadening trigger |
 | --- | --- | --- |
-| Historical query | All new LocalExecutionAdmissionHistory classes plus existing LocalExecutionInspection Application classes; real file SQLite, independent connections, one-statement race/command proof, all states, both correction origins, malformed storage, row bounds and no effects | Shared execution/authority/transaction consumers change: full relevant Application/API; otherwise stop before such scope expansion |
-| MVC | New admission-history complete auth/body/query/error/graph matrix plus all existing LocalExecutionInspection API classes | Shared authentication, binding, error or request pipeline changes |
-| Architecture | Full Architecture project | New failure requires a named check |
-| Frontend | Whole Vitest, lint, build (includes product tsc), strict e2e tsc; generated client rebuilt byte-identically after successful API generation | Shared ownership/harness behavior changes invalidate additional consumers |
-| Browser | Extend queue journey: held Waiting/zero step ledger, consumed ledger after release, current/history, explicit linked-step evidence and no extra mutation requests; run existing local-execution journey serially | Shared harness/authentication/transport changes: also planning-sequence and collaboration serially |
-| Unchanged boundaries | Retain Domain 1757, Persistence/transactions 750, full Application 7905, API 3265 at their recorded scopes; do not call them fresh final runs | Domain, schema/migrations or shared authority changes require a challenge and revised matrix |
+| Query/historical proof | All new LocalExecutionQueueInspection Application classes plus existing LocalExecutionAdmissionHistory and LocalExecutionInspection classes; real file SQLite, independent connections, bounded complete membership and one-statement race hooks, no effects | Shared authority/lifecycle/transaction consumer changes: stop, challenge and revise scope/matrix |
+| MVC | Same new/related inspection API classes; auth, strict request/error/closed graph matrix, representative failures and MVC authorization inventory | Shared auth/binding/error/serialization pipeline changes |
+| Architecture | Full Architecture project, including the new read-only boundary | A new failure needs a named diagnosis |
+| Frontend | Whole Vitest, lint, build (includes product tsc), strict e2e tsc; generated client byte-identical on a repeat successful API generation | Shared transport/bootstrap/owned-lifetime changes: stop before broadening |
+| Browser | Extend queue journey for global discovery/exact selected inspection/explicit empty reload; preserve prior ledger assertions. Run queue, local-execution, planning-sequence and collaboration serially, because the new region mounts in App | Shared harness/provider behavior changes require a challenge and its own focused regressions |
+| Unchanged | Retain Domain 1757, Persistence/transactions 750, full Application 7905 and API 3265 at LOCAL-QUEUE-01 scopes; last inspection focused Application 354/API 96, Architecture 192 and Vitest 7454 at their actual published sources | Domain/schema/migration or shared execution change is outside selection |
 
-New query tests use the LocalExecutionAdmissionHistory name so focused filters
-can enumerate the changed boundary. Useful filters are
-`FullyQualifiedName~LocalExecutionAdmissionHistory|FullyQualifiedName~LocalExecutionInspection`.
-Do not duplicate every policy permutation in MVC. Prove malformed reader behavior
-where reachable; if storage rejects a test mutation, label that storage evidence
-rather than pretending the reader ran. Adversarial storage fixtures must state
-any test-only guard bypass. No production test hook is permitted.
+Use the test name LocalExecutionQueueInspection for the new boundary. Final
+Application/API filter:
+`FullyQualifiedName~LocalExecutionQueueInspection|FullyQualifiedName~LocalExecutionAdmissionHistory|FullyQualifiedName~LocalExecutionInspection`.
+New pure permutations belong at the cheapest boundary; API proves wiring and
+representative failures. Build once, use --no-build --no-restore only on current
+binaries. Keep setup versus execution timing when a focused class exceeds one
+minute. Do not repeat whole backend projects on this additive read by routine.
 
-Two compiling controls: omit one required admission/step tuple comparison; remove
-an ended frontend read/selection-owner guard. Each must kill a named permanent
-regression; retain invalid attempts, restore hashes, touch and rebuild before
-passing evidence. No wider mutation campaign is selected.
+Prove 64 Waiting plus four ended-held candidates, overflow and malformed membership
+without running a complete provider workflow 68 times. Use production-created
+representative states and feature-owned bounded fixtures for count permutations;
+label guard bypasses and storage rejections. No production hook, fixture cache or
+test-infrastructure redesign. Each race must prove its hook/statement ran.
 
-No full Infrastructure, dependency audit for unchanged dependencies, Domain rerun,
-real provider or native experiment is automatically selected. CI/security/release
-checks retain their own requirements. Preserve all earlier qualifications.
+Two compiling controls: exclude ended sequences from membership; remove an ended
+global visit/selection owner guard. Each kills a named permanent regression.
+Preserve invalid attempts, verify restored hashes, touch and rebuild. Existing
+ADR-0063 identity-control evidence is retained, not rebranded as a new control.
 
-### Publication and stop boundary
+Changed-file formatting, document links/fragments, diff/conflict/sensitive-data
+hygiene and complete diff inspection finish the matrix. No dependency audit for
+unchanged dependencies, full Infrastructure, real provider or native experiment
+is automatically selected. CI/security/release gates remain separate.
 
-The implementation was returned unstaged, uncommitted and unpushed with its
-execution evidence. Publish only the exact content covered by review 1 GO;
-verify staged/committed tree, sole parent and path inventory, push main normally
-and verify the live ref and clean 0/0 state. A mismatch, remote divergence or
-failed push stops publication without force or reconciliation. Material edits
-return for review. The planner independently verifies publication and checks
-current context usage before selecting another slice. A conflict with the
-read-only boundary or evidence contract never grants a production fallback or
-authority expansion.
+### Retained evidence and publication boundary
+
+LOCAL-QUEUE-INSPECT-01 had no blocking finding. Independent Application 354/354,
+API 96/96 and five new frontend files 55/55 corroborated its focused matrix.
+Its retained journey-queue-1 failure was an incorrect expected Passed/exit-0
+assertion for a deliberately Failed/exit-1 first-pass verification; the final
+source asserts actual Failed/exit-1 for linked step 2 and linked review step 8
+in history, exact GETs and no mutation. Separately inspected final queue and
+local-execution runs passed. See review-01/journey-failure-disposition.md.
+Keep that original failed log, earlier test-fixture/control failures, accepted
+recipe-proof/typed-GUID/time/monotonic-clock limitations and all source scopes.
+The overview neither retrospectively strengthens them nor reopens execution.
+
+Return unstaged, uncommitted and unpushed; same-chat corrections retain finding
+IDs. A conflict with the read-only or evidence contract pauses dependent work
+for a bounded challenge. No production fallback is inferred. After review,
+only explicit exact-content GO authorizes normal main publication; failed push,
+divergence or content mismatch stops without force/reconciliation. Independent
+verification and a fresh context check follow publication, not implementation.
 
 ## Retained review and evidence limits
 
@@ -214,10 +271,11 @@ untouched; no historical result is reconstructed by this selection.
   hung submissions; retention beside disposal failure is unproven.
 - Increments 4/5/6 incomplete. Account/context, raw Git read, non-Windows limits:
   [current-work](current-work.md#open-risks). Production code and necessary tests
-  are selected only for LOCAL-QUEUE-INSPECT-01 under ADR-0063's read-only contract.
+  are selected only for LOCAL-QUEUE-OVERVIEW-01 under ADR-0064's read-only contract.
   PLAN-COORD-01, AGENT-SUP-01, WORKSPACE-EXCL-01, GLOBAL-ADMIT-01,
-  GLOBAL-LIMIT-01, LOCAL-COORD-01, LOCAL-INSPECT-01 and LOCAL-QUEUE-01 are
-  independently verified published. Inspection grants no mutation, scheduling,
+  GLOBAL-LIMIT-01, LOCAL-COORD-01, LOCAL-INSPECT-01, LOCAL-QUEUE-01 and
+  LOCAL-QUEUE-INSPECT-01 are independently verified published. Inspection grants
+  no mutation, scheduling,
   executor lease, operation retry/resume, quarantine release, recovery, approval,
   commit or publication authority. No dependency, experiment, capture-limit or
   standards edit is selected.

@@ -240,9 +240,14 @@ a durable pending admission, a coordinator-owned reservation of the oldest eligi
 accounting in every existing entrance, truthful waiting disclosure and a startup that never resumes waiting work. It completes no
 increment, adds no priority, executor lease, retry, takeover or process-aware release, and leaves every provider-contract boundary open.
 
-**Recorded queue-admission inspection (partial, publication pending).** ADR-0063 / reviewed-GO LOCAL-QUEUE-INSPECT-01 adds the bounded admission
+**Recorded queue-admission inspection (partial).** ADR-0063 / independently verified published LOCAL-QUEUE-INSPECT-01 adds the bounded admission
 ledger of one queued cycle in current-run and run-history inspection, including waits retired without a step and exact links to existing
 step evidence. It is read-only, adds no execution or queue-control authority and completes no increment.
+
+**Outstanding queue-admission overview (partial, reviewed GO; publication pending).** ADR-0064 / LOCAL-QUEUE-OVERVIEW-01 adds a bounded, coherent,
+read-only view of Waiting, Reserved and Unresolved admissions across projects, including an ended cycle's held reservation, with explicit
+selection of the existing recorded inspector. LQO-R1 is resolved; publication remains subject to its exact-content GO. It changes no queue
+or execution authority, adds no recovery action and completes no increment.
 
 **Agent supervision observations (partial).** ADR-0056 / AGENT-SUP-01 adds, for all seven existing Agent response contracts, a
 durable disclosure of what the host's own observer last reported for the current Agent attempt (phase, last report, absolute deadline,

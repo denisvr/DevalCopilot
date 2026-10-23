@@ -107,6 +107,10 @@ ADR-0063 / LOCAL-QUEUE-INSPECT-01 (implemented for review, unpublished until its
 region inside that inspector: the recorded admission ledger of one queued cycle, including a wait retired without a step, proved from one
 database statement, with an explicit action that reuses the existing selected-step evidence; it grants, changes and dispatches nothing.
 Increments 4 to 6 stay incomplete.
+ADR-0064 / LOCAL-QUEUE-OVERVIEW-01 (implemented for review, unpublished until its own GO) adds only a fifth bodyless GET and one collapsed
+global region beside the execution-capacity control: the recorded Waiting, Reserved and Unresolved admissions of every queued cycle across
+projects, proved from one database statement, with an explicit action that reuses the existing per-run inspector for the exact run; it
+reads without polling, grants, changes and dispatches nothing, and an empty answer is not an idle host. Increments 4 to 6 stay incomplete.
 ADR-0056 adds only operational evidence for all seven Agent response contracts: a
 durable observation of what the host's own observer last reported (phase, last
 report, absolute deadline, first attention) for the current attempt, an independent

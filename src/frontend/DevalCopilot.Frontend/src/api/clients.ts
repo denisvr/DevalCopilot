@@ -120,6 +120,7 @@ import {
   LocalExecutionInspectionStepWireClient,
   LocalExecutionInspectionWindowWireClient,
 } from '../features/cockpit/localExecutionInspectionWire'
+import { LocalExecutionQueueInspectionWireClient } from '../features/cockpit/localExecutionQueueInspectionWire'
 
 // One instance per endpoint client is enough for this slice; components import the
 // factory functions rather than constructing a client or a URL themselves.
@@ -168,6 +169,8 @@ export const stopLocalExecutionSequenceClient = (signal?: AbortSignal) => new St
 // Hand the parsed bodies to the whole-answer decoders instead of the generated models (see the ADR-0052 wire clients).
 export const localExecutionInspectionIndexClient = () => new LocalExecutionInspectionIndexWireClient(getApiBaseUrl(), authenticatedHttp)
 export const localExecutionAdmissionHistoryClient = () => new LocalExecutionAdmissionHistoryWireClient(getApiBaseUrl(), authenticatedHttp)
+// The global outstanding-admission read (ADR-0064): its own signal cancels the actual request.
+export const localExecutionQueueInspectionClient = (signal?: AbortSignal) => new LocalExecutionQueueInspectionWireClient(getApiBaseUrl(), authenticatedHttp, signal)
 export const localExecutionInspectionStepClient = () => new LocalExecutionInspectionStepWireClient(getApiBaseUrl(), authenticatedHttp)
 export const localExecutionInspectionWindowClient = () => new LocalExecutionInspectionWindowWireClient(getApiBaseUrl(), authenticatedHttp)
 

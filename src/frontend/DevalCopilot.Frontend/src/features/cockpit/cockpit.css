@@ -1926,3 +1926,8 @@
   border-left: 3px solid var(--dc-warning);
   padding-left: 0.5rem;
 }
+
+.dc-queue-overview {
+  padding: 0.4rem 1rem;
+  border-bottom: 1px solid var(--dc-border);
+}

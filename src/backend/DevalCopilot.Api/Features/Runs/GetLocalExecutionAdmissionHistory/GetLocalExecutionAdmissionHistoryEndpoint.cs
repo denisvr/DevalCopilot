@@ -41,7 +41,7 @@ public sealed class GetLocalExecutionAdmissionHistoryEndpoint(IApplicationMediat
             value.Admissions.Select(Map).ToArray()));
     }
 
-    private static LocalExecutionAdmissionHistoryHeaderResponse Map(LocalExecutionAdmissionHistoryHeader header) => new(
+    internal static LocalExecutionAdmissionHistoryHeaderResponse Map(LocalExecutionAdmissionHistoryHeader header) => new(
         header.SequenceId,
         header.AdmissionMode.ToString(),
         header.RecordedState.ToString(),
@@ -52,7 +52,7 @@ public sealed class GetLocalExecutionAdmissionHistoryEndpoint(IApplicationMediat
         GetLocalExecutionSequenceInspectionEndpoint.Time(header.UpdatedAtUtc),
         header.EndedAtUtc is { } ended ? GetLocalExecutionSequenceInspectionEndpoint.Time(ended) : null);
 
-    private static LocalExecutionAdmissionHistoryAdmissionResponse Map(LocalExecutionInspectionAdmission admission) => new(
+    internal static LocalExecutionAdmissionHistoryAdmissionResponse Map(LocalExecutionInspectionAdmission admission) => new(
         admission.AdmissionId,
         admission.AdmissionNumber.ToString(CultureInfo.InvariantCulture),
         admission.Ordinal,

@@ -5990,6 +5990,58 @@ export class CaptureGitWorkspaceCheckpointEndpointClient {
     }
 }
 
+export class GetLocalExecutionQueueInspectionEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getLocalExecutionQueueInspection(): Promise<GetLocalExecutionQueueInspectionResponse> {
+        let url_ = this.baseUrl + "/api/local-execution-queue/inspection";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetLocalExecutionQueueInspection(_response);
+        });
+    }
+
+    protected processGetLocalExecutionQueueInspection(response: Response): Promise<GetLocalExecutionQueueInspectionResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = GetLocalExecutionQueueInspectionResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            let resultData400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result400 = ApiProblemDetails.fromJS(resultData400);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<GetLocalExecutionQueueInspectionResponse>(null as any);
+    }
+}
+
 export class HealthEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -20186,6 +20238,106 @@ export interface ICaptureGitWorkspaceCheckpointResponse {
     headCommitSha?: string;
     fingerprintSha256?: string;
     changedFileCount?: number;
+}
+
+export class GetLocalExecutionQueueInspectionResponse implements IGetLocalExecutionQueueInspectionResponse {
+    status?: string;
+    entries?: LocalExecutionQueueInspectionEntryResponse[];
+
+    constructor(data?: IGetLocalExecutionQueueInspectionResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.status = _data["status"];
+            if (Array.isArray(_data["entries"])) {
+                this.entries = [] as any;
+                for (let item of _data["entries"])
+                    this.entries!.push(LocalExecutionQueueInspectionEntryResponse.fromJS(item));
+            }
+        }
+    }
+
+    static fromJS(data: any): GetLocalExecutionQueueInspectionResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GetLocalExecutionQueueInspectionResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["status"] = this.status;
+        if (Array.isArray(this.entries)) {
+            data["entries"] = [];
+            for (let item of this.entries)
+                data["entries"].push(item ? item.toJSON() : undefined as any);
+        }
+        return data;
+    }
+}
+
+export interface IGetLocalExecutionQueueInspectionResponse {
+    status?: string;
+    entries?: LocalExecutionQueueInspectionEntryResponse[];
+}
+
+export class LocalExecutionQueueInspectionEntryResponse implements ILocalExecutionQueueInspectionEntryResponse {
+    projectId?: string;
+    projectName?: string;
+    runId?: string;
+    sequence?: LocalExecutionAdmissionHistoryHeaderResponse;
+    admission?: LocalExecutionAdmissionHistoryAdmissionResponse;
+
+    constructor(data?: ILocalExecutionQueueInspectionEntryResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.projectId = _data["projectId"];
+            this.projectName = _data["projectName"];
+            this.runId = _data["runId"];
+            this.sequence = _data["sequence"] ? LocalExecutionAdmissionHistoryHeaderResponse.fromJS(_data["sequence"]) : undefined as any;
+            this.admission = _data["admission"] ? LocalExecutionAdmissionHistoryAdmissionResponse.fromJS(_data["admission"]) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): LocalExecutionQueueInspectionEntryResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new LocalExecutionQueueInspectionEntryResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["projectId"] = this.projectId;
+        data["projectName"] = this.projectName;
+        data["runId"] = this.runId;
+        data["sequence"] = this.sequence ? this.sequence.toJSON() : undefined as any;
+        data["admission"] = this.admission ? this.admission.toJSON() : undefined as any;
+        return data;
+    }
+}
+
+export interface ILocalExecutionQueueInspectionEntryResponse {
+    projectId?: string;
+    projectName?: string;
+    runId?: string;
+    sequence?: LocalExecutionAdmissionHistoryHeaderResponse;
+    admission?: LocalExecutionAdmissionHistoryAdmissionResponse;
 }
 
 export class SetExecutionCapacityLimitResponse implements ISetExecutionCapacityLimitResponse {

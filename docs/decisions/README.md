@@ -166,7 +166,10 @@ under [Proposed decisions](#proposed-decisions).
   (accepted, implemented in independently verified published LOCAL-QUEUE-01 after LCQ-R1 through LCQ-R4 and LCQ-V1/LCQ-V2 corrections; the owner-authorized opt-in local-cycle queue waits on pinned authority within the original deadline, orders eligible pending steps, reserves before preparation and transfers atomically into existing claims; narrowly extends ADR-0060 and ADR-0057/0058/0059 ownership for pre-claim reservations and ADR-0061 recorded mode/state; restart closes waiting work, with no operation retry/resume, quarantine release, process lease/cancellation, extra correction, approval, commit or publication)
 
 - [ADR-0063: Inspect recorded local execution queue admissions](0063-inspect-recorded-local-execution-queue-admissions.md)
-  (accepted, implemented in LOCAL-QUEUE-INSPECT-01 and reviewed GO; publication pending exact-content verification; bounded read-only admission history for the current and selected historical run, exact recorded step links and reuse of existing operation evidence; no execution, queue-control, eligibility, recovery or publication authority)
+  (accepted, implemented in independently verified published LOCAL-QUEUE-INSPECT-01; bounded read-only admission history for the current and selected historical run, exact recorded step links and reuse of existing operation evidence; no execution, queue-control, eligibility, recovery or publication authority)
+
+- [ADR-0064: Inspect outstanding local execution queue admissions across projects](0064-inspect-outstanding-local-execution-queue-admissions-across-projects.md)
+  (accepted, implemented in LOCAL-QUEUE-OVERVIEW-01 and reviewed GO after the LQO-R1 correction; publication pending exact-content verification; one bounded coherent read of Waiting, Reserved and Unresolved admissions across the authoritative database, including ended held records, with explicit global inspection and reuse of existing recorded evidence; no execution, ownership, queue-control, recovery or publication authority)
 
 ## Partially superseded decisions
 

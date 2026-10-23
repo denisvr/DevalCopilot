@@ -20,6 +20,7 @@ import { useWorkspaceExecutionStatus } from './features/cockpit/hooks/useWorkspa
 import { useExecutionCapacity } from './features/cockpit/hooks/useExecutionCapacity'
 import { useLocalExecutionSequence } from './features/cockpit/hooks/useLocalExecutionSequence'
 import { ExecutionCapacityLimitControl } from './features/cockpit/components/ExecutionCapacityLimitControl'
+import { LocalExecutionQueueInspectionRegion } from './features/cockpit/components/LocalExecutionQueueInspectionRegion'
 import type { PlanningSequenceControl } from './features/cockpit/planningSequence'
 import { describePlanningSequenceWithholding } from './features/cockpit/planningSequenceCopy'
 import './features/cockpit/cockpit.css'
@@ -141,6 +142,9 @@ export default function App() {
 
       {/* ADR-0059: the one global recorded-execution limit control, independent of any selected project. */}
       <ExecutionCapacityLimitControl capacity={executionCapacity} />
+
+      {/* ADR-0064: the one global, explicit region of every outstanding recorded queue admission, independent of any selected project. */}
+      <LocalExecutionQueueInspectionRegion />
 
       {selectedProject ? <ProjectBaselineSummary project={selectedProject} /> : null}
 
