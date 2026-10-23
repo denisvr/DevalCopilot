@@ -1,15 +1,17 @@
 import {
+  GetLocalExecutionAdmissionHistoryEndpointClient,
   GetLocalExecutionSequenceInspectionEndpointClient,
   GetLocalExecutionStepInspectionEndpointClient,
   GetLocalExecutionVerificationOutputWindowEndpointClient,
 } from '../../api/generated/api-client'
 import type {
+  GetLocalExecutionAdmissionHistoryResponse,
   GetLocalExecutionSequenceInspectionResponse,
   GetLocalExecutionStepInspectionResponse,
   GetLocalExecutionVerificationOutputWindowResponse,
 } from '../../api/generated/api-client'
 
-// The three recorded local execution inspection operations (ADR-0061), each answering a successful call with its parsed JSON body instead
+// The recorded local execution inspection operations (ADR-0061, and the admission ledger of ADR-0063), each answering a successful call with its parsed JSON body instead
 // of the generated model. The generated models turn explicit nulls into undefined, drop unknown members and coerce types; the
 // whole-answer decoders need the original types, exact keys and explicit nulls. An empty or non-JSON body resolves as `undefined`, which
 // those decoders refuse. URL construction, authentication, the single request and every non-200 answer stay the generated operations'
@@ -38,6 +40,20 @@ export class LocalExecutionInspectionIndexWireClient extends GetLocalExecutionSe
     return response.status === 200
       ? parsedBody<GetLocalExecutionSequenceInspectionResponse>(response)
       : super.processGetLocalExecutionSequenceInspection(response)
+  }
+}
+
+/** The recorded admission-ledger read of one queued local execution cycle (ADR-0063). */
+export class LocalExecutionAdmissionHistoryWireClient extends GetLocalExecutionAdmissionHistoryEndpointClient {
+  /** The parsed 200 body for exactly this run, to be judged by the decoder; never a generated model. */
+  readAdmissions(runId: string): Promise<unknown> {
+    return this.getLocalExecutionAdmissionHistory(runId)
+  }
+
+  protected override processGetLocalExecutionAdmissionHistory(response: Response): Promise<GetLocalExecutionAdmissionHistoryResponse> {
+    return response.status === 200
+      ? parsedBody<GetLocalExecutionAdmissionHistoryResponse>(response)
+      : super.processGetLocalExecutionAdmissionHistory(response)
   }
 }
 

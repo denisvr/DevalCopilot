@@ -1845,6 +1845,19 @@ no collaboration message can still be inspected. Nothing is fetched until the ow
   or project, a reload and unmount start from zero, and an earlier "Hide" never hides a later choice.
   Everything is literal text with no link, polling, automatic paging, download, export, browser storage or URL state. Rules:
   [inspection contract](../architecture/agent-collaboration-evidence-inspection.md#agent-attempt-history-and-evidence-inspection).
+- **Inspect queue admissions.** For a recorded *queued* sequence the same inspector, in the current run's rail and in the selected
+  historical run, offers one more collapsed "Inspect queue admissions" region
+  ([ADR-0063](../decisions/0063-inspect-recorded-local-execution-queue-admissions.md)). Opening or "Reload queue admissions" reads only
+  the recorded admission ledger once; closed, it reads nothing and nothing is polled. It lists every recorded admission in order with its
+  recorded admission order number (not a queue position), kind, pass and recipe, its state (Waiting, Reserved, Consumed, Retired or
+  Unresolved) with its fixed reason, its last recorded waiting observation with its own time (never current capacity, rank, eligibility
+  or a promised start), and its timestamps. A wait that closed without a step and a still-waiting admission show that no step exists and
+  offer no operation; an admission that links a step offers "Open step evidence" only when that step is in the inspector's currently
+  loaded sequence index, and the action reuses the inspector's own selected-step evidence without changing the selected run; otherwise
+  the row says to reload the recorded sequence first and nothing is searched or substituted. Not recorded, not queued (an Immediate
+  sequence), unavailable and incoherent answers are distinct and show nothing fabricated. The region mounts no queue, order, stop,
+  retry, release, resume or execution control. Closing it, reloading the inspector, another run or project, a return to an earlier run
+  and unmount end it, and everything is literal text.
 - **Claude-reported model limits.** For a Claude attempt, the selected detail also shows a "Claude-reported model limits" section
   (a historical fact stored when the attempt concluded; see
   ["Claude-reported model context limits"](../architecture/agent-collaboration-protocol.md#claude-reported-model-context-limits)

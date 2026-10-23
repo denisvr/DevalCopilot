@@ -115,6 +115,7 @@ import {
   AgentAttemptVerificationWindowWireClient,
 } from '../features/cockpit/agentAttemptVerificationWire'
 import {
+  LocalExecutionAdmissionHistoryWireClient,
   LocalExecutionInspectionIndexWireClient,
   LocalExecutionInspectionStepWireClient,
   LocalExecutionInspectionWindowWireClient,
@@ -166,6 +167,7 @@ export const queueLocalExecutionSequenceClient = (signal?: AbortSignal) => new Q
 export const stopLocalExecutionSequenceClient = (signal?: AbortSignal) => new StopLocalExecutionSequenceWireClient(getApiBaseUrl(), authenticatedHttp, signal)
 // Hand the parsed bodies to the whole-answer decoders instead of the generated models (see the ADR-0052 wire clients).
 export const localExecutionInspectionIndexClient = () => new LocalExecutionInspectionIndexWireClient(getApiBaseUrl(), authenticatedHttp)
+export const localExecutionAdmissionHistoryClient = () => new LocalExecutionAdmissionHistoryWireClient(getApiBaseUrl(), authenticatedHttp)
 export const localExecutionInspectionStepClient = () => new LocalExecutionInspectionStepWireClient(getApiBaseUrl(), authenticatedHttp)
 export const localExecutionInspectionWindowClient = () => new LocalExecutionInspectionWindowWireClient(getApiBaseUrl(), authenticatedHttp)
 

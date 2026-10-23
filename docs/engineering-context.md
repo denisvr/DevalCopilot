@@ -103,6 +103,10 @@ ADR-0062 / LOCAL-QUEUE-01 (implemented for review, unpublished until its own GO)
 mode for that same cycle: the cycle waits as a durable pending admission and the host, never the page, reserves the oldest eligible one
 under the write lock before external preparation; it adds no priority, executor lease, retry, takeover or process-aware recovery and
 changes no approval, commit or publication authority. Increments 4 to 6 stay incomplete.
+ADR-0063 / LOCAL-QUEUE-INSPECT-01 (implemented for review, unpublished until its own GO) adds only a fourth bodyless GET and one collapsed
+region inside that inspector: the recorded admission ledger of one queued cycle, including a wait retired without a step, proved from one
+database statement, with an explicit action that reuses the existing selected-step evidence; it grants, changes and dispatches nothing.
+Increments 4 to 6 stay incomplete.
 ADR-0056 adds only operational evidence for all seven Agent response contracts: a
 durable observation of what the host's own observer last reported (phase, last
 report, absolute deadline, first attention) for the current attempt, an independent

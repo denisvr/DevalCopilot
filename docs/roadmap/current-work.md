@@ -6,12 +6,109 @@ was prepared ([recovery](development-workflow.md#recovery)). Git and code
 prevail; compare branch, `HEAD`, `origin/main` and staged/unstaged/untracked
 state first.
 
-## Active slice: LOCAL-QUEUE-01 queued local execution (ADR-0062)
+## Active slice: LOCAL-QUEUE-INSPECT-01 recorded queue-admission inspection (ADR-0063)
 
 This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
 Reconcile publication with Git. This record alone grants no publication authority.
 
-**Delivery phase: correction 1 returned by the Claude executor after review 1 NO-GO, unstaged, uncommitted and unpushed. No GO exists.**
+**Delivery phase: first return by a new Claude executor chat, unstaged, uncommitted and unpushed. No GO exists.**
+Baseline: `main`, `HEAD`, local `origin/main` and the live `refs/heads/main` were `8b9a824f0a68317432794afed80ab12250b16721` (LOCAL-QUEUE-01,
+independently verified published), divergence 0/0, real index empty; exactly the three planner documents (`planner-handoff.md`,
+`decisions/README.md`, `mvp-delivery-plan.md`) and the new ADR-0063 were pending and are preserved byte-for-byte, not edited. LOCAL-QUEUE-01
+below is a historical record and was not reopened. ADR-0050 stays Proposed, P9 unproven, AI Memory deferred, Increments 4/5/6 incomplete;
+every standing restriction stays.
+
+### What exists
+
+- **Application.** `GetLocalExecutionAdmissionHistoryQuery` over one statement: `LocalExecutionAdmissionHistoryStatement` is one provider-neutral EF
+  query (the run, at most two candidate sequences, at most 103 admission rows, left joins to each linked step, source checkpoint, report message and
+  pinned recipe and to the sequence's workspace and initial checkpoint, and bounded 33/103 counts of the pinned recipes and recorded steps; enums
+  classified and numbers/text guarded in the database as ADR-0061 does; admission order numbers and revisions are guarded positive Int64) and
+  `LocalExecutionAdmissionHistoryProof` is the pure proof over its rows (root, mode, recipe-dependent bound, order, ordinals, closed kind shape,
+  predecessor chain, correction origin, source and report references, the whole admission/step tuple, the per-state link/reason shape, Consumed-only
+  before the last and the last fitting the recorded sequence state, every recorded step linked by exactly one admission). Closed statuses
+  NotRecorded / NotQueued / Recorded / Unavailable; an unknown run is the existing fixed inspection 404. No split read, second revision read, write
+  lock, transaction, retry, live eligibility/ownership/`SourceHolds` reader or latest-row substitution. `LocalExecutionInspectionProjection`'s guard
+  constants became `internal` (no behavior change); nothing else shared changed.
+- **API.** One authorized bodyless, queryless MVC GET `/api/runs/{runId}/local-execution-sequence/inspection/admissions` reusing the existing
+  `LocalExecutionInspectionBodylessGuardFilter`, with an API-owned closed graph (admission order, revisions and the sequence revision as canonical
+  Int64 strings, UTC round-trip times, no reserved operation, token, path or digest member). Regenerated client (additive, 278 lines, build-stable).
+- **Frontend.** Strict whole-answer decoder `localExecutionAdmissionHistory.ts`, the `LocalExecutionAdmissionHistoryWireClient` facade,
+  `useLocalExecutionAdmissionHistory` (run and ledger-visit lifetimes; a retained show/close/reload/linked-step callback of an ended lifetime does
+  nothing) and `LocalExecutionAdmissionPanel`, a collapsed "Inspect queue admissions" region offered inside the existing inspector only for a recorded
+  queued sequence, so the current run's Usage & Evidence and the selected run history both get it. A linked row's "Open step evidence" delegates to
+  the inspector's own `selectStep` and exists only for a step in the inspector's currently accepted index of the same sequence; otherwise the row asks
+  for an explicit index reload. Waiting and retired-without-step rows open no operation. Reloading the inspector index ends the ledger visit (the
+  region unmounts), so the owner reopens the ledger afterwards.
+- **Journey.** `e2e/local-execution-queue.journey.ts` now opens the ledger of the held WAITING cycle (one Waiting admission, no step, recorded
+  reason, no link, zero invocations) and, after the release, the consumed twelve-admission ledger from the current run and from Run history with
+  explicit linked step evidence (a verification and a review), asserting the exact GETs and no non-GET request or database change.
+- **Documentation.** `agent-collaboration-evidence-inspection.md` (new "Recorded queue admission inspection"), `run-cockpit-specification.md`
+  ("Inspect queue admissions"), `engineering-context.md` and this file.
+
+### Evidence (logs under `logs/executor/local-queue-inspect-01/`, git-ignored; commands run at the repository root)
+
+- **Fresh, final matrix on the final restored sources (after both controls, hashes restored, touched, rebuilt):**
+  - Application, `--filter 'FullyQualifiedName~LocalExecutionAdmissionHistory|FullyQualifiedName~LocalExecutionInspection'`: **354 passed**, 0 failed
+    (157 new: `LocalExecutionAdmissionHistoryTests`, `...DamageTests`, `...ConsistencyTests`; 197 existing LocalExecutionInspection), 2 m 15 s
+    (`final-application.log`). Real file-backed SQLite, production-created queued cycles for every admission state, both correction origins and recipe
+    order, all tuple members, malformed storage, row bounds, one-statement/read-only/no-forbidden-column proofs and independent-connection consistency.
+  - Api, same filter: **96 passed** (19 new `LocalExecutionAdmissionHistory` Api tests, 77 existing LocalExecutionInspection), 1 m 8 s (`final-api.log`).
+  - Architecture, full project: **192/192** (`final-architecture.log`); `LocalExecutionInspectionBoundaryTests` now includes the new Application and Api
+    folders (the DbSet allow-list gains `LocalExecutionAdmissions`; four endpoints).
+  - Frontend: whole Vitest **7,454 passed** (301 files; +55 new: 32 decoder/hook, 14 panel, 4 two-surface, 5 contract); `oxlint` exit 0 with only the
+    existing warnings (none in the new files); `npm run build` (includes `tsc -b`) pass; the recorded strict e2e `tsc` flag set pass.
+  - Generated client: a non-incremental serial Api build (`-p:UseSharedCompilation=false -m:1`, 0 warnings, 0 errors) reproduced `api-client.ts`
+    byte-identically (hash `ed2855a042d5354c` before and after; the LOCAL-QUEUE-01 hash was `ba3b20f58e4aa132`).
+  - Journeys, run one at a time on the final binaries: queue **48 s passed**, existing local-execution **30 s passed**.
+  - Changed C# files: `dotnet format --verify-no-changes` clean (30 files); `git diff --check` clean; new files have no CR, trailing space or stray
+    non-ASCII (only the existing `·` and `…`).
+- **Compiling controls (`control-1.sh`, `control-2.sh`; each hash-guarded, mutated, proved changed, built, run, restored from a byte backup, hash
+  verified, touched, rebuilt):**
+  1. Omit the required admission/step source-checkpoint comparison in `LocalExecutionAdmissionHistoryProof.ProveLink`: compiled, exactly one named
+     permanent test failed (`...DamageTests.A_damaged_fact_makes_the_whole_ledger_unavailable_with_no_partial_disclosure(tuple_source_checkpoint)`; 156 of
+     157 passed). The first run's logs are kept as `first-attempt-control-1*.log`: there a second, unrelated failure was my own test defect (a record
+     comparison over a list), fixed in the test and not counted as a kill.
+  2. Remove the ended request-owner guard of `useLocalExecutionAdmissionHistory.inspectLinkedStep`: typechecked, three named permanent tests failed
+     (never opens evidence for another visit / another run / after unmounting; 31 of 34 passed).
+- **Retained at their actual scopes (not fresh final runs):** Domain 1,757; Persistence plus transaction classes 750; full Application 7,905; full Api
+  3,265 (all LOCAL-QUEUE-01 evidence on sources before this slice). Their inputs are unchanged except additive new files and the Application guard
+  constants' visibility; this slice changed no Domain, schema, migration, execution policy or shared authority, so no broadening trigger applied.
+- **Not run:** full Application/Api/Infrastructure suites, Domain, the planning-sequence and collaboration journeys (the shared harness is unchanged),
+  dependency audit, real provider or native experiment. Nothing was committed, pushed, staged or published.
+
+### Preserved development attempts and failures
+
+- Application `app-first.log` 3 failed/25 passed (a tick helper that never exposes a waiting successor; a restart test sharing one database across
+  global reservation and closure) and `app-second.log` 4 failed (the production database is WAL, not rollback-journal, so a mid-statement writer is
+  not blocked and the test now asserts snapshot isolation instead; three damage fixtures hit unique indexes or reused one constant GUID); `app-third.log`
+  1 failed (the in-flight write was refused by the admission immutability trigger; it now writes an unguarded table). All were test defects, fixed in tests only.
+- Api `api-first.log` 15 failed (the storage-damaging test shared the class database; it now owns its factory), `api-second.log`/`api-third.log` 1 failed each
+  (the shared Problem Details has no per-error message; `instance` and `traceId` echo the route, which the existing tests also normalize).
+- Journey `journey-queue-1.log` failed once on my wrong assumption that step 3's verification passes; the history leg opens the linked review instead.
+
+### Challenges, limits and risks for review
+
+- **No challenge was needed for the one-statement requirement.** EF Core translated the guarded left-join projection on SQLite, including the bounded
+  correlated counts and nested row records, with no APPLY. The race tests prove one SELECT naming every joined table, a competing change to each joined
+  fact committed just before it read whole (Unavailable or the new state), and a write committed while the statement runs does not reach the answer.
+- The lifecycle matrix (sequence state vs last admission: waiting-waiting, preparing-reserved, awaiting/stopping-consumed, approval/escalation-concluded
+  consumed, stopped/attention/interrupted-consumed/retired/unresolved, never an ended sequence ending Waiting or Reserved, queued never Armed) was derived
+  from the production handlers and holds for every production-driven scenario (ten whole cycles, stop, expiry, deadline, restart, unresolved). A legitimate
+  shape no scenario can reach would read as Unavailable rather than as a partial list; the time-ordering rules (enqueued <= waiting-recorded <= updated)
+  share the existing monotonic-clock assumption of the index proof.
+- The pinned recipe set is proved by count and for every recipe an admission uses (nonblank name <= 200 units, identity); the full-set properties the
+  ADR-0061 index checks (ascending numbers, enabled flag) are not repeated because the ledger needs only membership and name.
+- The ledger visit ends when the inspector's index reloads (the region unmounts), a deliberate reading of "unmount ... ends the prior request owner".
+- Existing tests edited: the Api inspection route inventory (three to four routes) and the Architecture boundary test (new folders, DbSet, endpoint count).
+
+## Previous slice (published; historical record): LOCAL-QUEUE-01 queued local execution (ADR-0062)
+
+This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
+Reconcile publication with Git. This record alone grants no publication authority.
+
+**Delivery phase (historical): correction 1 returned by the Claude executor after review 1 NO-GO, unstaged, uncommitted and unpushed at that time; the
+slice is since published (8b9a824) and independently verified. Consult Git.**
 Baseline: `main`, `HEAD`, local `origin/main` and the live ref were `c1e9392161ca8d62ffc157e8a74a7ae0e7e625b1`, divergence 0/0, real index
 empty; the three planner inputs (handoff, `decisions/README.md`, new ADR-0062) were preserved and not edited. LOCAL-INSPECT-01 below is
 historical and was not reopened. ADR-0050 stays Proposed, P9 unproven, AI Memory deferred, Increments 4/5/6 incomplete; every standing

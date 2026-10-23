@@ -227,6 +227,38 @@ test('the queued local execution cycle journey: waiting behind a held owner at l
     expect(readInvocations(markHeld).filter((entry) => entry.kind !== 'probe' && entry.role === 'verify')).toEqual([])
     expect(ownerData.executions().map((execution) => execution.Status)).toEqual(['Running'])
 
+    // 5b. LOCAL-QUEUE-INSPECT-01: the recorded admission ledger of the WAITING cycle, from the current run. The inspector and its ledger
+    // are collapsed and read nothing until the owner opens each; the one recorded admission is Waiting with its recorded reason and has
+    // no step, so there is no operation to open. Every request here is an explicit GET and nothing is written.
+    const admissionsPath = `/api/runs/${runId.toLowerCase()}/local-execution-sequence/inspection/admissions`
+    const ledgerReads = (start: number) => gets.slice(start).filter((path) => path === admissionsPath)
+    const getsBeforeWaitingLedger = gets.length
+    const postsBeforeWaitingLedger = posts.length
+    const waitingInspector = page.getByRole('region', { name: 'Inspect local execution' })
+    await expect(waitingInspector.getByRole('button', { name: 'Inspect local execution' })).toHaveAttribute('aria-expanded', 'false')
+    await waitingInspector.getByRole('button', { name: 'Inspect local execution' }).click()
+    await expect(waitingInspector).toContainText('Recorded state', { timeout: 30_000 })
+    const waitingLedger = waitingInspector.getByRole('region', { name: 'Inspect queue admissions' })
+    await expect(waitingLedger.getByRole('button', { name: 'Inspect queue admissions' })).toHaveAttribute('aria-expanded', 'false')
+    expect(ledgerReads(getsBeforeWaitingLedger)).toEqual([])
+    await waitingLedger.getByRole('button', { name: 'Inspect queue admissions' }).click()
+    await expect(waitingLedger).toContainText('Queued sequence', { timeout: 30_000 })
+    expect(ledgerReads(getsBeforeWaitingLedger)).toEqual([admissionsPath])
+    await expect(waitingLedger.getByRole('listitem')).toHaveCount(1)
+    await expect(waitingLedger).toContainText('Admission 1 · recorded order')
+    await expect(waitingLedger).toContainText('Waiting (recorded; owns no workspace, slot or step)')
+    await expect(waitingLedger).toContainText('Last recorded admission check: Waiting for global mutating capacity')
+    await expect(waitingLedger).toContainText('No step was created for this admission')
+    await expect(waitingLedger.getByRole('button', { name: /Open linked step/ })).toHaveCount(0)
+    expect(posts.slice(postsBeforeWaitingLedger)).toEqual([])
+    expect(steps(waiting.Id)).toEqual([])
+    expect(admissions(waiting.Id)).toHaveLength(1)
+    expect(admissions(waiting.Id)[0].State).toBe('Waiting')
+    expect(data.executions()).toEqual([])
+    expect(readInvocations(markQueued).filter((entry) => entry.kind !== 'probe')).toEqual([])
+    await waitingInspector.getByRole('button', { name: 'Hide local execution inspection' }).click()
+    await expect(waitingInspector.getByRole('button', { name: 'Inspect local execution' })).toHaveAttribute('aria-expanded', 'false')
+
     // 6. Release ONLY the owned gate: the owner finishes by itself, and the host alone reserves, claims and advances the cycle.
     rmSync(gate, { force: true })
     await expect.poll(() => ownerData.executions().map((execution) => execution.Status), { timeout: 60_000 }).toEqual(['Failed'])
@@ -299,6 +331,67 @@ test('the queued local execution cycle journey: waiting behind a held owner at l
     await expect(current).toContainText('Recorded state', { timeout: 30_000 })
     await expect(current).toContainText(/queued/i)
     await expect(current.getByRole('button', { name: /^Inspect step \d+$/ })).toHaveCount(12)
+
+    // 10. LOCAL-QUEUE-INSPECT-01: the consumed ledger of the finished cycle, from the current run and again from Run history. Opening a
+    // ledger reads only the ledger; a linked step opens only through its own explicit action, which reuses the existing selected-step
+    // read; no request that is not a GET leaves the browser and nothing executes, claims or mutates.
+    const inspectionPaths = (start: number) => gets.slice(start).filter((path) => path.includes('/local-execution-sequence/inspection'))
+    const stepPath = (stepId: string) => `/api/runs/${runId.toLowerCase()}/local-execution-sequence/inspection/steps/${stepId.toLowerCase()}`
+    const consumed = (inspector: typeof current) => inspector.getByRole('region', { name: 'Inspect queue admissions' })
+    const postsBeforeLedgers = posts.length
+    const attemptsBeforeLedgers = data.attempts().length
+    const executionsBeforeLedgers = data.executions().length
+    const admissionRowsBeforeLedgers = JSON.stringify(admissions(sequence.Id))
+
+    const getsBeforeCurrentLedger = gets.length
+    const currentLedger = consumed(current)
+    await expect(currentLedger.getByRole('button', { name: 'Inspect queue admissions' })).toHaveAttribute('aria-expanded', 'false')
+    expect(inspectionPaths(getsBeforeCurrentLedger)).toEqual([])
+    await currentLedger.getByRole('button', { name: 'Inspect queue admissions' }).click()
+    await expect(currentLedger).toContainText('Queued sequence', { timeout: 30_000 })
+    expect(inspectionPaths(getsBeforeCurrentLedger)).toEqual([admissionsPath])
+    await expect(currentLedger.getByRole('listitem')).toHaveCount(12)
+    for (const [position, kind] of STEP_KINDS.entries()) {
+      const row = currentLedger.getByRole('listitem').nth(position)
+      await expect(row).toContainText(`Admission ${position + 1} · recorded order ${recorded[position].AdmissionNumber}`)
+      await expect(row).toContainText('Consumed (its operation was claimed; this is not proof the operation succeeded)')
+      await expect(row).toContainText(kind === 'Verification' ? 'Verification recipe' : /\(Claude Code\)|\(Codex\)|Correction after/)
+    }
+
+    await expect(currentLedger.getByRole('button', { name: /^Open linked step \d+ evidence from admission \d+$/ })).toHaveCount(12)
+    await currentLedger.getByRole('button', { name: 'Open linked step 2 evidence from admission 2' }).click()
+    const currentDetail = current.getByRole('region', { name: 'Selected local execution step' })
+    await expect(currentDetail).toContainText('Failed · process outcome Exited · exit code 1', { timeout: 30_000 })
+    expect(inspectionPaths(getsBeforeCurrentLedger)).toEqual([admissionsPath, stepPath(allSteps[1].Id)])
+
+    const getsBeforeHistoryLedger = gets.length
+    const history = page.getByRole('region', { name: 'Run history' })
+    await history.getByRole('button', { name: 'Show run history' }).click()
+    await history.getByRole('button', { name: 'Inspect run #1', exact: true }).click()
+    const historical = history.getByRole('region', { name: 'Selected run' }).getByRole('region', { name: 'Inspect local execution' })
+    await historical.getByRole('button', { name: 'Inspect local execution' }).click()
+    await expect(historical).toContainText('Recorded state', { timeout: 30_000 })
+    await expect(historical.getByRole('button', { name: /^Inspect step \d+$/ })).toHaveCount(12)
+    const historicalLedger = consumed(historical)
+    expect(inspectionPaths(getsBeforeHistoryLedger)).toEqual([`/api/runs/${runId.toLowerCase()}/local-execution-sequence/inspection`])
+    await historicalLedger.getByRole('button', { name: 'Inspect queue admissions' }).click()
+    await expect(historicalLedger).toContainText('Queued sequence', { timeout: 30_000 })
+    await expect(historicalLedger.getByRole('listitem')).toHaveCount(12)
+    expect(inspectionPaths(getsBeforeHistoryLedger)).toHaveLength(2)
+    await historicalLedger.getByRole('button', { name: 'Open linked step 8 evidence from admission 8' }).click()
+    await expect(
+      historical.getByRole('region', { name: 'Selected local execution step' }).getByRole('region', { name: 'Selected Agent attempt evidence' }),
+    ).toBeVisible({ timeout: 30_000 })
+    expect(inspectionPaths(getsBeforeHistoryLedger)).toEqual([
+      `/api/runs/${runId.toLowerCase()}/local-execution-sequence/inspection`,
+      admissionsPath,
+      stepPath(allSteps[7].Id),
+    ])
+
+    expect(posts.slice(postsBeforeLedgers)).toEqual([])
+    expect(JSON.stringify(admissions(sequence.Id))).toBe(admissionRowsBeforeLedgers)
+    expect(data.attempts()).toHaveLength(attemptsBeforeLedgers)
+    expect(data.executions()).toHaveLength(executionsBeforeLedgers)
 
     expect(sequences()).toHaveLength(1)
     expect(admissions(sequence.Id)).toHaveLength(12)

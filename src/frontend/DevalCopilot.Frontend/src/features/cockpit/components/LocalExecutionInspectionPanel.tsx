@@ -16,6 +16,7 @@ import {
 } from '../localExecutionSequenceCopy'
 import type { CollaborationTimelineCard } from '../types'
 import { CollaborationEvidenceDrilldown } from './CollaborationEvidenceDrilldown'
+import { LocalExecutionAdmissionPanel } from './LocalExecutionAdmissionPanel'
 import { LocalExecutionInspectionStepDetail } from './LocalExecutionInspectionStepDetail'
 
 const NO_CARDS: ReadonlyMap<string, CollaborationTimelineCard> = new Map()
@@ -112,6 +113,9 @@ export function LocalExecutionInspectionPanel({ runId }: { runId: string | null 
                   cardsById={NO_CARDS}
                 />
               </div>
+              {header.admissionMode === 'WaitForAdmission' ? (
+                <LocalExecutionAdmissionPanel key={runId} runId={runId} inspection={inspection} />
+              ) : null}
               {index.steps.length === 0 ? (
                 <p className="dc-empty-state">No operation has been reserved.</p>
               ) : (

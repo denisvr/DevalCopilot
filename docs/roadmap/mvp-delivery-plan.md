@@ -224,21 +224,25 @@ advances to Accepted planning or the Human escalation. It is a bounded capabilit
 or 5 completion: it starts no implementation, mutating coordination, verification, commit or publication, and every provider-contract
 boundary below stays open.
 
-**Local execution coordination (partial, under review).** ADR-0060 / LOCAL-COORD-01 adds one explicitly armed, Human-confirmed local
+**Local execution coordination (partial).** ADR-0060 / published LOCAL-COORD-01 adds one explicitly armed, Human-confirmed local
 execution sequence that the host advances from one accepted plan through implementation, whole pinned verification passes, ordinary
 review or eligible failure diagnosis and at most two shared corrections to an approved review awaiting the Human's own approval, a
 Human escalation or an attention state. It is a bounded capability, not an Increment 4, 5 or 6 completion: it grants no approval,
 commit or publication, adds no queue, executor lease, retry, takeover or process-aware recovery (a linked dispatched operation without
 coherent host Exited evidence stays an owner), and every provider-contract boundary below stays open.
 
-**Recorded local execution inspection (partial, under review).** ADR-0061 / LOCAL-INSPECT-01 adds only read-only inspection of that
+**Recorded local execution inspection (partial).** ADR-0061 / published LOCAL-INSPECT-01 adds only read-only inspection of that
 recorded cycle (index, one selected step, one sealed verification stream window; current run and run history). It completes no
 increment, grants and changes no authority and leaves queueing, process-aware release, replay and every provider-contract boundary open.
 
-**Queued local execution (partial, under review).** ADR-0062 / LOCAL-QUEUE-01 adds an explicitly queued intake mode for that cycle:
+**Queued local execution (partial).** ADR-0062 / published LOCAL-QUEUE-01 adds an explicitly queued intake mode for that cycle:
 a durable pending admission, a coordinator-owned reservation of the oldest eligible admission before external preparation, ownership
 accounting in every existing entrance, truthful waiting disclosure and a startup that never resumes waiting work. It completes no
 increment, adds no priority, executor lease, retry, takeover or process-aware release, and leaves every provider-contract boundary open.
+
+**Recorded queue-admission inspection (partial, publication pending).** ADR-0063 / reviewed-GO LOCAL-QUEUE-INSPECT-01 adds the bounded admission
+ledger of one queued cycle in current-run and run-history inspection, including waits retired without a step and exact links to existing
+step evidence. It is read-only, adds no execution or queue-control authority and completes no increment.
 
 **Agent supervision observations (partial).** ADR-0056 / AGENT-SUP-01 adds, for all seven existing Agent response contracts, a
 durable disclosure of what the host's own observer last reported for the current Agent attempt (phase, last report, absolute deadline,

@@ -12,6 +12,7 @@ public sealed partial class LocalExecutionInspectionBoundaryTests
 {
     private static readonly string[] ApplicationFolders =
     [
+        "DevalCopilot.Application/Features/Runs/Queries/GetLocalExecutionAdmissionHistory",
         "DevalCopilot.Application/Features/Runs/Queries/GetLocalExecutionSequenceInspection",
         "DevalCopilot.Application/Features/Runs/Queries/GetLocalExecutionStepInspection",
         "DevalCopilot.Application/Features/Runs/Queries/GetLocalExecutionVerificationOutputWindow",
@@ -20,6 +21,7 @@ public sealed partial class LocalExecutionInspectionBoundaryTests
 
     private static readonly string[] ApiFolders =
     [
+        "DevalCopilot.Api/Features/Runs/GetLocalExecutionAdmissionHistory",
         "DevalCopilot.Api/Features/Runs/GetLocalExecutionSequenceInspection",
         "DevalCopilot.Api/Features/Runs/GetLocalExecutionStepInspection",
         "DevalCopilot.Api/Features/Runs/GetLocalExecutionVerificationOutputWindow",
@@ -73,7 +75,7 @@ public sealed partial class LocalExecutionInspectionBoundaryTests
         Assert.DoesNotMatch(DbSetWrite(), code);
         Assert.Equal(
             [
-                "Attempts", "CollaborationMessages", "GitCheckpoints", "GitWorkspaces", "LocalExecutionSequenceRecipes",
+                "Attempts", "CollaborationMessages", "GitCheckpoints", "GitWorkspaces", "LocalExecutionAdmissions", "LocalExecutionSequenceRecipes",
                 "LocalExecutionSequenceSteps", "LocalExecutionSequences", "Runs", "VerificationExecutions", "VerificationOutputArtifacts",
             ],
             DbSetAccess().Matches(code).Select(match => match.Groups[1].Value).Distinct().Order(StringComparer.Ordinal));
@@ -156,12 +158,12 @@ public sealed partial class LocalExecutionInspectionBoundaryTests
     }
 
     [Fact]
-    public void The_three_endpoints_dispatch_only_through_the_mediator_are_bodyless_gets_and_answer_with_api_owned_graphs()
+    public void The_four_endpoints_dispatch_only_through_the_mediator_are_bodyless_gets_and_answer_with_api_owned_graphs()
     {
         var code = ApiCode();
         var endpoints = Sources(ApiFolders).Where(path => path.EndsWith("Endpoint.cs", StringComparison.Ordinal)).ToArray();
 
-        Assert.Equal(3, endpoints.Length);
+        Assert.Equal(4, endpoints.Length);
         foreach (var path in endpoints)
         {
             var source = Code(path);

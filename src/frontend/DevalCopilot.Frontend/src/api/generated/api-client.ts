@@ -3068,6 +3068,68 @@ export class GetLocalExecutionQueueAvailabilityEndpointClient {
     }
 }
 
+export class GetLocalExecutionAdmissionHistoryEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getLocalExecutionAdmissionHistory(runId: string): Promise<GetLocalExecutionAdmissionHistoryResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/local-execution-sequence/inspection/admissions";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetLocalExecutionAdmissionHistory(_response);
+        });
+    }
+
+    protected processGetLocalExecutionAdmissionHistory(response: Response): Promise<GetLocalExecutionAdmissionHistoryResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = GetLocalExecutionAdmissionHistoryResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            let resultData400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result400 = ApiProblemDetails.fromJS(resultData400);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ApiProblemDetails.fromJS(resultData404);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<GetLocalExecutionAdmissionHistoryResponse>(null as any);
+    }
+}
+
 export class GetLocalDeliveryReceiptEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -12436,6 +12498,222 @@ export interface ILocalExecutionSequenceAvailabilityDisclosureResponse {
     codexAccountUsageStopPercent?: number | undefined;
     codexTokenStopThreshold?: string | undefined;
     claudeTokenStopThreshold?: string | undefined;
+}
+
+export class GetLocalExecutionAdmissionHistoryResponse implements IGetLocalExecutionAdmissionHistoryResponse {
+    runId?: string;
+    status?: string;
+    sequence?: LocalExecutionAdmissionHistoryHeaderResponse | undefined;
+    admissions?: LocalExecutionAdmissionHistoryAdmissionResponse[];
+
+    constructor(data?: IGetLocalExecutionAdmissionHistoryResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.runId = _data["runId"];
+            this.status = _data["status"];
+            this.sequence = _data["sequence"] ? LocalExecutionAdmissionHistoryHeaderResponse.fromJS(_data["sequence"]) : undefined as any;
+            if (Array.isArray(_data["admissions"])) {
+                this.admissions = [] as any;
+                for (let item of _data["admissions"])
+                    this.admissions!.push(LocalExecutionAdmissionHistoryAdmissionResponse.fromJS(item));
+            }
+        }
+    }
+
+    static fromJS(data: any): GetLocalExecutionAdmissionHistoryResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GetLocalExecutionAdmissionHistoryResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["runId"] = this.runId;
+        data["status"] = this.status;
+        data["sequence"] = this.sequence ? this.sequence.toJSON() : undefined as any;
+        if (Array.isArray(this.admissions)) {
+            data["admissions"] = [];
+            for (let item of this.admissions)
+                data["admissions"].push(item ? item.toJSON() : undefined as any);
+        }
+        return data;
+    }
+}
+
+export interface IGetLocalExecutionAdmissionHistoryResponse {
+    runId?: string;
+    status?: string;
+    sequence?: LocalExecutionAdmissionHistoryHeaderResponse | undefined;
+    admissions?: LocalExecutionAdmissionHistoryAdmissionResponse[];
+}
+
+export class LocalExecutionAdmissionHistoryHeaderResponse implements ILocalExecutionAdmissionHistoryHeaderResponse {
+    sequenceId?: string;
+    admissionMode?: string;
+    recordedState?: string;
+    reasonCode?: string | undefined;
+    sequenceRevision?: string;
+    armedAtUtc?: string;
+    advancementDeadlineUtc?: string;
+    updatedAtUtc?: string;
+    endedAtUtc?: string | undefined;
+
+    constructor(data?: ILocalExecutionAdmissionHistoryHeaderResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.sequenceId = _data["sequenceId"];
+            this.admissionMode = _data["admissionMode"];
+            this.recordedState = _data["recordedState"];
+            this.reasonCode = _data["reasonCode"];
+            this.sequenceRevision = _data["sequenceRevision"];
+            this.armedAtUtc = _data["armedAtUtc"];
+            this.advancementDeadlineUtc = _data["advancementDeadlineUtc"];
+            this.updatedAtUtc = _data["updatedAtUtc"];
+            this.endedAtUtc = _data["endedAtUtc"];
+        }
+    }
+
+    static fromJS(data: any): LocalExecutionAdmissionHistoryHeaderResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new LocalExecutionAdmissionHistoryHeaderResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["sequenceId"] = this.sequenceId;
+        data["admissionMode"] = this.admissionMode;
+        data["recordedState"] = this.recordedState;
+        data["reasonCode"] = this.reasonCode;
+        data["sequenceRevision"] = this.sequenceRevision;
+        data["armedAtUtc"] = this.armedAtUtc;
+        data["advancementDeadlineUtc"] = this.advancementDeadlineUtc;
+        data["updatedAtUtc"] = this.updatedAtUtc;
+        data["endedAtUtc"] = this.endedAtUtc;
+        return data;
+    }
+}
+
+export interface ILocalExecutionAdmissionHistoryHeaderResponse {
+    sequenceId?: string;
+    admissionMode?: string;
+    recordedState?: string;
+    reasonCode?: string | undefined;
+    sequenceRevision?: string;
+    armedAtUtc?: string;
+    advancementDeadlineUtc?: string;
+    updatedAtUtc?: string;
+    endedAtUtc?: string | undefined;
+}
+
+export class LocalExecutionAdmissionHistoryAdmissionResponse implements ILocalExecutionAdmissionHistoryAdmissionResponse {
+    admissionId?: string;
+    admissionNumber?: string;
+    ordinal?: number;
+    kind?: string;
+    passNumber?: number;
+    recipeOrdinal?: number | undefined;
+    recipeName?: string | undefined;
+    recordedState?: string;
+    waitingReason?: string;
+    waitingReasonRecordedAtUtc?: string;
+    enqueuedAtUtc?: string;
+    updatedAtUtc?: string;
+    revision?: string;
+    reasonCode?: string | undefined;
+    stepId?: string | undefined;
+
+    constructor(data?: ILocalExecutionAdmissionHistoryAdmissionResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.admissionId = _data["admissionId"];
+            this.admissionNumber = _data["admissionNumber"];
+            this.ordinal = _data["ordinal"];
+            this.kind = _data["kind"];
+            this.passNumber = _data["passNumber"];
+            this.recipeOrdinal = _data["recipeOrdinal"];
+            this.recipeName = _data["recipeName"];
+            this.recordedState = _data["recordedState"];
+            this.waitingReason = _data["waitingReason"];
+            this.waitingReasonRecordedAtUtc = _data["waitingReasonRecordedAtUtc"];
+            this.enqueuedAtUtc = _data["enqueuedAtUtc"];
+            this.updatedAtUtc = _data["updatedAtUtc"];
+            this.revision = _data["revision"];
+            this.reasonCode = _data["reasonCode"];
+            this.stepId = _data["stepId"];
+        }
+    }
+
+    static fromJS(data: any): LocalExecutionAdmissionHistoryAdmissionResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new LocalExecutionAdmissionHistoryAdmissionResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["admissionId"] = this.admissionId;
+        data["admissionNumber"] = this.admissionNumber;
+        data["ordinal"] = this.ordinal;
+        data["kind"] = this.kind;
+        data["passNumber"] = this.passNumber;
+        data["recipeOrdinal"] = this.recipeOrdinal;
+        data["recipeName"] = this.recipeName;
+        data["recordedState"] = this.recordedState;
+        data["waitingReason"] = this.waitingReason;
+        data["waitingReasonRecordedAtUtc"] = this.waitingReasonRecordedAtUtc;
+        data["enqueuedAtUtc"] = this.enqueuedAtUtc;
+        data["updatedAtUtc"] = this.updatedAtUtc;
+        data["revision"] = this.revision;
+        data["reasonCode"] = this.reasonCode;
+        data["stepId"] = this.stepId;
+        return data;
+    }
+}
+
+export interface ILocalExecutionAdmissionHistoryAdmissionResponse {
+    admissionId?: string;
+    admissionNumber?: string;
+    ordinal?: number;
+    kind?: string;
+    passNumber?: number;
+    recipeOrdinal?: number | undefined;
+    recipeName?: string | undefined;
+    recordedState?: string;
+    waitingReason?: string;
+    waitingReasonRecordedAtUtc?: string;
+    enqueuedAtUtc?: string;
+    updatedAtUtc?: string;
+    revision?: string;
+    reasonCode?: string | undefined;
+    stepId?: string | undefined;
 }
 
 export class GetLocalDeliveryReceiptResponse implements IGetLocalDeliveryReceiptResponse {

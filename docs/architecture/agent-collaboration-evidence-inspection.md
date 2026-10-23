@@ -514,3 +514,40 @@ returns ADR-0052's two stream descriptors. Every window re-proves the whole stru
 `IArtifactStore.VerifyAndReadSealedAsync`, reads only the selected stream, and an unproved association (including a coherent step
 with no actual link) has a null `executionId` and reads no byte. The frontend uses the shared windowing machine
 (`useRecordedStreamWindow`: 16 KiB windows, 256 KiB of source bytes per stream visit) and strict whole-answer decoders.
+
+**Recorded queue admission inspection.**
+[ADR-0063](../decisions/0063-inspect-recorded-local-execution-queue-admissions.md) adds a fourth protected, bodyless and queryless GET,
+`/api/runs/{runId}/local-execution-sequence/inspection/admissions`, behind the same body/query guard and the same fixed
+`local_execution_inspection.not_found` 404. It answers one of four closed statuses: `NotRecorded` (a known run with no sequence),
+`NotQueued` (a coherent Immediate sequence with no admission row; an Immediate sequence with any admission is `Unavailable`),
+`Recorded` (a coherent queued sequence with its complete nonempty ledger in admission order, plus the stored sequence header) or
+`Unavailable` (a present but unprovable root, structure or link, never a partial list or count).
+
+The root, the ledger and every historical fact its proof needs come from **one** provider-neutral EF statement
+(`LocalExecutionAdmissionHistoryStatement`): the run, at most two candidate sequences, at most 103 admission rows, and left joins
+to each admission's linked step, source checkpoint, report message and pinned recipe and to the sequence's workspace and initial
+checkpoint, plus bounded counts of the pinned recipes (33) and recorded steps (103), with the same database-classified enums and
+guarded numbers and text as ADR-0061. Because there is no separate binding, ledger or step read and no revision read before and
+after, the answer cannot be torn by a transition between reads (a waiting-reason change updates only the admission revision, so a
+sequence revision alone could not detect it); it takes no write lock, transaction or retry and writes nothing. The pure proof
+(`LocalExecutionAdmissionHistoryProof`) requires the ManualAgent run's one sequence with its pinned project, workspace and initial
+checkpoint and fingerprint, a defined admission mode, the recipe-dependent step bound, strictly increasing positive order numbers,
+unique gapless ordinals, Domain's closed kind, pass, recipe, predecessor, report and correction-subject shapes, each source checkpoint
+in the pinned workspace with its recorded fingerprint, and for a linked step the whole admission/step tuple (sequence, ordinal, kind,
+pass, recipe, predecessor, source checkpoint and fingerprint, report and subject). A Waiting admission has no step; Reserved links a
+Reserved step with no operation; Consumed links a Claimed or Concluded step with its exact reserved operation link; Unresolved links
+the Unresolved no-link step (retained on an ended sequence); Retired has no step (closed while waiting) or its exact Revoked no-link
+step. Only Consumed admissions with a Concluded step precede the last, the last must fit the sequence's recorded state, and every
+recorded step of the sequence must have been linked by exactly one admission. It consults no live eligibility, ownership,
+`SourceHolds` or admission policy and never substitutes a latest row. The order number is the recorded admission order, never an
+exact global queue position, and a waiting reason is the last recorded observation with its own time. The endpoint exposes no
+reserved operation identity, preparation token, path, digest or message content, and reads no artifact: a linked `stepId` is recorded
+structure, and the existing selected-step operation inspection (ADR-0061) remains the only proof of an operation.
+
+The frontend (`localExecutionAdmissionHistory.ts`, `useLocalExecutionAdmissionHistory`, `LocalExecutionAdmissionPanel`) decodes the
+whole closed answer, mirrors the host's structural rules and offers the ledger only inside the inspector of a recorded queued
+sequence, collapsed until the owner opens it. Opening or reloading reads the ledger only; closing, reloading the inspector, another
+run, a return to an earlier run and unmounting end the ledger's request owner, so a late result or retained callback populates,
+selects and opens nothing of another visit. A linked-step action delegates to the inspector's own selected-step selection and works
+only for a step in that inspector's currently accepted index of the same sequence; otherwise the row says the recorded sequence must be
+reloaded, and nothing is searched, selected in its place or read for another run.

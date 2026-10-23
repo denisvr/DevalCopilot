@@ -30,19 +30,19 @@ internal static class LocalExecutionInspectionProjection
     private const int Unrecognized = 99;
 
     // A UTF-16 unit is at most three UTF-8 bytes, so every admissible value fits its guard and the exact bound is applied again in memory.
-    private const int FingerprintByteBound = 64;
-    private const int ReasonByteBound = 64 * 3;
-    private const int NameByteBound = 600;
-    private const int ModeByteBound = 8;
+    internal const int FingerprintByteBound = 64;
+    internal const int ReasonByteBound = 64 * 3;
+    internal const int NameByteBound = 600;
+    internal const int ModeByteBound = 8;
 
     // A column with INTEGER affinity keeps TEXT, REAL or BLOB it cannot convert. Numbers sort below TEXT and BLOB, so a numeric range
     // admits only numbers, and `%` casts to an integer, so only a stored INTEGER equals its own remainder. The modulus has the column CLR
     // type (a wider one makes EF cast both sides and hides a REAL). Every range below lies strictly inside (-int.MaxValue, int.MaxValue),
     // so no extreme-value special case applies; only the exit code reaches the extremes and carries its three direct comparisons.
-    private const int Int32Maximum = int.MaxValue;
+    internal const int Int32Maximum = int.MaxValue;
     private const int Int32Minimum = int.MinValue;
     private const int Int32NegatedMaximum = -int.MaxValue;
-    private const long SafeIntegerModulus = 1L << 53;
+    internal const long SafeIntegerModulus = 1L << 53;
 
     public static IQueryable<LocalExecutionInspectionRunRow> ProjectRun(this IQueryable<Run> runs) =>
         runs.Select(run => new LocalExecutionInspectionRunRow(
