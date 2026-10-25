@@ -125,6 +125,7 @@ import {
   LocalExecutionOwnershipReleaseReadWireClient,
 } from '../features/cockpit/localExecutionOwnershipReleaseWire'
 import { LocalExecutionQueueInspectionWireClient } from '../features/cockpit/localExecutionQueueInspectionWire'
+import { LocalExecutionReleaseInspectionWireClient } from '../features/cockpit/localExecutionReleaseInspectionWire'
 
 // One instance per endpoint client is enough for this slice; components import the
 // factory functions rather than constructing a client or a URL themselves.
@@ -173,6 +174,8 @@ export const stopLocalExecutionSequenceClient = (signal?: AbortSignal) => new St
 // The ownership release read and the explicit release (ADR-0065): parsed-body facades; each carries its own signal that cancels the actual request.
 export const localExecutionOwnershipReleaseReadClient = (signal?: AbortSignal) => new LocalExecutionOwnershipReleaseReadWireClient(getApiBaseUrl(), authenticatedHttp, signal)
 export const localExecutionOwnershipReleaseCommandClient = (signal?: AbortSignal) => new LocalExecutionOwnershipReleaseCommandWireClient(getApiBaseUrl(), authenticatedHttp, signal)
+// The recorded quarantine-release receipt read of one step (ADR-0067): a parsed-body facade whose own signal cancels the actual request.
+export const localExecutionReleaseInspectionClient = (signal?: AbortSignal) => new LocalExecutionReleaseInspectionWireClient(getApiBaseUrl(), authenticatedHttp, signal)
 // Hand the parsed bodies to the whole-answer decoders instead of the generated models (see the ADR-0052 wire clients).
 export const localExecutionInspectionIndexClient = () => new LocalExecutionInspectionIndexWireClient(getApiBaseUrl(), authenticatedHttp)
 export const localExecutionAdmissionHistoryClient = () => new LocalExecutionAdmissionHistoryWireClient(getApiBaseUrl(), authenticatedHttp)

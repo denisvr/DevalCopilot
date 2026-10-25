@@ -11,7 +11,9 @@ namespace DevalCopilot.Application.Features.Runs.Policies.LocalExecutionOwnershi
 /// The guarded scalar projection of one release-candidate row (ADR-0065). Like the other recorded inspections, every stored enum is
 /// classified by the database, every number is an exact integer in its supported range and every text is bounded by its stored bytes
 /// before it is converted. The witness's host launch identity and nonce, the confirmation of the arming, settings snapshots, paths,
-/// arguments, environment values and provider output are never selected.
+/// arguments, environment values and provider output are never selected. The last member of every row (<see cref="LocalExecutionReleaseRow.StorageValid"/>)
+/// is computed fresh from the raw storage of this one statement and is never persisted or cached: every NULLABLE numeric fact read is genuinely NULL
+/// or exactly a supported integer. Where an unsupported nonnull value would otherwise project as the legal null, only this flag tells them apart.
 /// </summary>
 internal static class LocalExecutionReleaseProjection
 {
@@ -174,7 +176,10 @@ internal static class LocalExecutionReleaseProjection
                         || row.Observation.SemanticExitCode % Int32Maximum == row.Observation.SemanticExitCode)
                     ? row.Observation.SemanticExitCode
                     : null,
-                (TimeSpan?)row.Observation.ProcessDuration,
+                row.Observation.ProcessDuration >= TimeSpan.Zero
+                    && row.Observation.ProcessDuration == (TimeSpan)(object)(long)(object)row.Observation.ProcessDuration
+                    ? (TimeSpan?)row.Observation.ProcessDuration
+                    : null,
                 row.Observation.PhysicalExitCode >= int.MinValue
                     && row.Observation.PhysicalExitCode <= int.MaxValue
                     && (row.Observation.PhysicalExitCode == Int32Maximum
@@ -183,7 +188,10 @@ internal static class LocalExecutionReleaseProjection
                         || row.Observation.PhysicalExitCode % Int32Maximum == row.Observation.PhysicalExitCode)
                     ? (int?)row.Observation.PhysicalExitCode
                     : null,
-                (TimeSpan?)row.Observation.ObservedElapsed,
+                row.Observation.ObservedElapsed >= TimeSpan.Zero
+                    && row.Observation.ObservedElapsed == (TimeSpan)(object)(long)(object)row.Observation.ObservedElapsed
+                    ? (TimeSpan?)row.Observation.ObservedElapsed
+                    : null,
                 (DateTimeOffset?)row.Observation.RecordedAtUtc),
             new LocalExecutionReleaseReceipt(
                 (Guid?)row.Release.Id,
@@ -207,7 +215,7 @@ internal static class LocalExecutionReleaseProjection
                 row.Event.EventType == RunEventType.LocalExecutionOwnershipReleased,
                 row.Event.ActorKind == ParticipantKind.Human,
                 new LocalExecutionReleaseIntent(
-                    (int?)row.Release.IntentVersion,
+                    row.Release.IntentVersion == LocalExecutionOwnershipRelease.CurrentIntentVersion ? (int?)LocalExecutionOwnershipRelease.CurrentIntentVersion : null,
                     (LocalExecutionOperationFamily?)row.Release.IntentFamily,
                     (Guid?)row.Release.IntentOperationId,
                     (Guid?)row.Release.IntentSequenceId,
@@ -218,9 +226,21 @@ internal static class LocalExecutionReleaseProjection
                     (LocalExecutionAdmissionMode?)row.Release.IntentAdmissionMode,
                     row.Release.IntentAdmissionId,
                     (LocalExecutionStepKind?)row.Release.IntentKind,
-                    (int?)row.Release.IntentOrdinal,
-                    (int?)row.Release.IntentPassNumber,
-                    row.Release.IntentRecipeOrdinal,
+                    row.Release.IntentOrdinal >= 0
+                        && row.Release.IntentOrdinal < 3 * LocalExecutionSequencePolicy.MaximumRecipes + 6
+                        && row.Release.IntentOrdinal % Int32Maximum == row.Release.IntentOrdinal
+                        ? (int?)row.Release.IntentOrdinal
+                        : null,
+                    row.Release.IntentPassNumber >= 0
+                        && row.Release.IntentPassNumber <= LocalExecutionSequencePolicy.MaximumPasses
+                        && row.Release.IntentPassNumber % Int32Maximum == row.Release.IntentPassNumber
+                        ? (int?)row.Release.IntentPassNumber
+                        : null,
+                    row.Release.IntentRecipeOrdinal >= 0
+                        && row.Release.IntentRecipeOrdinal < LocalExecutionSequencePolicy.MaximumRecipes
+                        && row.Release.IntentRecipeOrdinal % Int32Maximum == row.Release.IntentRecipeOrdinal
+                        ? row.Release.IntentRecipeOrdinal
+                        : null,
                     row.Release.IntentPredecessorStepId,
                     (Guid?)row.Release.IntentSourceCheckpointId,
                     row.Release.IntentSourceFingerprintSha256,
@@ -232,13 +252,35 @@ internal static class LocalExecutionReleaseProjection
                     row.Release.IntentAgentOutcome,
                     row.Release.IntentCompletionFingerprintSha256,
                     (ProcessOutcome?)row.Release.IntentProcessOutcome,
-                    row.Release.IntentSemanticExitCode,
-                    (TimeSpan?)row.Release.IntentProcessDuration,
-                    (int?)row.Release.IntentPhysicalExitCode,
-                    (TimeSpan?)row.Release.IntentObservedElapsed,
+                    row.Release.IntentSemanticExitCode >= int.MinValue
+                        && row.Release.IntentSemanticExitCode <= int.MaxValue
+                        && (row.Release.IntentSemanticExitCode == Int32Maximum
+                            || row.Release.IntentSemanticExitCode == Int32Minimum
+                            || row.Release.IntentSemanticExitCode == Int32NegatedMaximum
+                            || row.Release.IntentSemanticExitCode % Int32Maximum == row.Release.IntentSemanticExitCode)
+                        ? row.Release.IntentSemanticExitCode
+                        : null,
+                    row.Release.IntentProcessDuration >= TimeSpan.Zero
+                        && row.Release.IntentProcessDuration == (TimeSpan)(object)(long)(object)row.Release.IntentProcessDuration
+                        ? (TimeSpan?)row.Release.IntentProcessDuration
+                        : null,
+                    row.Release.IntentPhysicalExitCode >= int.MinValue
+                        && row.Release.IntentPhysicalExitCode <= int.MaxValue
+                        && (row.Release.IntentPhysicalExitCode == Int32Maximum
+                            || row.Release.IntentPhysicalExitCode == Int32Minimum
+                            || row.Release.IntentPhysicalExitCode == Int32NegatedMaximum
+                            || row.Release.IntentPhysicalExitCode % Int32Maximum == row.Release.IntentPhysicalExitCode)
+                        ? (int?)row.Release.IntentPhysicalExitCode
+                        : null,
+                    row.Release.IntentObservedElapsed >= TimeSpan.Zero
+                        && row.Release.IntentObservedElapsed == (TimeSpan)(object)(long)(object)row.Release.IntentObservedElapsed
+                        ? (TimeSpan?)row.Release.IntentObservedElapsed
+                        : null,
                     (DateTimeOffset?)row.Release.IntentDispatchedAtUtc,
                     (DateTimeOffset?)row.Release.IntentObservationRecordedAtUtc,
-                    (int?)row.Release.IntentConfirmationVersion,
+                    row.Release.IntentConfirmationVersion == LocalExecutionOwnershipReleaseConfirmation.CurrentVersion
+                        ? (int?)LocalExecutionOwnershipReleaseConfirmation.CurrentVersion
+                        : null,
                     (DateTimeOffset?)row.Release.IntentConfirmationExpiresAtUtc)),
             new LocalExecutionReleaseOperation(
                 (Guid?)row.Attempt.Id,
@@ -278,7 +320,10 @@ internal static class LocalExecutionReleaseProjection
                         || row.Attempt.AgentProcessExitCode % Int32Maximum == row.Attempt.AgentProcessExitCode)
                     ? row.Attempt.AgentProcessExitCode
                     : null,
-                row.Attempt.AgentProcessDuration,
+                row.Attempt.AgentProcessDuration >= TimeSpan.Zero
+                    && row.Attempt.AgentProcessDuration == (TimeSpan)(object)(long)(object)row.Attempt.AgentProcessDuration
+                    ? row.Attempt.AgentProcessDuration
+                    : null,
                 (Guid?)row.Execution.Id,
                 (Guid?)row.Execution.ProjectId,
                 (Guid?)row.Execution.GitWorkspaceId,
@@ -345,6 +390,46 @@ internal static class LocalExecutionReleaseProjection
                     && row.Admission.RecipeOrdinal % Int32Maximum == row.Admission.RecipeOrdinal
                     ? row.Admission.RecipeOrdinal
                     : null,
-                (Guid?)row.Admission.SourceCheckpointId));
+                (Guid?)row.Admission.SourceCheckpointId),
+            (row.Observation.SemanticExitCode == null
+                || (row.Observation.SemanticExitCode >= int.MinValue
+                    && row.Observation.SemanticExitCode <= int.MaxValue
+                    && (row.Observation.SemanticExitCode == Int32Maximum
+                        || row.Observation.SemanticExitCode == Int32Minimum
+                        || row.Observation.SemanticExitCode == Int32NegatedMaximum
+                        || row.Observation.SemanticExitCode % Int32Maximum == row.Observation.SemanticExitCode)))
+            && (row.Attempt.AgentProcessExitCode == null
+                || (row.Attempt.AgentProcessExitCode >= int.MinValue
+                    && row.Attempt.AgentProcessExitCode <= int.MaxValue
+                    && (row.Attempt.AgentProcessExitCode == Int32Maximum
+                        || row.Attempt.AgentProcessExitCode == Int32Minimum
+                        || row.Attempt.AgentProcessExitCode == Int32NegatedMaximum
+                        || row.Attempt.AgentProcessExitCode % Int32Maximum == row.Attempt.AgentProcessExitCode)))
+            && (row.Execution.ExitCode == null
+                || (row.Execution.ExitCode >= int.MinValue
+                    && row.Execution.ExitCode <= int.MaxValue
+                    && (row.Execution.ExitCode == Int32Maximum
+                        || row.Execution.ExitCode == Int32Minimum
+                        || row.Execution.ExitCode == Int32NegatedMaximum
+                        || row.Execution.ExitCode % Int32Maximum == row.Execution.ExitCode)))
+            && (row.Release.IntentSemanticExitCode == null
+                || (row.Release.IntentSemanticExitCode >= int.MinValue
+                    && row.Release.IntentSemanticExitCode <= int.MaxValue
+                    && (row.Release.IntentSemanticExitCode == Int32Maximum
+                        || row.Release.IntentSemanticExitCode == Int32Minimum
+                        || row.Release.IntentSemanticExitCode == Int32NegatedMaximum
+                        || row.Release.IntentSemanticExitCode % Int32Maximum == row.Release.IntentSemanticExitCode)))
+            && (row.Witness.RecipeOrdinal == null
+                || (row.Witness.RecipeOrdinal >= 0
+                    && row.Witness.RecipeOrdinal < LocalExecutionSequencePolicy.MaximumRecipes
+                    && row.Witness.RecipeOrdinal % Int32Maximum == row.Witness.RecipeOrdinal))
+            && (row.Admission.RecipeOrdinal == null
+                || (row.Admission.RecipeOrdinal >= 0
+                    && row.Admission.RecipeOrdinal < LocalExecutionSequencePolicy.MaximumRecipes
+                    && row.Admission.RecipeOrdinal % Int32Maximum == row.Admission.RecipeOrdinal))
+            && (row.Release.IntentRecipeOrdinal == null
+                || (row.Release.IntentRecipeOrdinal >= 0
+                    && row.Release.IntentRecipeOrdinal < LocalExecutionSequencePolicy.MaximumRecipes
+                    && row.Release.IntentRecipeOrdinal % Int32Maximum == row.Release.IntentRecipeOrdinal)));
     }
 }

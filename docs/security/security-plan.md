@@ -76,6 +76,7 @@ No agent response is an identity or authorization decision.
 | Tauri commands | Bundled webview only | Minimal named capabilities | No generic shell or broad filesystem scope |
 | Project registration | Local user | Canonical approved roots | Path validation and explicit confirmation |
 | Local quarantine release | Loopback MVC GET and POST, same bearer policy | Human-only, exact versioned confirmation with a two-minute expiry; original-host termination evidence required | Closed 512-byte request, write-locked revalidation, exact replay, one append-only release and one event |
+| Recorded quarantine release inspection | Loopback MVC GET, same bearer policy | Read-only, bodyless and queryless behind the inspection guard; fixed non-echoing 400 and 404 | One bounded untracked statement, closed answer, no nonce, launch identity, confirmation or candidate, no write or external read |
 | Agent output | Child-process stream | Untrusted evidence | Size, schema, rate, and artifact limits |
 | CI and PR content | GitHub CLI response | Untrusted evidence | Exact-SHA correlation, bounding, redaction |
 

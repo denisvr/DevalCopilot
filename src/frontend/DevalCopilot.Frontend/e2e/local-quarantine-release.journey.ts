@@ -1,6 +1,7 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
+import type { Locator } from '@playwright/test'
 import { JourneyData, sameId, withJourneyDb } from './journey/journeyDb'
 import { createJourneyRepository, journeyRoot, markInvocations, readInvocations, readLaunchTargetVerdict } from './journey/journeyEnv'
 import { PostInventory } from './journey/requestInventory'
@@ -32,8 +33,15 @@ const QUEUED_RECIPES = ['Candidate total check', 'Candidate lint check']
 const ARM_LOCAL = /\/api\/runs\/[^/]+\/local-execution-sequence$/
 const QUEUE_LOCAL = /\/api\/runs\/[^/]+\/local-execution-sequence\/queue$/
 const RELEASE_PATH = /\/api\/runs\/[^/]+\/local-execution-sequence\/steps\/[^/]+\/ownership-release$/
+const INSPECT_RECEIPT_PATH = /\/api\/runs\/[^/]+\/local-execution-sequence\/inspection\/steps\/[^/]+\/ownership-release$/
 const OWNER_NOTE = /is recorded as this workspace's execution owner/
 const RELEASE_REGION = 'Release terminal operation quarantine'
+const INSPECT_REGION = 'Inspect recorded quarantine release'
+const RECEIPT_MEMBERS = [
+  'admissionMode', 'dispatchedAtUtc', 'eventSequence', 'observationId', 'observedElapsedTicks', 'operationFamily', 'operationId', 'operationStatus',
+  'ordinal', 'passNumber', 'physicalExitCode', 'processDurationTicks', 'processOutcome', 'recordedAtUtc', 'releaseId', 'releasedAtUtc',
+  'semanticExitCode', 'sequenceId', 'sequenceState', 'sourceCheckpointId', 'sourceFingerprintSha256', 'stepKind', 'witnessId',
+]
 
 const QUEUED_STEP_KINDS = [
   'Implementation',
@@ -376,8 +384,151 @@ test('the quarantine release journey: a timed-out verification keeps its quarant
     expect(data.checkpointReviews().filter((review) => review.ActorKind === 'Human')).toEqual([])
     expect(queuedData.checkpointReviews().filter((review) => review.ActorKind === 'Human')).toEqual([])
 
-    // 13. A reload reads the durable result back and requests nothing.
+    // 13. ADR-0067: the recorded Human decision is inspected, read-only, from the current run's Usage & Evidence rail and then from the
+    // run's Run history detail. Both mount the same step inspector: selecting the step reads no receipt, opening the collapsed region reads
+    // exactly the receipt, and the whole segment sends no business POST, no release candidate read and no artifact read, appends no release
+    // or event and changes neither the failed result nor the ended cycle, as far as the selected-field fingerprint below observes (the
+    // release rows as selected, the local event types, the sequence rows as selected, each step state and link, each result status and
+    // exit code and the witness and observation identities: selected fields and counts, not every stored byte of every row).
+    await selectProject(page, PROJECT)
+    await expect(page.getByRole('heading', { name: OBJECTIVE })).toBeVisible({ timeout: 30_000 })
+    await expect(state).toHaveAttribute('data-state', 'NeedsAttention', { timeout: 30_000 })
+    const verificationExecution = data.executions()[0]
+    const durableState = () =>
+      JSON.stringify({
+        releases: releases(),
+        events: localEventTypes(data),
+        sequences: sequencesOf(runId),
+        steps: stepsOf(sequence.Id).map((step) => [step.Id, step.State, step.OperationId]),
+        executions: data.executions().map((execution) => [execution.Status, execution.ExitCode]),
+        witnesses: witnesses(runId).map((witness) => witness.Id),
+        observations: observations(runId).map((observation) => observation.Id),
+      })
+    const releaseEventSequence = releaseEvent.Sequence
+    const inspectionPath = `/api/runs/${runId.toLowerCase()}/local-execution-sequence/inspection/steps/${verificationStep.Id.toLowerCase()}/ownership-release`
+    const receiptReads = (start: number) => gets.slice(start).filter((path) => INSPECT_RECEIPT_PATH.test(path))
+    // Only host API reads count: the dev server also serves source modules whose file names may contain the word artifact.
+    const forbiddenReads = (start: number) =>
+      gets.slice(start).filter((path) => path.startsWith('/api/') && (RELEASE_PATH.test(path) || /\/artifact/i.test(path)))
+    const durableBeforeInspection = durableState()
+    const postsBeforeInspection = posts.mark()
+    const getsBeforeInspection = gets.length
+
+    // Opens the inspector inside `scope`, selects the terminal verification step, proves that nothing was read for the receipt, opens the
+    // collapsed region and returns the parsed answer with the region. Every read it causes is for exactly this run and step.
+    const inspectReceipt = async (scope: Locator) => {
+      const start = gets.length
+      await scope.getByRole('button', { name: 'Inspect local execution', exact: true }).click()
+      const step = scope.getByRole('button', { name: 'Inspect step 2', exact: true })
+      await expect(step).toBeVisible({ timeout: 30_000 })
+      await step.click()
+      const detail = scope.getByRole('region', { name: 'Selected local execution step' })
+      const receiptRegion = detail.getByRole('region', { name: INSPECT_REGION })
+      const toggle = receiptRegion.getByRole('button', { name: INSPECT_REGION, exact: true })
+      await expect(toggle).toHaveAttribute('aria-expanded', 'false', { timeout: 30_000 })
+      await expect(receiptRegion.getByRole('button')).toHaveCount(1)
+      expect(receiptReads(start)).toEqual([])
+      const answered = page.waitForResponse(
+        (response) => response.request().method() === 'GET' && new URL(response.url()).pathname.toLowerCase() === inspectionPath,
+        { timeout: 30_000 },
+      )
+      await toggle.click()
+      const response = await answered
+      expect(response.status()).toBe(200)
+      expect(receiptReads(start)).toEqual([inspectionPath])
+      const body = (await response.json()) as Record<string, unknown> & { receipt: Record<string, unknown> }
+      await expect(receiptRegion.getByText('Human release', { exact: true })).toBeVisible({ timeout: 30_000 })
+      return { body, text: JSON.stringify(body), receiptRegion, start }
+    }
+
+    const assertReceipt = async (inspected: Awaited<ReturnType<typeof inspectReceipt>>) => {
+      const { body, text, receiptRegion } = inspected
+      expect(Object.keys(body).sort()).toEqual(['receipt', 'runId', 'status', 'stepId'])
+      expect(body.status).toBe('Recorded')
+      expect(sameId(String(body.runId), runId)).toBe(true)
+      expect(sameId(String(body.stepId), verificationStep.Id)).toBe(true)
+      expect(Object.keys(body.receipt).sort()).toEqual(RECEIPT_MEMBERS)
+      const proved = body.receipt
+      expect(sameId(String(proved.releaseId), receipt.Id)).toBe(true)
+      expect(sameId(String(proved.witnessId), recordedWitnesses[1].Id)).toBe(true)
+      expect(sameId(String(proved.observationId), recordedObservations[1].Id)).toBe(true)
+      expect(sameId(String(proved.operationId), verificationStep.OperationId!)).toBe(true)
+      expect(sameId(String(proved.sequenceId), sequence.Id)).toBe(true)
+      expect(proved).toMatchObject({
+        eventSequence: releaseEventSequence,
+        sequenceState: 'NeedsAttention',
+        admissionMode: 'Immediate',
+        stepKind: 'Verification',
+        ordinal: 1,
+        operationFamily: 'Verification',
+        operationStatus: verificationExecution.Status,
+        processOutcome: 'TimedOut',
+        semanticExitCode: null,
+        physicalExitCode: recordedObservations[1].PhysicalExitCode,
+      })
+      expect(typeof proved.processDurationTicks).toBe('string')
+      expect(typeof proved.observedElapsedTicks).toBe('string')
+      for (const hidden of ['nonce', 'hostLaunch', recordedWitnesses[1].HostLaunchId.toLowerCase(), 'confirmation', 'candidate', 'stdout', 'stderr']) {
+        expect(text.toLowerCase()).not.toContain(hidden.toLowerCase())
+      }
+
+      await expect(receiptRegion).toContainText(`recorded as Human run event #${releaseEventSequence}`)
+      await expect(receiptRegion).toContainText('process outcome Timed out (the host stopped it)')
+      await expect(receiptRegion).toContainText(`Physical exit code ${recordedObservations[1].PhysicalExitCode}`)
+      await expect(receiptRegion).toContainText('Recorded result of the operation (unchanged)')
+      await expect(receiptRegion).toContainText('Physical termination observed by the original host')
+      await expect(receiptRegion).toContainText("did not change this operation's failed result or the ended cycle")
+      await expect(receiptRegion).toContainText('process the host invoked only')
+      await expect(receiptRegion).toContainText('not signed or authenticated history')
+      await expect(receiptRegion.getByRole('button')).toHaveText(['Hide recorded quarantine release', 'Reload recorded quarantine release'])
+      await expect(receiptRegion.getByRole('button', { name: /confirm|Release terminal|Read the release evidence/i })).toHaveCount(0)
+    }
+
+    // The current run's rail.
+    const rail = page.getByRole('complementary', { name: 'Usage and evidence' })
+    const fromRail = await inspectReceipt(rail)
+    await assertReceipt(fromRail)
+    // An explicit reload replaces the read: the page sends exactly one new receipt request (counted without deduplication), whose own
+    // response is awaited from before the click, carries the same durable answer and is the one the region renders.
+    const reloadStart = gets.length
+    const reloadAnswered = page.waitForResponse(
+      (response) => response.request().method() === 'GET' && new URL(response.url()).pathname.toLowerCase() === inspectionPath,
+      { timeout: 30_000 },
+    )
+    await fromRail.receiptRegion.getByRole('button', { name: 'Reload recorded quarantine release' }).click()
+    const reloadResponse = await reloadAnswered
+    expect(reloadResponse.status()).toBe(200)
+    const reloadedBody = (await reloadResponse.json()) as typeof fromRail.body
+    expect(reloadedBody).toEqual(fromRail.body)
+    await expect(fromRail.receiptRegion.getByText('Reading the recorded quarantine release')).toHaveCount(0, { timeout: 30_000 })
+    await assertReceipt({ ...fromRail, body: reloadedBody, text: JSON.stringify(reloadedBody) })
+    expect(receiptReads(reloadStart)).toEqual([inspectionPath])
+
+    // The selected historical run: the same recorded receipt through Run history.
+    const history = page.getByRole('region', { name: 'Run history' })
+    await history.getByRole('button', { name: 'Show run history' }).click()
+    await history.getByRole('button', { name: 'Inspect run #1', exact: true }).click()
+    const selectedRun = history.getByRole('region', { name: 'Selected run' })
+    await expect(selectedRun).toContainText(OBJECTIVE, { timeout: 30_000 })
+    const fromHistory = await inspectReceipt(selectedRun)
+    await assertReceipt(fromHistory)
+    expect(fromHistory.body).toEqual(fromRail.body)
+
+    // The whole segment is read-only: no business POST, no release candidate or artifact read, nothing appended or changed.
+    expect(posts.businessSince(postsBeforeInspection)).toEqual([])
+    expect(forbiddenReads(getsBeforeInspection)).toEqual([])
+    expect(durableState()).toBe(durableBeforeInspection)
+    expect(releases()).toHaveLength(1)
+    await expect(local.locator('tr[data-ownership-released="true"]')).toHaveCount(1)
+    await expect(local.locator('tr[data-quarantined="true"]')).toHaveCount(0)
+    await expect(state).toHaveAttribute('data-state', 'NeedsAttention')
+    await selectedRun.getByRole('button', { name: 'Close selected run' }).click()
+    await expect(selectedRun).toHaveCount(0)
+
+    // 14. A reload reads the durable result back and requests nothing, and the recorded decision is inspectable again afterwards. A
+    // browser reload is not a host restart; the file-backed Application and API tests prove host and database reopening separately.
     const requestsBeforeReload = posts.mark()
+    const getsBeforeReload = gets.length
     await page.reload()
     await selectProject(page, PROJECT)
     const reloaded = page.getByRole('region', { name: 'Local execution sequence', exact: true })
@@ -387,6 +538,25 @@ test('the quarantine release journey: a timed-out verification keeps its quarant
     await expect(reloaded.locator('tr[data-ownership-released="true"]')).toHaveCount(1)
     await expect(reloaded.locator('tr[data-quarantined="true"]')).toHaveCount(0)
     expect(posts.businessSince(requestsBeforeReload)).toEqual([])
+    // Marked before the page reload: the reload and the cold closed state (no inspector opened yet) read no receipt, release candidate or
+    // artifact, so the empty answers cannot come from a mark taken after the page had already loaded.
+    expect(receiptReads(getsBeforeReload)).toEqual([])
+    expect(forbiddenReads(getsBeforeReload)).toEqual([])
+    const afterReload = await inspectReceipt(page.getByRole('complementary', { name: 'Usage and evidence' }))
+    await assertReceipt(afterReload)
+    expect(afterReload.body).toEqual(fromRail.body)
+    expect(posts.businessSince(requestsBeforeReload)).toEqual([])
+    expect(forbiddenReads(getsBeforeReload)).toEqual([])
+    expect(durableState()).toBe(durableBeforeInspection)
+
+    // 15. The exact business POST inventory of the whole journey is unchanged by the inspection: one release, one arming, one queueing.
+    expect(posts.business().filter((path) => ARM_LOCAL.test(path))).toHaveLength(1)
+    expect(posts.business().filter((path) => QUEUE_LOCAL.test(path))).toHaveLength(1)
+    expect(posts.business().filter((path) => RELEASE_PATH.test(path))).toHaveLength(1)
+    expect(posts.business().filter((path) => INSPECT_RECEIPT_PATH.test(path))).toEqual([])
+    expect(releases()).toHaveLength(1)
+    expect(data.localCommitOperationCount()).toBe(0)
+    expect(queuedData.localCommitOperationCount()).toBe(0)
   } finally {
     // Never leave the owned gate behind, even when an assertion above failed.
     rmSync(gate, { force: true })

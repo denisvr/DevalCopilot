@@ -346,6 +346,18 @@ matches; matching edits of both expiry columns are one such case. An unreadable 
 host exposes no such rewrite, creates no second grant and still refuses replay. Extra copies would not authenticate a coherently rewritten
 database; no signing capability, metadata repair or new recovery authority is selected.
 
+[ADR-0067](../decisions/0067-inspect-recorded-local-quarantine-release-receipts.md) adds only a read-only recorded inspection of one
+step's release receipt, inside the existing selected-step inspector of the current run and of run history. It reads the same single
+statement and proof as the candidate reading (not the candidate query, so it mints no confirmation and uses no clock) and answers
+Recorded for a fully proved release, NotRecorded only when both the step-keyed and the witness-keyed receipt associations are absent
+beside a supported proof result, and Unavailable for any present receipt that fails a proof, for an old unreleased operation that lacks
+producer evidence and for every other unreadable or unsupported row. The shared release projection admits each numeric intent member (and the
+observation and Agent tick members) as an exact integer of its supported range before provider conversion, so unsupported numeric storage cannot
+read as an old value, and a fresh raw-storage validity of every nullable numeric fact (genuine NULL, supported integer or unsupported nonnull) makes the proof
+refuse unsupported storage before eligibility or replay instead of reading it as a legal null; the candidate reading and a replay are stricter in the same way. It writes nothing, adds no table, migration, event, worker or
+recovery authority, and neither negative status establishes a held or a released owner: the live readings keep that
+responsibility, and ADR-0066's checksum-only mismatch stays Unavailable there while the exact relational grant can still release ownership.
+
 The downgrade of the ownership-release migration is refused while any witness, observation or release exists (a named CHECK aborts it
 before any trigger, row or table changes), because the previous schema would ignore a used release and could re-block an operation the
 Human released.

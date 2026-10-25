@@ -125,7 +125,8 @@ public sealed class LocalExecutionOwnershipReleaseEndpointTests : IDisposable
     public void The_two_ownership_release_routes_exist_each_authorized_with_its_one_method_and_none_anonymous()
     {
         var endpoints = factory.Services.GetRequiredService<EndpointDataSource>().Endpoints.OfType<RouteEndpoint>()
-            .Where(endpoint => endpoint.RoutePattern.RawText?.Contains("ownership-release", StringComparison.OrdinalIgnoreCase) == true)
+            .Where(endpoint => endpoint.RoutePattern.RawText?.Contains("ownership-release", StringComparison.OrdinalIgnoreCase) == true
+                && !endpoint.RoutePattern.RawText.Contains("/inspection/", StringComparison.Ordinal))
             .ToList();
 
         Assert.Equal(2, endpoints.Count);

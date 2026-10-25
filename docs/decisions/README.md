@@ -172,10 +172,13 @@ under [Proposed decisions](#proposed-decisions).
   (accepted, implemented in independently verified published LOCAL-QUEUE-OVERVIEW-01 after the LQO-R1 correction; one bounded coherent read of Waiting, Reserved and Unresolved admissions across the authoritative database, including ended held records, with explicit global inspection and reuse of existing recorded evidence; no execution, ownership, queue-control, recovery or publication authority)
 
 - [ADR-0065: Release terminal local quarantine with original-host termination evidence](0065-release-terminal-local-quarantine-with-original-host-termination-evidence.md)
-  (accepted, selected for LOCAL-QUARANTINE-RELEASE-01 under the owner's 2026-10-23 design authority; dispatch provenance, distinct physical termination observation, exact Human release and consistent ownership/fence proof; narrowly extends ADR-0060/0062 and ADR-0057/0058/0059, without result reinterpretation, cycle reopening, reservation release, cancellation, retry, takeover, automatic approval/commit/publication or renewed native/provider experiments)
+  (accepted, implemented in independently verified published LOCAL-QUARANTINE-RELEASE-01 under the owner's 2026-10-23 design authority; dispatch provenance, distinct physical termination observation, exact Human release and consistent ownership/fence proof; narrowly extends ADR-0060/0062 and ADR-0057/0058/0059, without result reinterpretation, cycle reopening, reservation release, cancellation, retry, takeover, automatic approval/commit/publication or renewed native/provider experiments)
 
 - [ADR-0066: Bind local release intent to an immutable relational snapshot](0066-bind-local-release-intent-to-an-immutable-relational-snapshot.md)
-  (accepted during review 2 of the same unpublished LOCAL-QUARANTINE-RELEASE-01; typed exact-intent columns in the existing release row bind every canonical fact at the read, ownership and SQL seams; only a checksum-only mismatch may make inspection/replay unavailable without reacquiring an otherwise proved Human release; exact tick lifetime and all original physical/authority boundaries remain)
+  (accepted during review 2 and implemented in independently verified published LOCAL-QUARANTINE-RELEASE-01; typed exact-intent columns in the existing release row bind every canonical fact at the read, ownership and SQL seams; only a checksum-only mismatch may make inspection/replay unavailable without reacquiring an otherwise proved Human release; exact tick lifetime and all original physical/authority boundaries remain)
+
+- [ADR-0067: Inspect recorded local quarantine release receipts](0067-inspect-recorded-local-quarantine-release-receipts.md)
+  (accepted, selected for LOCAL-RELEASE-INSPECT-01; one bounded protected recorded read and an explicit receipt/termination-evidence region in the current and historical selected-step inspectors; reuses the complete release proof without minting a confirmation or changing release, ownership, queue, recovery, approval or publication authority)
 
 ## Partially superseded decisions
 

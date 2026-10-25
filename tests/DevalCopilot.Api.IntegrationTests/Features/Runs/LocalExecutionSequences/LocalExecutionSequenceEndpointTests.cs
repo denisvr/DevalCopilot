@@ -126,13 +126,13 @@ public sealed class LocalExecutionSequenceEndpointTests : IClassFixture<ApiWebAp
     }
 
     [Fact]
-    public void Exactly_twelve_local_execution_sequence_routes_exist_each_authorized_with_its_one_method_and_none_anonymous()
+    public void Exactly_thirteen_local_execution_sequence_routes_exist_each_authorized_with_its_one_method_and_none_anonymous()
     {
         var endpoints = factory.Services.GetRequiredService<EndpointDataSource>().Endpoints.OfType<RouteEndpoint>()
             .Where(endpoint => endpoint.RoutePattern.RawText?.Contains("local-execution-sequence", StringComparison.OrdinalIgnoreCase) == true)
             .ToList();
 
-        Assert.Equal(12, endpoints.Count);
+        Assert.Equal(13, endpoints.Count);
         var routes = endpoints.Select(
             endpoint => $"{endpoint.Metadata.GetOrderedMetadata<HttpMethodMetadata>().Single().HttpMethods.Single()} {endpoint.RoutePattern.RawText}")
             .ToHashSet();
@@ -149,6 +149,7 @@ public sealed class LocalExecutionSequenceEndpointTests : IClassFixture<ApiWebAp
                 "GET api/runs/{runId:guid}/local-execution-sequence/inspection/admissions",
                 "GET api/runs/{runId:guid}/local-execution-sequence/inspection/steps/{stepId:guid}",
                 "GET api/runs/{runId:guid}/local-execution-sequence/inspection/steps/{stepId:guid}/artifact-window/{stream}",
+                "GET api/runs/{runId:guid}/local-execution-sequence/inspection/steps/{stepId:guid}/ownership-release",
                 "GET api/runs/{runId:guid}/local-execution-sequence/steps/{stepId:guid}/ownership-release",
                 "POST api/runs/{runId:guid}/local-execution-sequence/steps/{stepId:guid}/ownership-release",
             },

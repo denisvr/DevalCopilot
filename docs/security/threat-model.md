@@ -176,6 +176,14 @@ This is not authentication of history against coordinated database rewrites with
 its intent copy can leave relational consistency intact while inspection and replay fail digest verification; the response does not establish
 the historical cause of that mismatch. No normal host command performs those rewrites, and no additional grant or automatic repair follows.
 
+[ADR-0067](../decisions/0067-inspect-recorded-local-quarantine-release-receipts.md) lets the owner read the recorded receipt through one
+protected, bodyless, queryless GET that reuses the one release statement and proof, mints no confirmation and writes nothing. Its closed
+answer discloses only already proved facts: never the nonce, host launch identity, ticket, process identifier, path, argument, output,
+confirmation digest or expiry or an action candidate, and it repeats no request value in an error. A present receipt that fails any proof is
+Unavailable, never absence, so damaged evidence cannot be shown as a clean "no release"; neither negative answer, and no checksum-only
+mismatch, claims that ownership is held or was released, so a reader cannot be misled into trusting or distrusting the live fence from it.
+The same unsigned relational-consistency limit applies: a coordinated rewrite of matching rows can still read as Recorded.
+
 ### Resource exhaustion
 
 An agent or command emits unlimited output, loops, spawns descendants, consumes

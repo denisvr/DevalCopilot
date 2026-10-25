@@ -31,6 +31,14 @@ internal static class LocalExecutionReleaseProof
         }
 
         var row = rows[0];
+
+        // A nullable numeric fact whose raw storage is neither NULL nor a supported integer was projected as the legal null: before any
+        // eligibility, replay or chain comparison could count that null as supported history, the whole reading is Unavailable.
+        if (!row.StorageValid)
+        {
+            return LocalExecutionReleaseReading.Unavailable(LocalExecutionReleaseReason.EvidenceIncoherent);
+        }
+
         if (!RootHolds(row.Root) || KindOf(row.Step.KindCode) is not { } kind || !StepHolds(row.Root, row.Step, kind))
         {
             return LocalExecutionReleaseReading.Unavailable(LocalExecutionReleaseReason.EvidenceIncoherent);

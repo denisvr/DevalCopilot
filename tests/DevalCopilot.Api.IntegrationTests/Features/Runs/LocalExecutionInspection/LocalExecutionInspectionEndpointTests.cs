@@ -138,7 +138,7 @@ public sealed class LocalExecutionInspectionEndpointTests(LocalExecutionInspecti
     }
 
     [Fact]
-    public void Exactly_four_inspection_routes_exist_the_three_of_ADR_0061_and_the_admission_ledger_of_ADR_0063_each_an_authorized_get()
+    public void Exactly_five_inspection_routes_exist_the_three_of_ADR_0061_the_admission_ledger_of_ADR_0063_and_the_release_receipt_of_ADR_0067_each_an_authorized_get()
     {
         var endpoints = fixture.Host.Services.GetRequiredService<EndpointDataSource>().Endpoints.OfType<RouteEndpoint>()
             .Where(endpoint => endpoint.RoutePattern.RawText?.Contains("local-execution-sequence/inspection", StringComparison.Ordinal) == true)
@@ -151,6 +151,7 @@ public sealed class LocalExecutionInspectionEndpointTests(LocalExecutionInspecti
                 "api/runs/{runId:guid}/local-execution-sequence/inspection/admissions",
                 "api/runs/{runId:guid}/local-execution-sequence/inspection/steps/{stepId:guid}",
                 "api/runs/{runId:guid}/local-execution-sequence/inspection/steps/{stepId:guid}/artifact-window/{stream}",
+                "api/runs/{runId:guid}/local-execution-sequence/inspection/steps/{stepId:guid}/ownership-release",
             ],
             endpoints.Select(endpoint => endpoint.RoutePattern.RawText));
         foreach (var endpoint in endpoints)

@@ -589,3 +589,46 @@ rows as fresh), selecting another cycle, a return to an earlier one and unmounti
 a retained callback of an ended lifetime populates and selects nothing. Selecting a row rechecks its exact admission, sequence, run
 and project in the visit's validated overview and renders the existing local execution inspector for that run, whose own explicit open,
 ledger, step and window actions stay required; the two reads are independent snapshots, not an atomic replay.
+
+**Recorded quarantine release receipt.**
+[ADR-0067](../decisions/0067-inspect-recorded-local-quarantine-release-receipts.md) adds a sixth protected, bodyless and queryless GET,
+`/api/runs/{runId}/local-execution-sequence/inspection/steps/{stepId}/ownership-release`, behind the same body/query guard and the same
+fixed non-echoing inspection 400 and 404 (an absent run, a run without a sequence and a foreign or missing step are one answer). It
+reuses the ADR-0065 `LocalExecutionReleaseStatement` (one bounded provider-neutral untracked statement) and
+the complete historical proof in `LocalExecutionReleaseProof`, with the additional raw-storage admission described below.
+LRI-R1 strengthened the statement's shared projection: every numeric member of the typed intent
+snapshot (and the observation and Agent tick members the proof compares) is admitted as an exact integer of its supported range before the provider
+can convert it, so a numeric prefix with trailing text, a fraction, plain text or an out-of-range number is Unavailable here (and in the candidate
+reading and a replay), never a plausible old value. A nullable numeric fact (the observation, attempt and execution exit codes, the witness, admission and
+intent recipe ordinals and the intent semantic exit code) keeps three cases apart: a fresh raw-storage validity flag, computed in the same statement
+and never persisted, says each is genuinely NULL or exactly a supported integer, and the proof refuses a row with unsupported nonnull storage as Unavailable
+before eligibility, replay or any chain comparison, so it can never collapse into its legal null or read as an absence. The reader does not call the release candidate query or handler, mints no confirmation, takes no clock or
+transaction and reads no Git, file, process, provider, account, artifact or current readiness state. The closed answer is the run, the
+step, a status and a nullable receipt: `Recorded` is a fully proved existing release (snapshot, terminal result, original host witness
+and observation, actual Human event, chronology, exact lifetime and digest); `NotRecorded` needs both receipt associations (keyed by the
+step and by the witness) to be absent and a supported proof result (Available or NotEligible), and says only that this read proved no
+receipt; every present receipt that fails a proof, including one beside a revoked or unlinked step, and every unreadable, ambiguous,
+incomplete or unsupported row is `Unavailable` with no partial payload. The proof orders eligibility before a stored receipt for a step
+that names no operation, so the reader decides absence from the same rows and never maps NotEligible blindly to absence. A stored value this
+build cannot materialize is Unavailable, never absence. The receipt discloses only the release identity, time and Human event number;
+the sequence, mode, step, operation and pinned source; the unchanged recorded result and process outcome; and the distinct physical
+facts (witness and observation identity, dispatch and observation times, the exact Int32 physical exit code and nonnegative Int64 tick
+strings, zero included). No nonce, host launch identity, ticket, process identifier, path, executable, argument, output, confirmation
+version, digest or expiry and no candidate is returned.
+
+The frontend (`localExecutionReleaseInspection.ts`, `LocalExecutionReleaseInspectionWireClient`, `useLocalExecutionReleaseInspection`,
+`LocalExecutionReleaseInspectionRegion`) decodes the whole closed answer or none, verifies the run and step, and for a Recorded receipt
+the selected sequence, mode, step kind, ordinal, pass, operation family and identity and the pinned source; the structural rules
+(family with kind, status with process outcome, no semantic exit code, an observation no longer than its process, dispatch before
+observation before release, compared as fixed-width canonical texts at tick precision) are enforced, not just shapes. One collapsed
+**Inspect recorded quarantine release** region sits inside the selected-step detail of a proved linked Agent or verification step, so the
+current run's rail and the selected historical run share it. Choosing the step reads no receipt; opening or reloading performs one GET
+carrying a real `AbortSignal` and a ten-second bound. The step visit, each opening and each read visit own their callbacks and results:
+closing, reloading (which discards the earlier answer at once, so a failed reload never shows an old receipt as fresh), another step
+visit, a return to an earlier one and unmounting end the earlier lifetime and abort its request, one request is in flight at a time and
+releases only its own guard, and a retained callback of an ended lifetime opens, reloads and closes nothing. Fixed copy explains a past
+Human decision, the unchanged failed result and ended cycle, that the physical evidence concerns the invoked process only, and that
+NotRecorded and Unavailable promise neither a held nor a released owner (the live workspace and capacity readings remain the authority),
+including ADR-0066's checksum-only mismatch, which stays Unavailable here while the exact relational grant can still release ownership.
+The receipt is relationally consistent within its own statement, not signed history; the separately read index, operation evidence and
+live status are not one atomic replay. No release action, candidate query or confirmation handler is mounted in either inspector.

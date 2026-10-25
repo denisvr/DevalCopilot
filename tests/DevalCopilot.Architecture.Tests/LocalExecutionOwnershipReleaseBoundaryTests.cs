@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text.RegularExpressions;
 using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
 using Xunit;
 
@@ -151,6 +152,56 @@ public sealed class LocalExecutionOwnershipReleaseBoundaryTests
                 Assert.DoesNotContain("DbContext", code, StringComparison.Ordinal);
                 Assert.DoesNotContain("IProcessExecutionAdapter", code, StringComparison.Ordinal);
                 Assert.DoesNotContain("Infrastructure", code, StringComparison.Ordinal);
+            }
+        }
+    }
+
+    [Fact]
+    public void The_recorded_release_inspection_reuses_the_one_statement_and_proof_and_mints_nothing_ADR_0067()
+    {
+        var root = BackendRoot();
+        var query = ProductionSources(Path.Combine(root, "DevalCopilot.Application", "Features", "Runs", "Queries", "GetLocalExecutionReleaseInspection")).ToList();
+        var reader = Code(Path.Combine(
+            root, "DevalCopilot.Application", "Features", "Runs", "Policies", "LocalExecutionOwnershipReleases",
+            "LocalExecutionReleaseInspectionReader.cs"));
+        Assert.NotEmpty(query);
+
+        // One statement, one proof: the same shared release statement and proof the candidate uses, each used exactly once.
+        Assert.Single(Regex.Matches(reader, @"LocalExecutionReleaseStatement\.For\("));
+        Assert.Single(Regex.Matches(reader, @"LocalExecutionReleaseProof\.Prove\("));
+        Assert.Single(Regex.Matches(reader, @"\.ToArrayAsync\("));
+        foreach (var path in query.Append(Path.Combine(
+                     root, "DevalCopilot.Application", "Features", "Runs", "Policies", "LocalExecutionOwnershipReleases",
+                     "LocalExecutionReleaseInspectionReader.cs")))
+        {
+            var code = Code(path);
+            Assert.DoesNotContain("SaveChanges", code, StringComparison.Ordinal);
+            Assert.DoesNotContain("BeginTransaction", code, StringComparison.Ordinal);
+            Assert.DoesNotContain("TimeProvider", code, StringComparison.Ordinal);
+            Assert.DoesNotContain("LocalExecutionOwnershipReleaseConfirmation", code, StringComparison.Ordinal);
+            Assert.DoesNotContain("GetLocalExecutionOwnershipRelease", code, StringComparison.Ordinal);
+            Assert.DoesNotContain("LocalExecutionReleaseChain", code, StringComparison.Ordinal);
+            Assert.DoesNotContain("IApplicationMediator", code, StringComparison.Ordinal);
+            Assert.DoesNotContain("Candidate", code, StringComparison.Ordinal);
+            AssertNoExternalPort(code, path);
+        }
+
+        // The endpoint dispatches through the mediator only, as the one bodyless authorized GET behind the strict inspection guard.
+        foreach (var path in ProductionSources(Path.Combine(root, "DevalCopilot.Api", "Features", "Runs", "GetLocalExecutionReleaseInspection")))
+        {
+            var code = Code(path);
+            Assert.DoesNotContain("DbContext", code, StringComparison.Ordinal);
+            Assert.DoesNotContain("Infrastructure", code, StringComparison.Ordinal);
+            Assert.DoesNotContain("TimeProvider", code, StringComparison.Ordinal);
+            Assert.DoesNotContain("[FromBody]", code, StringComparison.Ordinal);
+            Assert.DoesNotContain("[AllowAnonymous]", code, StringComparison.Ordinal);
+            Assert.DoesNotContain("HttpPost", code, StringComparison.Ordinal);
+            if (path.EndsWith("Endpoint.cs", StringComparison.Ordinal))
+            {
+                Assert.Contains(": RunsBaseEndpoint", code, StringComparison.Ordinal);
+                Assert.Single(Regex.Matches(code, @"\[HttpGet\("));
+                Assert.Single(Regex.Matches(code, @"mediator\.SendAsync\("));
+                Assert.Contains("[TypeFilter(typeof(LocalExecutionInspectionBodylessGuardFilter))]", code, StringComparison.Ordinal);
             }
         }
     }

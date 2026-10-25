@@ -249,14 +249,19 @@ read-only view of Waiting, Reserved and Unresolved admissions across projects, i
 selection of the existing recorded inspector. LQO-R1 is resolved. It changes no queue or execution authority, adds no recovery action and
 completes no increment.
 
-**Proved terminal-quarantine release (reviewed GO; publication pending).** ADR-0065 / LOCAL-QUARANTINE-RELEASE-01 selects original-host dispatch
+**Proved terminal-quarantine release (independently verified published).** ADR-0065 / LOCAL-QUARANTINE-RELEASE-01 delivers original-host dispatch
 and termination evidence plus a separate exact Human confirmation to release only a terminal local operation's ownership. Results and ended
 cycles stay unchanged; missing proof and Unresolved pre-claim reservations stay held. This is no executor lease, general recovery,
 retry/resume/takeover or automatic approval/commit/publication, and completes no increment.
 Review 4 resolves LQR-V1 after the permanent request-inventory correction and headed/headless passes; LQR-R1/R2/R3/R4 remain resolved.
 [ADR-0066](../decisions/0066-bind-local-release-intent-to-an-immutable-relational-snapshot.md) resolves the checksum translation challenge through
-a typed intent snapshot in the same receipt row, without a SQLite hashing capability or new release authority. That implementation is reviewed;
-publication is authorized only for the exact reviewed-content identity in the planner's GO. Independent publication verification still follows.
+a typed intent snapshot in the same receipt row, without a SQLite hashing capability or new release authority. Commit `7ab7a15` is independently
+verified against the exact GO identity and live remote; the verification record is linked from planner-handoff.md. This grants no later publication.
+
+**Recorded quarantine-release inspection (selected, not implemented).** ADR-0067 / LOCAL-RELEASE-INSPECT-01 selects one protected recorded query
+and an explicit region in the current and historical selected-step inspectors, showing the proved Human receipt and supporting physical
+termination facts. It mints no confirmation and changes no ownership, release, queue, recovery, approval or publication authority. It is a bounded
+part of evidence inspection, not complete run replay or increment completion.
 
 **Agent supervision observations (partial).** ADR-0056 / AGENT-SUP-01 adds, for all seven existing Agent response contracts, a
 durable disclosure of what the host's own observer last reported for the current Agent attempt (phase, last report, absolute deadline,

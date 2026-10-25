@@ -6,10 +6,261 @@ was prepared ([recovery](development-workflow.md#recovery)). Git and code
 prevail; compare branch, `HEAD`, `origin/main` and staged/unstaged/untracked
 state first.
 
-## Active slice: LOCAL-QUARANTINE-RELEASE-01 Human release of a terminal local quarantine (ADR-0065)
+## Active slice: LOCAL-RELEASE-INSPECT-01 inspect recorded local quarantine release receipts (ADR-0067)
 
 This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
-Reconcile publication with Git. This record alone grants no publication authority.
+Reconcile publication with Git and the slice's independent publication-verification record, when available. This record alone grants no
+publication authority.
+
+**Delivery phase: correction 2 (Codex review 2 NO-GO: LRI-R1 residual open, LRI-V1 resolved) returned by the same Claude executor chat, complete diff
+(including the four planner inputs), unstaged, uncommitted and unpushed. No GO exists.** The first return below stays as written except where
+[Correction 1](#correction-1-codex-review-1-no-go-lri-r1-p2-and-lri-v1-p3) and [Correction 2](#correction-2-codex-review-2-no-go-lri-r1-residual-nullable-numeric-facts) correct it; their fresh evidence supersedes the Application, API, Architecture and journey runs they repeat, at the scopes stated there.
+Planner review edit: `planner-handoff.md` (SHA-256 `a41f0332…`, review 2) is the reviewed version and is preserved; ADR-0067, the decision index and the roadmap still equal the selection hashes.
+Baseline: `main`, `HEAD`, local `origin/main` and a freshly read live `refs/heads/main` (`git ls-remote`) were
+`7ab7a15eab9ce5682578517f1bb106ca7557db21` (LOCAL-QUARANTINE-RELEASE-01, independently verified published and neither repeated nor reopened),
+divergence 0/0 at the start and again at the return; the real index was empty and exactly the three modified planner documents
+(`decisions/README.md`, `mvp-delivery-plan.md`, `planner-handoff.md`) and the new ADR-0067 were pending. They are preserved byte-for-byte: their
+SHA-256 values equal `logs/planner-review/local-release-inspect-01/selection.txt` at the start and at the return. ADR-0050 stays Proposed,
+P9 unproven, AI Memory deferred, Increments 4/5/6 incomplete; every standing restriction in the handoff stays. No frozen qualification
+profile, native/provider/credential experiment, real run, recovery, cleanup or commit/push was touched or performed.
+
+### What exists
+
+- **Application.** `GetLocalExecutionReleaseInspection` (query, handler, closed result `Recorded` / `NotRecorded` / `Unavailable` with a nullable
+  receipt). `LocalExecutionReleaseInspectionReader` (policy, beside the ADR-0065 release policies) reads the *unchanged*
+  `LocalExecutionReleaseStatement` (one bounded provider-neutral untracked statement; its shared projection gained numeric admission in Correction 1)
+  and proves it with the *unchanged* `LocalExecutionReleaseProof`, then classifies from the same rows: `Released` is Recorded; `Available` or `NotEligible` with neither the
+  step-keyed nor the witness-keyed receipt association is NotRecorded; everything else, including a present receipt beside a revoked or unlinked
+  step (the proof answers NotEligible/StepNotLinked before it looks at a receipt) and old unreleased operations without producer evidence, is
+  Unavailable. NotFound is the same proof's absent or foreign run, sequence or step. It does not call the candidate query or handler, mints no
+  confirmation, takes no `TimeProvider`, transaction or write, and reads nothing external. The handler keeps ADR-0065's narrow
+  `InvalidOperationException or FormatException` translation of a stored value this build cannot materialize, here to Unavailable (never to
+  absence); cancellation and database faults keep the normal pipeline. No table, migration, event, worker or dependency; no producer, domain
+  eligibility, ownership expression, SQL guard, queue, fence, approval or publication code changed (the candidate and replay readings changed only through the
+  shared projection's stricter numeric admission, Correction 1).
+- **API.** `GET /api/runs/{runId}/local-execution-sequence/inspection/steps/{stepId}/ownership-release` (protected, bodyless, queryless) behind the
+  existing `LocalExecutionInspectionBodylessGuardFilter` with the fixed non-echoing `local_execution_inspection` 400/404 errors; API-owned closed
+  response (`runId`, `stepId`, `status`, `receipt`) and a 23-member receipt (release identity, time and Human event number as a canonical Int64
+  string; sequence, state, mode; step kind, ordinal, pass; family and operation; pinned source; the unchanged result status and process outcome with
+  a nullable semantic exit code and duration ticks; witness and observation identity, dispatch and observation times, the exact Int32 physical exit
+  code and elapsed ticks). No nonce, launch identity, ticket, path, argument, output, confirmation or candidate. NSwag regenerates the client
+  reproducibly (hash `71898d8c…` identical across three builds, two of them `--no-incremental`).
+- **Frontend.** `localExecutionReleaseInspection.ts` (whole-answer decoder: exact keys, closed vocabularies, canonical identifiers, times and Int64
+  texts, family/kind/status/process/nullability rules, an observation no longer than its process, dispatch before observation before release compared as
+  fixed-width canonical texts at tick precision, and for Recorded the selected sequence, mode, step kind, ordinal, pass, family, operation and pinned
+  source), `LocalExecutionReleaseInspectionWireClient` (parsed body, own `AbortSignal`), `useLocalExecutionReleaseInspection` (step visit,
+  opening and read visit lifetimes over the unchanged owned-lifetime primitives; target frozen when the region is opened; real ten-second bound;
+  one request in flight that releases only its own guard; reload discards the old answer at once), fixed copy and the collapsed
+  `LocalExecutionReleaseInspectionRegion` mounted by `LocalExecutionInspectionStepDetail` for a proved linked Agent or verification step, so the
+  current rail and run history share it (`LocalExecutionInspectionPanel` passes the recorded admission mode, the only caller). It mounts no release
+  action, candidate read or confirmation handler.
+- **Journey.** `e2e/local-quarantine-release.journey.ts` keeps every original step and its exact business-POST inventory, and gains step 13 (inspect the
+  recorded decision from the current rail and from Run history: selecting the step reads no receipt, opening reads exactly the receipt, an explicit reload
+  reads it again, both surfaces return the identical wire; the segment sends no business POST, release-candidate read or artifact read and leaves the
+  selected-field fingerprint of the releases, event types, sequence rows, step states and links, result statuses and exit codes, witness and observation identities
+  unchanged; not all-row byte identity, see LRI-V1 in Correction 1) and step 14 (the existing page reload now followed by a fresh
+  inspection that returns the same receipt). A browser reload is not a host restart; file-backed tests prove reopening separately.
+- **Tests.** Application `LocalExecutionReleaseInspection{Tests,DamageTests}` over real file-backed SQLite (54): all six kinds in both families and both
+  admission modes, exactly one read-only SELECT that never selects the nonce or launch identity, NotRecorded for a candidate, an already-free, a not-ended, a running
+  and a reserved step, Unavailable for missing producer evidence (observation deleted and a naturally unobserved timeout), the fixed not-found, host
+  restart with a cleared connection pool, an older run beside a newer released one and 26 present-receipt damage cases (typed snapshot, step-keyed and
+  witness-keyed associations, Human event, chain, authority drift, revoked and unlinked step, a stored value that cannot materialize), with representative valid,
+  snapshot-drift and checksum-only ownership asserted independently (workspace, capacity, abandonment and both SQL write seams). API
+  `LocalExecutionReleaseInspectionEndpointTests` (13) through the real host and the production release POST. Architecture: one new test of the reuse and
+  no-mint rules. Frontend: decoder 102, hook 20, transport 7, region 11, surfaces 16 (rail and history), contract 9.
+  Three existing route-inventory tests were updated for the one added route (see below).
+- **Documentation.** ADR-0067 (planner-owned, untouched), the inspection architecture contract, `data-and-recovery.md`, `run-cockpit-specification.md`,
+  `engineering-context.md`, the security plan, the threat model and this file.
+
+### Evidence (logs under `logs/executor/local-release-inspect-01/`, git-ignored; commands run at the repository root unless a frontend script)
+
+Fresh on the final stable sources (changed-path SHA-256 manifest before and after the whole matrix and the journey identical:
+`pre-final-source-manifest.sha256`, `post-final-source-manifest.sha256`, 46 paths; `final/`):
+
+- Serial incremental build of the Application, Api integration, Architecture and journey host projects: 0 warnings, 0 errors; two `--no-incremental` Api builds regenerated the client with the same hash.
+- Application `--filter "FullyQualifiedName~LocalExecutionReleaseInspection|FullyQualifiedName~LocalExecutionOwnershipRelease|FullyQualifiedName~LocalExecutionInspection"`:
+  **523 passed**, 3 m 36 s (new 54; the existing release suites and the ADR-0061 inspection classes).
+- Api `--filter "FullyQualifiedName~LocalExecutionReleaseInspection|FullyQualifiedName~LocalExecutionInspection|FullyQualifiedName~LocalExecutionOwnershipRelease|FullyQualifiedName~LocalExecutionSequenceEndpoint"`:
+  **199 passed**, 1 m 12 s (the MVC authorization/route inventories, strict transport, the release and inspection endpoint regressions).
+- Architecture, whole suite: **204 passed**.
+- Frontend (named files: the six new test files and 15 existing inspector, release, history, rail and contract files, `final/06-frontend-files.txt`):
+  **549 passed in 21 files**; `oxlint` exit 0 (existing warnings only, none in a new file); `npm run build` (with product `tsc -b`) passes; the recorded
+  strict e2e `tsc` flag set exit 0 over 52 files.
+- `dotnet format DevalCopilot.slnx --verify-no-changes --include <the 19 changed C# files>`: clean.
+- Journey, headed and automatic (`playwright test -c playwright.journey.config.ts e2e/local-quarantine-release.journey.ts --headed --trace off`, no Inspector,
+  `--debug`, `--ui`, `PWDEBUG` or manual Resume; trace, video and screenshots off): **1 passed in 1 m 5 s**, first attempt.
+- Two compiling controls (`controls/`, baseline, mutant, restored and re-hashed identical, targets touched and re-run):
+  1. remove the receipt operation-identity admission (`raw.operationId !== target.operationId`) from the decoder: compiled; **killed** by decoder `refuses a
+     well-formed receipt of another operationId` and `refuses a verification receipt of another recipe operation…`, and hook `refuses an answer for another
+     operation even though it is well-formed…` and `refuses an incoherent answer, a request failure…` (4 of 165 failed);
+  2. remove an ended-visit guard from the hook's `reload`: **2a** (the `visitOwner.isActive()` guard alone) compiled and **survived**, masked by the independent commit-side
+     visit check (`previous.visit === visit`): all 54 tests passed. **2b** (both layers of `reload`) compiled and was **killed** by `lets a reload from an earlier visit start no
+     further read for a later one` (1 of 54). Surviving scope: each hook callback is guarded twice (owner liveness and the frame's serial or visit), so a single layer
+     cannot be shown necessary by behavior; the retained-callback regressions prove the combined defense.
+
+Retained, not rerun (actual scope unchanged): Domain, Infrastructure (migration and process termination), the whole Application and Api suites, the whole Vitest
+suite and the other journeys, all at their earlier revision (no producer, persistence or shared transport changed); the LOCAL-QUARANTINE-RELEASE-01 evidence below
+stays at its own scope. No test of the previous slice is fresh evidence for this one.
+
+### Preserved development attempts and failures
+
+- Shell heredoc of the first Application source files failed to parse (an apostrophe inside it); the files were then written with the Write tool. Nothing ran.
+- Application first run of the new classes: 53 passed, 1 failed (`A_stored_value_this_build_cannot_materialize_is_unavailable_never_absent`): my first damaged value
+  (`IntentPassNumber = 'not-a-number'`) is classified to zero by the guarded projection and coincides with an Implementation's pass 0, so the receipt still proved.
+  The case now damages a Guid (`IntentOperationId = 'not-a-guid'`), which materializes and fails. Output kept in `03-application-new-first-run.txt`.
+- Api first focused run (193 tests): 2 failures, both wrong assumptions in my new tests and no product defect: the existing guard accepts a bare trailing `?`
+  (it carries no query text, only a key or text after the mark is refused), and an unreadable capacity count is the fail-closed `null`, not `1`. Output in `06-api-first-run.txt`.
+- Decoder first run: 101 of 102 passed. **Product defect found and corrected before the final matrix:** my first decoder compared the three receipt times as JavaScript
+  instants, which have millisecond precision, so a release one tick before its observation was accepted. The chronology is now compared as the fixed-width canonical UTC
+  round-trip texts (which order exactly at tick precision). Output in `09-decoder-first-run.txt`.
+- Hook and transport first run: 2 failures, both test mistakes (a retained read of an ended step visit is aborted with it, which is correct; the mocked 404 body lacked the
+  `status` member a real problem document carries). Region and surfaces first runs failed on a duplicate text query and on unrelated environment reads of the rail; the tests
+  were made exact. The React duplicate-key console errors in the journey and rail tests are the existing, unrelated warning recorded for earlier slices.
+
+### Challenges, limits and risks for review
+
+- **Route inventories.** Three existing assertions listed routes exactly and had to change for the one new inspection route: `LocalExecutionSequenceEndpointTests` (12 → 13 routes,
+  plus the route), `LocalExecutionInspectionEndpointTests` (four → five inspection routes) and `LocalExecutionOwnershipReleaseEndpointTests` (its `ownership-release` pattern now
+  excludes the `/inspection/` route, so it still names exactly the two ADR-0065 operations). No assertion was weakened.
+- **SUPERSEDED (inaccurate; corrected in Correction 1).** The first return claimed the host would answer Recorded for a stored receipt of an operation with an ordinary Exited proof. That was wrong: the
+  existing terminal-result proof (`ResultConsistent`) already requires TimedOut or Cancelled in both families, so the host answers Unavailable; see [Correction 1](#correction-1-codex-review-1-no-go-lri-r1-p2-and-lri-v1-p3).
+- **Frozen target.** The hook judges every answer of an opening against the target captured when the region was opened; a reload therefore reuses it, and a different step visit is a different
+  lifetime. The decoder does not compare the receipt's sequence state with the index header: the two are separate reads and an ended sequence cannot change state, but the receipt's state is
+  disclosed as "Cycle at release" and is not claimed to be current.
+- **Hook guard layering.** See control 2a: each callback has an owner-liveness guard and a frame-level guard, so one is masked by the other. An alternative is a mutation that removes a guard
+  and its fallback together, as 2b does; no further control was run.
+- **Journey scope.** It proves the Recorded path through both surfaces and a reload against a real cycle. NotRecorded and Unavailable in the rendered region, the checksum-only message and all
+  failures are proved by the component, surfaces, hook and transport tests and by the file-backed and API tests, not by the journey. History is reached through run #1 of the first project
+  (its only run), so "an older run beside a newer run" is proved in the Application tests, not in the browser.
+- **Component API.** `LocalExecutionInspectionStepDetail` gained the required `admissionMode` prop (its only caller passes the accepted header's); this is the one change to an existing component.
+- **Not in scope and not done:** recovery, reservation release, cancellation, retry, resume, takeover, approval, a restart-based browser proof, authenticated history, signing, repair of a
+  checksum-only mismatch, complete run replay, a real-run read, a frozen-experiment renewal, commit and publication.
+
+### Correction 1 (Codex review 1 NO-GO: LRI-R1 P2 and LRI-V1 P3)
+
+Preflight (once, before editing): `main`, `HEAD`, local `origin/main` and a fresh live `refs/heads/main` were `7ab7a15eab9ce5682578517f1bb106ca7557db21`, divergence 0/0, index empty,
+19 modified and 28 untracked files; `planner-handoff.md` had the reviewed SHA-256 `b8a86a05…c1302c9` and ADR-0067, the decision index and the roadmap their selection hashes. The reviewer's
+temporary test source (`logs/planner-review/local-release-inspect-01/review-01/LocalExecutionReleaseInspectionReviewerTests.cs`, SHA-256 `bbffc6fe…5752`) is archived there and is not in `tests/`.
+The reviewer's initial restricted Application build failed with zero reported warnings and errors and no diagnostic, and the permitted rebuild passed; the cause is unproved and is preserved, not explained.
+
+**LRI-R1 (P2, resolved by this correction; awaiting review): numeric intent snapshot admission.**
+- *Defect.* The shared `LocalExecutionReleaseProjection` read the typed intent's numbers as `(int?)column` or `(TimeSpan?)column`, so the provider normalized unsupported storage (a numeric prefix
+  followed by text, a fraction, plain text that reads as 0) into a plausible number before the in-memory proof compared it with the facts. The reviewer's six probes (`IntentPassNumber`,
+  `IntentOrdinal`, `IntentPhysicalExitCode`, `IntentProcessDuration`, `IntentObservedElapsed`, `IntentVersion` with `junk` appended) read Recorded while the relational ownership expression and the SQL
+  fence kept the operation held. My first return's nonnumeric zero-pass failure was this defect, not a wrong expectation, and replacing it with a malformed Guid (which does fail to materialize) hid it.
+  Out-of-range exit codes were worse: Int32 overflow escaped the handler's narrow `InvalidOperationException or FormatException` translation as an `OverflowException`.
+- *Correction (the only product change).* In `LocalExecutionReleaseProjection`, before provider conversion, in the same one provider-neutral untracked statement and with the complete proof unchanged:
+  `IntentVersion` and `IntentConfirmationVersion` are admitted only when equal to their current constants; `IntentOrdinal` and `IntentPassNumber` use the existing exact-integer-in-range guard
+  (`>= 0`, below the domain bound, `% Int32Maximum == value`); `IntentPhysicalExitCode` the existing four-way Int32 guard; `IntentRecipeOrdinal` and `IntentSemanticExitCode`, whose null is legal,
+  (superseded by Correction 2: they first mapped a malformed stored number to an `int.MinValue` sentinel, which for the exit code was itself a valid Int32; the sentinel is gone and the raw-storage validity flag
+  of Correction 2 replaces it); `IntentProcessDuration` and `IntentObservedElapsed` (stored as ticks) use `value >= TimeSpan.Zero && value == (TimeSpan)(object)(long)(object)value`, which the provider translates to
+  `col >= 0 AND col = CAST(CAST(col AS INTEGER) AS INTEGER)` (verified in the generated statement): the raw column is compared with its own integer cast, so text, a fraction and out-of-range REAL are
+  refused and `long.MaxValue` ticks are admitted. A malformed value yields null (or the sentinel) and the unchanged proof refuses it. Two cheaper translations failed and are kept in the logs: a bare
+  `(long)(object)` cast compares the cast with itself (`02-numeric-after-guard-1.txt`: the four tick cases stayed Recorded), and `EF.Property<long>` threw `InvalidCastException`. No domain eligibility,
+  ownership expression, SQL guard, migration, hashing function, second statement, generic framework or release authority changed; the candidate and replay readings become stricter for unsupported numeric
+  storage, which is the intended consistency correction.
+- *Scope note for the planner (a finding of mine, not requested).* The same defect existed at the sibling tick members the one proof also reads, `Observation.ProcessDuration`, `Observation.ObservedElapsed`
+  and `Attempt.AgentProcessDuration` (my probe: 6 of 68 cases read Recorded, `04-sibling-probe.txt`). They got the identical guard in the same projection, with permanent cases. If review wants the
+  correction limited to the intent members, these three guards and their six cases are separable; the claim that the observation exit codes and every other projected integer already had a sufficient guard was WRONG: their invalid fallback was a legal null (see Correction 2).
+- *Permanent regressions* (`LocalExecutionReleaseInspectionNumericIntentTests`, real file-backed SQLite, 68 cases): 12 members (all nine numeric intent members and the three siblings) times five forms
+  (numeric prefix plus `junk`, plain text, fraction, above the table range or Int32/Int64, below it) = 60; each proves the inspection is Unavailable with no receipt in one read-only statement, the
+  candidate reading is Unavailable with neither candidate nor release, a replay of the earlier confirmation is refused with the fixed unavailable error, the damaged value is unchanged afterwards
+  (no repair), no receipt or event is added, and the workspace, capacity and abandonment readings and both SQL write seams are unchanged (and were already held before the reads). Two controls (a
+  well-formed receipt stays Recorded, Released and replayable; ADR-0066's checksum-only mismatch stays Unavailable everywhere while ownership stays released) and six valid boundaries
+  (`int.MaxValue`, `int.MinValue`, `-int.MaxValue`, and tick pairs including `long.MaxValue` and zero, with the operation, observation, snapshot and digest all carrying them) must stay Recorded and Released.
+- *Evidence of the red and green states* (`logs/executor/local-release-inspect-01/correction-1/`): before the guard 22 of the first 53 cases failed (18 read Recorded, 4 threw `OverflowException`;
+  `01-numeric-red-first-run.txt`, `01-numeric-red-full.txt`); after the integer guards 4 tick cases remained (`02`); after the tick guard 53 passed (`03`); the sibling probe then failed 6 of 68 (`04`) and
+  after their guard all 68 pass (`05`).
+
+**LRI-V1 (P3, resolved; awaiting review): the reload journey oracle.** Test-only change in `e2e/local-quarantine-release.journey.ts`; no product, shared harness or transport change.
+- The Set-based reload assertion is replaced: the response is awaited from before the click, its status and body are read, the body is compared with the earlier receipt (it no longer passes
+  `fromRail.body` back), the pending text must disappear and the rendered receipt is asserted from that new body, and exactly one matching request is expected (`toEqual([path])`, no deduplication).
+- The page-reload marks are taken before `page.reload()`: from that mark until the explicit inspector open (including the cold closed state) the journey proves zero receipt requests and zero
+  release-candidate or artifact API reads; the candidate and artifact check counts only `/api/` paths, because the dev server's source-module requests (for example `artifactPurposes.ts`) are page GETs
+  that would otherwise match. The existing POST inventory and every original invariant are untouched.
+- The durable fingerprint is described by what it observes (selected release columns and event types, sequence rows as selected, step states and links, result statuses and exit codes, witness and
+  observation identities), not as all-row byte identity; this record and the journey comment say so.
+
+**Challenge dispositions.** Exited: resolved by the planner and accepted; the existing terminal-result proof already requires TimedOut or Cancelled in both families, so no extra filter was added and my
+first return's host/frontend mismatch statement was wrong (superseded above); the reviewer's matching-Agent Exited diagnostic reads Unavailable (its scope is the Agent family). Controls: 2a survived behind
+the independent frame guard and 2b removed both layers and killed the named regression; both outcomes are accepted and preserved, and no further mutation run was made. The older candidate decoder's
+millisecond chronology stays an out-of-scope retained limit.
+
+**Fresh evidence on the corrected sources** (`correction-1/`): Application `--filter "FullyQualifiedName~LocalExecutionReleaseInspection|FullyQualifiedName~LocalExecutionOwnershipRelease|FullyQualifiedName~LocalExecutionInspection"`
+**591 passed**, 4 m 21 s (the 523 of the first return plus the 68 new cases; the shared projection feeds the candidate handler, the release command's replay and the new reader, all in this set); Api
+`--filter "...LocalExecutionReleaseInspection|...LocalExecutionInspection|...LocalExecutionOwnershipRelease|...LocalExecutionSequenceEndpoint"` **199 passed**, 1 m 17 s; Architecture whole suite
+**204 passed**; strict e2e `tsc` flag set exit 0 over 52 files; `dotnet format --verify-no-changes` over the 21 changed C# files clean; the corrected journey, headed and automatic (`playwright test -c
+playwright.journey.config.ts e2e/local-quarantine-release.journey.ts --headed --trace off`, no Inspector or manual Resume, trace, video and screenshots off): **1 passed in 1 m 6 s**, first attempt. The
+generated client hash is unchanged (`71898d8c…`; no API change). Incremental builds of the Application, Api integration, Architecture and journey host projects: 0 warnings, 0 errors.
+**Preserved development attempts:** the new test class first failed to compile (C# 14 treats `field` as a keyword in a property accessor, and xUnit2013), fixed by renaming and `Assert.Single`; a shell
+script that edited the journey died on quoting before writing anything and the edits were redone with the Edit tool; a stray prefix from one Edit was removed from this file.
+**Retained, not rerun (actual scope unchanged):** the frontend product checks of the first return (549 Vitest cases in 21 files, `oxlint`, `npm run build`; no frontend product file changed), Domain,
+Infrastructure, the whole Application, Api and Vitest suites, the other journeys, and the first return's controls and doc checks. The document link check is rerun at the end of this correction.
+
+### Correction 2 (Codex review 2 NO-GO: LRI-R1 residual nullable numeric facts)
+
+Preflight (once, before editing): `main`, `HEAD`, local `origin/main` and a fresh live `refs/heads/main` were `7ab7a15eab9ce5682578517f1bb106ca7557db21`, divergence 0/0, index empty, 20 modified and
+29 untracked files; `planner-handoff.md` had the reviewed SHA-256 `a41f0332…14e33b`; ADR-0067, the decision index and the roadmap still had their selection hashes. The reviewer's temporary test source
+(`logs/planner-review/local-release-inspect-01/review-02/LocalExecutionReleaseInspectionReviewerTests.cs`, SHA-256 `51aa711f…2c89`) is archived there and is not in `tests/`. Review 2 resolved LRI-V1
+(the corrected journey source and its headed pass are retained) and accepted the three sibling tick guards and their regressions of Correction 1.
+
+**LRI-R1 (P2), residual, resolved by this correction; awaiting review: nullable numeric facts.**
+- *Defect.* Correction 1's guards returned the legal null for an unsupported nonnull value, so where the proof compares a legal null with a legal null it counted corrupt storage as supported history:
+  `Observation.SemanticExitCode` (both families), `Attempt.AgentProcessExitCode`, `VerificationExecution.ExitCode` and the Agent witness `RecipeOrdinal` (the reviewer's fifteen cases: five sites times
+  plain text, 0.5 and 2147483648) all read Recorded and the candidate reading Released while the workspace was Unavailable, abandonment blocked and the SQL fence held. My statement in Correction 1
+  that the observation exit codes and every other projected integer already had a sufficient guard was wrong.
+- *Audit of every nullable numeric fallback in this release row* (`LocalExecutionReleaseProjection`). Collapsing to null while null is legal: the four reviewed fields, plus two I found: the queued
+  `Admission.RecipeOrdinal` (the proof compares it with a step's legal null recipe ordinal) and my own Correction 1 handling of `IntentRecipeOrdinal` and `IntentSemanticExitCode`, whose
+  `int.MinValue` sentinel for the exit code was itself a valid Int32 (the reviewer's "no sole sentinel" rule applies; the sentinel is removed). Audited safe, because the proof requires a nonnull
+  value or compares it with a nonnull one, so invalid-to-null is already a refusal: `Step`, `Witness` and `Admission` `Ordinal` and `PassNumber`; `Step.RecipeOrdinal` (its separate `HasRecipe`
+  flag is true for any nonnull storage); `Observation.PhysicalExitCode`, both observation durations and `Attempt.AgentProcessDuration` (required for an Agent result); `Event.Sequence`,
+  `Release.ConfirmationVersion` and `Root.RecipeCount`.
+- *Correction (the only product change).* `LocalExecutionReleaseRow` gained an internal `StorageValid`, computed fresh in the same provider-neutral statement from the raw storage as the conjunction, over
+  `Observation.SemanticExitCode`, `Attempt.AgentProcessExitCode`, `Execution.ExitCode`, `Release.IntentSemanticExitCode` (each: `NULL`, or exactly an Int32 by the existing four-way guard),
+  and `Witness.RecipeOrdinal`, `Admission.RecipeOrdinal`, `Release.IntentRecipeOrdinal` (each: `NULL`, or an exact integer below the recipe bound), of `col IS NULL OR <exact supported integer>`. That keeps
+  three cases apart (actual NULL, a supported exact integer, unsupported nonnull storage) without a sentinel: every valid Int32 stays representable and genuine nulls stay nulls. The value projections
+  of those members are unchanged (the intent members now simply project null for an invalid value, since the flag refuses the row). `LocalExecutionReleaseProof.Prove` refuses a row with
+  `!StorageValid` as Unavailable immediately after the single-row check, before `RootHolds`, first-release eligibility, receipt replay or any chain comparison, so unsupported storage is never classified as
+  an absence (NotRecorded), a candidate or a release. The flag is a query-projected check, never persisted or cached, and grants nothing. The refusal is deliberately whole-row: a row with such a fact is
+  Unavailable even when the unsupported fact belongs to a not-yet-eligible step. No public response, Domain eligibility, ownership expression, SQL guard, migration, second query, hashing function or
+  generic reader changed; the candidate reading, a replay and a first confirmation become stricter in the same way (the release command re-reads through the same reader).
+- *Permanent regressions* (`LocalExecutionReleaseInspectionNullableIntegerTests`, real file-backed SQLite, 56 cases): eight sites (observation semantic exit code for an Agent and for a verification, attempt
+  exit code, execution exit code, witness recipe ordinal, queued admission recipe ordinal, and the queued Agent observation and attempt representatives) times plain text, 0.5 and 2147483648, each with an existing
+  receipt (inspection, candidate and replay) and without one (inspection, candidate and an attempted first confirmation) = 48. Each proves the inspection is Unavailable, never NotRecorded and never Recorded, in one
+  read-only statement; the candidate reading is Unavailable; the replay or first confirmation is refused with the fixed unavailable error; no release or event is appended; the selected-field
+  fingerprint is unchanged (it does not directly compare the damaged raw cell); and the workspace, capacity and abandonment readings and both SQL seams (held before and after) are unchanged. Controls: actual nulls stay supported (a candidate before and a Recorded
+  receipt after the release) and every valid Int32 exit code (`int.MinValue`, `-int.MaxValue`, -1, 0, 1, `int.MaxValue`) stays supported on an already-free Agent operation (still NotRecorded / NotEligible already_free).
+  The original six probes, the 68 Correction 1 cases, the valid boundaries, the well-formed and checksum-only controls and the 54 original cases stay and pass.
+- *Red and green* (`logs/executor/local-release-inspect-01/correction-2/`). The first red run (`01-nullable-red.txt`, 54 failures of 56) was red for the wrong reason in the no-receipt cases: the test used
+  `Tamper.ReadIdsAsync`, which requires a release row, and failed with "Sequence contains no elements" (and the six valid-Int32 controls failed the same way). It is preserved, the tests were corrected to read the
+  witness, observation, operation and admission identities directly, and a genuine red state was then recorded with only the proof admission temporarily disabled (the flag still computed; the file was restored to
+  the identical corrected hash `f96c371c…`, `proof-hash-before-red.txt`): 48 damaged cases failed (24 receipt cases read Recorded, 20 no-receipt cases read NotRecorded and 4 failed later assertions) and the 8 controls
+  passed (`01b-nullable-red-admission-disabled.txt`). With the admission, all 124 residual and numeric cases pass (`02`, `09`).
+
+**Evidence on the final sources** (`correction-2/`): Application `--filter "FullyQualifiedName~LocalExecutionReleaseInspection|FullyQualifiedName~LocalExecutionOwnershipRelease|FullyQualifiedName~LocalExecutionInspection"`
+**647 passed** (591 plus the 56 new cases), 4 m 46 s, covering the candidate handler, the release command's replay and the new reader that share the projection and proof; Api (release, inspection and
+sequence-route set, same filter as before) **199 passed**; Architecture whole suite **204 passed**; incremental builds 0 warnings, 0 errors; the generated client hash is unchanged (`71898d8c…`);
+`dotnet format --verify-no-changes` over the 24 changed C# files clean. The executor reported that the first format check failed on lines 391 to 393 of the projection and attributed it to CRLF handling of a comment
+between constructor arguments. The comment moved into the method's documentation and the expression was laid out over short lines. `07-dotnet-format.txt` contains the clean final result, not the original failure;
+the CRLF explanation is executor-reported, not independently established by that log. The runs above were repeated on the final source. `git diff --check` clean.
+**Retained at actual scope, not rerun:** all frontend product checks (no frontend file changed in Correction 2) and the strict e2e `tsc` and headed journey of Correction 1 (the journey source is unchanged; its host
+binary predates this product change, which alters no reachable behavior for valid data and is covered by the 647 file-backed cases through the same statement; no browser run was repeated); Domain,
+Infrastructure, the whole Application, Api and Vitest suites and the other journeys; the first return's and Correction 1's mutation controls (no new mutation campaign).
+**Inventory.** The 46-entry manifest of the first return and its post-correction recomputation list only those 46 paths: they omit `docs/roadmap/current-work.md`,
+`LocalExecutionReleaseProjection.cs` and `LocalExecutionReleaseInspectionNumericIntentTests.cs` and are not an all-source identity of Correction 1. This correction refreshed the inventory from Git
+(`correction-2/git-inventory-paths.txt` and `git-inventory.sha256`: every modified and untracked path including those code paths).
+
+**Dispositions.** LRI-V1 resolved by review 2; its journey assertions, exact request count, pre-reload marks, API-scoped artifact and candidate filter and qualified fingerprint are kept and the POST inventory
+is untouched. The Exited challenge, the accepted control outcomes (2a masked, 2b killed) and the older candidate decoder's millisecond chronology keep their dispositions. The reviewer's 144-case independent run
+(129 passed, 15 failed, the 122 permanent cases, six original probes and the Agent Exited diagnostic passing) is the evidence this correction answers.
+
+
+## Previous slice (independently verified published as 7ab7a15; historical record): LOCAL-QUARANTINE-RELEASE-01 Human release of a terminal local quarantine (ADR-0065)
+
+This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
+Reconcile publication with Git. This record alone grants no publication authority. Git and that slice's independent publication-verification record
+(`logs/planner-review/local-quarantine-release-01/publication-verification.json`) show it published as `7ab7a15eab9ce5682578517f1bb106ca7557db21`;
+the preparation-phase wording below is historical and grants no pending action.
 
 **Delivery phase: correction 3 (Codex review 3 NO-GO: LQR-V1 only, a test-only browser-oracle defect) returned by the same Claude executor chat, unstaged, uncommitted and unpushed. No GO exists.**
 The first return (unchanged below) is followed by [Correction 1](#correction-1-codex-review-1-no-go-lqr-r1-to-lqr-r4), [Correction 2](#correction-2-codex-review-2-no-go-lqr-r1-and-lqr-r2-adr-0066) and [Correction 3](#correction-3-codex-review-3-no-go-lqr-v1-the-journeys-business-post-inventory).
@@ -1201,6 +1452,12 @@ Archiving, condensation and progressive reading resolve or waive none of these:
   authenticated. Ordinals, counts, "real today", EX-G03, EX-H03 and WF-02B
   observations stay unreconciled. Earlier product, test, browser, generation
   and qualification evidence keeps its scope.
+- **LOCAL-RELEASE-INSPECT-01 (correction 2 returned, unreviewed).** Its two compiling controls prove one decoder admission and the combined
+  reload defense of the hook; the single `isActive` layer survived as a masked control (the frame-level visit check is independent). The
+  journey proves only the Recorded receipt through both surfaces and a page reload; a browser reload is not a host restart and its
+  history run is the only run of its project. The receipt is unsigned relational consistency from one statement; its index, operation and live
+  status are separate reads. Corrections 1 and 2 (LRI-R1, LRI-V1) strengthened the shared projection's numeric admission (three sibling tick members beyond the
+  intent, then a raw-storage validity of every nullable numeric fact refused before eligibility or replay) and the journey oracle; the browser evidence is the correction-1 run, whose host binary predates the Correction 2 product change (no browser run was repeated); the journey fingerprint is selected fields and counts, not all-row byte identity. Retained Domain, Infrastructure, whole Application/Api/Vitest and other journey evidence keeps its earlier scope.
 
 ## History
 

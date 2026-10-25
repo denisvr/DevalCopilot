@@ -119,6 +119,13 @@ artifacts and budgets are unchanged; the one shared ownership definition (every 
 compares the release row's typed immutable snapshot of the exact confirmed facts (ADR-0066) field for field; missing, ambiguous or drifted
 evidence keeps the hold. It adds no lease, guardian, cancellation, wait, retry, resume, takeover, reservation release or
 dependency; Exited and the observation stay proof about the invoked process only. Increments 4 to 6 stay incomplete.
+ADR-0067 / LOCAL-RELEASE-INSPECT-01 (implemented for review, unpublished until its own GO) adds only a sixth bodyless GET and one collapsed
+**Inspect recorded quarantine release** region inside the selected-step inspector of the current run and of run history: the recorded Human
+release receipt of a proved linked step, with its supporting physical termination facts, proved from the same single statement and proof as
+the ADR-0065 candidate reading (without minting a confirmation) and answered as Recorded, NotRecorded or Unavailable; a present receipt that
+fails any proof is Unavailable, never absent, and neither negative status says whether ownership is held or was released. It reads only on an
+explicit open or reload, writes nothing, mounts no release action and adds no table, migration, event, worker or dependency. Increments 4 to 6 stay
+incomplete.
 ADR-0056 adds only operational evidence for all seven Agent response contracts: a
 durable observation of what the host's own observer last reported (phase, last
 report, absolute deadline, first attention) for the current attempt, an independent

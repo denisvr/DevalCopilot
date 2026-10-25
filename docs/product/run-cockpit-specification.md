@@ -2031,7 +2031,29 @@ an unknown outcome says the host may have recorded the release and never infers 
 evidence again** starts a new read, selection and confirmation. Another run, closing, reloading, choosing another operation or unmounting
 ends the owner of every read, confirmation and request, so no late answer can act for another visit. The control marks nothing released
 itself: the fence, the workspace and the capacity change only when the run's own status read, after the host recorded the release, shows it.
-The existing inspectors and run history stay read-only.
+The existing inspectors and run history stay read-only; their one recorded view of a past release is described next.
+
+### Recorded quarantine release inspection (LOCAL-RELEASE-INSPECT-01)
+
+Inside the selected-step detail of the "Inspect local execution" inspector, in the current run's rail and in a selected historical run alike,
+a proved linked Agent or verification step offers one more collapsed **Inspect recorded quarantine release** region
+([ADR-0067](../decisions/0067-inspect-recorded-local-quarantine-release-receipts.md)). Choosing the step reads no receipt; opening the
+region, or **Reload recorded quarantine release**, reads exactly one recorded receipt for that step and replaces any earlier answer at once.
+A recorded release shows, in this order, the past Human decision (when it was released and the number of the one Human run event), the
+operation's recorded result exactly as it stands (unchanged by the release, with its process outcome and no semantic exit code for a stopped
+process), and the distinct physical facts the original host recorded (the exit code the operating system reported, the observed elapsed time,
+and the dispatch and observation times); the identities of the release, operation, cycle, dispatch witness, observation and pinned source are
+secondary, in a collapsed list. Fixed copy says it is a past decision that did not change the failed result or the ended cycle, does not show
+whether the workspace or capacity is available now, approved nothing and started nothing; that physical termination concerns the process the host
+invoked only; and that the record is consistent within one database read, not signed history, and not one atomic replay with the index and
+operation read separately. **Not recorded** says only that this read proved no receipt for the step, and **unavailable** that the evidence could
+not be proved as a whole (a receipt whose recorded checksum alone cannot be verified is shown this way too, neither inferred nor repaired);
+neither says whether the operation's ownership is held or was released, and the live workspace and capacity readings remain the authority. A
+failed read, a vanished step, a ten-second timeout and an incoherent answer are distinct and show nothing fabricated. The region mounts no
+release, confirmation or candidate control and sends no command, polling, retry, prefetch, export or artifact read. Another step visit, the
+sequence reload, closing, another run, a return to an earlier one and unmounting end the earlier lifetime and abort its request, so a late
+answer or a retained callback shows and opens nothing. Rules:
+[inspection contract](../architecture/agent-collaboration-evidence-inspection.md#agent-attempt-history-and-evidence-inspection).
 
 ## Evidence surface
 

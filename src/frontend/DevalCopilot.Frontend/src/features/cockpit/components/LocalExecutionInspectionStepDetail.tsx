@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import type { VerificationStream, VerificationStreamDescriptor } from '../agentAttemptVerification'
 import type { UseLocalExecutionInspectionResult } from '../hooks/useLocalExecutionInspection'
 import { useLocalExecutionInspectionWindow } from '../hooks/useLocalExecutionInspectionWindow'
@@ -12,10 +13,13 @@ import {
   VERIFICATION_STATUS_LABEL,
   VERIFICATION_STEP_NOTE,
 } from '../localExecutionInspectionCopy'
+import { releaseInspectionTargetOf } from '../localExecutionReleaseInspection'
+import type { LocalExecutionAdmissionMode } from '../localExecutionSequence'
 import { LOCAL_EXECUTION_REASON_PHRASE, LOCAL_EXECUTION_STEP_KIND_LABEL, LOCAL_EXECUTION_STEP_STATE_LABEL } from '../localExecutionSequenceCopy'
 import type { CollaborationTimelineCard } from '../types'
 import { AgentAttemptDetail } from './AgentAttemptDetail'
 import { CollaborationEvidenceDrilldown } from './CollaborationEvidenceDrilldown'
+import { LocalExecutionReleaseInspectionRegion } from './LocalExecutionReleaseInspectionRegion'
 import { VerificationStreamWindowView } from './VerificationStreamWindowView'
 
 const NO_CARDS: ReadonlyMap<string, CollaborationTimelineCard> = new Map()
@@ -156,6 +160,8 @@ interface LocalExecutionInspectionStepDetailProps {
   inspection: UseLocalExecutionInspectionResult
   runId: string
   sequenceId: string
+  /** The recorded admission mode of the accepted index header, which a recorded release receipt must name. */
+  admissionMode: LocalExecutionAdmissionMode
   step: LocalExecutionInspectionStep
 }
 
@@ -163,11 +169,16 @@ interface LocalExecutionInspectionStepDetailProps {
  * The selected step's recorded operation (ADR-0061). The step facts come from the accepted index; the operation was read once for this
  * step visit. An Agent step shows its immutable attempt header and mounts the existing selected-attempt detail (its evidence, recorded
  * inputs, outputs and verification, each an explicit read of its own) and the existing guarded message inspector for the report it
- * names; a verification step shows its proved facts and its two stream descriptors, with an explicit, bounded window per stream. Every
+ * names; a verification step shows its proved facts and its two stream descriptors, with an explicit, bounded window per stream. A proved
+ * linked operation also offers the collapsed, explicit recorded quarantine-release region (ADR-0067), owned by this step visit. Every
  * value is literal text and nothing here sends a command.
  */
-export function LocalExecutionInspectionStepDetail({ inspection, runId, sequenceId, step }: LocalExecutionInspectionStepDetailProps) {
+export function LocalExecutionInspectionStepDetail({ inspection, runId, sequenceId, admissionMode, step }: LocalExecutionInspectionStepDetailProps) {
   const { stepKey, stepPending, stepAnswer, stepFailure, retryStep, clearStep } = inspection
+  const releaseTarget = useMemo(
+    () => releaseInspectionTargetOf(runId, { sequenceId, admissionMode }, step),
+    [runId, sequenceId, admissionMode, step],
+  )
   return (
     <section className="dc-local-inspection-step" aria-label="Selected local execution step">
       <p>
@@ -215,6 +226,9 @@ export function LocalExecutionInspectionStepDetail({ inspection, runId, sequence
           step={stepAnswer.step}
           verification={stepAnswer.verification}
         />
+      )}
+      {(stepAnswer?.kind === 'agent' || stepAnswer?.kind === 'verification') && stepKey !== null && (
+        <LocalExecutionReleaseInspectionRegion key={`${stepKey}:release`} ownerKey={stepKey} target={releaseTarget} />
       )}
     </section>
   )

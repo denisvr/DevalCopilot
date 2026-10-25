@@ -3150,6 +3150,71 @@ export class GetLocalExecutionSequenceAvailabilityEndpointClient {
     }
 }
 
+export class GetLocalExecutionReleaseInspectionEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getLocalExecutionReleaseInspection(runId: string, stepId: string): Promise<GetLocalExecutionReleaseInspectionResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/local-execution-sequence/inspection/steps/{stepId}/ownership-release";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        if (stepId === undefined || stepId === null)
+            throw new globalThis.Error("The parameter 'stepId' must be defined.");
+        url_ = url_.replace("{stepId}", encodeURIComponent("" + stepId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetLocalExecutionReleaseInspection(_response);
+        });
+    }
+
+    protected processGetLocalExecutionReleaseInspection(response: Response): Promise<GetLocalExecutionReleaseInspectionResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = GetLocalExecutionReleaseInspectionResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            let resultData400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result400 = ApiProblemDetails.fromJS(resultData400);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ApiProblemDetails.fromJS(resultData404);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<GetLocalExecutionReleaseInspectionResponse>(null as any);
+    }
+}
+
 export class GetLocalExecutionQueueAvailabilityEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -12982,6 +13047,178 @@ export interface ILocalExecutionSequenceAvailabilityDisclosureResponse {
     codexAccountUsageStopPercent?: number | undefined;
     codexTokenStopThreshold?: string | undefined;
     claudeTokenStopThreshold?: string | undefined;
+}
+
+export class GetLocalExecutionReleaseInspectionResponse implements IGetLocalExecutionReleaseInspectionResponse {
+    runId?: string;
+    stepId?: string;
+    status?: string;
+    receipt?: LocalExecutionReleaseInspectionReceiptResponse | undefined;
+
+    constructor(data?: IGetLocalExecutionReleaseInspectionResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.runId = _data["runId"];
+            this.stepId = _data["stepId"];
+            this.status = _data["status"];
+            this.receipt = _data["receipt"] ? LocalExecutionReleaseInspectionReceiptResponse.fromJS(_data["receipt"]) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): GetLocalExecutionReleaseInspectionResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GetLocalExecutionReleaseInspectionResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["runId"] = this.runId;
+        data["stepId"] = this.stepId;
+        data["status"] = this.status;
+        data["receipt"] = this.receipt ? this.receipt.toJSON() : undefined as any;
+        return data;
+    }
+}
+
+export interface IGetLocalExecutionReleaseInspectionResponse {
+    runId?: string;
+    stepId?: string;
+    status?: string;
+    receipt?: LocalExecutionReleaseInspectionReceiptResponse | undefined;
+}
+
+export class LocalExecutionReleaseInspectionReceiptResponse implements ILocalExecutionReleaseInspectionReceiptResponse {
+    releaseId?: string;
+    releasedAtUtc?: string;
+    eventSequence?: string;
+    sequenceId?: string;
+    sequenceState?: string;
+    admissionMode?: string;
+    stepKind?: string;
+    ordinal?: number;
+    passNumber?: number;
+    operationFamily?: string;
+    operationId?: string;
+    sourceCheckpointId?: string;
+    sourceFingerprintSha256?: string;
+    operationStatus?: string;
+    processOutcome?: string;
+    semanticExitCode?: number | undefined;
+    processDurationTicks?: string;
+    witnessId?: string;
+    observationId?: string;
+    dispatchedAtUtc?: string;
+    recordedAtUtc?: string;
+    physicalExitCode?: number;
+    observedElapsedTicks?: string;
+
+    constructor(data?: ILocalExecutionReleaseInspectionReceiptResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.releaseId = _data["releaseId"];
+            this.releasedAtUtc = _data["releasedAtUtc"];
+            this.eventSequence = _data["eventSequence"];
+            this.sequenceId = _data["sequenceId"];
+            this.sequenceState = _data["sequenceState"];
+            this.admissionMode = _data["admissionMode"];
+            this.stepKind = _data["stepKind"];
+            this.ordinal = _data["ordinal"];
+            this.passNumber = _data["passNumber"];
+            this.operationFamily = _data["operationFamily"];
+            this.operationId = _data["operationId"];
+            this.sourceCheckpointId = _data["sourceCheckpointId"];
+            this.sourceFingerprintSha256 = _data["sourceFingerprintSha256"];
+            this.operationStatus = _data["operationStatus"];
+            this.processOutcome = _data["processOutcome"];
+            this.semanticExitCode = _data["semanticExitCode"];
+            this.processDurationTicks = _data["processDurationTicks"];
+            this.witnessId = _data["witnessId"];
+            this.observationId = _data["observationId"];
+            this.dispatchedAtUtc = _data["dispatchedAtUtc"];
+            this.recordedAtUtc = _data["recordedAtUtc"];
+            this.physicalExitCode = _data["physicalExitCode"];
+            this.observedElapsedTicks = _data["observedElapsedTicks"];
+        }
+    }
+
+    static fromJS(data: any): LocalExecutionReleaseInspectionReceiptResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new LocalExecutionReleaseInspectionReceiptResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["releaseId"] = this.releaseId;
+        data["releasedAtUtc"] = this.releasedAtUtc;
+        data["eventSequence"] = this.eventSequence;
+        data["sequenceId"] = this.sequenceId;
+        data["sequenceState"] = this.sequenceState;
+        data["admissionMode"] = this.admissionMode;
+        data["stepKind"] = this.stepKind;
+        data["ordinal"] = this.ordinal;
+        data["passNumber"] = this.passNumber;
+        data["operationFamily"] = this.operationFamily;
+        data["operationId"] = this.operationId;
+        data["sourceCheckpointId"] = this.sourceCheckpointId;
+        data["sourceFingerprintSha256"] = this.sourceFingerprintSha256;
+        data["operationStatus"] = this.operationStatus;
+        data["processOutcome"] = this.processOutcome;
+        data["semanticExitCode"] = this.semanticExitCode;
+        data["processDurationTicks"] = this.processDurationTicks;
+        data["witnessId"] = this.witnessId;
+        data["observationId"] = this.observationId;
+        data["dispatchedAtUtc"] = this.dispatchedAtUtc;
+        data["recordedAtUtc"] = this.recordedAtUtc;
+        data["physicalExitCode"] = this.physicalExitCode;
+        data["observedElapsedTicks"] = this.observedElapsedTicks;
+        return data;
+    }
+}
+
+export interface ILocalExecutionReleaseInspectionReceiptResponse {
+    releaseId?: string;
+    releasedAtUtc?: string;
+    eventSequence?: string;
+    sequenceId?: string;
+    sequenceState?: string;
+    admissionMode?: string;
+    stepKind?: string;
+    ordinal?: number;
+    passNumber?: number;
+    operationFamily?: string;
+    operationId?: string;
+    sourceCheckpointId?: string;
+    sourceFingerprintSha256?: string;
+    operationStatus?: string;
+    processOutcome?: string;
+    semanticExitCode?: number | undefined;
+    processDurationTicks?: string;
+    witnessId?: string;
+    observationId?: string;
+    dispatchedAtUtc?: string;
+    recordedAtUtc?: string;
+    physicalExitCode?: number;
+    observedElapsedTicks?: string;
 }
 
 export class GetLocalExecutionAdmissionHistoryResponse implements IGetLocalExecutionAdmissionHistoryResponse {

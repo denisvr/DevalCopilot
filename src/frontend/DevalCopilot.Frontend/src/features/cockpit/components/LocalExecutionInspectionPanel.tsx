@@ -146,6 +146,7 @@ export function LocalExecutionInspectionPanel({ runId }: { runId: string | null 
                   inspection={inspection}
                   runId={runId}
                   sequenceId={header.sequenceId}
+                  admissionMode={header.admissionMode}
                   step={selectedStep}
                 />
               ) : null}
