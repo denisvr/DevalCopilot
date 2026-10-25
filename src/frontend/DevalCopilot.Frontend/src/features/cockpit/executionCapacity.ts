@@ -123,8 +123,8 @@ export const EXECUTION_CAPACITY_GUIDANCE = {
   timeout: `The execution capacity did not answer within ten seconds, so ${WITHHELD}. ${AFTER}`,
   invalid: `The execution capacity was not coherent, so ${WITHHELD}. ${AFTER}`,
   changing: `The recorded-execution limit is being changed, so ${WITHHELD} until the new limit has been read back. Changing it starts no work. ${AFTER}`,
-  AtCapacity: `Two potentially mutating executions are already recorded across this host (a dispatched execution that ended without recorded process exit evidence still counts until it is reconciled), so ${WITHHELD} until one finishes or is reconciled. Nothing is cancelled, queued or released here. ${AFTER}`,
-  AtCapacityLimitOne: `One potentially mutating execution is already recorded across this host (the recorded-execution limit is one; a dispatched execution that ended without recorded process exit evidence still counts until it is reconciled), so ${WITHHELD} until it finishes or is reconciled. Nothing is cancelled, queued or released here. ${AFTER}`,
+  AtCapacity: `Two potentially mutating executions are already recorded across this host (a dispatched execution that ended without recorded process exit evidence still counts until it is reconciled or a separate Human release frees it), so ${WITHHELD} until one finishes or is reconciled. Nothing is cancelled, queued or released here. ${AFTER}`,
+  AtCapacityLimitOne: `One potentially mutating execution is already recorded across this host (the recorded-execution limit is one; a dispatched execution that ended without recorded process exit evidence still counts until it is reconciled or a separate Human release frees it), so ${WITHHELD} until it finishes or is reconciled. Nothing is cancelled, queued or released here. ${AFTER}`,
   Unavailable: `The recorded executions could not be counted safely, so ${WITHHELD}. Inspect the recorded executions before any further work. ${AFTER}`,
 } as const
 

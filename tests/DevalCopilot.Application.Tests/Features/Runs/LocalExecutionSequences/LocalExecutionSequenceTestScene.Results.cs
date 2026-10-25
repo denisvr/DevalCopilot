@@ -30,15 +30,21 @@ internal sealed partial class LocalExecutionSequenceTestScene
     private static readonly AgentProcessEvidence FailedExit = new(ProcessExecutionOutcome.Exited, 1, TimeSpan.FromMilliseconds(900));
 
     /// <summary>The real Agent dispatch marker (one of the four Agent supervisors' first write).</summary>
-    public async Task<Result<DateTimeOffset>> DispatchAgentAsync(Guid attemptId)
+    public async Task<Result<MarkAgentAttemptDispatchedCommandResult>> DispatchAgentAsync(Guid attemptId)
     {
         // The implementation supervisor projects the Human plan authorization its attempt consumed (ADR-0016) and the dispatch marker
         // requires it exactly: the same fresh classification the feed performs.
         await using var read = Fixture.CreateContext();
         var fact = PlanningImplementationAuthorizationAttempt.ToFact(
             await PlanningImplementationAuthorizationAttempt.ClassifyFreshAsync(read, RunId, attemptId, CancellationToken.None));
-        return await PipelineAsync(context => new MarkAgentAttemptDispatchedCommandHandler(context, Clock).HandleAsync(
+        var dispatched = await PipelineAsync(context => new MarkAgentAttemptDispatchedCommandHandler(context, Clock, HostLaunch).HandleAsync(
             new MarkAgentAttemptDispatchedCommand(RunId, attemptId, null, fact), CancellationToken.None));
+        if (dispatched.IsSuccess)
+        {
+            RememberTicket(attemptId, dispatched.Value.Ticket);
+        }
+
+        return dispatched;
     }
 
     /// <summary>The EF transaction behavior every plain <c>ICommand</c> gets in the host: a transaction is opened before the handler, and
@@ -81,8 +87,14 @@ internal sealed partial class LocalExecutionSequenceTestScene
     {
         var execution = await ReadExecutionAsync(executionId);
         await using var context = Fixture.CreateContext();
-        return await new MarkVerificationExecutionDispatchedCommandHandler(context, Clock).HandleAsync(
+        var dispatched = await new MarkVerificationExecutionDispatchedCommandHandler(context, Clock, HostLaunch).HandleAsync(
             new MarkVerificationExecutionDispatchedCommand(executionId, VerificationDispatchSnapshot.Of(execution)), CancellationToken.None);
+        if (dispatched.IsSuccess)
+        {
+            RememberTicket(executionId, dispatched.Value.Ticket);
+        }
+
+        return dispatched.IsSuccess ? Result.Success() : Result.Failure(dispatched.Errors[0]);
     }
 
     /// <summary>The real dedicated Agent dispatch-refusal recorder a supervisor sends after a refused dispatch marker.</summary>
@@ -153,7 +165,8 @@ internal sealed partial class LocalExecutionSequenceTestScene
         var paths = PathsFor(changed, attempt.AttemptNumber);
         var command = new RecordImplementationResultCommand(
             RunId, attemptId, succeeded, Head, fingerprint, paths, [],
-            changed ? Report(paths) : null, null, null, null, EvidenceFor(kind));
+            changed ? Report(paths) : null, null, null, null, EvidenceFor(kind))
+        { DispatchTicket = TicketOf(attemptId) };
         var result = await PipelineAsync(context => new RecordImplementationResultCommandHandler(context, Clock).HandleAsync(command, CancellationToken.None));
         Assert.True(result.IsSuccess, result.IsFailure ? result.Errors[0].Code : null);
         if (changed)
@@ -177,7 +190,8 @@ internal sealed partial class LocalExecutionSequenceTestScene
                 Report(paths))
             : null;
         var command = new RecordReviewCorrectionResultCommand(
-            RunId, attemptId, succeeded, Head, fingerprint, paths, [], correction, null, EvidenceFor(kind));
+            RunId, attemptId, succeeded, Head, fingerprint, paths, [], correction, null, EvidenceFor(kind))
+        { DispatchTicket = TicketOf(attemptId) };
         var result = await PipelineAsync(context => new RecordReviewCorrectionResultCommandHandler(context, Clock).HandleAsync(command, CancellationToken.None));
         Assert.True(result.IsSuccess, result.IsFailure ? result.Errors[0].Code : null);
         if (changed)
@@ -201,11 +215,15 @@ internal sealed partial class LocalExecutionSequenceTestScene
                 TestProcessEvidence.ReportedCleanExit),
             ScriptedResultKind.InvalidOutput => (AgentOutcome.InvalidStructuredOutput, (ValidatedImplementationReview?)null, TestProcessEvidence.ReportedCleanExit),
             ScriptedResultKind.ProviderFailedNoExit => (AgentOutcome.ProviderInvocationFailed, null, (AgentProcessEvidence?)null),
+            ScriptedResultKind.ProviderTimedOutTerminated or ScriptedResultKind.ProviderCancelledTerminated
+                or ScriptedResultKind.ProviderTimedOutUnobserved => (AgentOutcome.ProviderInvocationFailed, null, EvidenceFor(kind)),
             _ => (AgentOutcome.ProviderInvocationFailed, null, FailedExit),
         };
         var result = await PipelineAsync(context => new RecordImplementationReviewResultCommandHandler(context, Clock).HandleAsync(
             new RecordImplementationReviewResultCommand(
-                RunId, attemptId, outcome, attempt.AgentCheckpointFingerprintSha256, [], review, null, evidence), CancellationToken.None));
+                RunId, attemptId, outcome, attempt.AgentCheckpointFingerprintSha256, [], review, null, evidence)
+            { DispatchTicket = TicketOf(attemptId) },
+            CancellationToken.None));
         Assert.True(result.IsSuccess, result.IsFailure ? result.Errors[0].Code : null);
     }
 
@@ -228,11 +246,15 @@ internal sealed partial class LocalExecutionSequenceTestScene
                 TestProcessEvidence.ReportedCleanExit),
             ScriptedResultKind.InvalidOutput => (AgentOutcome.InvalidStructuredOutput, (ValidatedVerificationDiagnosis?)null, TestProcessEvidence.ReportedCleanExit),
             ScriptedResultKind.ProviderFailedNoExit => (AgentOutcome.ProviderInvocationFailed, null, (AgentProcessEvidence?)null),
+            ScriptedResultKind.ProviderTimedOutTerminated or ScriptedResultKind.ProviderCancelledTerminated
+                or ScriptedResultKind.ProviderTimedOutUnobserved => (AgentOutcome.ProviderInvocationFailed, null, EvidenceFor(kind)),
             _ => (AgentOutcome.ProviderInvocationFailed, null, FailedExit),
         };
         var result = await PipelineAsync(context => new RecordVerificationDiagnosisResultCommandHandler(context, Clock).HandleAsync(
             new RecordVerificationDiagnosisResultCommand(
-                RunId, attemptId, outcome, attempt.AgentCheckpointFingerprintSha256, [], diagnosis, null, evidence), CancellationToken.None));
+                RunId, attemptId, outcome, attempt.AgentCheckpointFingerprintSha256, [], diagnosis, null, evidence)
+            { DispatchTicket = TicketOf(attemptId) },
+            CancellationToken.None));
         Assert.True(result.IsSuccess, result.IsFailure ? result.Errors[0].Code : null);
     }
 
@@ -245,7 +267,8 @@ internal sealed partial class LocalExecutionSequenceTestScene
         {
             ScriptedResultKind.VerificationPassed => (VerificationExecutionOutcome.Exited, (int?)0),
             ScriptedResultKind.VerificationFailed => (VerificationExecutionOutcome.Exited, 1),
-            ScriptedResultKind.VerificationTimedOut => (VerificationExecutionOutcome.TimedOut, null),
+            ScriptedResultKind.VerificationTimedOut or ScriptedResultKind.VerificationTimedOutTerminated => (VerificationExecutionOutcome.TimedOut, null),
+            ScriptedResultKind.VerificationCancelledTerminated => (VerificationExecutionOutcome.Cancelled, null),
             ScriptedResultKind.VerificationSourceChanged => (VerificationExecutionOutcome.Exited, (int?)0),
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Not a verification result."),
         };
@@ -261,7 +284,16 @@ internal sealed partial class LocalExecutionSequenceTestScene
         var result = await PipelineAsync(context => new RecordVerificationExecutionResultCommandHandler(context, Clock).HandleAsync(
             new RecordVerificationExecutionResultCommand(
                 executionId, outcome, exitCode,
-                kind == ScriptedResultKind.VerificationSourceChanged ? new string('e', 64) : execution.CheckpointFingerprintSha256, sealedOutputs),
+                kind == ScriptedResultKind.VerificationSourceChanged ? new string('e', 64) : execution.CheckpointFingerprintSha256, sealedOutputs)
+            {
+                DispatchTicket = TicketOf(executionId),
+                Termination = kind is ScriptedResultKind.VerificationTimedOutTerminated or ScriptedResultKind.VerificationCancelledTerminated
+                    ? TerminatedAfterTimeout
+                    : null,
+                ProcessDuration = kind is ScriptedResultKind.VerificationTimedOutTerminated or ScriptedResultKind.VerificationCancelledTerminated
+                    ? TimeSpan.FromMilliseconds(5000)
+                    : null,
+            },
             CancellationToken.None));
         Assert.True(result.IsSuccess, result.IsFailure ? result.Errors[0].Code : null);
     }
@@ -279,9 +311,18 @@ internal sealed partial class LocalExecutionSequenceTestScene
             $"Add the filter {index}.", null))
         .ToArray();
 
+    /// <summary>The physical termination fact the original host observed after a timeout or cancellation request: the exit code the
+    /// operating system reported for the killed process and the elapsed time at the successful wait.</summary>
+    internal static readonly ProcessTerminationObservation TerminatedAfterTimeout = new(137, TimeSpan.FromMilliseconds(4900));
+
     private static AgentProcessEvidence? EvidenceFor(ScriptedResultKind kind) => kind switch
     {
         ScriptedResultKind.ProviderFailedNoExit => null,
+        ScriptedResultKind.ProviderTimedOutTerminated =>
+            new AgentProcessEvidence(ProcessExecutionOutcome.TimedOut, null, TimeSpan.FromMilliseconds(5000)) { Termination = TerminatedAfterTimeout },
+        ScriptedResultKind.ProviderCancelledTerminated =>
+            new AgentProcessEvidence(ProcessExecutionOutcome.Cancelled, null, TimeSpan.FromMilliseconds(5000)) { Termination = TerminatedAfterTimeout },
+        ScriptedResultKind.ProviderTimedOutUnobserved => new AgentProcessEvidence(ProcessExecutionOutcome.TimedOut, null, TimeSpan.FromMilliseconds(5000)),
         ScriptedResultKind.ProviderFailedWithExit => FailedExit,
         _ => TestProcessEvidence.ReportedCleanExit,
     };

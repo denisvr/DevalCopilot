@@ -13,6 +13,7 @@ using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Application.Features.Runs.Queries.GetClaudeLaunchTarget;
 using DevalCopilot.Application.Features.Runs.Queries.GetEligibleReviewCorrectionAttempts;
 using DevalCopilot.Application.Features.Runs.Queries.GetIneligibleAgentAttempts;
+using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
 
 namespace DevalCopilot.Api.HostedServices;
 
@@ -103,10 +104,14 @@ public sealed class ReviewCorrectionSupervisor(
             return;
         }
 
+        // ADR-0065: the original dispatch commit succeeded, so this host alone holds the opaque in-memory ticket of a linked local
+        // execution operation (null for every unlinked attempt). It is carried unchanged to the ordinary result recorder.
+        var ticket = dispatched.Value.Ticket;
+
         if (launchTarget is null)
         {
             await observation.EnterRecordingResultAsync();
-            await RecordResultAsync(attempt, false, false, false, null, null, null, null, stoppingToken);
+            await RecordResultAsync(attempt, ticket, false, false, false, null, null, null, null, stoppingToken);
             return;
         }
 
@@ -127,14 +132,14 @@ public sealed class ReviewCorrectionSupervisor(
         catch (OperationCanceledException)
         {
             await observation.EnterRecordingResultAsync();
-            await RecordResultAsync(attempt, false, false, false, null, null, null, null, CancellationToken.None);
+            await RecordResultAsync(attempt, ticket, false, false, false, null, null, null, null, CancellationToken.None);
             return;
         }
         catch (Exception)
         {
             logger.LogError("review_correction_invocation_failed AttemptId={AttemptId}", attempt.AttemptId);
             await observation.EnterRecordingResultAsync();
-            await RecordResultAsync(attempt, false, false, false, null, null, null, null, CancellationToken.None);
+            await RecordResultAsync(attempt, ticket, false, false, false, null, null, null, null, CancellationToken.None);
             return;
         }
 
@@ -145,6 +150,7 @@ public sealed class ReviewCorrectionSupervisor(
         await observation.EnterRecordingResultAsync();
         await RecordResultAsync(
             attempt,
+            ticket,
             processSucceeded,
             invocation.StandardOutputTruncated,
             invocation.StandardErrorTruncated,
@@ -157,6 +163,7 @@ public sealed class ReviewCorrectionSupervisor(
 
     private async Task RecordResultAsync(
         EligibleReviewCorrectionAttempt attempt,
+        LocalExecutionDispatchTicket? ticket,
         bool processSucceeded,
         bool standardOutputTruncated,
         bool standardErrorTruncated,
@@ -204,7 +211,8 @@ public sealed class ReviewCorrectionSupervisor(
                 providerSessionId,
                 processEvidence,
                 tokenUsage,
-                modelLimits), recordingTimeoutSource.Token);
+                modelLimits)
+            { DispatchTicket = ticket }, recordingTimeoutSource.Token);
         }
         catch (Exception)
         {

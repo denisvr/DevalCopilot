@@ -2,6 +2,7 @@ using DevalCopilot.Application.Features.Runs.Commands.MarkAgentAttemptDispatched
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using DevalCopilot.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace DevalCopilot.Application.Tests.Features.Runs;
@@ -97,7 +98,10 @@ public sealed class MarkAgentAttemptDispatchedCommandHandlerTests(SqliteDatabase
             new MarkAgentAttemptDispatchedCommand(run.Id, attempt.Id), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(Now, result.Value);
+        Assert.Equal(Now, result.Value.DispatchedAtUtc);
+        Assert.Null(result.Value.Ticket);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+        Assert.Empty(await dbContext.LocalExecutionDispatchWitnesses.ToListAsync());
         Assert.Equal(Now, attempt.AgentDispatchedAtUtc);
         Assert.Equal(AttemptStatus.Running, attempt.Status);
     }

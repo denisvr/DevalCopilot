@@ -1,6 +1,7 @@
 import type { LocalExecutionStep } from '../localExecutionSequence'
 import {
   LOCAL_EXECUTION_QUARANTINE_NOTE,
+  LOCAL_EXECUTION_RELEASED_NOTE,
   LOCAL_EXECUTION_STEP_KIND_LABEL,
   LOCAL_EXECUTION_STEP_STATE_LABEL,
   describeLocalExecutionStepOperation,
@@ -33,7 +34,7 @@ export function LocalExecutionSequenceStepTable({ steps }: { steps: readonly Loc
       </thead>
       <tbody>
         {steps.map((step) => (
-          <tr key={step.stepId} data-step-state={step.state} data-quarantined={step.quarantined}>
+          <tr key={step.stepId} data-step-state={step.state} data-quarantined={step.quarantined} data-ownership-released={step.ownershipReleased}>
             <td>{step.ordinal}</td>
             <td>{LOCAL_EXECUTION_STEP_KIND_LABEL[step.kind]}</td>
             <td>{step.passNumber}</td>
@@ -42,6 +43,7 @@ export function LocalExecutionSequenceStepTable({ steps }: { steps: readonly Loc
             <td>
               {describeLocalExecutionStepOperation(step)}
               {step.quarantined && <span className="dc-local-execution-quarantine"> · {LOCAL_EXECUTION_QUARANTINE_NOTE}</span>}
+              {step.ownershipReleased && <span className="dc-local-execution-released"> · {LOCAL_EXECUTION_RELEASED_NOTE}</span>}
             </td>
             <td>{step.resultDeadlineUtc ?? NONE}</td>
           </tr>

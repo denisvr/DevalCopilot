@@ -117,11 +117,32 @@ internal sealed class LocalExecutionSequenceProcessDouble(
             StandardError = string.Empty,
             StandardErrorTruncated = false,
             Duration = TimeSpan.FromMilliseconds(5),
+            Termination = behavior.Termination,
         };
     }
 
+    /// <summary>ADR-0065: the next Claude call ends with this process outcome (a timeout or cancellation) and optionally the physical
+    /// termination the adapter observed, instead of a computed answer.</summary>
+    public Queue<(ProcessExecutionOutcome Outcome, ProcessTerminationObservation? Termination)> ClaudeEnds { get; } = new();
+
     private async Task<ProcessExecutionResult> ClaudeAsync()
     {
+        if (ClaudeEnds.TryDequeue(out var ended))
+        {
+            // A process that ended without a result changed nothing the staged Git evidence would show.
+            return new ProcessExecutionResult
+            {
+                Outcome = ended.Outcome,
+                ExitCode = null,
+                StandardOutput = string.Empty,
+                StandardOutputTruncated = false,
+                StandardError = string.Empty,
+                StandardErrorTruncated = false,
+                Duration = TimeSpan.FromMilliseconds(5),
+                Termination = ended.Termination,
+            };
+        }
+
         var finalResponse = await ComputeClaudeAnswerAsync();
         if (ClaudeHold is { } hold)
         {

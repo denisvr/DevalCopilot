@@ -161,6 +161,11 @@ public static class RunEventType
     /// observation tick. It describes a recorded observation, not present worker, process or slot availability.</summary>
     public const string LocalExecutionAdmissionWaiting = "local_execution_sequence.admission_waiting";
 
+    /// <summary>ADR-0065: a Human explicitly released the retained ownership quarantine of one terminal local execution operation after
+    /// durable original-host physical termination evidence. The payload carries identities, the fixed operation family and step kind
+    /// only: never a path, process identifier, argument, host token or free text. It changes no outcome, cycle, approval or budget.</summary>
+    public const string LocalExecutionOwnershipReleased = "local_execution_sequence.ownership_released";
+
     /// <summary>The host registered its own observation of one already claimed Agent attempt in Preparing (ADR-0056). The payload carries
     /// identities and the phase only. It claims, dispatches or starts nothing and proves no provider progress or live process.</summary>
     public const string AgentSupervisionRegistered = "agent_supervision.registered";

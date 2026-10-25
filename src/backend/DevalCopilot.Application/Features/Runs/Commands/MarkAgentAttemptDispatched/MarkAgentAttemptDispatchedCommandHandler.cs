@@ -25,8 +25,9 @@ namespace DevalCopilot.Application.Features.Runs.Commands.MarkAgentAttemptDispat
 /// those facts in the same short transaction that records the dispatch marker, so nothing between
 /// the snapshot and this commit can be dispatched on stale eligibility.
 /// </summary>
-public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbContext dbContext, TimeProvider timeProvider)
-    : ICommandHandler<MarkAgentAttemptDispatchedCommand, Result<DateTimeOffset>>
+public sealed class MarkAgentAttemptDispatchedCommandHandler(
+    IDevalCopilotDbContext dbContext, TimeProvider timeProvider, LocalExecutionHostLaunch? hostLaunch = null)
+    : ICommandHandler<MarkAgentAttemptDispatchedCommand, Result<MarkAgentAttemptDispatchedCommandResult>>
 {
     public const string WorkspaceNoLongerEligibleCode = "agent_attempts.workspace_no_longer_eligible";
 
@@ -86,20 +87,20 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
     /// identity is incoherent. Fails closed before any provider process; never echoes stored values.</summary>
     public const string InvalidRepairLinkCode = "agent_attempts.invalid_repair_link";
 
-    public async Task<Result<DateTimeOffset>> HandleAsync(
+    public async Task<Result<MarkAgentAttemptDispatchedCommandResult>> HandleAsync(
         MarkAgentAttemptDispatchedCommand command, CancellationToken cancellationToken)
     {
         var attempt = await dbContext.Attempts.SingleOrDefaultAsync(candidate => candidate.Id == command.AttemptId, cancellationToken);
 
         if (attempt is null || attempt.RunId != command.RunId)
         {
-            return Result<DateTimeOffset>.Failure(
+            return Result<MarkAgentAttemptDispatchedCommandResult>.Failure(
                 Error.NotFound("attempts.not_found", "The requested attempt was not found for this run."));
         }
 
         if (attempt.Kind != AttemptKind.Agent)
         {
-            return Result<DateTimeOffset>.Failure(
+            return Result<MarkAgentAttemptDispatchedCommandResult>.Failure(
                 Error.Conflict("attempts.not_agent", "The attempt is not an Agent attempt."));
         }
 
@@ -116,7 +117,7 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
             || attempt.AgentResponseContract is not { } responseContract
             || AgentAttemptContract.For(responseContract).Role != role)
         {
-            return Result<DateTimeOffset>.Failure(
+            return Result<MarkAgentAttemptDispatchedCommandResult>.Failure(
                 Error.Conflict(
                     "agent_attempts.invalid_agent_contract",
                     "The attempt's role, provider, and response contract are not a valid, coherent combination."));
@@ -129,7 +130,7 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
         // stored value, is stopped before any provider process could start. An attempt with no snapshot is unaffected.
         if (!attempt.HasDispatchCoherentTurnLimit())
         {
-            return Result<DateTimeOffset>.Failure(
+            return Result<MarkAgentAttemptDispatchedCommandResult>.Failure(
                 Error.Conflict(
                     "agent_attempts.invalid_agent_contract",
                     "The attempt's turn-limit snapshot and assignment are not a valid, coherent combination."));
@@ -162,7 +163,7 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
         // The tracked entity is only read, so pending tracked writes are preserved.
         if (fresh.AgentResponseContract != attempt.AgentResponseContract || fresh.AgentRole != attempt.AgentRole)
         {
-            return Result<DateTimeOffset>.Failure(
+            return Result<MarkAgentAttemptDispatchedCommandResult>.Failure(
                 Error.Conflict(
                     "agent_attempts.invalid_agent_contract",
                     "The attempt's role, provider, and response contract are not a valid, coherent combination."));
@@ -173,7 +174,7 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
                 fresh.AgentResponseContract, fresh.AgentRole, fresh.AgentProvider, fresh.AgentPermissionProfile,
                 fresh.AgentAdapterContractVersion, guidanceReading))
         {
-            return Result<DateTimeOffset>.Failure(
+            return Result<MarkAgentAttemptDispatchedCommandResult>.Failure(
                 Error.Conflict(
                     "agent_attempts.invalid_agent_contract",
                     "The attempt's direct-guidance snapshot and assignment are not a valid, coherent combination."));
@@ -183,18 +184,18 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
                 ? !string.Equals(expected.Text, guidanceReading.Text, StringComparison.Ordinal)
                 : guidanceReading.Text is not null)
         {
-            return Result<DateTimeOffset>.Failure(DirectHumanGuidanceErrors.SnapshotMismatch());
+            return Result<MarkAgentAttemptDispatchedCommandResult>.Failure(DirectHumanGuidanceErrors.SnapshotMismatch());
         }
 
         if (attempt.Status != AttemptStatus.Running)
         {
-            return Result<DateTimeOffset>.Failure(
+            return Result<MarkAgentAttemptDispatchedCommandResult>.Failure(
                 Error.Conflict("attempts.not_active", $"The attempt is {attempt.Status} and cannot be dispatched."));
         }
 
         if (attempt.AgentDispatchedAtUtc.HasValue)
         {
-            return Result<DateTimeOffset>.Failure(
+            return Result<MarkAgentAttemptDispatchedCommandResult>.Failure(
                 Error.Conflict("attempts.already_dispatched", "The attempt was already dispatched."));
         }
 
@@ -210,7 +211,7 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
         var executionModeError = await CurrentRunExecutionMode.ReadAndGuardAgentAsync(dbContext, run, cancellationToken);
         if (executionModeError is not null)
         {
-            return Result<DateTimeOffset>.Failure(executionModeError);
+            return Result<MarkAgentAttemptDispatchedCommandResult>.Failure(executionModeError);
         }
 
         // The planning-sequence half of the same authoritative last gate (ADR-0055). A coordinator-linked attempt is dispatchable only
@@ -221,7 +222,7 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
             dbContext, attempt, timeProvider.GetUtcNow(), trackSequence: true, cancellationToken);
         if (sequenceGate.Verdict == PlanningSequenceDispatchGate.Verdict.Refused)
         {
-            return Result<DateTimeOffset>.Failure(
+            return Result<MarkAgentAttemptDispatchedCommandResult>.Failure(
                 Error.Conflict(
                     PlanningSequenceDispatchRefusedCode,
                     "The planning sequence no longer authorizes dispatching this attempt."));
@@ -239,7 +240,7 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
             dbContext, attempt, timeProvider.GetUtcNow(), trackSequence: true, cancellationToken);
         if (localGate.Verdict == LocalExecutionDispatchGate.Verdict.Refused)
         {
-            return Result<DateTimeOffset>.Failure(
+            return Result<MarkAgentAttemptDispatchedCommandResult>.Failure(
                 Error.Conflict(
                     LocalExecutionSequenceDispatchRefusedCode,
                     "The local execution sequence no longer authorizes dispatching this attempt."));
@@ -281,7 +282,7 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
         if (ReadOnlyFormatRepairLink.AppliesTo(attempt)
             && !await ReadOnlyFormatRepairLink.IsCoherentAsync(dbContext, attempt, cancellationToken))
         {
-            return Result<DateTimeOffset>.Failure(
+            return Result<MarkAgentAttemptDispatchedCommandResult>.Failure(
                 Error.Conflict(
                     InvalidRepairLinkCode,
                     "The attempt's repair link, source, and inputs are not a valid, coherent combination."));
@@ -315,7 +316,7 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
                     cancellationToken);
             if (alreadyReviewed)
             {
-                return Result<DateTimeOffset>.Failure(
+                return Result<MarkAgentAttemptDispatchedCommandResult>.Failure(
                     Error.Conflict(
                         InputAlreadyReviewedCode,
                         "Another critical-review attempt already completed a successful review of this exact proposal."));
@@ -336,7 +337,7 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
                 dbContext, attempt.RunId, attempt.Id, orderedInputMessageIds, cancellationToken);
             if (alreadyResolved)
             {
-                return Result<DateTimeOffset>.Failure(
+                return Result<MarkAgentAttemptDispatchedCommandResult>.Failure(
                     Error.Conflict(
                         InputAlreadyResolvedCode,
                         "Another challenge-resolution attempt already completed a successful resolution of this exact input set."));
@@ -361,7 +362,7 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
             if (planningClassification.Form == PlanningImplementationAuthorizationEvidence.AttemptForm.Invalid
                 || !Equals(PlanningImplementationAuthorizationAttempt.ToFact(planningClassification), command.ExpectedPlanningAuthorization))
             {
-                return Result<DateTimeOffset>.Failure(PlanningImplementationAuthorizationErrors.DispatchMismatch());
+                return Result<MarkAgentAttemptDispatchedCommandResult>.Failure(PlanningImplementationAuthorizationErrors.DispatchMismatch());
             }
 
             var planProposalMessageId = await ImplementationInputIdentity.GetPlanProposalMessageIdAsync(dbContext, attempt.Id, cancellationToken);
@@ -369,7 +370,7 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
                 dbContext, attempt.RunId, attempt.Id, planProposalMessageId, attempt.AgentGitCheckpointId!.Value, cancellationToken);
             if (alreadyImplemented)
             {
-                return Result<DateTimeOffset>.Failure(
+                return Result<MarkAgentAttemptDispatchedCommandResult>.Failure(
                     Error.Conflict(
                         InputAlreadyImplementedCode,
                         "Another implementation attempt already completed a successful implementation of this exact plan and checkpoint."));
@@ -398,7 +399,7 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
                 cancellationToken);
             if (alreadyCorrected)
             {
-                return Result<DateTimeOffset>.Failure(
+                return Result<MarkAgentAttemptDispatchedCommandResult>.Failure(
                     Error.Conflict(
                         InputAlreadyCorrectedCode,
                         "Another correction attempt already completed a successful correction of this exact input identity."));
@@ -419,7 +420,7 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
             // claim pinned.
             if (!VerificationDiagnosisPolicy.HasExactTuple(attempt))
             {
-                return Result<DateTimeOffset>.Failure(
+                return Result<MarkAgentAttemptDispatchedCommandResult>.Failure(
                     Error.Conflict(
                         "agent_attempts.invalid_agent_contract",
                         "The attempt's role, provider, and response contract are not a valid, coherent combination."));
@@ -429,7 +430,7 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
             var pinnedPairs = await VerificationDiagnosisInputIdentity.ReadPinnedPairsAsync(dbContext, attempt.Id, cancellationToken);
             if (diagnosedReportId is null || pinnedPairs.Count == 0)
             {
-                return Result<DateTimeOffset>.Failure(
+                return Result<MarkAgentAttemptDispatchedCommandResult>.Failure(
                     Error.Conflict(
                         "agent_attempts.invalid_agent_contract",
                         "The attempt's role, provider, and response contract are not a valid, coherent combination."));
@@ -438,7 +439,7 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
             if (await VerificationDiagnosisInputIdentity.HasCompetingSuccessfulDiagnosisAsync(
                     dbContext, attempt.RunId, attempt.Id, diagnosedReportId.Value, pinnedPairs.Select(pair => pair.ExecutionId).ToArray(), cancellationToken))
             {
-                return Result<DateTimeOffset>.Failure(
+                return Result<MarkAgentAttemptDispatchedCommandResult>.Failure(
                     Error.Conflict(
                         InputAlreadyDiagnosedCode,
                         "Another diagnosis already completed successfully for this exact report and verification identity."));
@@ -449,7 +450,7 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
                 case VerificationDiagnosisApplicability.Verdict.WorkspaceNoLongerEligible:
                     return WorkspaceNoLongerEligible();
                 case VerificationDiagnosisApplicability.Verdict.VerificationEvidenceChanged:
-                    return Result<DateTimeOffset>.Failure(
+                    return Result<MarkAgentAttemptDispatchedCommandResult>.Failure(
                         Error.Conflict(
                             VerificationEvidenceChangedCode,
                             "The verification evidence or the diagnosed report changed after this diagnosis was claimed."));
@@ -465,7 +466,7 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
                 dbContext, attempt.RunId, attempt.Id, executionReportMessageId, orderedVerificationExecutionIds, cancellationToken);
             if (alreadyCodeReviewed)
             {
-                return Result<DateTimeOffset>.Failure(
+                return Result<MarkAgentAttemptDispatchedCommandResult>.Failure(
                     Error.Conflict(
                         InputAlreadyCodeReviewedCode,
                         "Another code-review attempt already completed a successful review of this exact input identity."));
@@ -478,7 +479,7 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
         if (await WorkspaceExecutionFence.CheckAgentDispatchAsync(
                 dbContext, run.ProjectId, workspace.Id, attempt.Id, cancellationToken) is { } workspaceBusy)
         {
-            return Result<DateTimeOffset>.Failure(workspaceBusy);
+            return Result<MarkAgentAttemptDispatchedCommandResult>.Failure(workspaceBusy);
         }
 
         // ADR-0058: a potentially mutating attempt also dispatches only while no more than one owner other than this exact attempt is
@@ -486,7 +487,7 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
         // attempt exactly as recorded, undispatched, and no adapter is ever invoked for it.
         if (await ExecutionCapacityFence.CheckAgentDispatchAsync(dbContext, attempt, cancellationToken) is { } capacityRefusal)
         {
-            return Result<DateTimeOffset>.Failure(capacityRefusal);
+            return Result<MarkAgentAttemptDispatchedCommandResult>.Failure(capacityRefusal);
         }
 
         var nowUtc = timeProvider.GetUtcNow();
@@ -497,12 +498,29 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
         var accountUsageError = await CheckAccountUsageGuardAsync(attempt.Id, provider, command.ExpectedAccountUsageGuard, nowUtc, cancellationToken);
         if (accountUsageError is not null)
         {
-            return Result<DateTimeOffset>.Failure(accountUsageError);
+            return Result<MarkAgentAttemptDispatchedCommandResult>.Failure(accountUsageError);
+        }
+
+        // ADR-0065: the dispatch witness of an exact linked operation commits atomically with this marker, and the opaque ticket returns
+        // only with the committed result. An association that cannot be proved refuses the dispatch like any other lost authority; no
+        // provider is invoked and no ticket exists.
+        LocalExecutionDispatchTicket? ticket = null;
+        if (localGate.Verdict == LocalExecutionDispatchGate.Verdict.Dispatchable)
+        {
+            ticket = await LocalExecutionDispatchWitnessing.RecordAgentAsync(
+                dbContext, hostLaunch ?? LocalExecutionHostLaunch.ProcessWide, localGate, attempt, nowUtc, cancellationToken);
+            if (ticket is null)
+            {
+                return Result<MarkAgentAttemptDispatchedCommandResult>.Failure(
+                    Error.Conflict(
+                        LocalExecutionSequenceDispatchRefusedCode,
+                        "The local execution sequence no longer authorizes dispatching this attempt."));
+            }
         }
 
         attempt.MarkAgentDispatched(nowUtc);
 
-        return Result<DateTimeOffset>.Success(nowUtc);
+        return Result<MarkAgentAttemptDispatchedCommandResult>.Success(new MarkAgentAttemptDispatchedCommandResult(nowUtc, ticket));
     }
 
     private async Task<Error?> CheckAccountUsageGuardAsync(
@@ -553,8 +571,8 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
             : null;
     }
 
-    private static Result<DateTimeOffset> WorkspaceNoLongerEligible() =>
-        Result<DateTimeOffset>.Failure(
+    private static Result<MarkAgentAttemptDispatchedCommandResult> WorkspaceNoLongerEligible() =>
+        Result<MarkAgentAttemptDispatchedCommandResult>.Failure(
             Error.Conflict(
                 WorkspaceNoLongerEligibleCode,
                 "The workspace, its mutation lease, or its current checkpoint no longer permit dispatch."));

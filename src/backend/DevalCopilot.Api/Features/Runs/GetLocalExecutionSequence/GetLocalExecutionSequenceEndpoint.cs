@@ -142,6 +142,7 @@ public sealed class GetLocalExecutionSequenceEndpoint(IApplicationMediator media
                     step.Dispatched,
                     step.ExitRecorded,
                     step.Quarantined,
+                    step.OwnershipReleased,
                     Time(step.PreparationReservedAtUtc),
                     Time(step.PreparationDeadlineUtc),
                     step.ClaimedAtUtc is { } claimed ? Time(claimed) : null,

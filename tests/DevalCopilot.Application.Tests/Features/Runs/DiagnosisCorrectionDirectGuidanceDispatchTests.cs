@@ -52,7 +52,7 @@ public sealed class DiagnosisCorrectionDirectGuidanceDispatchTests : IAsyncLifet
         await context.Database.ExecuteSqlInterpolatedAsync($"UPDATE attempts SET AgentDirectHumanGuidance = {value} WHERE Id = {attemptId}");
     }
 
-    private async Task<Devalente.Shared.Results.Result<DateTimeOffset>> DispatchAsync(
+    private async Task<Devalente.Shared.Results.Result<MarkAgentAttemptDispatchedCommandResult>> DispatchAsync(
         DiagnosisTestScene scene, Guid attemptId, ExpectedDirectHumanGuidance? expected)
     {
         await using var context = _fixture.CreateContext();

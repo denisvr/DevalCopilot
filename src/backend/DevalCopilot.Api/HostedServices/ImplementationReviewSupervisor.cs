@@ -14,6 +14,7 @@ using DevalCopilot.Application.Features.Runs.Queries.GetCodexLaunchTarget;
 using DevalCopilot.Application.Features.Runs.Queries.GetEligibleCodeReviewAttempts;
 using DevalCopilot.Application.Features.Runs.Queries.GetIneligibleAgentAttempts;
 using DevalCopilot.Domain.Features.Runs;
+using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
 
 namespace DevalCopilot.Api.HostedServices;
 
@@ -159,10 +160,14 @@ public sealed class ImplementationReviewSupervisor(
             return;
         }
 
+        // ADR-0065: the original dispatch commit succeeded, so this host alone holds the opaque in-memory ticket of a linked local
+        // execution operation (null for every unlinked attempt). It is carried unchanged to the ordinary result recorder.
+        var ticket = dispatched.Value.Ticket;
+
         if (launchTarget is null)
         {
             await observation.EnterRecordingResultAsync();
-            await RecordResultAsync(attempt, processSucceeded: false, standardOutputTruncated: false,
+            await RecordResultAsync(attempt, ticket, processSucceeded: false, standardOutputTruncated: false,
                 standardErrorTruncated: false, providerSessionId: null, processEvidence: null, tokenUsage: null, CancellationToken.None);
             return;
         }
@@ -192,7 +197,7 @@ public sealed class ImplementationReviewSupervisor(
         {
             logger.LogError("implementation_review_invocation_failed AttemptId={AttemptId}", attempt.AttemptId);
             await observation.EnterRecordingResultAsync();
-            await RecordResultAsync(attempt, processSucceeded: false, standardOutputTruncated: false,
+            await RecordResultAsync(attempt, ticket, processSucceeded: false, standardOutputTruncated: false,
                 standardErrorTruncated: false, providerSessionId: null, processEvidence: null, tokenUsage: null, CancellationToken.None);
             return;
         }
@@ -204,6 +209,7 @@ public sealed class ImplementationReviewSupervisor(
         await observation.EnterRecordingResultAsync();
         await RecordResultAsync(
             attempt,
+            ticket,
             processSucceeded,
             invocationResult.StandardOutputTruncated,
             invocationResult.StandardErrorTruncated,
@@ -215,6 +221,7 @@ public sealed class ImplementationReviewSupervisor(
 
     private async Task RecordResultAsync(
         EligibleCodeReviewAttempt attempt,
+        LocalExecutionDispatchTicket? ticket,
         bool processSucceeded,
         bool standardOutputTruncated,
         bool standardErrorTruncated,
@@ -268,7 +275,8 @@ public sealed class ImplementationReviewSupervisor(
                 new RecordImplementationReviewResultCommand(
                     attempt.RunId, attempt.AttemptId, effectiveOutcome, completionFingerprint, sealedArtifacts, review, providerSessionId,
                     processEvidence,
-                    tokenUsage),
+                    tokenUsage)
+                { DispatchTicket = ticket },
                 recordingTimeoutSource.Token);
         }
         catch (Exception)

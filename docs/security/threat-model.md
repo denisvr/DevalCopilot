@@ -162,6 +162,20 @@ Controls:
 - create immutable attempts;
 - mark ambiguous operations `Lost` and require recovery resolution.
 
+A local operation's retained quarantine is released only by the evidence-gated Human command of
+[ADR-0065](../decisions/0065-release-terminal-local-quarantine-with-original-host-termination-evidence.md): the original host's private
+in-memory dispatch ticket (never exposed, persisted or reconstructed) links a dispatch witness and the physical termination observation of
+its own child; the release re-proves the whole chain under the write lock, is append-only, replays exactly and never rewrites the failed
+result. The nonce and host launch identity are never exposed, a restarted host or a missing, foreign or contradictory fact keeps the hold,
+and the confirmation is an exact-intent check, not a credential or proof about descendants. Under
+[ADR-0066](../decisions/0066-bind-local-release-intent-to-an-immutable-relational-snapshot.md) the release row also stores a typed immutable
+snapshot of the exact confirmed facts, including the concrete result, that the reading, the ownership expression and the SQL fence each compare
+field for field, so an independently changed confirmed fact cannot replay or free ownership; a substituted well-shaped digest
+with everything else intact is unreadable without reacquiring the owner.
+This is not authentication of history against coordinated database rewrites with immutable guards bypassed. Matching changes of a fact and
+its intent copy can leave relational consistency intact while inspection and replay fail digest verification; the response does not establish
+the historical cause of that mismatch. No normal host command performs those rewrites, and no additional grant or automatic repair follows.
+
 ### Resource exhaustion
 
 An agent or command emits unlimited output, loops, spawns descendants, consumes

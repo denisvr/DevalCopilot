@@ -68,6 +68,25 @@ describe('toLocalExecutionSequenceStatus: accepted answers', () => {
     expect(status?.sequence?.steps[0].quarantined).toBe(true)
   })
 
+  it('accepts a released operation: no longer owned, no awaiting reconciliation, the failed result and the ended cycle unchanged', () => {
+    const raw = localStatusFor(
+      RUN,
+      'NeedsAttention',
+      { manualFence: 'Released' },
+      {
+        steps: [localStepFor(0, 'released')],
+        reasonCode: 'exit_evidence_missing',
+        reasonText: 'A dispatched operation ended without recorded process exit evidence.',
+      },
+    )
+    const status = decode(raw)
+    expect(status?.manualFence).toBe('Released')
+    expect(status?.sequence?.awaitingReconciliation).toBe(false)
+    expect(status?.sequence?.outstandingOperationId).toBeNull()
+    expect(status?.sequence?.state).toBe('NeedsAttention')
+    expect(status?.sequence?.steps[0]).toMatchObject({ quarantined: false, ownershipReleased: true, exitRecorded: false, operationOutcome: 'ProviderInvocationFailed' })
+  })
+
   it('accepts an effective NeedsAttention that the host observed before it persisted the deadline', () => {
     const raw = withSequence('AwaitingStepResult', {
       state: 'NeedsAttention',
@@ -166,6 +185,13 @@ describe('toLocalExecutionSequenceStatus: refused steps', () => {
     ['a quarantine flag that disagrees with the evidence', localStepFor(0, 'concluded', { quarantined: true })],
     ['a dispatched terminal row without exit evidence that is not quarantined', localStepFor(0, 'quarantined', { quarantined: false })],
     ['a quarantined reserved step', localStepFor(0, 'reserved', { quarantined: true })],
+    ['a released flag on an operation with exit evidence', localStepFor(0, 'concluded', { ownershipReleased: true })],
+    ['a released flag on a reserved step', localStepFor(0, 'reserved', { ownershipReleased: true })],
+    ['a released flag on a running operation', localStepFor(0, 'claimed', { ownershipReleased: true })],
+    ['a step that is both quarantined and released', localStepFor(0, 'quarantined', { ownershipReleased: true })],
+    ['a retained terminal operation that is neither quarantined nor released', localStepFor(0, 'released', { ownershipReleased: false })],
+    ['a step without the released member', (() => { const { ownershipReleased: _omitted, ...rest } = localStepFor(0, 'concluded'); return rest })()],
+    ['a non-boolean released member', localStepFor(0, 'released', { ownershipReleased: 'true' })],
   ]
   it.each(steps)('refuses %s', (_name, step) => {
     const state = (step.state as string) === 'Reserved' ? 'PreparingStep' : 'NeedsAttention'

@@ -290,8 +290,65 @@ with the dedicated dispatch refusal without invoking its adapter. A linked dispa
 result is left exactly as recorded: the generic recoveries exclude it, so its partial output is neither sealed, imported nor deleted,
 its row is neither interrupted nor terminalized, no run outcome is invented and its ownership and global count stay. A terminal linked
 operation without coherent host Exited evidence (a timeout, cancellation, adapter exception or missing evidence) is likewise a retained
-owner: terminal status never proves the process or its descendants stopped. There is no supported release, force-release, cancel, retry
-or takeover in this version; the cockpit says so. Exited here is the host's proof about the invoked process only.
+owner: terminal status never proves the process or its descendants stopped. There is no force-release, cancel, retry or takeover; the one
+supported release is the evidence-gated Human release of
+[ADR-0065](../decisions/0065-release-terminal-local-quarantine-with-original-host-termination-evidence.md), described next. Exited here is
+the host's proof about the invoked process only.
+
+### Release of a terminal local quarantine (ADR-0065)
+
+Three append-only relational facts carry the proof, each with one writer and no update or delete path. A **dispatch witness** is appended in
+the same commit as the single-use dispatch marker of an operation linked to a local execution sequence; it pins the full step tuple, the
+committed dispatch time, the original host launch identity and a private nonce. A **termination observation** is appended in the same commit
+as the ordinary result when the original host's process adapter returned the physical exit code and monotonic elapsed time of its own
+child after a successful wait; the in-memory invocation ticket that links the two exists only in the host that committed the dispatch and is
+never reconstructed, so a restarted host, a lost result or an old row never yields evidence. A **release** and its one Human event are
+appended in one commit by the explicit Human command, after the write lock re-proves the whole chain from fresh facts. The failed result,
+the process outcome, the ended cycle, the workspace, leases, approvals, artifacts and budgets are never rewritten; a release only removes
+that one retained quarantine from the shared ownership definition, so every entrance (claims, dispatch gates, manual starts, capacity, the
+live fence triggers, the final gates and the status reading) sees the same release or none. A normally Exited operation, a still-running
+row, a never-dispatched claim, a live or approved sequence, missing, foreign, duplicated or contradictory evidence and an Unresolved
+pre-claim reservation are never released by this command. Exited and the observation are evidence about the invoked process only, never
+about descendants.
+
+One complete relational proof decides the release identically in the release reading, the shared ownership definition (and so every fence,
+the capacity count and abandonment), the locked command and the nine live-fence triggers: the run is a ManualAgent run of the sequence's own
+project; the workspace and the step's source checkpoint (workspace and fingerprint) are the step's own; the sequence's recipe and step counts
+are sound; an Immediate cycle has no admission for the step and neither operation family's identity collides with the other; the observation
+never outlasts its process and is recorded no earlier than the dispatch; the receipt is recorded no earlier than the observation and expires
+after it; and the terminal result is one the existing Domain result policies could have recorded for a timed-out or cancelled process (an
+Agent attempt is Failed with an outcome that neither requires a clean exit nor is a pre-invocation classification, its checkpoint fingerprint
+is the step's; a verification execution is TimedOut or Cancelled, or SourceChanged with a differing completion fingerprint, with no exit code),
+never mere membership in a terminal-status vocabulary.
+
+[ADR-0066](../decisions/0066-bind-local-release-intent-to-an-immutable-relational-snapshot.md) binds the Human's exact intent, not a class of
+legitimate results. The canonical confirmed facts (and so the SHA-256 digest) include the concrete Agent outcome or verification completion
+fingerprint, and the release row also stores a versioned, immutable typed snapshot of every confirmed fact, the confirmation version and the
+exact expiry as `Intent*` columns of the same row, captured only from the fresh complete proof under the Human command's write lock after
+the digest and expiry validated, in the same receipt and event commit. The release reading, the shared ownership expression and the nine
+live-fence triggers each compare the complete current proved tuple with that snapshot field for field, so an independent change of a confirmed
+fact, even to another legitimate result or to a malformed or oversized fingerprint, leaves the operation held and unreadable instead of
+replayable; a stale pre-release confirmation writes no receipt and no event. A pre-feature, missing, unsupported or mismatched snapshot never
+releases. Three limits stay outside the shared relational proof on purpose, because the provider-neutral query and SQLite cannot express
+them: stored times are compared as their normalized UTC text (the SQLite provider cannot translate a DateTimeOffset comparison); the
+receipt's lifetime is exactly two minutes or less, enforced as a table CHECK of the migration at tick precision (integer tick arithmetic
+parsed from the stored text; the lower bound and the chronology belong to the relational proof); and the SHA-256 digest, which SQLite cannot
+compute, is verified by the release reading, the initial confirmation, every coherent replay and the locked command. The one narrow
+exception is a substituted, well-shaped digest with the whole typed snapshot, the exact expiry, the physical chain and the Human event
+otherwise intact: the reading and a replay are Unavailable and refused, but ownership is not reacquired, because no authoritative fact
+differs. The digest stays an exact-intent check, never authority, and no automatic metadata repair exists. Because an unreadable answer
+therefore says nothing about whether the operation is held or was released, its fixed copy does not claim either; the live workspace,
+capacity and abandonment readings remain the authority.
+
+This is relational consistency, not authenticated history against coordinated local-database rewrites with immutable guards bypassed.
+Changing a fact and its intent copy together to another coherent value can leave the relational proof intact while the digest no longer
+matches; matching edits of both expiry columns are one such case. An unreadable answer does not diagnose which bytes changed. The normal
+host exposes no such rewrite, creates no second grant and still refuses replay. Extra copies would not authenticate a coherently rewritten
+database; no signing capability, metadata repair or new recovery authority is selected.
+
+The downgrade of the ownership-release migration is refused while any witness, observation or release exists (a named CHECK aborts it
+before any trigger, row or table changes), because the previous schema would ignore a used release and could re-block an operation the
+Human released.
 
 ### Queued local execution reservations and startup
 

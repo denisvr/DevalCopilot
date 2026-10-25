@@ -1,6 +1,7 @@
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
+using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
 using DevalCopilot.Domain.Features.Projects;
 using Microsoft.EntityFrameworkCore;
 
@@ -26,7 +27,30 @@ public sealed class RecordVerificationExecutionResultCommandHandler(IDevalCopilo
                 Error.Conflict("verification.execution_not_running", "This verification execution cannot record a result."));
         }
 
+        // ADR-0065: the physical termination observation of a linked verification, decided under this result transaction from the original
+        // host's ticket and stored atomically with the ordinary result. Missing optional evidence preserves ordinary recording; supplied
+        // evidence that is foreign to, or contradicts, the original dispatch refuses the whole transaction.
+        var termination = await LocalExecutionTerminationRecording.DecideExecutionAsync(
+            dbContext,
+            command.DispatchTicket,
+            execution,
+            command.Outcome,
+            command.ExitCode,
+            command.ProcessDuration,
+            command.Termination,
+            timeProvider.GetUtcNow(),
+            cancellationToken);
+        if (termination.Refusal is { } terminationRefusal)
+        {
+            return Result<VerificationExecutionStatus>.Failure(terminationRefusal);
+        }
+
         execution.Complete(command.Outcome, command.ExitCode, command.CompletionFingerprintSha256, timeProvider.GetUtcNow());
+        if (termination.Observation is { } observation)
+        {
+            dbContext.LocalExecutionTerminationObservations.Add(observation);
+        }
+
         foreach (var sealedArtifact in command.SealedArtifacts)
         {
             dbContext.VerificationOutputArtifacts.Add(VerificationOutputArtifact.Record(

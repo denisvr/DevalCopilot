@@ -240,7 +240,7 @@ public sealed class PlanningSequenceRecoveryTests : IAsyncLifetime
         await context.SaveChangesAsync();
     }
 
-    private async Task<Result<DateTimeOffset>> TryDispatchAsync(PlanningSequenceTestScene scene, Guid attemptId, IDevalCopilotDbContext? db = null)
+    private async Task<Result<MarkAgentAttemptDispatchedCommandResult>> TryDispatchAsync(PlanningSequenceTestScene scene, Guid attemptId, IDevalCopilotDbContext? db = null)
     {
         await using var owned = db is null ? fixture.CreateContext() : null;
         var context = db ?? owned!;

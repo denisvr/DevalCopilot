@@ -76,7 +76,20 @@ public sealed class GetLocalExecutionSequenceQueryHandler(IDevalCopilotDbContext
             .Where(recipe => recipe.SequenceId == sequence.Id)
             .ToDictionaryAsync(recipe => recipe.Ordinal, recipe => recipe.CommandName, cancellationToken);
 
-        var receipts = steps.Select(step => ToReceipt(step, attempts, executions, recipeNames)).ToArray();
+        // ADR-0065: an operation whose retained quarantine one complete coherent Human release chain removed reads as released, by the
+        // same shared proof the ownership readings and the database fences use; a receipt or an observation alone never does.
+        var releasedOperations = new HashSet<Guid>(await dbContext.Attempts.AsNoTracking()
+            .Where(candidate => attemptIds.Contains(candidate.Id))
+            .Where(LocalExecutionReleaseChain.AgentReleased(dbContext))
+            .Select(candidate => candidate.Id)
+            .ToListAsync(cancellationToken));
+        releasedOperations.UnionWith(await dbContext.VerificationExecutions.AsNoTracking()
+            .Where(candidate => executionIds.Contains(candidate.Id))
+            .Where(LocalExecutionReleaseChain.ExecutionReleased(dbContext))
+            .Select(candidate => candidate.Id)
+            .ToListAsync(cancellationToken));
+
+        var receipts = steps.Select(step => ToReceipt(step, attempts, executions, recipeNames, releasedOperations)).ToArray();
         var outstanding = receipts.FirstOrDefault(receipt => receipt.OperationId is not null
             && (receipt.OperationStatus == nameof(AttemptStatus.Running) || receipt.OperationStatus == nameof(VerificationExecutionStatus.Running)
                 || receipt.Quarantined));
@@ -191,13 +204,15 @@ public sealed class GetLocalExecutionSequenceQueryHandler(IDevalCopilotDbContext
         LocalExecutionSequenceStep step,
         IReadOnlyDictionary<Guid, Attempt> attempts,
         IReadOnlyDictionary<Guid, VerificationExecution> executions,
-        IReadOnlyDictionary<int, string> recipeNames)
+        IReadOnlyDictionary<int, string> recipeNames,
+        IReadOnlySet<Guid> releasedOperations)
     {
         string? status = null;
         string? outcome = null;
         bool? dispatched = null;
         bool? exitRecorded = null;
         var quarantined = false;
+        var ownershipReleased = false;
         if (step.OperationId is { } operationId)
         {
             if (step.IsAgent && attempts.TryGetValue(operationId, out var attempt))
@@ -206,7 +221,9 @@ public sealed class GetLocalExecutionSequenceQueryHandler(IDevalCopilotDbContext
                 outcome = attempt.AgentOutcome?.ToString();
                 dispatched = attempt.AgentDispatchedAtUtc.HasValue;
                 exitRecorded = LocalExecutionExitProof.Holds(attempt);
-                quarantined = attempt.AgentDispatchedAtUtc.HasValue && attempt.Status != AttemptStatus.Running && exitRecorded == false;
+                var retained = attempt.AgentDispatchedAtUtc.HasValue && attempt.Status != AttemptStatus.Running && exitRecorded == false;
+                ownershipReleased = retained && releasedOperations.Contains(attempt.Id);
+                quarantined = retained && !ownershipReleased;
             }
             else if (!step.IsAgent && executions.TryGetValue(operationId, out var execution))
             {
@@ -214,7 +231,9 @@ public sealed class GetLocalExecutionSequenceQueryHandler(IDevalCopilotDbContext
                 outcome = execution.Outcome?.ToString();
                 dispatched = execution.DispatchedAtUtc.HasValue;
                 exitRecorded = LocalExecutionExitProof.Holds(execution);
-                quarantined = execution.DispatchedAtUtc.HasValue && execution.Status != VerificationExecutionStatus.Running && exitRecorded == false;
+                var retained = execution.DispatchedAtUtc.HasValue && execution.Status != VerificationExecutionStatus.Running && exitRecorded == false;
+                ownershipReleased = retained && releasedOperations.Contains(execution.Id);
+                quarantined = retained && !ownershipReleased;
             }
         }
 
@@ -233,6 +252,7 @@ public sealed class GetLocalExecutionSequenceQueryHandler(IDevalCopilotDbContext
             dispatched,
             exitRecorded,
             quarantined,
+            ownershipReleased,
             step.PreparationReservedAtUtc,
             step.PreparationDeadlineUtc,
             step.ClaimedAtUtc,

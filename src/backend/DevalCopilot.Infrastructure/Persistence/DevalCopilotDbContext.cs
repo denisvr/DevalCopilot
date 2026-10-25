@@ -81,6 +81,13 @@ public sealed class DevalCopilotDbContext(DbContextOptions<DevalCopilotDbContext
 
     public DbSet<AgentSupervision> AgentSupervisions => Set<AgentSupervision>();
 
+    public DbSet<LocalExecutionDispatchWitness> LocalExecutionDispatchWitnesses => Set<LocalExecutionDispatchWitness>();
+
+    public DbSet<LocalExecutionTerminationObservation> LocalExecutionTerminationObservations =>
+        Set<LocalExecutionTerminationObservation>();
+
+    public DbSet<LocalExecutionOwnershipRelease> LocalExecutionOwnershipReleases => Set<LocalExecutionOwnershipRelease>();
+
     public DbSet<ExecutionCapacityConfigurationRevision> ExecutionCapacityConfigurations =>
         Set<ExecutionCapacityConfigurationRevision>();
 

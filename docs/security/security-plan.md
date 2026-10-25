@@ -75,6 +75,7 @@ No agent response is an identity or authorization decision.
 | SignalR hub | Loopback only | Same bearer secret over LongPolling only; no `access_token` query string | Message and connection limits; durable catch-up |
 | Tauri commands | Bundled webview only | Minimal named capabilities | No generic shell or broad filesystem scope |
 | Project registration | Local user | Canonical approved roots | Path validation and explicit confirmation |
+| Local quarantine release | Loopback MVC GET and POST, same bearer policy | Human-only, exact versioned confirmation with a two-minute expiry; original-host termination evidence required | Closed 512-byte request, write-locked revalidation, exact replay, one append-only release and one event |
 | Agent output | Child-process stream | Untrusted evidence | Size, schema, rate, and artifact limits |
 | CI and PR content | GitHub CLI response | Untrusted evidence | Exact-SHA correlation, bounding, redaction |
 

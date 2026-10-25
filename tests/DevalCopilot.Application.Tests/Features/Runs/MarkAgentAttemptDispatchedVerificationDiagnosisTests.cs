@@ -33,7 +33,7 @@ public sealed class MarkAgentAttemptDispatchedVerificationDiagnosisTests : IAsyn
         return (scene, await read.Attempts.AsNoTracking().SingleAsync(a => a.Id == claim.Value.AttemptId));
     }
 
-    private async Task<Devalente.Shared.Results.Result<DateTimeOffset>> DispatchAsync(DiagnosisTestScene scene, Attempt attempt)
+    private async Task<Devalente.Shared.Results.Result<MarkAgentAttemptDispatchedCommandResult>> DispatchAsync(DiagnosisTestScene scene, Attempt attempt)
     {
         await using var db = _fixture.CreateContext();
         var result = await new MarkAgentAttemptDispatchedCommandHandler(db, new FixedTimeProvider(Now)).HandleAsync(

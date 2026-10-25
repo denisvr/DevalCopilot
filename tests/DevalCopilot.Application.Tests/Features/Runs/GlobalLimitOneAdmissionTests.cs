@@ -208,7 +208,7 @@ public sealed class GlobalLimitOneAdmissionTests : IAsyncLifetime
 
     // ---- Agent dispatch ---------------------------------------------------------------------------------------------------
 
-    private static async Task<Result<DateTimeOffset>> DispatchAsync(DevalCopilotDbContext db, Guid runId, Guid attemptId)
+    private static async Task<Result<MarkAgentAttemptDispatchedCommandResult>> DispatchAsync(DevalCopilotDbContext db, Guid runId, Guid attemptId)
     {
         await using var transaction = await db.BeginTransactionAsync(CancellationToken.None);
         var result = await new MarkAgentAttemptDispatchedCommandHandler(db, new FixedTimeProvider(Now))
@@ -224,7 +224,7 @@ public sealed class GlobalLimitOneAdmissionTests : IAsyncLifetime
         return result;
     }
 
-    private async Task<Result<DateTimeOffset>> DispatchAsync(Guid runId, Guid attemptId)
+    private async Task<Result<MarkAgentAttemptDispatchedCommandResult>> DispatchAsync(Guid runId, Guid attemptId)
     {
         await using var db = fixture.CreateContext();
         return await DispatchAsync(db, runId, attemptId);

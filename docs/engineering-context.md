@@ -95,7 +95,7 @@ single-use, Human-confirmed authorization per ManualAgent run arms one local exe
 Human-authorized depth-two) plan. The host composes the existing implementation, whole pinned verification passes, ordinary review or
 eligible failure diagnosis and at most two shared corrections through the same claim gates, ending at an approved review awaiting the
 Human's own approval, a Human escalation or an attention state; it never approves, commits or publishes. A linked dispatched operation
-without coherent host Exited evidence stays an effective execution owner (no supported release exists), and a restart never resumes,
+without coherent host Exited evidence stays an effective execution owner (only the ADR-0065 evidence-gated Human release frees it), and a restart never resumes,
 redispatches or adopts. ADR-0061 / LOCAL-INSPECT-01 (implemented for review, unpublished until its own GO) adds only read-only recorded
 inspection of that cycle: three bodyless GETs (index, selected step, one verification stream window) and one collapsed region in the
 current run and run history; it grants, changes and dispatches nothing. Increments 4 to 6 stay incomplete.
@@ -111,6 +111,14 @@ ADR-0064 / LOCAL-QUEUE-OVERVIEW-01 (implemented for review, unpublished until it
 global region beside the execution-capacity control: the recorded Waiting, Reserved and Unresolved admissions of every queued cycle across
 projects, proved from one database statement, with an explicit action that reuses the existing per-run inspector for the exact run; it
 reads without polling, grants, changes and dispatches nothing, and an empty answer is not an idle host. Increments 4 to 6 stay incomplete.
+ADR-0065 / LOCAL-QUARANTINE-RELEASE-01 (implemented for review, unpublished until its own GO) adds the one supported release of a terminal
+local operation's retained quarantine: the original host records a dispatch witness with the dispatch marker and the physical termination
+of its own invoked process with the ordinary result, and a separate exact Human confirmation releases it through one protected GET, one
+protected POST and one collapsed control of the current run. The failed result, the ended cycle, the workspace and source gates, approvals,
+artifacts and budgets are unchanged; the one shared ownership definition (every fence, SQL guard and final gate) honors the release and
+compares the release row's typed immutable snapshot of the exact confirmed facts (ADR-0066) field for field; missing, ambiguous or drifted
+evidence keeps the hold. It adds no lease, guardian, cancellation, wait, retry, resume, takeover, reservation release or
+dependency; Exited and the observation stay proof about the invoked process only. Increments 4 to 6 stay incomplete.
 ADR-0056 adds only operational evidence for all seven Agent response contracts: a
 durable observation of what the host's own observer last reported (phase, last
 report, absolute deadline, first attention) for the current attempt, an independent

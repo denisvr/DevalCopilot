@@ -27,7 +27,7 @@ public sealed class AgentDispatchWorkspaceExecutionTests : IAsyncLifetime
     public static TheoryData<string> AgentPaths() =>
         ["planning", "critical-review", "challenge-resolution", "implementation", "code-review", "review-correction"];
 
-    private async Task<Devalente.Shared.Results.Result<DateTimeOffset>> DispatchAsync(
+    private async Task<Devalente.Shared.Results.Result<MarkAgentAttemptDispatchedCommandResult>> DispatchAsync(
         DevalCopilotDbContext db, Guid runId, Guid attemptId)
     {
         // The EF transaction behavior of every ICommand: the lock is taken before the handler reads, the save and commit follow success.

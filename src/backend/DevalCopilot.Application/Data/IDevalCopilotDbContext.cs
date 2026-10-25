@@ -83,6 +83,12 @@ public interface IDevalCopilotDbContext
 
     DbSet<ExecutionCapacityConfigurationRevision> ExecutionCapacityConfigurations { get; }
 
+    DbSet<LocalExecutionDispatchWitness> LocalExecutionDispatchWitnesses { get; }
+
+    DbSet<LocalExecutionTerminationObservation> LocalExecutionTerminationObservations { get; }
+
+    DbSet<LocalExecutionOwnershipRelease> LocalExecutionOwnershipReleases { get; }
+
     /// <summary>
     /// Change-tracker access for the one claim-time guard that must mark an already-tracked Run's
     /// concurrency-token column as modified (see <c>CurrentClaudeModelPreference</c>).

@@ -94,6 +94,10 @@ internal sealed class LocalExecutionSequenceHostedHarness : IAsyncDisposable
     /// <summary>The disposable root of the real filesystem artifact store, for a test that deletes or tampers with a sealed file.</summary>
     public string ArtifactRoot => artifactRoot;
 
+    /// <summary>The identity of the current host launch (ADR-0065): a restarted provider is a different launch.</summary>
+    public DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences.LocalExecutionHostLaunch HostLaunch =>
+        Provider.GetRequiredService<DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences.LocalExecutionHostLaunch>();
+
     public DevalCopilotDbContext OpenContext() =>
         new(new DbContextOptionsBuilder<DevalCopilotDbContext>().UseSqlite($"Data Source={databasePath}").Options);
 
@@ -114,6 +118,7 @@ internal sealed class LocalExecutionSequenceHostedHarness : IAsyncDisposable
         services.AddSingleton<ICodexImplementationReviewAdapter>(Review);
         services.AddSingleton<ICodexVerificationDiagnosisAdapter>(Diagnosis);
         services.AddSingleton<IRunEventNotifier>(new NoopNotifier());
+        services.AddSingleton<DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences.LocalExecutionHostLaunch>();
         services.AddDevalenteMediator(typeof(CreateImplementationAttemptCommand).Assembly);
         services.AddDevalenteRequestValidation(typeof(CreateImplementationAttemptCommand).Assembly);
         services.AddScoped<IAttemptDurabilityProbe>(provider =>

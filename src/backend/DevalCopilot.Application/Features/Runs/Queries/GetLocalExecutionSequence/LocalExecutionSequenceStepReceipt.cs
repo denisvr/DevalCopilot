@@ -4,7 +4,9 @@ namespace DevalCopilot.Application.Features.Runs.Queries.GetLocalExecutionSequen
 
 /// <summary>One step receipt. A recorded claim, a dispatch marker and a recorded exit are bookkeeping: none proves a live process, and
 /// Exited is the invoked process only, never every descendant. <see cref="Quarantined"/> is a dispatched linked operation without
-/// coherent host Exited evidence that stays an effective owner even when its row is terminal.</summary>
+/// coherent host Exited evidence that stays an effective owner even when its row is terminal. <see cref="OwnershipReleased"/> (ADR-0065)
+/// says that one complete coherent Human release chain removed exactly that retained quarantine; it is never true together with
+/// <see cref="Quarantined"/> or <see cref="ExitRecorded"/>, and it changes neither the result nor the cycle.</summary>
 public sealed record LocalExecutionSequenceStepReceipt(
     Guid StepId,
     int Ordinal,
@@ -20,6 +22,7 @@ public sealed record LocalExecutionSequenceStepReceipt(
     bool? Dispatched,
     bool? ExitRecorded,
     bool Quarantined,
+    bool OwnershipReleased,
     DateTimeOffset PreparationReservedAtUtc,
     DateTimeOffset PreparationDeadlineUtc,
     DateTimeOffset? ClaimedAtUtc,

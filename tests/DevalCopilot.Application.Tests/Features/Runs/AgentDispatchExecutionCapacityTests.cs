@@ -25,13 +25,13 @@ public sealed class AgentDispatchExecutionCapacityTests : IAsyncLifetime
 
     public Task DisposeAsync() => _fixture.DisposeAsync();
 
-    private async Task<Devalente.Shared.Results.Result<DateTimeOffset>> DispatchAsync(Guid runId, Guid attemptId)
+    private async Task<Devalente.Shared.Results.Result<MarkAgentAttemptDispatchedCommandResult>> DispatchAsync(Guid runId, Guid attemptId)
     {
         await using var db = _fixture.CreateContext();
         return await DispatchAsync(db, runId, attemptId);
     }
 
-    private static async Task<Devalente.Shared.Results.Result<DateTimeOffset>> DispatchAsync(DevalCopilotDbContext db, Guid runId, Guid attemptId)
+    private static async Task<Devalente.Shared.Results.Result<MarkAgentAttemptDispatchedCommandResult>> DispatchAsync(DevalCopilotDbContext db, Guid runId, Guid attemptId)
     {
         // The EF transaction behavior of every ICommand: the lock is taken before the handler reads, the save and commit follow success.
         await using var transaction = await db.BeginTransactionAsync(CancellationToken.None);

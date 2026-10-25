@@ -437,7 +437,7 @@ public sealed class LocalExecutionSequenceStatusEndpointTests(ApiWebApplicationF
             new HashSet<string>
             {
                 "stepId", "ordinal", "kind", "passNumber", "recipeOrdinal", "recipeName", "state", "reasonCode", "operationId", "operationStatus",
-                "operationOutcome", "dispatched", "exitRecorded", "quarantined", "preparationReservedAtUtc", "preparationDeadlineUtc", "claimedAtUtc",
+                "operationOutcome", "dispatched", "exitRecorded", "quarantined", "ownershipReleased", "preparationReservedAtUtc", "preparationDeadlineUtc", "claimedAtUtc",
                 "resultDeadlineUtc",
             },
             verification.EnumerateObject().Select(property => property.Name).ToHashSet());
@@ -469,9 +469,10 @@ public sealed class LocalExecutionSequenceStatusEndpointTests(ApiWebApplicationF
         var sequence = body.GetProperty("sequence");
         Assert.True(sequence.GetProperty("awaitingReconciliation").GetBoolean());
         Assert.Equal("no_supported_recovery_action_in_this_version", sequence.GetProperty("nextActionCode").GetString());
-        Assert.Equal("No supported recovery action in this version.", sequence.GetProperty("nextActionText").GetString());
+        Assert.Equal("No automatic recovery. A separate Human release is possible only with recorded original-host termination evidence; without it there is no supported recovery action.", sequence.GetProperty("nextActionText").GetString());
         var step = sequence.GetProperty("steps")[0];
         Assert.True(step.GetProperty("quarantined").GetBoolean());
+        Assert.False(step.GetProperty("ownershipReleased").GetBoolean());
         Assert.False(step.GetProperty("exitRecorded").GetBoolean());
         Assert.Equal(step.GetProperty("operationId").GetGuid(), sequence.GetProperty("outstandingOperationId").GetGuid());
     }

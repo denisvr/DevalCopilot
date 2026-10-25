@@ -120,6 +120,10 @@ import {
   LocalExecutionInspectionStepWireClient,
   LocalExecutionInspectionWindowWireClient,
 } from '../features/cockpit/localExecutionInspectionWire'
+import {
+  LocalExecutionOwnershipReleaseCommandWireClient,
+  LocalExecutionOwnershipReleaseReadWireClient,
+} from '../features/cockpit/localExecutionOwnershipReleaseWire'
 import { LocalExecutionQueueInspectionWireClient } from '../features/cockpit/localExecutionQueueInspectionWire'
 
 // One instance per endpoint client is enough for this slice; components import the
@@ -166,6 +170,9 @@ export const armLocalExecutionSequenceClient = (signal?: AbortSignal) => new Arm
 export const localExecutionQueueAvailabilityClient = (signal?: AbortSignal) => new LocalExecutionQueueAvailabilityWireClient(getApiBaseUrl(), authenticatedHttp, signal)
 export const queueLocalExecutionSequenceClient = (signal?: AbortSignal) => new QueueLocalExecutionSequenceWireClient(getApiBaseUrl(), authenticatedHttp, signal)
 export const stopLocalExecutionSequenceClient = (signal?: AbortSignal) => new StopLocalExecutionSequenceWireClient(getApiBaseUrl(), authenticatedHttp, signal)
+// The ownership release read and the explicit release (ADR-0065): parsed-body facades; each carries its own signal that cancels the actual request.
+export const localExecutionOwnershipReleaseReadClient = (signal?: AbortSignal) => new LocalExecutionOwnershipReleaseReadWireClient(getApiBaseUrl(), authenticatedHttp, signal)
+export const localExecutionOwnershipReleaseCommandClient = (signal?: AbortSignal) => new LocalExecutionOwnershipReleaseCommandWireClient(getApiBaseUrl(), authenticatedHttp, signal)
 // Hand the parsed bodies to the whole-answer decoders instead of the generated models (see the ADR-0052 wire clients).
 export const localExecutionInspectionIndexClient = () => new LocalExecutionInspectionIndexWireClient(getApiBaseUrl(), authenticatedHttp)
 export const localExecutionAdmissionHistoryClient = () => new LocalExecutionAdmissionHistoryWireClient(getApiBaseUrl(), authenticatedHttp)

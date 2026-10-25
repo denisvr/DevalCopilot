@@ -244,10 +244,19 @@ increment, adds no priority, executor lease, retry, takeover or process-aware re
 ledger of one queued cycle in current-run and run-history inspection, including waits retired without a step and exact links to existing
 step evidence. It is read-only, adds no execution or queue-control authority and completes no increment.
 
-**Outstanding queue-admission overview (partial, reviewed GO; publication pending).** ADR-0064 / LOCAL-QUEUE-OVERVIEW-01 adds a bounded, coherent,
+**Outstanding queue-admission overview (partial).** ADR-0064 / independently verified published LOCAL-QUEUE-OVERVIEW-01 adds a bounded, coherent,
 read-only view of Waiting, Reserved and Unresolved admissions across projects, including an ended cycle's held reservation, with explicit
-selection of the existing recorded inspector. LQO-R1 is resolved; publication remains subject to its exact-content GO. It changes no queue
-or execution authority, adds no recovery action and completes no increment.
+selection of the existing recorded inspector. LQO-R1 is resolved. It changes no queue or execution authority, adds no recovery action and
+completes no increment.
+
+**Proved terminal-quarantine release (reviewed GO; publication pending).** ADR-0065 / LOCAL-QUARANTINE-RELEASE-01 selects original-host dispatch
+and termination evidence plus a separate exact Human confirmation to release only a terminal local operation's ownership. Results and ended
+cycles stay unchanged; missing proof and Unresolved pre-claim reservations stay held. This is no executor lease, general recovery,
+retry/resume/takeover or automatic approval/commit/publication, and completes no increment.
+Review 4 resolves LQR-V1 after the permanent request-inventory correction and headed/headless passes; LQR-R1/R2/R3/R4 remain resolved.
+[ADR-0066](../decisions/0066-bind-local-release-intent-to-an-immutable-relational-snapshot.md) resolves the checksum translation challenge through
+a typed intent snapshot in the same receipt row, without a SQLite hashing capability or new release authority. That implementation is reviewed;
+publication is authorized only for the exact reviewed-content identity in the planner's GO. Independent publication verification still follows.
 
 **Agent supervision observations (partial).** ADR-0056 / AGENT-SUP-01 adds, for all seven existing Agent response contracts, a
 durable disclosure of what the host's own observer last reported for the current Agent attempt (phase, last report, absolute deadline,

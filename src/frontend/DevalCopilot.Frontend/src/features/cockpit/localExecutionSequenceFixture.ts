@@ -27,7 +27,7 @@ const LIVE = ['Armed', 'PreparingStep', 'AwaitingStepResult', 'Stopping', 'Waiti
 
 const DEFAULT_KINDS = ['Implementation', 'Verification', 'CodeReview', 'VerificationDiagnosis']
 
-export type StepShape = 'reserved' | 'claimed' | 'concluded' | 'revoked' | 'unresolved' | 'quarantined'
+export type StepShape = 'reserved' | 'claimed' | 'concluded' | 'revoked' | 'unresolved' | 'quarantined' | 'released'
 
 /** One step. Ordinal 0 is the implementation, 1 the verification of the one recipe, 2 the code review and 3 a diagnosis. */
 export function localStepFor(ordinal: number, shape: StepShape, patch: Raw = {}, kind: string = DEFAULT_KINDS[Math.min(ordinal, 3)]): Raw {
@@ -47,6 +47,7 @@ export function localStepFor(ordinal: number, shape: StepShape, patch: Raw = {},
     dispatched: null,
     exitRecorded: null,
     quarantined: false,
+    ownershipReleased: false,
     preparationReservedAtUtc: `2026-10-09T10:${String(ordinal * 10).padStart(2, '0')}:00.1234567Z`,
     preparationDeadlineUtc: `2026-10-09T10:${String(ordinal * 10 + 2).padStart(2, '0')}:00.1234567Z`,
     claimedAtUtc: null,
@@ -79,6 +80,19 @@ export function localStepFor(ordinal: number, shape: StepShape, patch: Raw = {},
         quarantined: true,
         ...patch,
       }
+    case 'released':
+      return {
+        ...base,
+        ...linked,
+        state: 'Concluded',
+        operationStatus: 'Failed',
+        operationOutcome: agent ? 'ProviderInvocationFailed' : 'TimedOut',
+        dispatched: true,
+        exitRecorded: false,
+        quarantined: false,
+        ownershipReleased: true,
+        ...patch,
+      }
     case 'revoked':
       return { ...base, state: 'Revoked', reasonCode: 'stopped_before_claim', ...patch }
     case 'unresolved':
@@ -98,7 +112,7 @@ const NEXT_ACTION: Record<string, [string, string]> = {
   escalation: ['decide_on_the_recorded_escalation', 'Review the recorded escalation and decide separately.'],
   manual: ['continue_with_explicit_manual_work', 'Continue with explicit manual requests.'],
   inspect: ['inspect_and_reconcile', 'Inspect the recorded operations and reconcile before any further work.'],
-  recovery: ['no_supported_recovery_action_in_this_version', 'No supported recovery action in this version.'],
+  recovery: ['no_supported_recovery_action_in_this_version', 'No automatic recovery. A separate Human release is possible only with recorded original-host termination evidence; without it there is no supported recovery action.'],
 }
 
 const REASON_TEXT: Record<string, string> = {
@@ -110,7 +124,7 @@ const REASON_TEXT: Record<string, string> = {
   preparation_unresolved: 'Whether the next operation was claimed could not be confirmed; nothing was retried.',
   result_deadline_elapsed: 'The result deadline elapsed. No process was cancelled; the operation stays visible and owned until it is reconciled.',
   exit_evidence_missing:
-    'A dispatched operation ended without recorded process exit evidence. Its exact operation stays owned: no supported recovery action in this version.',
+    'A dispatched operation ended without recorded process exit evidence. Its exact operation stays owned until the original host records termination evidence and a separate Human release follows; without that evidence there is no supported recovery action.',
   host_restarted: 'The host restarted; the sequence was interrupted and never resumes automatically.',
 }
 

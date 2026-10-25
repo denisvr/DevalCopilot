@@ -3,6 +3,8 @@ namespace DevalCopilot.Api.Features.Runs.GetLocalExecutionSequence;
 /// <summary>One bounded step receipt: its fixed kind, pass and recipe position, its state and the linked operation's recorded status and
 /// outcome. <c>Dispatched</c> says only whether a dispatch marker exists, <c>ExitRecorded</c> only whether coherent host Exited evidence
 /// exists (never proof about descendants) and <c>Quarantined</c> that a terminal dispatched operation without that evidence stays owned.
+/// <c>OwnershipReleased</c> (ADR-0065) says that one complete coherent Human release removed exactly that retained quarantine; it is
+/// never true together with <c>Quarantined</c> or <c>ExitRecorded</c> and it changed no result.
 /// The recipe name is untrusted text and is rendered inert. Times are UTC round-trip strings.</summary>
 public sealed record LocalExecutionSequenceStepResponse(
     Guid StepId,
@@ -19,6 +21,7 @@ public sealed record LocalExecutionSequenceStepResponse(
     bool? Dispatched,
     bool? ExitRecorded,
     bool Quarantined,
+    bool OwnershipReleased,
     string PreparationReservedAtUtc,
     string PreparationDeadlineUtc,
     string? ClaimedAtUtc,

@@ -26,7 +26,8 @@ internal static class LocalExecutionDispatchGate
         Refused,
     }
 
-    internal sealed record Evaluation(Verdict Verdict, LocalExecutionSequence? Sequence);
+    /// <summary>The decision, its sequence and, when dispatchable, the exact linked step the dispatch witness of ADR-0065 pins.</summary>
+    internal sealed record Evaluation(Verdict Verdict, LocalExecutionSequence? Sequence, LocalExecutionSequenceStep? Step = null);
 
     public static async Task<Evaluation> EvaluateAgentAsync(
         IDevalCopilotDbContext dbContext, Attempt attempt, DateTimeOffset nowUtc, bool trackSequence, CancellationToken cancellationToken)
@@ -41,7 +42,7 @@ internal static class LocalExecutionDispatchGate
         var sequences = trackSequence ? dbContext.LocalExecutionSequences : dbContext.LocalExecutionSequences.AsNoTracking();
         var sequence = await sequences.SingleOrDefaultAsync(candidate => candidate.Id == step.SequenceId, cancellationToken);
         return sequence is not null && await IsAgentDispatchableAsync(dbContext, sequence, step, attempt, nowUtc, cancellationToken)
-            ? new Evaluation(Verdict.Dispatchable, sequence)
+            ? new Evaluation(Verdict.Dispatchable, sequence, step)
             : new Evaluation(Verdict.Refused, sequence);
     }
 
@@ -58,7 +59,7 @@ internal static class LocalExecutionDispatchGate
         var sequence = await dbContext.LocalExecutionSequences.AsNoTracking()
             .SingleOrDefaultAsync(candidate => candidate.Id == step.SequenceId, cancellationToken);
         return sequence is not null && await IsVerificationDispatchableAsync(dbContext, sequence, step, execution, nowUtc, cancellationToken)
-            ? new Evaluation(Verdict.Dispatchable, sequence)
+            ? new Evaluation(Verdict.Dispatchable, sequence, step)
             : new Evaluation(Verdict.Refused, sequence);
     }
 

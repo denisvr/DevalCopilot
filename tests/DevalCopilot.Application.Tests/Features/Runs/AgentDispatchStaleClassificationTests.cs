@@ -51,7 +51,7 @@ public sealed class AgentDispatchStaleClassificationTests : IAsyncLifetime
     private Task<(Guid RunId, Guid AttemptId)> SeedAsync(string path) =>
         AgentAttemptModeSeed.SeedClaimedAsync(_fixture, path, AbandonmentRaceSupport.ManualAgentMode);
 
-    private async Task<Devalente.Shared.Results.Result<DateTimeOffset>> DispatchAsync(DevalCopilotDbContext db, Guid runId, Guid attemptId)
+    private async Task<Devalente.Shared.Results.Result<MarkAgentAttemptDispatchedCommandResult>> DispatchAsync(DevalCopilotDbContext db, Guid runId, Guid attemptId)
     {
         await using var transaction = await db.BeginTransactionAsync(CancellationToken.None);
         var result = await new MarkAgentAttemptDispatchedCommandHandler(db, new FixedTimeProvider(Now))

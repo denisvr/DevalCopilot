@@ -28,4 +28,10 @@ public sealed record ProcessExecutionResult
     public required bool StandardErrorTruncated { get; init; }
 
     public required TimeSpan Duration { get; init; }
+
+    /// <summary>ADR-0065: optional host-produced physical termination evidence, present only when the adapter's actual owned process
+    /// instance was waited to completion successfully and its exit code obtained (normally, or within the existing bounded wait after a
+    /// timeout or cancellation termination request). Absent for a launch or adapter fault, an unsuccessful post-termination wait and every
+    /// adapter that does not own a real process. It never changes <see cref="Outcome"/> or <see cref="ExitCode"/>.</summary>
+    public ProcessTerminationObservation? Termination { get; init; }
 }

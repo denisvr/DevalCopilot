@@ -412,7 +412,7 @@ public sealed class GetRunEventHistoryQueryHandlerTests : IAsyncLifetime
                 "planning_sequence.step_concluded", "planning_sequence.stop_requested", "planning_sequence.ended",
                 "local_execution_sequence.armed", "local_execution_sequence.step_reserved", "local_execution_sequence.step_claimed",
                 "local_execution_sequence.step_concluded", "local_execution_sequence.stop_requested", "local_execution_sequence.ended", "local_execution_sequence.admission_queued",
-                "local_execution_sequence.admission_waiting",
+                "local_execution_sequence.admission_waiting", "local_execution_sequence.ownership_released",
                 "agent_supervision.registered", "agent_supervision.phase_entered", "agent_supervision.attention", "agent_supervision.closed",
             ],
             constants);

@@ -62,7 +62,7 @@ public sealed class MarkAgentAttemptDispatchedRepairLinkTests : IAsyncLifetime
         return new Arrangement(scene, source, repair, fingerprint);
     }
 
-    private async Task<Devalente.Shared.Results.Result<DateTimeOffset>> DispatchAsync(Arrangement arrangement)
+    private async Task<Devalente.Shared.Results.Result<MarkAgentAttemptDispatchedCommandResult>> DispatchAsync(Arrangement arrangement)
     {
         await using var context = _fixture.CreateContext();
         var result = await new MarkAgentAttemptDispatchedCommandHandler(context, new FixedTimeProvider(RepairTestScene.Now.AddMinutes(1)))

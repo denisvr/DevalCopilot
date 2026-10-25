@@ -6,7 +6,358 @@ was prepared ([recovery](development-workflow.md#recovery)). Git and code
 prevail; compare branch, `HEAD`, `origin/main` and staged/unstaged/untracked
 state first.
 
-## Active slice: LOCAL-QUEUE-OVERVIEW-01 outstanding queue-admission overview (ADR-0064)
+## Active slice: LOCAL-QUARANTINE-RELEASE-01 Human release of a terminal local quarantine (ADR-0065)
+
+This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
+Reconcile publication with Git. This record alone grants no publication authority.
+
+**Delivery phase: correction 3 (Codex review 3 NO-GO: LQR-V1 only, a test-only browser-oracle defect) returned by the same Claude executor chat, unstaged, uncommitted and unpushed. No GO exists.**
+The first return (unchanged below) is followed by [Correction 1](#correction-1-codex-review-1-no-go-lqr-r1-to-lqr-r4), [Correction 2](#correction-2-codex-review-2-no-go-lqr-r1-and-lqr-r2-adr-0066) and [Correction 3](#correction-3-codex-review-3-no-go-lqr-v1-the-journeys-business-post-inventory).
+Baseline: `main`, `HEAD`, local `origin/main` and the live `refs/heads/main` were `569c6b13169bd55a259ca4f17d0780a8cc6ef259`
+(LOCAL-QUEUE-OVERVIEW-01, independently verified published); the four planner inputs (`decisions/README.md`, `mvp-delivery-plan.md`,
+`planner-handoff.md` and ADR-0065) are preserved byte-for-byte (hashes equal `logs/planner-review/local-quarantine-release-01/selection.json`).
+ADR-0050 stays Proposed, P9 unproven, AI Memory deferred, Increments 4/5/6 incomplete; every standing restriction stays. No frozen
+qualification profile, native/provider/credential experiment or real run was touched or recovered.
+
+### What exists
+
+- **Domain.** `LocalExecutionDispatchWitness`, `LocalExecutionTerminationObservation`, `LocalExecutionOwnershipRelease` (append-only, one
+  writer each), `LocalExecutionOperationFamily`, the confirmation value (`LocalExecutionOwnershipReleaseConfirmation`: version 1, SHA-256
+  digest of the canonical facts, expiry at most two minutes truncated to whole seconds) and the `local_execution_sequence.ownership_released`
+  Human event type.
+- **Producer provenance.** The two dispatch markers (Agent attempt and verification execution) append the witness in the same commit and return a
+  private in-memory `LocalExecutionDispatchTicket` (internal constructor, no public member) only after that commit; the four Agent result
+  commands and the verification result command carry it, and the result recorders append the termination observation in the ordinary result
+  commit (or refuse the whole result with `observation_refused` when the observation contradicts the witness, operation or returned result).
+  `ProcessExecutionResult.Termination` is populated by `ChildProcessExecutionAdapter` only after a successful `WaitForExitAsync` of the owned
+  process (normal exit, or the existing post-kill wait); timeout, kill, wait, TimedOut/Cancelled and exit-code semantics are unchanged.
+  A restarted host, a lost result or an old row holds no ticket and never produces evidence.
+- **One ownership definition.** `LocalExecutionReleaseChain` (expression twin of the in-memory proof) is consumed only by
+  `LocalExecutionOwnership` and the status reading; the nine SQL live-fence triggers were recreated by the migration with the same release proof, so claims,
+  dispatch gates, manual starts, capacity, queue admission, final gates and the live fence see the same release or none.
+- **Reading and command.** `GetLocalExecutionOwnershipRelease` is one provider-neutral untracked statement with guarded scalar projection and an
+  in-memory proof (statuses NotEligible, Unavailable, Available, Released with closed reason codes); `ReleaseLocalExecutionOwnership` begins a
+  manual transaction, takes the runs-row write lock, re-reads, validates replay (exact replay returns the receipt even after expiry), the
+  observation identity, the confirmation version, expiry and digest, then appends the release and its one Human event atomically
+  (`persistence_failed` / `persistence_unresolved` keep certainty honest). Protected GET and POST
+  `/api/runs/{runId}/local-execution-sequence/steps/{stepId}/ownership-release`: closed response, strict four-string 512-byte body, fixed
+  non-echoing 400/404/409/413. The status wire gained `ownershipReleased` per step (a released operation is neither quarantined nor exit-recorded).
+- **Migration.** `20261023211312_AddLocalExecutionOwnershipRelease` (additive; append-only triggers; live triggers recreated). Down is refused before
+  any change by a named CHECK on a temporary table (`used_release_feature_blocks_downgrade`) once any witness, observation or release exists.
+- **Frontend.** Strict decoder `localExecutionOwnershipRelease.ts` (shared by GET and POST; answers must match the chosen run, step, sequence, state, mode,
+  kind, ordinal, pass and operation), parsed-body wire clients carrying a real `AbortSignal`, `useLocalExecutionOwnershipRelease` (run, opening and
+  per-step visit lifetimes over the unchanged owned-lifetime primitives; one read per visit, one confirmation, at most one ten-second submission, no
+  retry, a local two-minute confirmation lifetime while the host stays the authority; submission consumes the confirmation; unknown outcome never
+  infers rollback and needs an explicit fresh read; unmount aborts the request) and the collapsed `LocalExecutionOwnershipReleasePanel` mounted inside
+  the local sequence panel. The hook state lives above the status mask, so an in-flight release and its outcome survive the run barrier; the panel
+  marks nothing released itself. Fixed copy explains physical termination versus the failed result, the invoked-process-only limit, unchanged
+  workspace and source gates and possible progress of already authorized queued work. Wording that said there is no supported recovery action
+  (host reason and next-action text, `workspaceExecution.ts`, `executionCapacity.ts`, step and state copy) now says a separate Human release backed by
+  recorded original-host termination evidence can free it and that without that evidence there is none; the next-action *code* is unchanged.
+  The pinned event inventories (`runEventHistory`, `parseEventSummary` copy, the backend history test) know the new event type.
+- **Journey.** `e2e/local-quarantine-release.journey.ts` (one authenticated owned-fixture journey): limit one; a first project plans for real and its
+  authorized cycle's verification is held by the owned gate past a three-second recipe timeout, the host kills and observes the process, the cycle ends
+  NeedsAttention and the quarantine STILL holds (manual Run disabled, workspace owner note, no release row); a second project (different repository,
+  recognized by a second conventions marker added to the owned provider double `ManifestInfo`) plans and is QUEUED and waits for global capacity with
+  zero double invocations; the release control is collapsed and reads nothing, then one chosen step shows the recorded physical evidence, one separate
+  confirmation posts once, exactly one release and one Human event are appended and nothing is rewritten, the manual Run is enabled again, and the
+  queued cycle reserves, claims and advances through its own gates to Awaiting Human approval with no further browser request.
+- **Documentation.** ADR-0065 (planner-owned, untouched), `data-and-recovery.md`, `run-cockpit-specification.md`, `engineering-context.md`, the
+  security plan and threat model, and this file.
+
+### Evidence (logs under `logs/executor/local-quarantine-release-01/`, git-ignored; commands run at the repository root)
+
+- **Fresh final matrix on the final restored sources** (`final/summary.txt`; non-incremental serial build, 0 warnings, 0 errors, twice; the regenerated
+  client hashed identically after both builds, `235558c7…`):
+  - Domain **1791 passed**; Infrastructure.IntegrationTests **3405 passed, 4 skipped** (the pre-existing environment-conditional skips: case-sensitive
+    directory support, file symlink and Windows-only facts), 6 m 2 s; Application **8292 passed**, 22 m 25 s; Architecture **203 passed**;
+    Api.IntegrationTests **3348 passed**, 11 m 57 s, on the rebuilt sources after the route-inventory fix below (the first run, 3347 passed and 1 failed, is kept in `final/`; build 3 also 0 warnings, 0 errors, client hash unchanged).
+  - Frontend: whole Vitest **7634 passed** in 310 files; `oxlint` exit 0 (only existing warnings, none in the new files); `npm run build` (with product
+    `tsc`) pass; the recorded strict e2e `tsc` flag set exit 0; `npm run test:harness` pass.
+  - Journeys, serially on the same build: release 1.1 m, queue 56 s, local-execution 39 s, planning-sequence 23 s, collaboration 2.0 m, all passed.
+  - Focused `LocalExecutionOwnershipRelease` suites: Application 142, Domain 34, Infrastructure 39 (process termination 7, migration 32), Api 41 (hosted 6,
+    endpoint 35), Architecture 7; frontend new tests: decoder 60, hook 23, panel 15.
+- **Four compiling controls** (`controls/`, each hash-guarded: baseline, mutant, restored hash equal, target touched, rebuilt; the 154 changed files were
+  byte-identical to `pre-controls-source-manifest.sha256` afterwards), each killed by a named permanent regression:
+  1. omit the Human release from effective ownership (both families in `LocalExecutionOwnership`): **24 of 142** release tests failed (the Entrance,
+     Cycle and Restart suites, e.g. `A_manual_claim_is_refused_while_the_quarantine_holds_and_passes_its_own_gates_after_the_release`);
+  2. omit a required witness identity comparison (`witness.RunId != root.RunId` in the in-memory proof): `LocalExecutionOwnershipReleaseChainTests
+     .One_changed_stored_fact_of_the_chain_is_never_a_release_anywhere(name: "witness-run")` failed (1 of 46). Surviving scope: the SQL and expression twin
+     (`LocalExecutionReleaseChain`) keeps its own comparison, so this control proves the reading twin only;
+  3. remove the ended-confirmation owner guard in the hook (`isActive` and `now.visitOwner`): `a confirm callback retained from an ended visit sends
+     nothing for the newer visit of the same step` failed (1 of 23);
+  4. remove the used-feature downgrade refusal (`CHECK (used = 0)` made `used >= 0`): the three `The_reverse_migration_is_refused_before_any_change...`
+     cases (witness, observation, release) failed (3 of 32).
+
+### Preserved failures and defects found while testing
+
+- Api full-suite first run (`final/test-Api.IntegrationTests-first-run-route-inventory-failure.log`): `LocalExecutionSequenceEndpointTests` route inventory
+  expected 11 and found 12. The committed inventory (nine) already omitted the ADR-0063 `inspection/admissions` route, so the test was stale before this slice
+  (earlier slices ran filtered suites); I corrected it to the twelve actual routes (adding that route and the two release operations).
+- One real production defect was found by the chain tests and fixed: a release whose `WitnessId` was tampered read Available for an orphan receipt;
+  the reading now joins the release by step and by witness and the proof compares the witness-keyed identity. Seven pre-existing migration table-list
+  assertions were repaired for the new tables (original output kept in `migration-tests-first-run.log`).
+
+### Challenges, limits and risks for review
+
+- **Next-action code name.** The wire code `no_supported_recovery_action_in_this_version` is now a misnomer for a quarantine whose evidence exists; I kept the code
+  (wire and decoder stability) and changed only the host's literal texts. Renaming it is a deliberate wire change for the planner to decide.
+- **Confirmation lifetime.** The page ends a confirmation after two local minutes (monotonic timer) and never compares wall clocks; the host's expiry stays the
+  authority and refuses a stale confirmation with a fixed 409.
+- **Scope of the evidence.** Only sequence-linked operations carry a witness; a manual verification or Agent attempt that ended without exit evidence has none and
+  stays unsupported. The control targets the current manual run only; run history and the inspectors stay read-only.
+- **Owned double change.** The queued-work journey needed a second repository the provider double recognizes, so `ManifestInfo.IsLocalCycle` accepts a second
+  conventions marker; behavior for every other repository is unchanged.
+- **Control 2 survivors.** See above: the SQL twin is covered by other chain tests, not by this control.
+
+### Correction 1 (Codex review 1 NO-GO: LQR-R1 to LQR-R4)
+
+Preflight (once): `main`, `HEAD` and local `origin/main` equal `569c6b13169bd55a259ca4f17d0780a8cc6ef259`, divergence 0/0, empty index, 164 pending
+paths (80 modified, 84 untracked); `planner-handoff.md` is the planner's updated file (SHA-256 `7a6b8355…`), preserved with the review and the unchanged
+ADR, index and MVP inputs. The review's probe sources are `review-01/*.txt`; the first-return source manifest matched before work began.
+
+**What changed (stable finding IDs)**
+
+- **LQR-R1 (P1) one complete ownership expression and SQL fence.** `LocalExecutionReleaseChain` (the expression every shared consumer reaches through
+  `LocalExecutionOwnership`, and `HasMalformedReleaseAsync`) and the migration's SQL twin (the nine live-fence triggers) now carry the same complete proof for both
+  families: the run is a ManualAgent run of the sequence's own project; the workspace and the step's source checkpoint (workspace and fingerprint) are the
+  step's own; the recipe and step counts are sound; an Immediate cycle has no admission for the step; neither family's identity collides with the other; the
+  observation never outlasts its process and is recorded no earlier than the dispatch; the receipt is recorded no earlier than the observation and expires after it;
+  and the terminal result is consistent (below). The additive migration (unpublished, edited in place with its Designer and the snapshot) also gained the receipt's
+  two-minute lifetime as a table CHECK. Permanent file-backed tests (`LocalExecutionOwnershipReleaseChainTests`, 46 to 79 cases) change one stored fact of a
+  production-created released chain and assert, independently, the read, the workspace, global capacity, abandonment and the real SQL write-seam guard.
+  New cases: source checkpoint fingerprint and workspace, workspace project, run project, ManualAgent mode (three variants), observation before dispatch, receipt
+  expiry before release and before the observation, Agent status/outcome/fingerprint inconsistencies, verification status/completion-fingerprint/exit-code
+  inconsistencies, an admission present on an Immediate cycle, and attempt/execution identity collisions across the two families (rows cloned through the real
+  database). The positive cases are preserved (all earlier release suites pass unchanged).
+- **LQR-R2 (P1) complete candidate, locked-command and stored-receipt proofs.** The projection and `LocalExecutionReleaseProof` now read the run mode, the Agent
+  checkpoint fingerprint, the Agent outcome class and the verification completion fingerprint, and decide terminal consistency from the existing Domain policies
+  (`LocalExecutionReleaseTerminal`: the Agent outcomes are exactly those that neither require a clean exit nor are pre-invocation classifications, derived from
+  `AgentProcessEvidencePolicy`; a verification follows `VerificationExecution.Complete`: TimedOut or Cancelled with a null exit code and a matching completion
+  fingerprint, or SourceChanged with a differing one). The same proof is the candidate, the fresh locked command and the replay. `ProveReleased` recomputes the
+  canonical confirmation digest from the proved facts and the recorded expiry. `LocalExecutionOwnershipReleaseTerminalProofTests` (23): before a release every
+  inconsistent terminal result is Unavailable, a confirmed command is refused and no receipt or event exists; SourceChanged, the other post-invocation failure
+  outcomes and a source-changed or cancelled verification stay releasable; a substituted digest or expiry reads Unavailable and its replay is refused; the fence
+  vocabulary equals the policy-derived set. Protected API regressions: four inconsistent results, a non-manual run and a substituted digest (Api release suites 41 to 47).
+- **LQR-R3 (P2) bounded release GET.** The read has the same real ten-second bound as the command: at the bound the request is aborted, a fixed read failure settles once, there is no
+  retry or polling, cleanup clears the timer, and a transport that ignores the abort cannot answer late into the visit (tests in the hook and panel suites).
+- **LQR-R4 (P2) closed operation-status vocabulary.** The decoder accepts only the statuses the host records for a candidate: an Agent attempt is `Failed`; a verification
+  is `TimedOut` (timeout), `Cancelled` (cancellation) or `SourceChanged`; the process outcome is a timeout or cancellation with no semantic exit code (a clean exit
+  already frees the operation and is never a candidate). Running, Passed, Completed, Interrupted, unknown and mismatched statuses decode to nothing and the panel offers
+  no confirmation (decoder and panel tests; 98 existing feature tests became 129).
+
+**Concrete translation and constraint challenges (raised with the work, not silently resolved)**
+
+1. The SQLite EF provider cannot translate a `DateTimeOffset` comparison (the same documented limitation as the ordering queries elsewhere), so the chronology is compared as the
+   stored normalized UTC text (`CAST(x AS TEXT)`); with a trimmed fraction a shorter text sorts before a longer one because `+` sorts before digits, so the text order is the
+   chronological order of the values the host writes. The raw SQL twin compares the same text.
+2. (Superseded by correction 2: the CHECK is now exact at tick precision.) The exact `expiry - release <= 2 minutes` bound cannot be expressed provider-neutrally with seven-digit ticks, so it is a table CHECK (`julianday` difference, 0.001 s
+   tolerance) in the unpublished migration, kept by the release reading, the Domain and the command as well; it makes a violating stored receipt unrepresentable rather than detected.
+   Its permanent test inserts 1, 120, 121 and 3600 second lifetimes.
+3. (Superseded by correction 2 and ADR-0066: the typed snapshot, not the digest, is compared by every consumer.) SQLite cannot compute SHA-256 and no hashing capability was added, so the receipt's confirmation digest is verified by the release reading, the exact replay and the locked
+   command, never by the shared ownership expression or the SQL fence. A direct database write that substitutes only the digest leaves that receipt unreadable (Unavailable) while the
+   relational ownership proof, which is the Human release itself, does not depend on it. The digest is an exact-intent check, not authority (ADR-0065), so I judged that
+   acceptable, but it is a documented surviving scope, not an untested equivalence.
+4. (Superseded by correction 2: abandonment is now asked in the moved run's own scope.) In the run-project tamper case the abandonment assertion is skipped on purpose: abandonment is decided per project of the run, and the tamper moves the run out of that project.
+
+**Planner dispositions applied.** `no_supported_recovery_action_in_this_version` stays a legacy compatibility token with truthful literal copy and is never a capability signal
+(no wire rename). Control 2 of the first return is accepted as a reader-only kill; each corrected expression and SQL boundary now has its own control (below). The second conventions
+marker of the owned double, the route-inventory repair, sequence-only provenance, current-run UI, invoked-process-only evidence, unsupported old and other quarantines, host-authoritative
+expiry, the existing React-key warnings and the exact environmental skips are unchanged.
+
+**Evidence (logs under `logs/executor/local-quarantine-release-01/correction-1/`, git-ignored)**
+
+- **Compiling controls: 17, all killed, all restored.** Each control is hash-guarded (baseline, mutant, restored hash equal, target touched), must compile, and is killed by named permanent
+  regressions; the 156 changed files were byte-identical to `pre-controls-source-manifest.sha256` afterwards (`controls-summary.txt` lists the failing test names per control).
+  The four first-return controls were re-run on the corrected sources (1 release-in-ownership: 31 of 198 release tests fail; 2 reader witness-run comparison: 1; 3 hook owner guard: 1; 4 downgrade
+  refusal: 3). New: 5 expression source-fingerprint (2 cases), 6 SQL source-fingerprint (the same 2 cases, so the SQL guard is decided by its own text), 7 expression chronology (2), 8 SQL chronology (2),
+  9 expression Agent outcome vocabulary (4), 10 SQL Agent outcome vocabulary (4), 11 expression verification status consistency (1), 12 reader result consistency (11 of 23), 13 reader digest binding (2),
+  14 frontend read bound (4), 15 frontend status vocabulary (12), 16 expression run mode (3), 17 SQL run mode (3). Preserved failed attempts: control 14 (unused import) and 15 (unused constant) did not
+  compile and control 17 first did not match its pattern and then produced a SQL syntax error (79 of 79 failures); none counted as a kill, and 14, 15 and 17 were rebuilt and rerun.
+- **Fresh final matrix on the restored sources** (`final/summary.txt`; non-incremental serial build twice, 0 warnings, 0 errors; the regenerated client hashed identically both times, `235558c7…`):
+  Architecture **203**; Infrastructure.IntegrationTests (full, because the migration and its configuration changed) **3409 passed, 4 skipped**, 6 m; Application: first run **8347 passed, 1 failed** (below), 23 m 54 s,
+  and the full rerun on identical sources **8348/8348**, 23 m 36 s; Api.IntegrationTests **3354/3354**, 14 m 45 s; whole Vitest **7665 passed** in 310 files; `oxlint` exit 0; `npm run build`, the strict e2e
+  `tsc` and `npm run test:harness` pass. Journeys on the same build, serially: release 1.1 m, queue 57 s, local-execution 39 s, planning-sequence 22 s, collaboration 2.0 m, all passed.
+  The four Infrastructure skips are exactly `PackageEntrypointResolverTests.Resolve_rejects_an_entrypoint_that_is_itself_a_reparse_point`, `FilesystemArtifactStoreTests.VerifyAndReadSealedAsync_returns_missing_when_the_sealed_file_itself_is_a_symlink_to_an_outside_sentinel_even_when_length_and_hash_match`,
+  `UntrackedFilePreviewReaderTests.A_file_symbolic_link_to_an_outside_file_is_refused_without_returning_its_text` and `GitWorkspaceInstructionContextTests.A_symbolic_link_source_is_never_followed_to_content_outside_the_worktree`:
+  this host cannot create a file-level symbolic link without elevation or Developer Mode, so that platform coverage did not execute.
+- **The retained failed Application run.** `CreateCodexPlanningAttemptCommandHandlerTests.Two_concurrent_repair_claims_for_one_source_commit_exactly_one_repair` failed once in the first full run
+  (the loser answered `workspace_execution.agent_attempt_active` instead of `agent_attempts.repair_already_requested`; log kept as `final/test-Application.Tests-first-run-concurrent-claims-failure.log`).
+  It passed in the identical-source rerun, 30 of 30 alone, 48 of 48 in eight parallel processes and 40 of 40 under CPU saturation (`race/`). I did not reproduce it, did not attribute it to a cause and do not
+  call it flaky: the loser's early workspace gate can see the winner's already committed Running attempt before its own claim-boundary duplicate check, which is an ordering the test itself races. This change only
+  alters whether a retained quarantine owns, never a Running attempt, but I did not run the unchanged `HEAD` to prove the failure pre-existing, so that remains unproven.
+- **Retained, not re-run:** Domain (1791 passed, first return; no Domain file changed in this correction). **Fresh and broader than asked:** the full Infrastructure suite. **Not run:** native, provider,
+  credential or frozen-qualification activity, and any recovery of the owner's real runs.
+
+### Correction 2 (Codex review 2 NO-GO: LQR-R1 and LQR-R2, ADR-0066)
+
+Preflight (once): `main`, `HEAD` and local `origin/main` equal `569c6b13169bd55a259ca4f17d0780a8cc6ef259`, divergence 0/0, empty index, 167 pending paths; the five frozen planner
+inputs (`planner-handoff.md`, `decisions/README.md`, `mvp-delivery-plan.md`, ADR-0065 and ADR-0066) match `logs/planner-review/local-quarantine-release-01/review-02/review-state.json`
+byte for byte, before and after the work. Stable dispositions: LQR-R1 and LQR-R2 corrected below (awaiting Codex review 3); LQR-R3 and LQR-R4 resolved and preserved.
+
+**What changed**
+
+- **LQR-R2 (P1) the confirmation binds actual values, not coherence classes.** The canonical facts and the digest now include the concrete `AgentOutcome` or the verification
+  `CompletionFingerprintSha256`. The existing release row (no fourth table, no JSON authority, no cache, no hashing capability) gained a versioned typed snapshot of every canonical
+  confirmed fact, the confirmation version and the exact expiry (33 `Intent*` columns with named CHECK constraints for version, family, vocabulary, numbers, shape, fingerprints and times),
+  captured only from the fresh complete proof under the Human command's write lock, after the digest and expiry validated, in the same receipt and event commit. The release reading
+  (`LocalExecutionReleaseProof.IntentEquals`), the ownership expression (`LocalExecutionReleaseChain`) and the nine SQL live-fence triggers each compare the complete current proved tuple
+  with that snapshot field for field, including the concrete result and the physical facts. A missing, unsupported or mismatched snapshot keeps ownership held; a stale pre-release
+  confirmation writes no receipt and no event; a post-release change of any recorded fact can neither replay nor free ownership. The additive migration, its Designer and the model
+  snapshot were edited in place (still unpublished; `has-pending-model-changes` is clean) and its downgrade refusal is unchanged.
+- **LQR-R1 (P1) exact lifetime and complete fingerprint proof.** The receipt's two-minute bound is a table CHECK in integer ticks parsed from the stored text
+  (`strftime('%s', …) * 10000000 + the seven-digit fraction`), an upper bound only (the lower bound and the chronology stay in the relational proof, so expiry-before-release stays
+  representable and detected). It refuses release + 2 minutes + 1 tick in both families; exactly two minutes, one tick less and fractional boundaries are accepted. A completion
+  fingerprint that changes to a malformed, oversized, short or uppercase value after release is now a snapshot mismatch in the reader, the ownership expression and the SQL fence.
+- **Checksum-only exception (ADR-0066's narrow resolution).** Only a well-shaped substituted digest with the entire typed snapshot, the exact expiry, the physical chain and the Human
+  event otherwise intact reads Unavailable and refuses replay (no second receipt or event) without reacquiring ownership, so the workspace, capacity, abandonment and the SQL fence stay
+  released. The initial confirmation and every coherent replay still verify the digest. A substituted expiry alone is a snapshot mismatch and keeps ownership held.
+- **Neutral copy.** The fixed Unavailable and refusal copy (backend `LocalExecutionOwnershipReleaseErrors.Unavailable`, `RELEASE_REASON_COPY`, `REFUSAL_COPY`) no longer claims that a hold stays
+  or was released; it points to the live workspace and capacity readings.
+
+**Permanent regressions added**
+
+- Application: `LocalExecutionOwnershipReleaseSnapshotTests` (21): the reviewer's seven cases (concrete result drift before and after release in both families, the one-tick lifetime in both
+  families, a malformed completion fingerprint), more malformed/short/oversized/uppercase fingerprints, a fresh candidate after a pre-release drift that releases exactly once, the receipt storing
+  the confirmed facts field for field with an unchanged replay writing nothing, the checksum-only distinction (three kinds, read Unavailable, replay refused, one receipt and one event,
+  ownership free in the read, the workspace, capacity, abandonment and both write seams) and the substituted expiry keeping ownership held. `LocalExecutionOwnershipReleaseChainTests` grew from 79 to
+  132 cases: every `Intent*` column drifting alone, coherent-but-different authoritative drifts (Agent outcome, sequence state, physical exit code, elapsed time, process duration, dispatch time,
+  source fingerprint everywhere it is recorded, completion fingerprint in four malformed or valid-different forms), and five "agreeing snapshot" cases that suspend only the release row's CHECKs
+  (`ignore_check_constraints`) so a defense layered behind the snapshot is proved by its own boundary. Every case asserts the read, the workspace, capacity, abandonment and both actual SQL write
+  seams (live fence and run abandonment) independently; abandonment is asked in the moved run's own scope (the moved project, and a run-id probe of the real abandonment update).
+- Migration (89), Domain (37 release tests), API (the stored-digest test became the checksum-only test with capacity and the exact error, plus a concrete-outcome drift test before and after release; 49 release
+  tests) and frontend (an unreadable answer and a refusal with neutral copy; 104 focused tests).
+
+**Evidence (logs under `logs/executor/local-quarantine-release-01/correction-2/`, git-ignored; commands at the repository root)**
+
+- **Compiling controls: 26 runs, 25 distinct killed, 1 retained survivor, all restored.** Each is hash-guarded (baseline, mutant, restored hash equal, target touched, rebuilt), must compile and is killed by named
+  permanent regressions (`controls/control-N-tests.log`; the pre- and post-control manifests of every non-doc file match except the two test files I extended deliberately). Retained controls were rerun on the
+  corrected sources at their actual scope: 1 release in ownership (47 of 265 release tests fail), 2 reader witness-run comparison (1), 3 hook owner guard (1), 4 downgrade refusal (3), 5 expression and 6 SQL source
+  fingerprint (2 each), 12 reader result consistency (11), 13 reader digest verification (1; the checksum-only cases), 14 frontend read bound (4), 15 frontend status vocabulary (12), 16 expression and 17 SQL run mode (3 each).
+  New controls: 18 reader snapshot equality (30), 19 expression Agent-outcome snapshot equality (5), 20 expression completion-fingerprint snapshot equality (12), 21 SQL Agent-outcome equality (5),
+  22 SQL completion-fingerprint equality (12), 23 exact-tick lifetime CHECK in the Application (2) and 24 in the Infrastructure suite (10), 25 expression and 26 SQL SourceChanged completion-fingerprint consistency.
+  **Controls 7, 8, 9 and 10 (expression and SQL chronology, expression and SQL Agent outcome vocabulary) first survived** (`survivors-first-run/`): the snapshot equality and the storage CHECKs shadowed those independent
+  defenses, which is the "keep independent defenses intact" risk. I added the five "agreeing snapshot" cases and reran them; all four are now killed. **Control 11** (the expression's Failed verification status) still
+  survives: the explicit Intent status clause of the same expression rejects a Failed status too, so the mutant is equivalent inside that expression; I replaced it with controls 25 and 26 on the part of the consistency
+  proof nothing duplicates and kept 11's logs rather than hiding the survivor. Not kills, kept as evidence: the first campaign attempt (every control stopped in `mutate.js` on a halved backslash; no mutant was applied,
+  `attempt0-mutate-script-error-*`).
+- **Fresh final matrix on the restored sources** (`final/summary.txt`; non-incremental serial build twice, 0 warnings, 0 errors; the regenerated client hashed identically, `235558c7…`): Domain **1794**; Architecture **203**;
+  Infrastructure.IntegrationTests (full, because the migration and its configuration changed) **3462 passed, 4 skipped** (the same four environment-conditional file-symlink and reparse-point skips as in correction 1),
+  5 m 53 s; Application **8422/8422** in one run, 25 m 45 s; Api.IntegrationTests **3356/3356**, 12 m 30 s; whole Vitest **7667 passed** in 310 files; `oxlint` exit 0; `npm run build`, the strict e2e `tsc` and
+  `npm run test:harness` pass. Journeys on the same build, serially: release 1.1 m, queue 57 s, local-execution 38 s, planning-sequence 21 s, collaboration 2.0 m, all passed. A whitespace-only formatter fix to one
+  Domain test line followed the matrix; the Domain suite was rerun (1794).
+- **Repair-race failure.** The correction-1 failure `Two_concurrent_repair_claims_for_one_source_commit_exactly_one_repair` (retained under `correction-1/final/`, with the identical-source rerun and the diagnostics) did not recur in
+  this correction's full Application run; I ran no stress campaign, relaxed no assertion and touched no race infrastructure. Its cause and pre-existing status remain unproven.
+- **Reviewer probes.** The seven behavioral probes (`review-02/ReviewerLocalExecutionReleaseCorrectionProbeTests.cs.txt`) were red on the corrected-1 tree; their permanent equivalents are green and each boundary has a control.
+- **Formatting and hygiene.** `dotnet format --verify-no-changes` over the 135 changed C# files reports only the ten pre-existing whitespace findings of `MarkAgentAttemptDispatchedCommandHandlerTests.cs`; one type per
+  file holds (the architecture suite passes); `git diff --check` reports only existing CRLF notices of generated files; the frozen planner inputs are unchanged.
+- **Retained, not re-run:** no earlier evidence is claimed fresh beyond the above; correction-1 and first-return logs are preserved as they were. **Not run:** native, provider, credential or frozen-qualification activity,
+  and any recovery of the owner's real runs.
+
+**Challenges and limits for review (raised with the work)**
+
+1. **Chronology as text.** The SQLite provider cannot translate a `DateTimeOffset` comparison, so chronology is compared as the stored normalized UTC text (`+` sorts before digits, so the text order is the time order the
+   host writes). Unchanged from correction 1; the SQL twin compares the same text.
+2. **Lifetime CHECK is an upper bound only** and is integer-tick arithmetic parsed from the stored text, because no provider-neutral exact bound exists. It supersedes correction 1's `julianday` tolerance.
+3. **Digest and SQLite.** The digest is still verified only where hashing exists; ADR-0066's snapshot is what the expression and the SQL fence compare. A well-shaped substituted digest is unreadable but does not reacquire the
+   owner (the narrow exception). If both expiry columns are rewritten to the same new value the snapshot still agrees; the reader then fails only on the digest, so that tamper is treated as checksum-only. I judged it
+   undetectable without a second copy of the expiry and did not add one.
+4. **Fingerprint shape is proved transitively.** The expression and the SQL fence do not repeat a lowercase-SHA-256 shape test for the completion fingerprint; the snapshot CHECK (`_intent_fingerprints`) guarantees the stored
+   snapshot has that shape and field-for-field equality carries it to the current value. The reader additionally validates it directly.
+5. **Drifts that CHECK constraints make unrepresentable.** `IntentVersion`, `IntentConfirmationVersion` and `IntentSemanticExitCode` cannot be set to a drifted value through the real table, so they have no catalog case; the
+   migration tests prove the constraints. The "agreeing snapshot" cases use SQLite's `ignore_check_constraints` only to reach states the constraints otherwise forbid.
+6. **Survivor of control 11** (above) is an equivalent mutant inside one expression, not a missing test; it is disclosed rather than dropped.
+
+### Codex review 3 disposition
+
+**NO-GO for LQR-V1 (test oracle only); LQR-R1/R2 are resolved and LQR-R3/R4 remain resolved.** The correction-2 report and its failed/green
+history above retain their preparation phases. Independent review evidence is under `logs/planner-review/local-quarantine-release-01/review-03/`.
+Application release tests plus the seven retained reviewer regressions: 279/279 (272 permanent, seven temporary), 2 m 11 s; temporary coordinated-expiry
+limit/invalid-chronology diagnostics: 4/4; full Domain 1794; release Infrastructure 96; protected API/hosted release 49; Architecture 203; frontend release 131.
+Reviewer test sources were removed and the Application test assembly rebuilt. The one changed source-manifest entry is exactly the declared Domain-test
+whitespace edit: reconstructing its pre-format line in memory matches hash `e90a4e8d…`; the current Domain suite passes. The ten existing formatter findings
+are on unchanged lines of the dispatch-marker test file; its actual diff changes only an import and the earlier dispatch-result assertion.
+
+The first independent, automatic headed journey failed in 37.5 s at line 314: the raw POST list contained `/hubs/run` while the test expected none.
+`RunNotificationHub` is broadcast-only and the host explicitly uses LongPolling; this is notification transport, not a business command. Line 335 also
+indexes the raw list although adjacent assertions already filter `/api/`. A temporary two-assertion diagnostic used the same API-command filtering and
+an exact one-release-path assertion; the full headed journey passed (1.1 m). The original test bytes were restored to SHA-256
+`2c85131e8b9ead32f9aa84fe31409af17b3c2cf1536f2ab243ecd92cca98c478`. The first run remains failed; the diagnostic pass is not a pass on the returned source.
+Its first exit observer attached after the driver ended and recorded no exit code; the actual test log establishes the failure. The diagnostic's own driver
+handle records exit 0. Preserve both results and the duplicate React-key/other existing warnings.
+
+Planner challenge dispositions: the intent fingerprint CHECK plus equality is a valid transitive shape proof; version/null drifts the real CHECKs refuse
+need no fabricated catalog state; integer upper-bound enforcement plus the separate chronology proof is accepted. Control 11 is equivalent within its
+expression because the later Intent-status branch already excludes Failed; it remains a survivor, with controls 25/26 supplying the non-equivalent
+consistency kills. Coordinated changes to both expiry copies are a declared limit of relational consistency, not proof that only the checksum changed or
+authentication against coherent database rewrites. The normal host has no rewrite, replay still refuses, and no extra grant is created; documentation now
+states that limit explicitly. No extra copy, hashing capability or recovery authority is selected.
+
+LQR-V1 correction is restricted to the journey's request oracle and focused regression coverage. Keep all business API writes visible: zero before confirmation,
+exactly the release afterwards, no hidden extra command. Add coverage for notification POSTs interleaved with the release and an extra API write remaining
+detectable. No product/hub/transport change, retry, sleep, pause, broad fixture redesign or backend rerun is selected. Run the corrected short journey headed
+automatically (announce it; owner watches only) and in its original headless mode serially, strict e2e TypeScript and affected harness tests. Retain other
+unchanged matrix/journey evidence at its source scope. Return unstaged, uncommitted and unpushed for review 4.
+
+### Correction 3 (Codex review 3 NO-GO: LQR-V1, the journey's business-POST inventory)
+
+Preflight (once): `main`, `HEAD` and local `origin/main` equal `569c6b13169bd55a259ca4f17d0780a8cc6ef259`, divergence 0/0, empty index, 169 pending paths (80 modified, 89 untracked); the five frozen planner
+inputs match `logs/planner-review/local-quarantine-release-01/review-03/review-state.json` and the retained original journey equals `2c85131e…` before work began. Stable dispositions: **LQR-V1 corrected below
+(awaiting Codex review 4)**; LQR-R1 and LQR-R2 resolved and LQR-R3 and LQR-R4 still resolved by review 3. No production, hub, transport, authentication, backend, generated-client or product-frontend file changed. The review's
+qualifications of this file, `data-and-recovery.md` and `threat-model.md` (coordinated expiry rewrites as a declared limit of unsigned relational consistency, UTC chronology qualified to supported normalized host
+text, the accepted transitive fingerprint proof and the preserved control-11 survivor) are preserved as written.
+
+**LQR-V1 (P2) the defect and the correction.** The reviewer's unmodified headed run of `e2e/local-quarantine-release.journey.ts` failed at the old line 314 because the raw POST suffix contained `/hubs/run`: the host maps the
+run notification hub with LongPolling only, so the browser's SignalR connection posts (negotiate and long-poll messages) at moments no business action controls, and `RunNotificationHub` is broadcast-only with no business
+method. The journey's raw `posts` list also made the old line 335 (`posts[postsBeforeRelease]` is the release) depend on transport traffic not shifting an index, while the adjacent assertions already used an `/api/` filter.
+My correction is one local collaborator and one consistent use of it:
+
+- New journey test support `e2e/journey/requestInventory.ts` (no production or shared harness change). `PostInventory` keeps the raw record of every POST and classifies the one explicitly named exception, the notification
+  transport (`/hubs/run` and anything beneath it, case-insensitive like the host routing), as transport; **every other POST is a business POST on purpose** (it is a deny-list of the one known transport, not an `/api/`
+  allow-list), so an unexpected write path also fails loudly. Every index is taken from the raw record by `mark()` and read through `businessSince(mark)`, so transport messages can never shift which request is the release.
+- The journey now records every POST through the inventory and asserts: zero business POSTs before the confirmation (`businessSince(postsBeforeRelease)` equals `[]`, the negative assertion kept); exactly the one release path
+  afterwards, twice (`toEqual([stepPath])`, replacing the raw-index assertion; the exact path, not a count or a regex on the first entry); the arm, queue and release counts over the business list; and nothing but transport after the
+  reload mark. Every additional API POST, duplicate release or unexpected path remains detectable. No assertion was removed or loosened, nothing is filtered for the release path alone, no sleep, retry, transport, hub or
+  authentication change, and no error was silenced.
+- Focused regressions (a new `describe` in the existing `e2e/harness/journeyHarness.test.ts`, run by `npm run test:harness`; six tests): transport traffic interleaved before the confirmation leaves zero business POSTs while the raw
+  suffix is not empty (the original oracle's defect); the release stays the only and first business POST however transport interleaves around it; an extra API POST (queue, approval, another step's release) in three
+  interleavings still fails the inventory; a duplicate release, a non-API write and the lookalike paths `/hubs/runner` and `/hubs/run-other` count as business POSTs; transport classification (case, trailing slash, only the hub path
+  and what is beneath it, never `/api/hubs/run`); and marks always come from the raw record. Four temporary mutants of the helper (transport counted as business, everything transport, `/api/`-prefix classification, the
+  mark ignored) were each killed by named tests (5, 5, 2 and 2 failures; `correction-3/mutants/`), the original restored and hash-verified.
+
+**Evidence (logs under `logs/executor/local-quarantine-release-01/correction-3/`, git-ignored; commands at the repository root unless noted)**
+
+- **Fresh:** `npm run test:harness` **95 passed** (89 before the six new tests); strict e2e `tsc` (the recorded flag set) exit 0; `oxlint` exit 0 with no finding in the changed files.
+- **Corrected journey, once headed then headless, serially, on the unchanged built host** (`BrowserJourneyHost.exe` and the four core assemblies hash-identical before and after, `host-binaries-before.sha256`): the owner was told before the
+  headed run (a desktop notice and the executor message; the mobile push was not sent because Remote Control was inactive); `playwright test -c playwright.journey.config.ts e2e/local-quarantine-release.journey.ts --headed --trace off`,
+  **1 passed in 58.6 s, exit 0** (`journey-headed.log`, `journey-headed.exit`); the identical command without `--headed`, **1 passed in 1.1 m, exit 0** (`journey-headless.log`, `journey-headless.exit`). No `--debug`, `--ui`,
+  `PWDEBUG`, Inspector or manual step was used and trace, screenshots and video stayed off. The existing duplicate-React-key console errors in the journey output are unchanged.
+- **The failed reviewer journey is preserved separately, not replaced.** The returned-source headed failure (37.5 s) and the reviewer's two-assertion diagnostic (a pass that is not a pass on the returned source) stay untouched in
+  `logs/planner-review/local-quarantine-release-01/review-03/` (`visual-journey-20261025-181544/`, `visual-diagnostic-20261025-182218/`, `journey-diagnostic.diff`, `journey-original.bin`). My two passes above are the only evidence for the corrected
+  source. My oracle differs from the reviewer's diagnostic: it also treats a non-API, non-transport POST as a business POST and takes indices from the raw record.
+- **Retained, not re-run (unchanged scope):** the correction-2 full matrix (Domain 1794, Architecture 203, Infrastructure 3462 passed and 4 skipped, Application 8422, API 3356, whole Vitest 7667, lint, product build, strict e2e, harness
+  and the five journeys, where the release journey's earlier pass was on the pre-correction journey source), the 26 controls and the generated client (`235558c7…`); review 3's independent results (Application 279 including seven reviewer
+  regressions, four coordinated-expiry diagnostics, Domain 1794, Infrastructure release 96, API release 49, Architecture 203, frontend release 131). The other four journeys (queue, local-execution, planning-sequence, collaboration) are
+  unchanged files and were not re-run. **Not run:** a backend rebuild or test, client regeneration, native, provider, credential or frozen-qualification activity, any recovery of the owner's real runs, and the correction-1 stress
+  campaign. The historical repair-race failure, every control failure, the equivalent control-11 survivor, the declared coordinated-rewrite limitation, all warnings and the four environment skips stay preserved as recorded above.
+- **Hygiene.** The journey file gained only the inventory import and consistent use; the changed set is exactly `e2e/journey/requestInventory.ts` (new), `e2e/harness/journeyHarness.test.ts` (new `describe`) and
+  `e2e/local-quarantine-release.journey.ts`; pending paths are 171 (81 modified, 90 untracked) with an empty index.
+
+**Challenge for review.** I classify by deny-listing the single named transport rather than allow-listing `/api/`, which is stricter than the review's wording ("the same `/api/` classification") because a write to any other path
+would also fail; if the planner prefers the `/api/` allow-list the change is one line in `isBusinessPost`, and I did not choose it silently. The other journeys keep their own raw POST logs untouched (out of scope).
+
+### Codex review 4 acceptance
+
+All findings are resolved: LQR-R1/R2/R3/R4 and LQR-V1. Exact-content GO is recorded in planner-handoff.md and the external review-04 approval record;
+publication is pending, not established by this document. Earlier delivery and NO-GO wording above records those preparation phases.
+Codex accepts the notification-namespace exception: unknown API and non-API POSTs stay counted, raw marks remain stable, and the test oracle grants no
+server authority. Independent `npm run test:harness` passes 95/95; strict e2e TypeScript passes for 52 files with the exact command recorded under
+`logs/planner-review/local-quarantine-release-01/review-04/`. The corrected permanent-source headed/headless logs and exit files were inspected.
+No new browser rerun, backend build/test or client generation was selected for this test-only correction. The other matrix/results, failed reviewer
+journey, restored diagnostic, formatter qualification, control survivor, warnings/skips and unproven repair-race cause keep their actual scopes.
+Only the reviewed tree/path set with sole parent 569c6b1 is authorized for normal publication; no next slice or closure commit is selected.
+
+## Previous slice (independently verified published as 569c6b1; historical record): LOCAL-QUEUE-OVERVIEW-01 outstanding queue-admission overview (ADR-0064)
 
 This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
 Reconcile publication with Git. This record alone grants no publication authority.

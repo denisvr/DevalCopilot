@@ -24,4 +24,4 @@ public sealed record MarkAgentAttemptDispatchedCommand(
     Guid AttemptId,
     ExpectedDirectHumanGuidance? ExpectedDirectGuidance = null,
     PlanningImplementationAuthorizationFact? ExpectedPlanningAuthorization = null,
-    CodexAccountUsageGuardFacts? ExpectedAccountUsageGuard = null) : ICommand<Result<DateTimeOffset>>;
+    CodexAccountUsageGuardFacts? ExpectedAccountUsageGuard = null) : ICommand<Result<MarkAgentAttemptDispatchedCommandResult>>;

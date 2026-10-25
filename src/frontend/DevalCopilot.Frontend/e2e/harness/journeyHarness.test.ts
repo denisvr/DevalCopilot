@@ -39,6 +39,7 @@ import type {
 import { ESCALATED_STAGE_SEQUENCE, escalatedLineageProblems, planIdentityProblems } from '../journey/planIdentity.ts'
 import type { EscalatedLineage } from '../journey/planIdentity.ts'
 import { JourneyData } from '../journey/journeyDb.ts'
+import { isBusinessPost, isNotificationTransportPath, PostInventory } from '../journey/requestInventory.ts'
 import { registerWithReadinessRetry } from './registrationRetry.ts'
 import type { RegistrationAnswer, RegistrationDriver } from './registrationRetry.ts'
 import type { InvocationEntry } from '../journey/journeyEnv.ts'
@@ -1048,5 +1049,86 @@ describe('the account-usage warning check judge', () => {
     }
     assert.deepEqual(warningCheckProblems(below, observed), [])
     assert.ok(warningCheckProblems(below, { ...observed, renderedText: healthy().renderedText }).length > 0)
+  })
+})
+
+// The business-POST inventory of the quarantine release journey. The cockpit's LongPolling notification hub posts to /hubs/run whenever
+// it likes; those messages must neither fail "zero business POSTs before the confirmation" nor shift which POST is "the release", while
+// any other write (an extra API POST, an unexpected path) must still fail the exact command inventory.
+describe('the POST inventory of a browser journey', () => {
+  const RELEASE = '/api/runs/r1/local-execution-sequence/steps/s1/ownership-release'
+  const HUB = '/hubs/run'
+  const NEGOTIATE = '/hubs/run/negotiate'
+
+  it('ignores notification transport traffic interleaved before the confirmation, so no business POST is seen', () => {
+    const posts = new PostInventory()
+    posts.record('/api/runs/r1/local-execution-sequence')
+    const mark = posts.mark()
+    posts.record(HUB)
+    posts.record(NEGOTIATE)
+    posts.record(HUB)
+    assert.deepEqual(posts.businessSince(mark), [])
+    assert.deepEqual(posts.transportSince(mark), [HUB, NEGOTIATE, HUB])
+    // The defect of the original oracle: the raw suffix is not empty merely because the notification hub posted.
+    assert.notDeepEqual(posts.all().slice(mark), [])
+  })
+
+  it('keeps the release as the only business POST, and the first, however transport messages interleave around it', () => {
+    const posts = new PostInventory()
+    const mark = posts.mark()
+    posts.record(HUB)
+    posts.record(RELEASE)
+    posts.record(HUB)
+    posts.record(NEGOTIATE)
+    assert.deepEqual(posts.businessSince(mark), [RELEASE])
+    assert.equal(posts.businessSince(mark)[0], RELEASE)
+    assert.equal(posts.all()[mark], HUB, 'the raw record keeps the transport message that would have shifted a raw index')
+    assert.deepEqual(posts.all(), [HUB, RELEASE, HUB, NEGOTIATE])
+  })
+
+  it('still fails the inventory for an extra API POST, however it interleaves with transport traffic', () => {
+    for (const extra of ['/api/runs/r1/local-execution-sequence/queue', '/api/runs/r1/approve', '/api/runs/r1/local-execution-sequence/steps/s2/ownership-release']) {
+      for (const order of [[HUB, RELEASE, extra], [extra, HUB, RELEASE], [HUB, RELEASE, HUB, extra, HUB]]) {
+        const posts = new PostInventory()
+        const mark = posts.mark()
+        for (const path of order) {
+          posts.record(path)
+        }
+        assert.notDeepEqual(posts.businessSince(mark), [RELEASE], `${extra} in ${order.join(' ')}`)
+        assert.equal(posts.businessSince(mark).length, 2)
+      }
+    }
+  })
+
+  it('counts a duplicate release POST and any non-API, non-transport path as business POSTs', () => {
+    const posts = new PostInventory()
+    const mark = posts.mark()
+    posts.record(RELEASE)
+    posts.record(RELEASE)
+    posts.record('/elsewhere/write')
+    posts.record('/hubs/runner')
+    posts.record('/hubs/run-other')
+    assert.deepEqual(posts.businessSince(mark), [RELEASE, RELEASE, '/elsewhere/write', '/hubs/runner', '/hubs/run-other'])
+  })
+
+  it('classifies the transport like the host routing does, ignoring case, and only the hub path and what is beneath it', () => {
+    assert.equal(isNotificationTransportPath('/hubs/run'), true)
+    assert.equal(isNotificationTransportPath('/HUBS/Run/negotiate'), true)
+    assert.equal(isNotificationTransportPath('/hubs/run/'), true)
+    assert.equal(isNotificationTransportPath('/hubs/runner'), false)
+    assert.equal(isNotificationTransportPath('/api/hubs/run'), false)
+    assert.equal(isBusinessPost('/API/runs/r1/x'), true)
+    assert.equal(isBusinessPost('/hubs/run'), false)
+  })
+
+  it('takes every mark from the raw record, so an earlier business POST never counts after the mark and a later one always does', () => {
+    const posts = new PostInventory()
+    posts.record(HUB)
+    posts.record('/api/before')
+    const mark = posts.mark()
+    assert.deepEqual(posts.businessSince(mark), [])
+    posts.record('/api/after')
+    assert.deepEqual(posts.businessSince(mark), ['/api/after'])
+    assert.deepEqual(posts.business(), ['/api/before', '/api/after'])
   })
 })

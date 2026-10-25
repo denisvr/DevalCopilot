@@ -24,7 +24,8 @@ export const LOCAL_EXECUTION_STOP_LABEL = 'Stop after current operation'
 export const LOCAL_EXECUTION_CONFIRM_LABEL = 'Confirm and authorize'
 export const LOCAL_EXECUTION_QUEUE_CONFIRM_LABEL = 'Confirm and queue'
 export const LOCAL_EXECUTION_CANCEL_LABEL = 'Cancel'
-export const LOCAL_EXECUTION_NO_RECOVERY = 'No supported recovery action in this version'
+export const LOCAL_EXECUTION_NO_RECOVERY =
+  'No automatic recovery: only a separate Human release backed by recorded original-host termination evidence can free it, and without that evidence there is no supported recovery action'
 
 export const LOCAL_EXECUTION_READING = 'Reading the local execution sequence status…'
 export const LOCAL_EXECUTION_UNAVAILABLE =
@@ -181,6 +182,9 @@ export function describeLocalExecutionStepOperation(step: LocalExecutionStep): s
   return `${status}${outcome} · ${dispatch} · ${exit}`
 }
 
+export const LOCAL_EXECUTION_RELEASED_NOTE =
+  'This operation ended after it was dispatched without recorded process exit evidence, and a Human released its retained quarantine after the original host recorded its termination. The recorded result is unchanged and the cycle stays ended.'
+
 export const LOCAL_EXECUTION_QUARANTINE_NOTE =
   'This operation ended after it was dispatched without recorded process exit evidence. It stays owned and excluded; it is not described as a running process. '
   + `${LOCAL_EXECUTION_NO_RECOVERY}.`
@@ -336,7 +340,8 @@ export const LOCAL_EXECUTION_REASON_PHRASE: Readonly<Record<LocalExecutionReason
   advancement_deadline_elapsed: 'the two-hour advancement deadline elapsed',
   operation_failed: 'a claimed operation did not complete as expected',
   operation_outcome_invalid: 'a recorded operation result could not be proved',
-  exit_evidence_missing: 'a dispatched operation ended without recorded exit evidence (no supported recovery action in this version)',
+  exit_evidence_missing:
+    'a dispatched operation ended without recorded exit evidence (it stays owned until a separate Human release backed by recorded original-host termination evidence; otherwise there is no supported recovery action)',
   verification_not_diagnosable: 'the verification pass could not be diagnosed',
   authority_changed: 'the pinned source, plan, recipes or settings changed',
   capacity_refused: 'workspace or global capacity did not allow dispatch',
@@ -352,6 +357,8 @@ export const LOCAL_EXECUTION_EVENT_SUMMARIES = {
   ended: 'The local execution sequence ended.',
   admission_queued: 'The host recorded the next pending operation of a queued local execution cycle. Nothing was reserved or claimed.',
   admission_waiting: 'A queued local execution step recorded a changed waiting reason from its last admission check.',
+  ownership_released:
+    'A Human released the retained quarantine of a terminal local execution operation after the original host recorded that its invoked process terminated. The failed result and the ended cycle are unchanged.',
 } as const
 
 /** The fixed words of one recorded waiting reason of a queued cycle (ADR-0062). Never present worker, process or slot availability. */

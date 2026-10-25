@@ -36,7 +36,7 @@ internal static class LocalExecutionSequenceText
         LocalExecutionSequenceReason.OperationOutcomeInvalid =>
             "An operation's recorded result could not be proved; no successor was started.",
         LocalExecutionSequenceReason.ExitEvidenceMissing =>
-            "A dispatched operation ended without recorded process exit evidence. Its exact operation stays owned: no supported recovery action in this version.",
+            "A dispatched operation ended without recorded process exit evidence. Its exact operation stays owned until the original host records termination evidence and a separate Human release follows; without that evidence there is no supported recovery action.",
         LocalExecutionSequenceReason.VerificationNotDiagnosable =>
             "The verification pass is neither fully passed nor a coherent failure set; nothing was diagnosed or corrected.",
         LocalExecutionSequenceReason.AuthorityChanged =>
@@ -70,7 +70,7 @@ internal static class LocalExecutionSequenceText
             "Review the approved report. Human approval and commit each need their own separate explicit request.",
         "decide_on_the_recorded_escalation" => "Review the recorded escalation and decide separately.",
         "continue_with_explicit_manual_work" => "Continue with explicit manual requests.",
-        "no_supported_recovery_action_in_this_version" => "No supported recovery action in this version.",
+        "no_supported_recovery_action_in_this_version" => "No automatic recovery. A separate Human release is possible only with recorded original-host termination evidence; without it there is no supported recovery action.",
         _ => "Inspect the recorded operations and reconcile before any further work.",
     };
 

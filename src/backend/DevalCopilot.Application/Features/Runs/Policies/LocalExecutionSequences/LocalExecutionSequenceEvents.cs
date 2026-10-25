@@ -151,6 +151,27 @@ internal static class LocalExecutionSequenceEvents
         },
         nowUtc);
 
+    /// <summary>ADR-0065: the one Human event of an ownership release, in the same commit as the release receipt. The payload carries
+    /// identities and the fixed family and kind only: never a path, process identifier, argument, host token, nonce or free text. It is
+    /// audit data; the release proof requires the actual event header, not this payload.</summary>
+    public static RunEvent OwnershipReleased(LocalExecutionOwnershipReleaseFacts facts, Guid releaseId, DateTimeOffset nowUtc) => Record(
+        facts.RunId,
+        facts.Family == LocalExecutionOperationFamily.Agent ? facts.OperationId : null,
+        RunEventType.LocalExecutionOwnershipReleased,
+        ParticipantIdentity.ForHuman(),
+        new
+        {
+            sequenceId = facts.SequenceId,
+            stepId = facts.StepId,
+            family = facts.Family.ToString(),
+            kind = facts.Kind.ToString(),
+            operationId = facts.OperationId,
+            witnessId = facts.WitnessId,
+            observationId = facts.ObservationId,
+            releaseId,
+        },
+        nowUtc);
+
     private static RunEvent Record(
         Guid runId, Guid? attemptId, string eventType, ParticipantIdentity actor, object payload, DateTimeOffset nowUtc) =>
         RunEvent.Record(Guid.NewGuid(), runId, attemptId, eventType, actor, JsonSerializer.Serialize(payload), nowUtc);

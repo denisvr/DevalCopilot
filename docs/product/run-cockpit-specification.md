@@ -1912,7 +1912,9 @@ process). Arming and Stop submit once with a ten-second cancellation and are nev
 new status read, and no action is enabled until a read that began after the command settled has settled. The status shows armed,
 preparing, awaiting result (claimed, dispatch recorded and recorded exit evidence are bookkeeping, never a Running indicator),
 stopping and the historical outcomes with fixed reason and next-action text. A terminal operation without recorded exit evidence is
-shown as retained ownership with "No supported recovery action in this version". An approved cycle reads "Awaiting Human approval":
+shown as retained ownership with fixed copy that a separate Human release backed by recorded original-host termination evidence can free it
+([quarantine release](#quarantine-release-local-quarantine-release-01)); without that evidence there is no supported recovery action. A
+released operation reads "quarantine released" beside its unchanged failed result. An approved cycle reads "Awaiting Human approval":
 not committed, not published and no proof that its source is still current. Polling is at most once per five seconds while authority
 or a linked owner is unresolved. See [ADR-0060](../decisions/0060-coordinate-one-explicitly-authorized-local-execution-sequence.md).
 
@@ -2009,6 +2011,27 @@ a session loss and unmounting end the selection, and a late answer or retained c
 The one read carries a real abort signal and a ten-second bound. The region mounts no queue, order, stop, retry, release, resume,
 approval, commit or execution control. Rules:
 [inspection contract](../architecture/agent-collaboration-evidence-inspection.md#agent-attempt-history-and-evidence-inspection).
+
+### Quarantine release (LOCAL-QUARANTINE-RELEASE-01)
+
+A collapsed **Release terminal operation quarantine** control sits beside the current run's local execution sequence, offered only while
+the accepted status shows a retained quarantine or a release
+([ADR-0065](../decisions/0065-release-terminal-local-quarantine-with-original-host-termination-evidence.md)). Opening it reads nothing and
+explains that physical termination is evidence about the invoked process only (not any descendant, approval, result or retry), that the
+failed result, the ended cycle, the workspace and its source gates, approvals, artifacts and budgets stay exactly as recorded, and that
+releasing may let already authorized work that was waiting, including a queued cycle, proceed through its own fresh checks. Choosing one
+listed operation reads only that operation: a closed answer of not eligible or unavailable (with fixed reason copy; an unavailable answer has
+no supported recovery action and claims neither that a hold remains nor that one was released, because the live workspace and capacity
+readings, not that answer, show what is held), an available candidate or the recorded release. The candidate shows the
+recorded result and its process outcome, the exit code the result recorded (none for a timeout or cancellation), the exit code the operating
+system reported at termination, the process duration, the observed elapsed time, the dispatch and observation times, the observation
+identity and the confirmation with its expiry. **Confirm and release quarantine** submits once with a ten-second cancellation, consumes the
+confirmation and is never retried; a refusal, an unknown outcome, a success or an expiry (at most two minutes) each end that confirmation,
+an unknown outcome says the host may have recorded the release and never infers a rollback, and only an explicit **Read the release
+evidence again** starts a new read, selection and confirmation. Another run, closing, reloading, choosing another operation or unmounting
+ends the owner of every read, confirmation and request, so no late answer can act for another visit. The control marks nothing released
+itself: the fence, the workspace and the capacity change only when the run's own status read, after the host recorded the release, shows it.
+The existing inspectors and run history stay read-only.
 
 ## Evidence surface
 

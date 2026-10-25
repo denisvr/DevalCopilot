@@ -26,10 +26,17 @@ public sealed class ManifestInfo
     /// </summary>
     public const string LocalCycleMarker = "CONVENTIONS-OF-local-execution-source";
 
+    /// <summary>
+    /// The conventions marker of the second repository of the quarantine release journey (ADR-0065): an independent cycle, queued behind
+    /// the first repository's released quarantine, that the doubles advance exactly like the first one.
+    /// </summary>
+    public const string LocalReleaseQueuedMarker = "CONVENTIONS-OF-local-release-queued-source";
+
     /// <summary>The implementation note of the second correction report of the cycle, by which the review double recognizes it.</summary>
     public const string LocalCycleSecondCorrectionNote = "Removed the leftover review marker comment.";
 
-    public bool IsLocalCycle => Raw.Contains(LocalCycleMarker, StringComparison.Ordinal);
+    public bool IsLocalCycle =>
+        Raw.Contains(LocalCycleMarker, StringComparison.Ordinal) || Raw.Contains(LocalReleaseQueuedMarker, StringComparison.Ordinal);
 
     private ManifestInfo(string raw, JsonElement root, string contract)
     {

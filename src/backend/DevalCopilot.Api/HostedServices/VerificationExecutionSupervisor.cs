@@ -6,6 +6,7 @@ using DevalCopilot.Application.Features.Projects.Commands.RecordVerificationExec
 using DevalCopilot.Application.Features.Projects.Commands.RecordVerificationExecutionSourceChanged;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Projects.Queries.GetEligibleVerificationExecutions;
+using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
 using DevalCopilot.Domain.Features.Projects;
 
 namespace DevalCopilot.Api.HostedServices;
@@ -84,6 +85,10 @@ public sealed class VerificationExecutionSupervisor(
             return;
         }
 
+        // ADR-0065: the original dispatch commit succeeded, so this host alone holds the opaque in-memory ticket of a linked local
+        // execution verification (null for every unlinked execution). It is carried unchanged to the ordinary result recorder.
+        var ticket = dispatched.Value.Ticket;
+
         ProcessExecutionResult result;
         try
         {
@@ -106,11 +111,13 @@ public sealed class VerificationExecutionSupervisor(
             artifactStore.DeletePartialFile(execution.VerificationExecutionId, VerificationOutputPurpose.StandardError);
             await RecordResultAsync(
                 execution,
+                ticket,
                 VerificationExecutionOutcome.Failed,
                 null,
                 false,
                 false,
                 false,
+                null,
                 CancellationToken.None);
             return;
         }
@@ -124,21 +131,25 @@ public sealed class VerificationExecutionSupervisor(
         };
         await RecordResultAsync(
             execution,
+            ticket,
             outcome,
             result.ExitCode,
             true,
             result.StandardOutputTruncated,
             result.StandardErrorTruncated,
+            result,
             CancellationToken.None);
     }
 
     private async Task RecordResultAsync(
         EligibleVerificationExecution execution,
+        LocalExecutionDispatchTicket? ticket,
         VerificationExecutionOutcome outcome,
         int? exitCode,
         bool captureOutputArtifacts,
         bool standardOutputTruncated,
         bool standardErrorTruncated,
+        ProcessExecutionResult? processResult,
         CancellationToken cancellationToken)
     {
         var evidence = await evidenceReader.CaptureAsync(execution.WorkspacePath, CancellationToken.None);
@@ -157,7 +168,12 @@ public sealed class VerificationExecutionSupervisor(
                 outcome,
                 exitCode,
                 evidence.FingerprintSha256,
-                sealedArtifacts),
+                sealedArtifacts)
+            {
+                DispatchTicket = ticket,
+                Termination = processResult?.Termination,
+                ProcessDuration = processResult?.Duration,
+            },
             cancellationToken);
     }
 

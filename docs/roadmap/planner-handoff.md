@@ -1,223 +1,194 @@
 # Planner/reviewer handoff
 
-## Current action: LOCAL-QUEUE-OVERVIEW-01
+## Current action: LOCAL-QUARANTINE-RELEASE-01
 
-Implementation of accepted [ADR-0064](../decisions/0064-inspect-outstanding-local-execution-queue-admissions-across-projects.md)
-is **reviewed GO (review 2)**. LQO-R1 is resolved. Publish only the exact approved
-content in the **same LOCAL-QUEUE-OVERVIEW-01 Claude executor chat**, then return
-the publication report for independent verification. Codex resolved the
-architecture and review itself; this GO selects no new slice or executor.
+**Review 4: GO for exact-content publication (2026-10-25).** LQR-R1, LQR-R2,
+LQR-R3, LQR-R4 and LQR-V1 are resolved. The implementation is accepted under
+[ADR-0065](../decisions/0065-release-terminal-local-quarantine-with-original-host-termination-evidence.md)
+and its narrow [ADR-0066](../decisions/0066-bind-local-release-intent-to-an-immutable-relational-snapshot.md)
+extension. Publication is still pending. Only the complete Codex GO and its
+external reviewed-content identity authorize staging/commit/push; this is no
+blanket approval for later changes. Same Claude executor chat; no next slice.
 
-### Review 2: GO, publication pending
+Verified return: main, HEAD, local origin/main and fresh live main equal
+569c6b13169bd55a259ca4f17d0780a8cc6ef259, divergence 0/0, real index empty;
+81 modified plus 90 untracked files, 171 total. All five planner inputs matched
+review-03 before this intentional planner acceptance edit. Review records:
+`logs/planner-review/local-quarantine-release-01/review-04/`; preserve all prior
+rounds and executor logs. The GO identity is stored outside the files it identifies.
 
-Verified main, HEAD and local origin/main at 1e58dda; the fresh live remote also
-matches, divergence 0/0, index empty. Reviewed set: 56 paths, 15 modified and
-41 new. ClonedCycle.cs is the only additional path since review 1. Recombining
-its declaration/comment with the fixture reproduces the original file's exact
-manifest hash; the other 46 non-document inputs are unchanged. The ADR is
-unchanged and every changed/new C# file now has one top-level type.
+LQR-V1 is resolved by the journey-owned PostInventory: raw marks, filtering only
+the explicit notification namespace, zero business POSTs before confirmation,
+exactly the release afterwards, no extra API or non-API write hidden, and no
+business POST after reload. The boundary rejects lookalike hub paths and matches
+routing case-insensitively. Accept the executor's stricter classification rather
+than requiring the diagnostic /api/ allow-list. It is a test oracle, not a server
+authorization rule. No product, hub, transport, authentication or backend change.
+Independent harness 95/95 and strict e2e checking of 52 files pass. Executor
+corrected-source headed and headless journeys both pass with exit 0 on unchanged
+host binaries; no new browser rerun or backend matrix was needed in review 4.
 
-LQO-R1 is resolved without a behavior or assertion change. Independent rebuilt
-BoundTests pass 15/15 (16.3795 s); executor BoundTests 15/15, full Architecture
-196/196, changed-file format and type scan pass. Review 1's independent
-Application 245/API 20/frontend 73 and the executor's broader selected matrix
-remain retained at their actual scopes, as allowed by the explicit correction
-matrix. No repeated full run or new control is needed for this file-only move.
+Retain the earlier independent acceptance: Application 279 (272 permanent plus
+seven reviewer probes), four coordinated-expiry diagnostics, Domain 1794,
+Infrastructure release 96, API/hosted 49, Architecture 203 and frontend 131.
+Executor correction-2 full matrix and the other four unchanged journeys retain
+their actual source scope. The pre-format Domain-test hash reconstruction proves
+the one whitespace-only manifest difference; current Domain passes. Ten existing
+formatter findings are on unchanged dispatch-test lines. Client remains
+235558c7cf9cb3ab5527f446d0ae9ff364a8c8a5b6f464aa552b013e1ffc8574.
 
-The correction records the exact selection-guard coverage, original lost-output
-qualification and unbounded-history-scan limitation. Planner review clarified
-one evidence detail: correction1-03-architecture.log includes automatic NSwag
-generation during its build, although no separate regeneration/reproducibility
-run was selected. The client's complete hash remains equal to the prior final
-manifest. No product correction or extra qualification is inferred.
+Keep the original headed failure at the raw /hubs/run POST and the temporary
+passing diagnostic separate from both permanent-source passes. The diagnostic
+was restored by exact hash, and reviewer test files are absent. Existing React
+key warnings, four environmental skips, invalid mutation attempts, the equivalent
+control-11 survivor and the unproven correction-1 repair-race cause remain.
+Coordinated matching database rewrites are a declared unsigned relational-
+consistency limit; they do not authenticate history or prove which bytes changed.
+No normal host rewrite, automatic repair, hashing capability or extra grant exists.
+Fingerprint CHECK plus equality, exact lifetime upper bound plus chronology and
+the existing normalized UTC/typed-time qualifications are accepted. No native,
+provider, credential or frozen qualification or real-run recovery was performed.
 
-Final hygiene and exact paths/tree are recorded outside tracked content under
-logs/planner-review/local-queue-overview-01/review-02/. The publication prompt
-names the expected parent, approved tree and inventory hash. Make no further
-product/documentation edits or closure commit. A mismatch, failed push or
-diverged remote stops without force or history reconciliation. Older NO-GO and
-implementation wording below/current-work record their preparation phases;
-they neither reopen this correction nor authorize a second publication.
+Publish only the exact approved path set/tree with expected sole parent 569c6b1,
+using the external approval record. No product/docs edits, build, regeneration,
+cleanup or closure commit in the publication turn. Any material mismatch/change,
+failed push or remote divergence stops for Codex without reset, force or history
+reconciliation. After the normal fast-forward push, report commit/tree/parent,
+exact paths, fresh live ref and final Git state. Independent verification and a
+fresh observed context-usage decision follow publication; do not select another
+slice beforehand.
 
-### Review 1: NO-GO (historical)
+Owner viewing preference remains: announce short controlled browser runs, run
+headed automatically, owner watches only. No --debug/--ui/PWDEBUG, Inspector or
+manual Resume. Trace/video/screenshots stay off. Backend tests have no visible
+app interaction. The separately cancelled paused demo is not validation.
 
-Reviewed Git: main at 1e58dda, local origin/main equal, index empty; 55 pending
-paths (15 modified, 40 new). All four original planner inputs matched selection
-hashes before these planner review edits. All 47 non-document source files also
-matched the executor's final restored manifest. No unrelated path was found.
+### Verified publication and continuity
 
-**LQO-R1 (P3): one top-level type per file.**
-LocalExecutionQueueInspectionClones.cs declares both ClonedCycle (line 8) and
-LocalExecutionQueueInspectionClones (line 18). Move ClonedCycle unchanged into
-ClonedCycle.cs in the same namespace. Do not alter fixture or query behavior.
-The lexical scan found no other new C# file with multiple top-level types.
+LOCAL-QUEUE-OVERVIEW-01 is independently verified published as
+**569c6b13169bd55a259ca4f17d0780a8cc6ef259**, tree
+`7d0ca72eb3155e166a8b92a39df1f05d66300921`, sole parent
+`1e58dda4b1f4a0b3292c56c4cc86fb0f15c49d66`. Fresh live refs/heads/main,
+HEAD and local origin/main agree, divergence 0/0; real index and working tree
+were clean before these planner inputs. Exact approved set: 56 paths, 41 added,
+15 modified. LQO-R1 is resolved; no closure commit or republishing is needed.
 
-Independent evidence: Application new overview plus shared admission history
-245/245 (2.0189 min), API new overview 20/20 (12.3539 s), six frontend files
-73/73 (2.02 s). The first independent build failed with zero reported warnings
-or errors; its short log is retained, with no cause inferred. The subsequent
-test invocation rebuilt successfully. Executor final matrix and four serial
-journey logs were inspected at their actual scopes, not rerun in full.
+Records: `logs/planner-review/local-queue-overview-01/`; full previous planning/
+review remains in this handoff at 569c6b1 and ignored logs.
+Codex: **CONTINUE_THIS_CHAT**. Observed token_count at
+2026-10-23T18:50:39.779Z: 240631 / declared window 475000 = 50.66%.
+This is observed context after publication, not cumulative tokens/account quota.
+The continuity JSON names its source. New slice, new Claude executor; keep all
+corrections there.
 
-Accepted interpretations: the narrow expression-bound projection preserves the
-historical reader and one-statement snapshot; count clones are labeled test-only
-and do not replace production-created representative states. A stored NULL state
-is prevented by NOT NULL, so it has expression inspection, not a stored-row test.
-The candidate scan can traverse retained history; the ADR bounds materialization,
-not query work or latency. This explicit read is accepted with that scale limit;
-no index/schema change or performance qualification is inferred.
+### Outcome, authority and resolved scope
 
-Both required controls are accepted. Control 2 removes selection scoping and
-kills its same-visit regression; 2b's single-layer removal survives. Precisely,
-the serial comparison protects a replaced selection within one visit, and the
-shared visit-owned commit protects an ended visit. That commit alone does not
-protect a newer selection inside the same still-active visit. Retain the control
-outputs and record this narrower explanation in the correction report.
+The owner explicitly answered **Authorize this bounded local release design**:
+architecture and implementation selection for Human-confirmed release of terminal
+local-operation quarantine with durable termination evidence from its original
+executing host, not performing a recovery now. Missing/ambiguous proof keeps the
+hold. No old grant silently covers this new mutation.
 
-Evidence loss: 16-region-tests-first-run.log is only a retained fragment plus an
-executor-authored note; the omitted original output cannot be independently
-verified or reconstructed. Its fragment supports a multiple-match error, while
-the original full-run counts/diagnosis remain executor-reported. Independent
-current passes do not restore those bytes. Preserve the file and qualification;
-no further cleanup or replacement is authorized. Existing duplicate-key browser
-warnings also occur in earlier retained journey logs; they remain unresolved.
+Ship dispatch provenance, distinct physical termination evidence, exact Human
+release, every ownership/fence consumer and truthful UI together. A receipt-only
+slice has no safe release outcome; a command-only slice lacks an admissible
+producer. This is one coherent outcome, not general recovery or increment closure.
 
-Correction matrix is explicitly reduced for this unchanged-behavior test-file
-split: rebuild and run LocalExecutionQueueInspectionBoundTests, full Architecture,
-format both C# files, lexical type scan, diff and changed-document link checks.
-Retain other backend/frontend/client/journey/control results at their checked
-source scopes; no routine full matrix, new regression or mutation is needed.
-Behavior or wider source changes return for scope/matrix review. Update
-current-work with LQO-R1, the precise guard explanation and evidence limits, then
-return for review 2. Details: logs/planner-review/local-queue-overview-01/review-01/.
+ADR-0065, with ADR-0066's narrow intent-snapshot extension, fixes the architecture:
+- Three append-only facts: witness in the single-use dispatch marker commit;
+  original-host observation in the ordinary result commit; Human release plus
+  its actual Human event in one release commit. No reconstructed tickets.
+- Full historical sequence/run/project/workspace/source/step/operation/contract/
+  recipe/admission identity, all six local kinds and both modes/families.
+- Physical evidence comes only from a successful wait of the actual owned Process
+  and its exit code. Keep timeout/kill/wait behavior, semantic result/IsCleanExit
+  and verification/review/approval proofs unchanged.
+- Only recognized terminal linked operations on Stopped/NeedsAttention/Interrupted
+  sequences still held for missing ordinary Exited proof qualify; normal Exited
+  operations are already free, not releasable again. No workspace repair, new source capture, cycle reopening,
+  still-Running terminalization or Unresolved reservation release.
+- One protected GET and strict 512-byte POST at
+  `/api/runs/{runId}/local-execution-sequence/steps/{stepId}/ownership-release`.
+  Exact four-string confirmation includes observation, version, digest and
+  expiry; final write-locked proof, exact replay and one receipt/event. GET is
+  one bounded provider-neutral statement; no external/current-eligibility read.
+- Shared database-side ownership and SQL fence proof, no subtraction by UUID.
+  Additive migration only; Down refuses before any change once any new fact
+  exists. Empty-feature Down restores prior guards. No backfill/purge.
+- Exact typed confirmation snapshot in the same release row; every canonical
+  fact, concrete terminal result and exact expiry/version compared relationally.
+  A checksum-only unreadable inspection never establishes retained ownership.
+- Explicit current-run recovery control with exact step/confirmation lifetimes,
+  real AbortSignal/ten-second transport bound, no automatic retry and truthful
+  uncertain-commit feedback. Existing inspectors stay read-only; one live
+  control reader keeps start fences.
+- Removal may permit ALREADY authorized queued work to pass its existing fresh
+  gates. Explain and prove this; no new execution authority is created.
 
-### Independently verified publication and continuity
+Routine implementation choices belong to the executor; material alternatives,
+translation issues, proof loss or scope changes require a bounded challenge.
+No lease/heartbeat authority, new cancellation/wait/retry/resume/takeover,
+native/provider/credential experiment or automatic approval/commit/publication.
 
-LOCAL-QUEUE-INSPECT-01 is published as
-**1e58dda4b1f4a0b3292c56c4cc86fb0f15c49d66**, tree
-`64668042f01b8dbcb91378d913249ec8c9388998`, sole parent
-`8b9a824f0a68317432794afed80ab12250b16721`. Fresh live refs/heads/main,
-HEAD and local origin/main agree, divergence 0/0, clean index and working tree
-before these planner inputs. The exact approved set is 53 paths, 15 modified
-and 38 added. No second commit or closure-document diff is needed; older
-prepublication wording records its preparation phase, never a repeat instruction.
+Five frozen planner inputs: this handoff, ADR-0065, ADR-0066, decisions/README.md and
+mvp-delivery-plan.md. Executor updates current-work and affected architecture,
+product/context/security docs, preserving these inputs unless Codex resolves a
+challenge. Do not mass-rewrite historical preparation phases.
 
-Records: `logs/planner-review/local-queue-inspect-01/publication-verification.json`,
-`continuity-after-publication.json` and review-01's exact-content GO.
-The review and planning history is retained in this handoff at 1e58dda and
-ignored logs, without copying its full dispatch into the active selection.
+### Final matrix and stop gates
 
-Codex: **CONTINUE_THIS_CHAT**. Observed session token_count at
-2026-10-23T14:45:13.922Z: last context 38516 / declared window 475000 = 8.11%.
-This is observed context after publication, not cumulative tokens or account quota;
-the continuity record names the source. Claude continuity is separate: start a
-new executor for the selected slice and keep all its corrections there.
+Shared process metadata, both dispatch families, ordinary recording, SQL guards
+and global ownership justify the broad backend matrix HERE. Focused red/green
+first; one final matrix on stable restored sources. One build/generator/mutation
+writer; browser journeys serial. No parallelism/cache/fixture redesign.
 
-### Outcome, sizing and resolved authority
-
-Discover this database's outstanding queue admissions across projects, including
-an ended sequence's coherent Unresolved reservation, and explicitly select its
-existing recorded inspector without changing the active project/run.
-Per-run ledger inspection is delivered; the global recorded-owner count is
-neither a Waiting list nor a complete cycle list.
-
-Ship bounded membership, one coherent read, strict transport/decoder, the global
-region and exact nested inspection together. They share one acceptance path.
-Execution recovery, release and any further continuation require a separate
-authority contract and cannot be inferred from this read-only view. As with
-ADR-0061/0063, no new owner execution grant is needed for inspection.
-
-ADR-0064 is the authoritative resolved contract. In particular:
-
-- Membership starts at admissions: Waiting/Reserved/Unresolved, including ended
-  held records; only recognized Consumed/Retired are excluded. Unknown/orphan
-  candidates cannot disappear as absence. Expiry changes no recorded membership.
-- At most 68 entries, read 69 to detect overflow; at most 64 non-ended candidate
-  sequences and four held candidates. Exact ascending admission numbers and one
-  candidate per sequence/run. Empty does not mean idle/free/no active cycle.
-- One provider-neutral EF statement for membership, registered project label,
-  roots and bounded ledgers/references. Reuse ADR-0063's pure whole-ledger proof;
-  every candidate must be its proved tail, with the same two-root duplicate guard.
-  Bound materialization and completeness,
-  including individual ledger overflow, without N+1, split reads or revision
-  sandwiches. A narrow shared historical projection extraction is allowed, with
-  unchanged per-run semantics. Translation difficulty requires a challenge.
-- One protected bodyless/queryless GET
-  `/api/local-execution-queue/inspection`; exactly status/entries, closed
-  Empty/Recorded/Unavailable and complete API-owned entry/header/admission shapes.
-  A defect makes the whole reading unavailable. No partial list or count.
-- One explicit collapsed global region near the existing capacity control,
-  independent of project selection. No polling/automatic refresh. Selected entry
-  renders the existing explicit inspector; no new routing or command controls.
-  Each opening/reload/selection owns callbacks/results; reload ends old selection.
-  The new GET has a real AbortSignal and ten-second bound. Do not retrofit older
-  inspection transports or change shared owned-lifetime primitives.
-- No runtime ownership/eligibility policy, schema, scheduler or execution change.
-  A recorded reservation is not a live process/ownership proof or release action.
-
-Four frozen planner inputs: this handoff, ADR-0064, decisions/README.md and
-mvp-delivery-plan.md. Executor preserves them unless Codex resolves a material
-challenge, and updates current-work plus affected architecture/product/context
-documentation. Do not mass-rewrite old preparation-phase wording.
-
-### Proportional final matrix
-
-Focused red/green during development; once stable, one final matrix after
-restored controls. Incremental build before the group; reuse current binaries.
-One build/generator/mutation writer; browser journeys run serially.
-
-| Boundary | Final evidence | Broadening trigger |
+| Boundary | Final evidence | Trigger/limit |
 | --- | --- | --- |
-| Query/historical proof | All new LocalExecutionQueueInspection Application classes plus existing LocalExecutionAdmissionHistory and LocalExecutionInspection classes; real file SQLite, independent connections, bounded complete membership and one-statement race hooks, no effects | Shared authority/lifecycle/transaction consumer changes: stop, challenge and revise scope/matrix |
-| MVC | Same new/related inspection API classes; auth, strict request/error/closed graph matrix, representative failures and MVC authorization inventory | Shared auth/binding/error/serialization pipeline changes |
-| Architecture | Full Architecture project, including the new read-only boundary | A new failure needs a named diagnosis |
-| Frontend | Whole Vitest, lint, build (includes product tsc), strict e2e tsc; generated client byte-identical on a repeat successful API generation | Shared transport/bootstrap/owned-lifetime changes: stop before broadening |
-| Browser | Extend queue journey for global discovery/exact selected inspection/explicit empty reload; preserve prior ledger assertions. Run queue, local-execution, planning-sequence and collaboration serially, because the new region mounts in App | Shared harness/provider behavior changes require a challenge and its own focused regressions |
-| Unchanged | Retain Domain 1757, Persistence/transactions 750, full Application 7905 and API 3265 at LOCAL-QUEUE-01 scopes; last inspection focused Application 354/API 96, Architecture 192 and Vitest 7454 at their actual published sources | Domain/schema/migration or shared execution change is outside selection |
+| Domain | New fact/confirmation and physical-versus-semantic invariants; full Domain | Append event type; preserve old outcome/status values |
+| Infrastructure | Full Infrastructure.IntegrationTests: process adapter is shared by Agent/Git/discovery; include all migration/guard/adapter/transaction consumers | Retain and diagnose historical failures; no new qualification experiment |
+| Application | Full Application, focused new LocalExecutionOwnershipRelease classes for all kinds/modes/families, atomicity, malformed chains, replay, restart, every entrance and both release/claim/limit race orderings | Broader recovery, reservation release or generic framework needs a challenge |
+| API/host | Full Api.IntegrationTests; complete auth/strict-body/error/closed-wire matrix and both-family hosted producers | No auth/bootstrap/test-hook or diagnostics expansion |
+| Architecture | Full Architecture and all changed C# top-level declarations | No framework/style exception inferred |
+| Frontend/client | Whole Vitest, lint, build (includes product tsc), strict e2e tsc; generated client and repeat byte stability | Shared lifetime/transport redesign requires a challenge |
+| Browser | New real-host owned-fixture quarantine-release journey, then queue, local-execution, planning-sequence and collaboration serially | Physical observation alone still holds; one Human POST releases; result/cycle immutable; queued work uses its own gates |
 
-Use the test name LocalExecutionQueueInspection for the new boundary. Final
-Application/API filter:
-`FullyQualifiedName~LocalExecutionQueueInspection|FullyQualifiedName~LocalExecutionAdmissionHistory|FullyQualifiedName~LocalExecutionInspection`.
-New pure permutations belong at the cheapest boundary; API proves wiring and
-representative failures. Build once, use --no-build --no-restore only on current
-binaries. Keep setup versus execution timing when a focused class exceeds one
-minute. Do not repeat whole backend projects on this additive read by routine.
+Use LocalExecutionOwnershipRelease in new test names. Put permutations at the
+cheapest boundary; API proves wiring/representative failures. Build incrementally,
+use --no-build --no-restore only on current binaries. Report setup/execution
+timing for slow focused classes. Update pinned event inventories for the new
+Human event. No blind reruns, lost output, silent skip or flaky label.
 
-Prove 64 Waiting plus four ended-held candidates, overflow and malformed membership
-without running a complete provider workflow 68 times. Use production-created
-representative states and feature-owned bounded fixtures for count permutations;
-label guard bypasses and storage rejections. No production hook, fixture cache or
-test-infrastructure redesign. Each race must prove its hook/statement ran.
+Four compiling controls: omit Human release from ownership; omit a required
+observation/witness identity comparison; remove an ended confirmation owner
+guard; remove used-feature downgrade refusal. Each kills a named regression.
+Report survivors masked by independent defenses and challenge a compiling
+alternative; do not manufacture a kill or weaken storage. Restore hashes,
+touch and rebuild before final evidence.
 
-Two compiling controls: exclude ended sequences from membership; remove an ended
-global visit/selection owner guard. Each kills a named permanent regression.
-Preserve invalid attempts, verify restored hashes, touch and rebuild. Existing
-ADR-0063 identity-control evidence is retained, not rebranded as a new control.
-
-Changed-file formatting, document links/fragments, diff/conflict/sensitive-data
-hygiene and complete diff inspection finish the matrix. No dependency audit for
-unchanged dependencies, full Infrastructure, real provider or native experiment
-is automatically selected. CI/security/release gates remain separate.
+Changed-file format, links/inbound fragments, diff/conflict/sensitive-data checks
+and complete diff inspection finish the matrix. No dependency is selected.
+CI/security/real-provider/release qualification retains its own gates.
 
 ### Retained evidence and publication boundary
 
-LOCAL-QUEUE-INSPECT-01 had no blocking finding. Independent Application 354/354,
-API 96/96 and five new frontend files 55/55 corroborated its focused matrix.
-Its retained journey-queue-1 failure was an incorrect expected Passed/exit-0
-assertion for a deliberately Failed/exit-1 first-pass verification; the final
-source asserts actual Failed/exit-1 for linked step 2 and linked review step 8
-in history, exact GETs and no mutation. Separately inspected final queue and
-local-execution runs passed. See review-01/journey-failure-disposition.md.
-Keep that original failed log, earlier test-fixture/control failures, accepted
-recipe-proof/typed-GUID/time/monotonic-clock limitations and all source scopes.
-The overview neither retrospectively strengthens them nor reopens execution.
+Previous overview: executor Application 442/API 116/Architecture 196/Vitest 7527
+and four journeys at their published sources; independent Application 245/API
+20/frontend 73 and corrected BoundTests 15. Preserve the initial independent
+build failure without diagnostic cause and all failed/invalid attempts.
+No old result is fresh validation of this new authority.
 
-Return unstaged, uncommitted and unpushed; same-chat corrections retain finding
-IDs. A conflict with the read-only or evidence contract pauses dependent work
-for a bounded challenge. No production fallback is inferred. After review,
-only explicit exact-content GO authorizes normal main publication; failed push,
-divergence or content mismatch stops without force/reconciliation. Independent
-verification and a fresh context check follow publication, not implementation.
+The region-test log's omitted original bytes are lost; appended counts/diagnosis
+are self-report. The shared visit commit protects ended visits, not newer
+selections inside one visit. Overview materialization, not scan/SQLite time,
+is bounded. Automatic NSwag ran in the correction Architecture build; no separate
+reproducibility run occurred and bytes matched. Earlier duplicate React-key
+warnings remain unresolved.
+
+Return unstaged, uncommitted and unpushed with fresh/retained/not-run evidence.
+Keep corrections/stable finding IDs in the same executor. No next slice or
+publication without exact-content Codex GO. Mismatch/divergence/failed push
+stops without force/history reconciliation. Independent verification and a fresh
+observed-context decision follow publication.
 
 ## Retained review and evidence limits
 
@@ -271,11 +242,13 @@ untouched; no historical result is reconstructed by this selection.
   hung submissions; retention beside disposal failure is unproven.
 - Increments 4/5/6 incomplete. Account/context, raw Git read, non-Windows limits:
   [current-work](current-work.md#open-risks). Production code and necessary tests
-  are selected only for LOCAL-QUEUE-OVERVIEW-01 under ADR-0064's read-only contract.
+  are selected only for LOCAL-QUARANTINE-RELEASE-01 under ADR-0065's exact
+  original-host proof and Human-confirmed release contract.
   PLAN-COORD-01, AGENT-SUP-01, WORKSPACE-EXCL-01, GLOBAL-ADMIT-01,
-  GLOBAL-LIMIT-01, LOCAL-COORD-01, LOCAL-INSPECT-01, LOCAL-QUEUE-01 and
-  LOCAL-QUEUE-INSPECT-01 are independently verified published. Inspection grants
-  no mutation, scheduling,
+  GLOBAL-LIMIT-01, LOCAL-COORD-01, LOCAL-INSPECT-01, LOCAL-QUEUE-01,
+  LOCAL-QUEUE-INSPECT-01 and LOCAL-QUEUE-OVERVIEW-01 are independently verified
+  published. Inspection grants no mutation, scheduling,
   executor lease, operation retry/resume, quarantine release, recovery, approval,
-  commit or publication authority. No dependency, experiment, capture-limit or
-  standards edit is selected.
+  commit or publication authority. ADR-0065 alone adds the newly owner-authorized
+  terminal-operation release; it renews none of the frozen experiments/grants.
+  No dependency, experiment, capture-limit or standards edit is selected.

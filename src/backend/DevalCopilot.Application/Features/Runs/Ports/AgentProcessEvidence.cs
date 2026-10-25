@@ -13,12 +13,18 @@ namespace DevalCopilot.Application.Features.Runs.Ports;
 /// </summary>
 public sealed record AgentProcessEvidence(ProcessExecutionOutcome Outcome, int? ExitCode, TimeSpan Duration)
 {
-    /// <summary>True only for a process that ran to completion and exited with code zero.</summary>
+    /// <summary>True only for a process that ran to completion and exited with code zero. ADR-0065: a physical termination observation
+    /// is a separate fact and never makes a timed-out or cancelled process a clean exit.</summary>
     public bool IsCleanExit => Outcome == ProcessExecutionOutcome.Exited && ExitCode == 0;
+
+    /// <summary>ADR-0065: the optional host-produced physical termination fact of the actual owned process, forwarded unchanged from the
+    /// process result. It is distinct from <see cref="Outcome"/> and <see cref="ExitCode"/> and is never read as success, a verification
+    /// pass, review or approval; the Domain process-evidence invariants do not consume it.</summary>
+    public ProcessTerminationObservation? Termination { get; init; }
 
     public static AgentProcessEvidence FromProcessExecutionResult(ProcessExecutionResult result)
     {
         ArgumentNullException.ThrowIfNull(result);
-        return new AgentProcessEvidence(result.Outcome, result.ExitCode, result.Duration);
+        return new AgentProcessEvidence(result.Outcome, result.ExitCode, result.Duration) { Termination = result.Termination };
     }
 }

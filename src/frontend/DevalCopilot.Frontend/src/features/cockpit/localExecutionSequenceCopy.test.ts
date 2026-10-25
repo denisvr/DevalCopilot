@@ -119,7 +119,7 @@ describe('the local-execution run events', () => {
   it('words the ended event with its closed state and reason, and as the plain sentence otherwise', () => {
     const plain = LOCAL_EXECUTION_EVENT_SUMMARIES.ended
     expect(parseEventSummary('{"state":"NeedsAttention","reason":"exit_evidence_missing","detail":null}', 'local_execution_sequence.ended')).toBe(
-      'The local execution sequence ended: needs attention; a dispatched operation ended without recorded exit evidence (no supported recovery action in this version).',
+      'The local execution sequence ended: needs attention; a dispatched operation ended without recorded exit evidence (it stays owned until a separate Human release backed by recorded original-host termination evidence; otherwise there is no supported recovery action).',
     )
     expect(parseEventSummary('{"state":"ReadyForHumanApproval","reason":"review_approved"}', 'local_execution_sequence.ended')).toMatch(
       /awaiting Human approval \(not committed, not published\)/,

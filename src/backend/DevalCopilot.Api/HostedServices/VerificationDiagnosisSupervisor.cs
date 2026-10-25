@@ -14,6 +14,7 @@ using DevalCopilot.Application.Features.Runs.Queries.GetCodexLaunchTarget;
 using DevalCopilot.Application.Features.Runs.Queries.GetEligibleVerificationDiagnosisAttempts;
 using DevalCopilot.Application.Features.Runs.Queries.GetIneligibleAgentAttempts;
 using DevalCopilot.Domain.Features.Runs;
+using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
 
 namespace DevalCopilot.Api.HostedServices;
 
@@ -153,10 +154,14 @@ public sealed class VerificationDiagnosisSupervisor(
             return;
         }
 
+        // ADR-0065: the original dispatch commit succeeded, so this host alone holds the opaque in-memory ticket of a linked local
+        // execution operation (null for every unlinked attempt). It is carried unchanged to the ordinary result recorder.
+        var ticket = dispatched.Value.Ticket;
+
         if (launchTarget is null)
         {
             await observation.EnterRecordingResultAsync();
-            await RecordResultAsync(attempt, processSucceeded: false, false, false, null, null, null);
+            await RecordResultAsync(attempt, ticket, processSucceeded: false, false, false, null, null, null);
             return;
         }
 
@@ -185,7 +190,7 @@ public sealed class VerificationDiagnosisSupervisor(
         {
             logger.LogError("verification_diagnosis_invocation_failed AttemptId={AttemptId}", attempt.AttemptId);
             await observation.EnterRecordingResultAsync();
-            await RecordResultAsync(attempt, processSucceeded: false, false, false, null, null, null);
+            await RecordResultAsync(attempt, ticket, processSucceeded: false, false, false, null, null, null);
             return;
         }
 
@@ -195,6 +200,7 @@ public sealed class VerificationDiagnosisSupervisor(
         await observation.EnterRecordingResultAsync();
         await RecordResultAsync(
             attempt,
+            ticket,
             processSucceeded,
             invocationResult.StandardOutputTruncated,
             invocationResult.StandardErrorTruncated,
@@ -205,6 +211,7 @@ public sealed class VerificationDiagnosisSupervisor(
 
     private async Task RecordResultAsync(
         EligibleVerificationDiagnosisAttempt attempt,
+        LocalExecutionDispatchTicket? ticket,
         bool processSucceeded,
         bool standardOutputTruncated,
         bool standardErrorTruncated,
@@ -251,7 +258,8 @@ public sealed class VerificationDiagnosisSupervisor(
             recordResult = await DispatchAsync(
                 new RecordVerificationDiagnosisResultCommand(
                     attempt.RunId, attempt.AttemptId, effectiveOutcome, completionFingerprint, sealedArtifacts, diagnosis,
-                    providerSessionId, processEvidence, tokenUsage),
+                    providerSessionId, processEvidence, tokenUsage)
+                { DispatchTicket = ticket },
                 recordingTimeoutSource.Token);
         }
         catch (Exception)

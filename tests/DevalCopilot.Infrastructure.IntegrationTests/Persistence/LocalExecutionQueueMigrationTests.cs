@@ -130,7 +130,7 @@ public sealed class LocalExecutionQueueMigrationTests : LocalExecutionSequenceMi
     [Fact]
     public async Task The_reverse_migration_closes_a_waiting_cycle_like_a_restart_and_restores_exactly_the_previous_guards_and_rows()
     {
-        await MigrateToAsync(null);
+        await MigrateToAsync(QueueMigration);
         var (scene, queuedId) = await QueuedAsync();
         var immediate = await NewSceneAsync(2);
         var immediateId = Guid.NewGuid();
@@ -157,7 +157,7 @@ public sealed class LocalExecutionQueueMigrationTests : LocalExecutionSequenceMi
             Assert.Contains(BlockedMessage, FirstMessage(exception), StringComparison.Ordinal);
         }
 
-        await MigrateToAsync(null);
+        await MigrateToAsync(QueueMigration);
         Assert.Equal(TriggerNames, await ReadNamesAsync("trigger", "trg_local_execution%"));
         Assert.Equal(2, await CountAsync("SELECT COUNT(*) FROM local_execution_sequences"));
         Assert.Equal(2, await CountAsync("SELECT COUNT(*) FROM local_execution_sequences WHERE \"CoordinationNumber\" >= 1"));
@@ -189,7 +189,7 @@ public sealed class LocalExecutionQueueMigrationTests : LocalExecutionSequenceMi
     [InlineData("Unresolved")]
     public async Task The_reverse_migration_is_refused_while_a_held_admission_exists_and_changes_nothing(string state)
     {
-        await MigrateToAsync(null);
+        await MigrateToAsync(QueueMigration);
         var (sequenceId, admissionId) = await HeldAdmissionAsync(state);
         var tablesBefore = await ReadNamesAsync("table");
         var triggersBefore = await ReadNamesAsync("trigger", "trg_local_execution%");

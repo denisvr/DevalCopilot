@@ -115,6 +115,10 @@ builder.Services.AddScoped<ILocalExecutionStepProbe>(
     provider => new LocalExecutionStepProbe(provider.GetRequiredService<DbContextOptions<DevalCopilotDbContext>>()));
 
 builder.Services.AddSingleton(TimeProvider.System);
+
+// ADR-0065: the identity of this host launch, created once per host process and held only in memory. A dispatch witness records it so its
+// physical termination observation names the original host; a restarted host is a different launch and holds no earlier ticket.
+builder.Services.AddSingleton<DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences.LocalExecutionHostLaunch>();
 builder.Services.AddSingleton<ILaunchSessionAccessor, LaunchSessionAccessor>();
 builder.Services.AddSingleton<ISimulatedAgentAdapter, DeterministicSimulatedAgentAdapter>();
 builder.Services.AddScoped<IRunEventNotifier, SignalRRunEventNotifier>();

@@ -42,6 +42,22 @@ public enum ScriptedResultKind
     /// <summary>An Agent attempt recorded as InvalidStructuredOutput after a clean exit.</summary>
     InvalidOutput,
 
+    /// <summary>ADR-0065: an Agent attempt that timed out, whose original host also observed the owned process terminated (physical
+    /// exit code 137): ProviderInvocationFailed, TimedOut with no semantic exit code, plus the termination observation.</summary>
+    ProviderTimedOutTerminated,
+
+    /// <summary>ADR-0065: an Agent attempt that was cancelled, whose original host also observed the owned process terminated.</summary>
+    ProviderCancelledTerminated,
+
+    /// <summary>ADR-0065: an Agent attempt that timed out with NO physical termination evidence (an unsuccessful post-kill wait).</summary>
+    ProviderTimedOutUnobserved,
+
+    /// <summary>ADR-0065: a verification execution that timed out, whose original host observed the owned process terminated.</summary>
+    VerificationTimedOutTerminated,
+
+    /// <summary>ADR-0065: a verification execution that was cancelled, whose original host observed the owned process terminated.</summary>
+    VerificationCancelledTerminated,
+
     /// <summary>The operation is dispatched and left running: no result is ever recorded.</summary>
     LeaveRunning,
 

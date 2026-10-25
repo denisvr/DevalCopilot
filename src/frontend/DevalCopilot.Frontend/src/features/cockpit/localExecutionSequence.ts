@@ -143,8 +143,10 @@ export interface LocalExecutionStep {
   dispatched: boolean | null
   /** Whether coherent host Exited evidence exists: never proof about descendants. */
   exitRecorded: boolean | null
-  /** A terminal dispatched operation without exit evidence: it stays owned and has no supported recovery action. */
+  /** A terminal dispatched operation without exit evidence that no Human release has removed: it stays owned. */
   quarantined: boolean
+  /** One complete coherent Human release removed exactly that retained quarantine; the failed result and the ended cycle are unchanged. */
+  ownershipReleased: boolean
   preparationReservedAtUtc: string
   preparationDeadlineUtc: string
   claimedAtUtc: string | null
@@ -412,6 +414,7 @@ const STEP_KEYS = [
   'operationOutcome',
   'operationStatus',
   'ordinal',
+  'ownershipReleased',
   'passNumber',
   'preparationDeadlineUtc',
   'preparationReservedAtUtc',
@@ -537,6 +540,7 @@ function toStep(raw: unknown, ordinal: number, recipeCount: number): LocalExecut
     || !isUtcRoundTrip(raw.preparationReservedAtUtc)
     || !isUtcRoundTrip(raw.preparationDeadlineUtc)
     || !isBoolean(raw.quarantined)
+    || !isBoolean(raw.ownershipReleased)
   ) {
     return null
   }
@@ -572,7 +576,7 @@ function toStep(raw: unknown, ordinal: number, recipeCount: number): LocalExecut
       raw.claimedAtUtc,
       raw.resultDeadlineUtc,
     ]
-    if (!noLink.every((value) => value === null) || raw.quarantined) {
+    if (!noLink.every((value) => value === null) || raw.quarantined || raw.ownershipReleased) {
       return null
     }
   } else if (
@@ -592,17 +596,18 @@ function toStep(raw: unknown, ordinal: number, recipeCount: number): LocalExecut
       return null
     }
 
-    if (raw.operationStatus === null && (raw.operationOutcome !== null || raw.quarantined)) {
+    if (raw.operationStatus === null && (raw.operationOutcome !== null || raw.quarantined || raw.ownershipReleased)) {
       return null
     }
 
-    if (raw.operationStatus === 'Running' && (raw.operationOutcome !== null || raw.quarantined)) {
+    if (raw.operationStatus === 'Running' && (raw.operationOutcome !== null || raw.quarantined || raw.ownershipReleased)) {
       return null
     }
 
-    // Quarantined is exactly: dispatched, no longer running, without exit evidence.
-    const expectedQuarantine = raw.dispatched === true && raw.operationStatus !== 'Running' && raw.exitRecorded === false
-    if (raw.quarantined !== expectedQuarantine) {
+    // A retained quarantine is exactly: dispatched, no longer running, without exit evidence. It is either still held (quarantined) or
+    // removed by one Human release (ownershipReleased); the two are exclusive and neither exists outside a retained quarantine.
+    const retained = raw.dispatched === true && raw.operationStatus !== 'Running' && raw.exitRecorded === false
+    if (raw.quarantined === raw.ownershipReleased ? retained || raw.quarantined : !retained) {
       return null
     }
 
@@ -626,6 +631,7 @@ function toStep(raw: unknown, ordinal: number, recipeCount: number): LocalExecut
     dispatched: raw.dispatched as boolean | null,
     exitRecorded: raw.exitRecorded as boolean | null,
     quarantined: raw.quarantined,
+    ownershipReleased: raw.ownershipReleased,
     preparationReservedAtUtc: raw.preparationReservedAtUtc,
     preparationDeadlineUtc: raw.preparationDeadlineUtc,
     claimedAtUtc: raw.claimedAtUtc as string | null,

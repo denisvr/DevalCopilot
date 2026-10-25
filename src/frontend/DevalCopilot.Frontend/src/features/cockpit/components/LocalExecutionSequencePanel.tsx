@@ -1,5 +1,6 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { useArmLocalExecutionSequence } from '../hooks/useArmLocalExecutionSequence'
+import { useLocalExecutionOwnershipRelease } from '../hooks/useLocalExecutionOwnershipRelease'
 import { useLocalExecutionSequenceAvailability } from '../hooks/useLocalExecutionSequenceAvailability'
 import { useOwnedLifetime, useOwnedState } from '../hooks/useOwnedLifetime'
 import { useStopLocalExecutionSequence } from '../hooks/useStopLocalExecutionSequence'
@@ -10,6 +11,7 @@ import type {
   LocalExecutionArmTuple,
   LocalExecutionStopAnswer,
 } from '../localExecutionSequence'
+import { releaseTargetsOf } from '../localExecutionOwnershipRelease'
 import {
   LOCAL_EXECUTION_ARM_LABEL,
   LOCAL_EXECUTION_AVAILABILITY_FAILED,
@@ -26,6 +28,7 @@ import {
   describeLocalExecutionRefusalCode,
 } from '../localExecutionSequenceCopy'
 import { LocalExecutionConfirmation } from './LocalExecutionConfirmation'
+import { LocalExecutionOwnershipReleasePanel } from './LocalExecutionOwnershipReleasePanel'
 import { LocalExecutionSequenceStatusView } from './LocalExecutionSequenceStatusView'
 
 interface LocalExecutionSequencePanelProps {
@@ -149,6 +152,12 @@ export function LocalExecutionSequencePanel({
   const actions = { Immediate: armAction, WaitForAdmission: queueAction } as const
   const requesting = armAction.requesting || queueAction.requesting
   const stopAction = useStopLocalExecutionSequence(runId, sequence?.sequenceId ?? null, commands, onStopAnswer)
+
+  // ADR-0065: the release of a retained quarantine. Its state lives here, above the status mask, so a submission in flight and its
+  // outcome survive the barrier that hides the status until the host's recorded result has been read again. It is offered only for
+  // steps of the accepted status and never marks the fence, the workspace or the capacity released itself.
+  const releaseTargets = useMemo(() => (status === null ? null : sequence === null ? [] : releaseTargetsOf(runId, sequence)), [runId, status, sequence])
+  const release = useLocalExecutionOwnershipRelease(runId, releaseTargets, reader)
 
   const canOpen = (mode: LocalExecutionAdmissionMode) =>
     control === 'none'
@@ -326,6 +335,13 @@ export function LocalExecutionSequencePanel({
           </p>
         )}
         <LocalExecutionSequenceStatusView sequence={sequence} />
+        {releaseTargets !== null && (releaseTargets.length > 0 || release.open) && (
+          <LocalExecutionOwnershipReleasePanel
+            release={release}
+            targets={releaseTargets}
+            commandsAvailable={reader?.confirming !== true}
+          />
+        )}
         {(stoppable || alreadyStopping) && (
           <>
             <button

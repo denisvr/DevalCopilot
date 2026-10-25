@@ -68,11 +68,13 @@ public sealed class ChildProcessExecutionAdapter : IProcessExecutionAdapter
 
         ProcessExecutionOutcome outcome;
         int? exitCode;
+        ProcessTerminationObservation? termination = null;
         try
         {
             await process.WaitForExitAsync(linkedSource.Token).ConfigureAwait(false);
             outcome = ProcessExecutionOutcome.Exited;
             exitCode = process.ExitCode;
+            termination = new ProcessTerminationObservation(exitCode.Value, stopwatch.Elapsed);
         }
         catch (OperationCanceledException)
         {
@@ -97,6 +99,7 @@ public sealed class ChildProcessExecutionAdapter : IProcessExecutionAdapter
             try
             {
                 await process.WaitForExitAsync(postKillTimeout.Token).ConfigureAwait(false);
+                termination = ObserveTermination(process, stopwatch);
             }
             catch (OperationCanceledException)
             {
@@ -117,7 +120,25 @@ public sealed class ChildProcessExecutionAdapter : IProcessExecutionAdapter
             StandardError = standardError.Text,
             StandardErrorTruncated = standardError.Truncated,
             Duration = stopwatch.Elapsed,
+            Termination = termination,
         };
+    }
+
+    /// <summary>
+    /// ADR-0065: the physical termination fact of the actual owned process instance, taken only after its bounded post-termination wait
+    /// completed successfully. An exit code that cannot be obtained supplies no evidence and never changes the timeout or cancellation
+    /// outcome. It adds no wait, poll, termination request, PID lookup or attachment.
+    /// </summary>
+    private static ProcessTerminationObservation? ObserveTermination(Process process, Stopwatch stopwatch)
+    {
+        try
+        {
+            return new ProcessTerminationObservation(process.ExitCode, stopwatch.Elapsed);
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or NotSupportedException or System.ComponentModel.Win32Exception)
+        {
+            return null;
+        }
     }
 
     /// <summary>

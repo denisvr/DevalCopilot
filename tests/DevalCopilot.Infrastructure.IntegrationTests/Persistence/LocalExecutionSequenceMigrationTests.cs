@@ -42,7 +42,7 @@ public sealed class LocalExecutionSequenceMigrationTests : LocalExecutionSequenc
         Assert.Empty(await ReadNamesAsync("table", "local_execution%"));
         Assert.Empty(await ReadNamesAsync("trigger", "trg_local_execution%"));
 
-        await MigrateToAsync(null);
+        await MigrateToAsync(QueueMigration);
 
         Assert.Equal(TableNames, await ReadNamesAsync("table", "local_execution%"));
         Assert.Equal(TriggerNames, await ReadNamesAsync("trigger", "trg_local_execution%"));
@@ -60,7 +60,7 @@ public sealed class LocalExecutionSequenceMigrationTests : LocalExecutionSequenc
     [Fact]
     public async Task The_reverse_migration_drops_exactly_the_five_tables_and_twenty_two_guards_and_keeps_every_other_row()
     {
-        await MigrateToAsync(null);
+        await MigrateToAsync(QueueMigration);
         var tablesBefore = await ReadNamesAsync("table");
         var triggersBefore = await ReadNamesAsync("trigger");
         Guid runId;
@@ -86,7 +86,7 @@ public sealed class LocalExecutionSequenceMigrationTests : LocalExecutionSequenc
             Assert.Equal(2, await verify.VerificationCommands.AsNoTracking().CountAsync());
         }
 
-        await MigrateToAsync(null);
+        await MigrateToAsync(QueueMigration);
         Assert.Equal(TriggerNames, await ReadNamesAsync("trigger", "trg_local_execution%"));
         Assert.Equal(TableNames, await ReadNamesAsync("table", "local_execution%"));
     }

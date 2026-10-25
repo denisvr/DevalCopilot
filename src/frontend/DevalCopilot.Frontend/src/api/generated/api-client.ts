@@ -1650,6 +1650,154 @@ export class RequestChallengeResolutionRepairAttemptEndpointClient {
     }
 }
 
+export class ReleaseLocalExecutionOwnershipEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    releaseLocalExecutionOwnership(runId: string, stepId: string, request: ReleaseLocalExecutionOwnershipRequest): Promise<LocalExecutionOwnershipReleaseResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/local-execution-sequence/steps/{stepId}/ownership-release";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        if (stepId === undefined || stepId === null)
+            throw new globalThis.Error("The parameter 'stepId' must be defined.");
+        url_ = url_.replace("{stepId}", encodeURIComponent("" + stepId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processReleaseLocalExecutionOwnership(_response);
+        });
+    }
+
+    protected processReleaseLocalExecutionOwnership(response: Response): Promise<LocalExecutionOwnershipReleaseResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = LocalExecutionOwnershipReleaseResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            let resultData400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result400 = ApiProblemDetails.fromJS(resultData400);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ApiProblemDetails.fromJS(resultData404);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status === 409) {
+            return response.text().then((_responseText) => {
+            let result409: any = null;
+            let resultData409 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result409 = ApiProblemDetails.fromJS(resultData409);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result409);
+            });
+        } else if (status === 413) {
+            return response.text().then((_responseText) => {
+            let result413: any = null;
+            let resultData413 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result413 = ApiProblemDetails.fromJS(resultData413);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result413);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<LocalExecutionOwnershipReleaseResponse>(null as any);
+    }
+}
+
+export class GetLocalExecutionOwnershipReleaseEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getLocalExecutionOwnershipRelease(runId: string, stepId: string): Promise<LocalExecutionOwnershipReleaseResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/local-execution-sequence/steps/{stepId}/ownership-release";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        if (stepId === undefined || stepId === null)
+            throw new globalThis.Error("The parameter 'stepId' must be defined.");
+        url_ = url_.replace("{stepId}", encodeURIComponent("" + stepId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetLocalExecutionOwnershipRelease(_response);
+        });
+    }
+
+    protected processGetLocalExecutionOwnershipRelease(response: Response): Promise<LocalExecutionOwnershipReleaseResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = LocalExecutionOwnershipReleaseResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            let resultData400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result400 = ApiProblemDetails.fromJS(resultData400);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ApiProblemDetails.fromJS(resultData404);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<LocalExecutionOwnershipReleaseResponse>(null as any);
+    }
+}
+
 export class RecordGitHubObservationTargetEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -8292,6 +8440,286 @@ export interface IRequestChallengeResolutionRepairAttemptResponse {
     repairSourceAttemptId?: string;
 }
 
+export class LocalExecutionOwnershipReleaseResponse implements ILocalExecutionOwnershipReleaseResponse {
+    runId?: string;
+    stepId?: string;
+    status?: string;
+    reasonCode?: string | undefined;
+    candidate?: LocalExecutionOwnershipReleaseCandidateResponse | undefined;
+    release?: LocalExecutionOwnershipReleaseReceiptResponse | undefined;
+
+    constructor(data?: ILocalExecutionOwnershipReleaseResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.runId = _data["runId"];
+            this.stepId = _data["stepId"];
+            this.status = _data["status"];
+            this.reasonCode = _data["reasonCode"];
+            this.candidate = _data["candidate"] ? LocalExecutionOwnershipReleaseCandidateResponse.fromJS(_data["candidate"]) : undefined as any;
+            this.release = _data["release"] ? LocalExecutionOwnershipReleaseReceiptResponse.fromJS(_data["release"]) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): LocalExecutionOwnershipReleaseResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new LocalExecutionOwnershipReleaseResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["runId"] = this.runId;
+        data["stepId"] = this.stepId;
+        data["status"] = this.status;
+        data["reasonCode"] = this.reasonCode;
+        data["candidate"] = this.candidate ? this.candidate.toJSON() : undefined as any;
+        data["release"] = this.release ? this.release.toJSON() : undefined as any;
+        return data;
+    }
+}
+
+export interface ILocalExecutionOwnershipReleaseResponse {
+    runId?: string;
+    stepId?: string;
+    status?: string;
+    reasonCode?: string | undefined;
+    candidate?: LocalExecutionOwnershipReleaseCandidateResponse | undefined;
+    release?: LocalExecutionOwnershipReleaseReceiptResponse | undefined;
+}
+
+export class LocalExecutionOwnershipReleaseCandidateResponse implements ILocalExecutionOwnershipReleaseCandidateResponse {
+    sequenceId?: string;
+    sequenceState?: string;
+    admissionMode?: string;
+    sourceCheckpointId?: string;
+    sourceFingerprintSha256?: string;
+    stepKind?: string;
+    ordinal?: number;
+    passNumber?: number;
+    operationFamily?: string;
+    operationId?: string;
+    operationStatus?: string;
+    processOutcome?: string;
+    semanticExitCode?: number | undefined;
+    observationId?: string;
+    physicalExitCode?: number;
+    observedElapsedTicks?: string;
+    processDurationTicks?: string;
+    dispatchedAtUtc?: string;
+    observedAtUtc?: string;
+    confirmationVersion?: string;
+    confirmationSha256?: string;
+    confirmationExpiresAtUtc?: string;
+
+    constructor(data?: ILocalExecutionOwnershipReleaseCandidateResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.sequenceId = _data["sequenceId"];
+            this.sequenceState = _data["sequenceState"];
+            this.admissionMode = _data["admissionMode"];
+            this.sourceCheckpointId = _data["sourceCheckpointId"];
+            this.sourceFingerprintSha256 = _data["sourceFingerprintSha256"];
+            this.stepKind = _data["stepKind"];
+            this.ordinal = _data["ordinal"];
+            this.passNumber = _data["passNumber"];
+            this.operationFamily = _data["operationFamily"];
+            this.operationId = _data["operationId"];
+            this.operationStatus = _data["operationStatus"];
+            this.processOutcome = _data["processOutcome"];
+            this.semanticExitCode = _data["semanticExitCode"];
+            this.observationId = _data["observationId"];
+            this.physicalExitCode = _data["physicalExitCode"];
+            this.observedElapsedTicks = _data["observedElapsedTicks"];
+            this.processDurationTicks = _data["processDurationTicks"];
+            this.dispatchedAtUtc = _data["dispatchedAtUtc"];
+            this.observedAtUtc = _data["observedAtUtc"];
+            this.confirmationVersion = _data["confirmationVersion"];
+            this.confirmationSha256 = _data["confirmationSha256"];
+            this.confirmationExpiresAtUtc = _data["confirmationExpiresAtUtc"];
+        }
+    }
+
+    static fromJS(data: any): LocalExecutionOwnershipReleaseCandidateResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new LocalExecutionOwnershipReleaseCandidateResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["sequenceId"] = this.sequenceId;
+        data["sequenceState"] = this.sequenceState;
+        data["admissionMode"] = this.admissionMode;
+        data["sourceCheckpointId"] = this.sourceCheckpointId;
+        data["sourceFingerprintSha256"] = this.sourceFingerprintSha256;
+        data["stepKind"] = this.stepKind;
+        data["ordinal"] = this.ordinal;
+        data["passNumber"] = this.passNumber;
+        data["operationFamily"] = this.operationFamily;
+        data["operationId"] = this.operationId;
+        data["operationStatus"] = this.operationStatus;
+        data["processOutcome"] = this.processOutcome;
+        data["semanticExitCode"] = this.semanticExitCode;
+        data["observationId"] = this.observationId;
+        data["physicalExitCode"] = this.physicalExitCode;
+        data["observedElapsedTicks"] = this.observedElapsedTicks;
+        data["processDurationTicks"] = this.processDurationTicks;
+        data["dispatchedAtUtc"] = this.dispatchedAtUtc;
+        data["observedAtUtc"] = this.observedAtUtc;
+        data["confirmationVersion"] = this.confirmationVersion;
+        data["confirmationSha256"] = this.confirmationSha256;
+        data["confirmationExpiresAtUtc"] = this.confirmationExpiresAtUtc;
+        return data;
+    }
+}
+
+export interface ILocalExecutionOwnershipReleaseCandidateResponse {
+    sequenceId?: string;
+    sequenceState?: string;
+    admissionMode?: string;
+    sourceCheckpointId?: string;
+    sourceFingerprintSha256?: string;
+    stepKind?: string;
+    ordinal?: number;
+    passNumber?: number;
+    operationFamily?: string;
+    operationId?: string;
+    operationStatus?: string;
+    processOutcome?: string;
+    semanticExitCode?: number | undefined;
+    observationId?: string;
+    physicalExitCode?: number;
+    observedElapsedTicks?: string;
+    processDurationTicks?: string;
+    dispatchedAtUtc?: string;
+    observedAtUtc?: string;
+    confirmationVersion?: string;
+    confirmationSha256?: string;
+    confirmationExpiresAtUtc?: string;
+}
+
+export class LocalExecutionOwnershipReleaseReceiptResponse implements ILocalExecutionOwnershipReleaseReceiptResponse {
+    releaseId?: string;
+    operationFamily?: string;
+    operationId?: string;
+    stepKind?: string;
+    releasedAtUtc?: string;
+    eventSequence?: string;
+
+    constructor(data?: ILocalExecutionOwnershipReleaseReceiptResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.releaseId = _data["releaseId"];
+            this.operationFamily = _data["operationFamily"];
+            this.operationId = _data["operationId"];
+            this.stepKind = _data["stepKind"];
+            this.releasedAtUtc = _data["releasedAtUtc"];
+            this.eventSequence = _data["eventSequence"];
+        }
+    }
+
+    static fromJS(data: any): LocalExecutionOwnershipReleaseReceiptResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new LocalExecutionOwnershipReleaseReceiptResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["releaseId"] = this.releaseId;
+        data["operationFamily"] = this.operationFamily;
+        data["operationId"] = this.operationId;
+        data["stepKind"] = this.stepKind;
+        data["releasedAtUtc"] = this.releasedAtUtc;
+        data["eventSequence"] = this.eventSequence;
+        return data;
+    }
+}
+
+export interface ILocalExecutionOwnershipReleaseReceiptResponse {
+    releaseId?: string;
+    operationFamily?: string;
+    operationId?: string;
+    stepKind?: string;
+    releasedAtUtc?: string;
+    eventSequence?: string;
+}
+
+export class ReleaseLocalExecutionOwnershipRequest implements IReleaseLocalExecutionOwnershipRequest {
+    observationId!: string;
+    confirmationVersion!: string;
+    confirmationSha256!: string;
+    confirmationExpiresAtUtc!: string;
+
+    constructor(data?: IReleaseLocalExecutionOwnershipRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.observationId = _data["observationId"];
+            this.confirmationVersion = _data["confirmationVersion"];
+            this.confirmationSha256 = _data["confirmationSha256"];
+            this.confirmationExpiresAtUtc = _data["confirmationExpiresAtUtc"];
+        }
+    }
+
+    static fromJS(data: any): ReleaseLocalExecutionOwnershipRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new ReleaseLocalExecutionOwnershipRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["observationId"] = this.observationId;
+        data["confirmationVersion"] = this.confirmationVersion;
+        data["confirmationSha256"] = this.confirmationSha256;
+        data["confirmationExpiresAtUtc"] = this.confirmationExpiresAtUtc;
+        return data;
+    }
+}
+
+export interface IReleaseLocalExecutionOwnershipRequest {
+    observationId: string;
+    confirmationVersion: string;
+    confirmationSha256: string;
+    confirmationExpiresAtUtc: string;
+}
+
 export class RecordGitHubObservationTargetResponse implements IRecordGitHubObservationTargetResponse {
     runId?: string;
     source?: GitHubObservationSourceResponse;
@@ -12055,6 +12483,7 @@ export class LocalExecutionSequenceStepResponse implements ILocalExecutionSequen
     dispatched?: boolean | undefined;
     exitRecorded?: boolean | undefined;
     quarantined?: boolean;
+    ownershipReleased?: boolean;
     preparationReservedAtUtc?: string;
     preparationDeadlineUtc?: string;
     claimedAtUtc?: string | undefined;
@@ -12085,6 +12514,7 @@ export class LocalExecutionSequenceStepResponse implements ILocalExecutionSequen
             this.dispatched = _data["dispatched"];
             this.exitRecorded = _data["exitRecorded"];
             this.quarantined = _data["quarantined"];
+            this.ownershipReleased = _data["ownershipReleased"];
             this.preparationReservedAtUtc = _data["preparationReservedAtUtc"];
             this.preparationDeadlineUtc = _data["preparationDeadlineUtc"];
             this.claimedAtUtc = _data["claimedAtUtc"];
@@ -12115,6 +12545,7 @@ export class LocalExecutionSequenceStepResponse implements ILocalExecutionSequen
         data["dispatched"] = this.dispatched;
         data["exitRecorded"] = this.exitRecorded;
         data["quarantined"] = this.quarantined;
+        data["ownershipReleased"] = this.ownershipReleased;
         data["preparationReservedAtUtc"] = this.preparationReservedAtUtc;
         data["preparationDeadlineUtc"] = this.preparationDeadlineUtc;
         data["claimedAtUtc"] = this.claimedAtUtc;
@@ -12138,6 +12569,7 @@ export interface ILocalExecutionSequenceStepResponse {
     dispatched?: boolean | undefined;
     exitRecorded?: boolean | undefined;
     quarantined?: boolean;
+    ownershipReleased?: boolean;
     preparationReservedAtUtc?: string;
     preparationDeadlineUtc?: string;
     claimedAtUtc?: string | undefined;

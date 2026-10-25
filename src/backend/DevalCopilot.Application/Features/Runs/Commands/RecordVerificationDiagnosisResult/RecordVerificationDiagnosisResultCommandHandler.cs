@@ -6,6 +6,7 @@ using DevalCopilot.Domain.Features.Runs;
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using Microsoft.EntityFrameworkCore;
+using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
 
 namespace DevalCopilot.Application.Features.Runs.Commands.RecordVerificationDiagnosisResult;
 
@@ -166,6 +167,16 @@ public sealed class RecordVerificationDiagnosisResultCommandHandler(IDevalCopilo
         }
 
         var nowUtc = timeProvider.GetUtcNow();
+
+        // ADR-0065: the physical termination observation of a linked operation, decided under this result transaction from the original
+        // host's ticket and stored atomically with the ordinary result below. Missing optional evidence preserves ordinary recording;
+        // supplied evidence that is foreign to, or contradicts, the original dispatch refuses the whole transaction.
+        var termination = await LocalExecutionTerminationRecording.DecideAgentAsync(
+            dbContext, command.DispatchTicket, attempt, command.ProcessEvidence, nowUtc, cancellationToken);
+        if (termination.Refusal is { } terminationRefusal)
+        {
+            return Result<RecordVerificationDiagnosisResultCommandResult>.Failure(terminationRefusal);
+        }
         if (!string.IsNullOrWhiteSpace(command.ProviderSessionId))
         {
             attempt.RecordAgentProviderSessionId(command.ProviderSessionId);
@@ -218,6 +229,11 @@ public sealed class RecordVerificationDiagnosisResultCommandHandler(IDevalCopilo
                 JsonSerializer.Serialize(new { status = attempt.Status.ToString(), outcome = attempt.AgentOutcome!.Value.ToString() }),
                 nowUtc);
             dbContext.Events.Add(latestEvent);
+        }
+
+        if (termination.Observation is { } observation)
+        {
+            dbContext.LocalExecutionTerminationObservations.Add(observation);
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
