@@ -183,6 +183,9 @@ under [Proposed decisions](#proposed-decisions).
 - [ADR-0068: Inspect the recorded steps of one planning sequence](0068-inspect-the-recorded-steps-of-one-planning-sequence.md)
   (accepted, implemented in PLAN-INSPECT-01, reviewed GO after PLI-R1/PLI-R2 correction; reconcile publication with Git and the planner handoff; two bounded protected recorded reads and one explicit current/historical planning inspector, with exact selected-step Agent association and reuse of existing guarded evidence; no semantic replay, new execution, recovery, approval, commit or publication authority)
 
+- [ADR-0069: Inspect recorded project verification executions](0069-inspect-recorded-project-verification-executions.md)
+  (accepted, selected for PROJECT-VER-INSPECT-01; project-owned paged history, exact historical execution metadata and explicit sealed stdout/stderr windows independent of Agent/sequence membership; no inferred run attribution, live eligibility, execution, recovery, approval or publication authority)
+
 ## Partially superseded decisions
 
 - [ADR-0001: Build a local-first supervised orchestrator](0001-build-a-local-first-supervised-orchestrator.md)

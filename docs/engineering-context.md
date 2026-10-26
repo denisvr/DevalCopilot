@@ -126,6 +126,14 @@ the ADR-0065 candidate reading (without minting a confirmation) and answered as 
 fails any proof is Unavailable, never absent, and neither negative status says whether ownership is held or was released. It reads only on an
 explicit open or reload, writes nothing, mounts no release action and adds no table, migration, event, worker or dependency. Increments 4 to 6 stay
 incomplete.
+ADR-0069 / PROJECT-VER-INSPECT-01 (implemented for review, unpublished until its own GO) adds only three bodyless GETs under
+`/api/projects/{projectId}/verification-history` and one collapsed **Inspect recorded verifications** region in the project workspace's
+verification area: fixed 20-member keyset pages of the project's recorded verification executions beyond the live latest-20 list, the exact
+recorded metadata of one execution (proved by identity, never by time, run, Agent membership or a sequence; an execution has no run) and
+explicitly loaded sealed stdout and stderr windows of a manual execution with no Agent or sequence link. Ownership and result facts come from
+one bounded statement; the page, the metadata and each window are separate recorded reads, not an atomic replay or authenticated history. It
+reads only on an explicit action, writes nothing, controls no execution and adds no table, migration, event, worker or dependency; the
+Agent and sequence inspectors are unchanged. Increments 4 to 6 stay incomplete.
 ADR-0056 adds only operational evidence for all seven Agent response contracts: a
 durable observation of what the host's own observer last reported (phase, last
 report, absolute deadline, first attention) for the current attempt, an independent

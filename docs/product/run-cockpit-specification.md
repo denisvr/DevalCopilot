@@ -1154,6 +1154,27 @@ the project lifetime that sent the request. A definite refusal (a 4xx answer) ke
 be started." copy and Run stays available. An accepted claim stays real: it is reported as requested even when the follow-up status read
 fails, and after the project is replaced its continuation neither reports on nor blocks the replacement.
 
+### Inspect recorded verifications
+
+One collapsed **Inspect recorded verifications** region in the project workspace's verification area, outside the panel's current-run
+controls ([ADR-0069](../decisions/0069-inspect-recorded-project-verification-executions.md)), reads the project's recorded verification
+history beyond the live latest-20 list, including a manual execution with no Agent review membership and no local-execution-sequence step.
+It is labelled as recorded project verifications, an inspection as of the read: a verification has no run, so it attributes none, and it
+claims no current source applicability, approval, liveness or release. Opening reads only the newest page of 20; **Older verifications**
+replaces the page using its cursor (no background paging, no accumulated list), **Reload recorded verifications** clears the selection and
+everything under it before reading the newest page, and a page that cannot be admitted says the history is unavailable, not that it ended.
+Selecting one execution explicitly reads its metadata only: the snapshot command name (never the current recipe), execution number, the
+recorded workspace and checkpoint with the claim and completion fingerprints (a SourceChanged completion fingerprint legitimately differs
+from the claim), the recorded status, process outcome and exit code (recorded bookkeeping; even Passed is not proof of a physical exit), the claim, dispatch and
+completion times, and two sealed-stream descriptors. A recorded stream offers an explicit "View", "Load" (one 16 KiB window) and "Load next
+window" under the same 256 KiB source-byte view limit as the other recorded-evidence views; not recorded, unavailable, empty, missing,
+tampered, view-capped and failed reads stay distinct, and a failed window keeps what was loaded and offers an explicit "Retry" of that read
+only. Closing, reopening, a page change, a reload, a replaced project and a page reload discard every result and every pending read, a late
+or overlapping answer never settles a newer one, a pending read gives up after ten seconds, and nothing polls, drains, prefetches, persists
+or exports. The region neither enables nor disables Run or configuration actions and never calls a provider, process, Git or environment.
+Wire and storage rules:
+[project verification inspection](../architecture/agent-collaboration-evidence-inspection.md#project-verification-history-and-inspection).
+
 ### Source evidence: inspecting a checkpoint
 
 The project's "Source evidence" panel shows the exact checkpoint's changed files and, after an explicit "Inspect files & diff"

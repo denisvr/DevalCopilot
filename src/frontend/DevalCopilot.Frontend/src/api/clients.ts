@@ -130,6 +130,11 @@ import {
 } from '../features/cockpit/localExecutionOwnershipReleaseWire'
 import { LocalExecutionQueueInspectionWireClient } from '../features/cockpit/localExecutionQueueInspectionWire'
 import { LocalExecutionReleaseInspectionWireClient } from '../features/cockpit/localExecutionReleaseInspectionWire'
+import {
+  ProjectVerificationHistoryWireClient,
+  ProjectVerificationInspectionWireClient,
+  ProjectVerificationWindowWireClient,
+} from '../features/cockpit/projectVerificationInspectionWire'
 
 // One instance per endpoint client is enough for this slice; components import the
 // factory functions rather than constructing a client or a URL themselves.
@@ -180,6 +185,10 @@ export const localExecutionOwnershipReleaseReadClient = (signal?: AbortSignal) =
 export const localExecutionOwnershipReleaseCommandClient = (signal?: AbortSignal) => new LocalExecutionOwnershipReleaseCommandWireClient(getApiBaseUrl(), authenticatedHttp, signal)
 // The recorded quarantine-release receipt read of one step (ADR-0067): a parsed-body facade whose own signal cancels the actual request.
 export const localExecutionReleaseInspectionClient = (signal?: AbortSignal) => new LocalExecutionReleaseInspectionWireClient(getApiBaseUrl(), authenticatedHttp, signal)
+// The recorded project verification history, selected execution and sealed window reads (ADR-0069): parsed-body facades whose own signal cancels the actual request.
+export const projectVerificationHistoryClient = (signal?: AbortSignal) => new ProjectVerificationHistoryWireClient(getApiBaseUrl(), authenticatedHttp, signal)
+export const projectVerificationInspectionClient = (signal?: AbortSignal) => new ProjectVerificationInspectionWireClient(getApiBaseUrl(), authenticatedHttp, signal)
+export const projectVerificationWindowClient = (signal?: AbortSignal) => new ProjectVerificationWindowWireClient(getApiBaseUrl(), authenticatedHttp, signal)
 // Hand the parsed bodies to the whole-answer decoders instead of the generated models (see the ADR-0052 wire clients).
 export const localExecutionInspectionIndexClient = () => new LocalExecutionInspectionIndexWireClient(getApiBaseUrl(), authenticatedHttp)
 export const localExecutionAdmissionHistoryClient = () => new LocalExecutionAdmissionHistoryWireClient(getApiBaseUrl(), authenticatedHttp)

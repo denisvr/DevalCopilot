@@ -632,3 +632,75 @@ NotRecorded and Unavailable promise neither a held nor a released owner (the liv
 including ADR-0066's checksum-only mismatch, which stays Unavailable here while the exact relational grant can still release ownership.
 The receipt is relationally consistent within its own statement, not signed history; the separately read index, operation evidence and
 live status are not one atomic replay. No release action, candidate query or confirmation handler is mounted in either inspector.
+
+## Project verification history and inspection
+
+[ADR-0069](../decisions/0069-inspect-recorded-project-verification-executions.md) makes a project's recorded verification executions
+reachable beyond the live latest-20 list, with no Agent review membership and no local-sequence step required. A `VerificationExecution`
+has no `RunId`: nothing here infers run attribution from time, the current run, a shared checkpoint, Agent membership or sequence
+proximity, and the answers are project history, never a reconstructed run history.
+
+Three protected, bodyless MVC GETs under `/api/projects/{projectId}/verification-history` dispatch through `IApplicationMediator` to
+`GetProjectVerificationHistoryQuery`, `GetProjectVerificationInspectionQuery` and `GetProjectVerificationOutputWindowQuery` and answer
+with API-owned closed graphs: the page, `.../{executionId}` (one selected execution) and `.../{executionId}/artifact-window/{stream}`
+(`stdout` or `stderr`). One guard filter runs before binding and refuses a body (a declared length, any transfer encoding or a readable
+undeclared byte) with `project_verification_inspection.body_not_allowed` and any query it does not admit with `.query_not_allowed`: the
+page admits only an optional `beforeExecutionNumber`, a window only `fromOffset` and `maxBytes`, the selected execution no query; names
+are compared ordinally after URL decoding, so an unknown, differently cased or repeated key and a key without exactly one value are
+refused. Values keep strict bounds and are refused by the shared validation problem, never clamped (the cursor is a canonical positive
+Int32; the offset 0 to 2^53 - 1 and the cap 64 to 65536 keep ADR-0052's bounds with its 0 and 16384 defaults; a blank value is a
+rejected value, not an absent one). An unknown project, an absent or foreign execution and an unsupported stream share the one fixed
+non-echoing `project_verification_inspection.not_found` 404; a present but incoherent execution is a 200 `Unavailable`, never absent.
+
+**Page.** A page is at most 20 members in strictly descending execution-number order, read as at most 21 scalar rows through the unique
+`(ProjectId, ExecutionNumber)` index (`ORDER BY ExecutionNumber DESC LIMIT 21`); the extra row only proves that older executions exist, so
+only its identity and number are admitted. `nextBeforeExecutionNumber` is the last displayed number exactly when `hasMore`. Each item is
+the exact execution identity, its positive Int32 number, its snapshot command name (nonblank, at most 200 UTF-16 units, selected under a
+600-byte guard) and its claim time. A selected row or lookahead key that cannot be admitted makes the whole page `Unavailable` (no item,
+no cursor, no assertion that history ended); a damaged row is never filtered away. A page is an independent recorded read, not a
+snapshot of the whole project and not proof that every stored row is valid, and a new execution appears only after an explicit reload.
+
+**Selected execution.** Project membership of the exact execution is a database predicate over the stored identities, decided before any
+selected fact is interpreted, so a damaged row elsewhere cannot make a foreign or absent execution look like a member. The ownership and
+result facts then come from one provider-neutral EF statement over the execution, the workspace and the checkpoint it names (bounded to
+two rows), and one pure proof requires: the workspace belongs to the project, the checkpoint to that workspace with a positive Int32
+number and a fingerprint equal to the claim fingerprint, fingerprints that are exactly 64 lowercase hexadecimal characters, nondefault
+UTC times with claim <= dispatch <= completion compared at tick precision, and the complete supported status, outcome, exit-code and
+completion-fingerprint tuple the Domain transitions can record (Running with or without a dispatch; Passed as Exited with 0; Failed as
+Exited with a nonzero code or as a Failed outcome without one; TimedOut; Cancelled; Interrupted; SourceChanged either invalidated before
+dispatch or completed against a different source, whose completion fingerprint legitimately differs from the claim; and the dispatch
+refusal). Every identifier and time is read as raw stored bytes within its bound and parsed by one strict parser (canonical uppercase
+36-character identifier, the provider writer's UTC time text), every enum is classified by the database, and every number is guarded to
+an exact stored INTEGER in range before any conversion (the Int32 extrema `int.MinValue`, `-int.MaxValue` and `int.MaxValue` are valid
+and compared directly), so a fraction, a numeric prefix with text, a BLOB, an overflow or a malformed value is `Unavailable`, never a
+plausible value and never a conversion fault; an integral REAL stored in an INTEGER column is the integer it is. The command identity is
+a recorded snapshot reference: the current recipe is never read and never required to be enabled, unchanged or eligible, nor the
+workspace or checkpoint to be active or latest, so later work, another run or an edited, disabled or removed recipe never invalidates
+coherent history. A terminal or dispatched record is never promoted to a physical exit or a successful verification.
+
+**Descriptors and windows.** Each of the two allowlisted streams is resolved per exact execution and purpose with at most two rows
+(a second row is damaged storage), and the existing `RecordedVerificationOutputAdmission` admits it unchanged: `Recorded` (a nonempty
+artifact identity, a safe nonnegative length and either a known capture with a Boolean truncation or a recovered capture with unknown
+truncation), `NotRecorded` or `Unavailable`, so a damaged stream never hides its sibling or the execution. The metadata read selects no
+path, hash or byte and the metadata and page handlers take no artifact store. A window first re-proves the selected execution, then reads
+only its requested stream's row (with the guarded path and hash), applies the unchanged storage admission and an offset check (past the
+admitted length is a validation refusal before the file is opened), and passes the admitted values to the unchanged
+`IArtifactStore.VerifyAndReadSealedAsync`; an incoherent execution is `Unavailable` before any stream row or file is read. The statuses
+are `Ok`, `Unavailable`, `NotRecorded`, `Missing` and `IntegrityMismatch`; every non-Ok answer carries no artifact, empty text, the
+requested offset unchanged and a length of 0. No live partial stream is a recorded sealed stream, and no path, hash, executable,
+argument, private process metadata or diagnostic leaves the host. The Agent and local-sequence handlers and their membership proofs are
+unchanged and are not reused for this association; only the stream admission and sealed storage primitives are shared.
+
+These proofs are unsigned consistency of the facts read now, not authenticated history or resistance to coordinated rewrites. The page,
+the metadata and every window are separate recorded reads, not an atomic replay: there is no revision column, read lock, transaction or
+retry, and the window re-proves its execution on every request.
+
+The frontend (`projectVerificationInspection.ts`, `projectVerificationInspectionWire.ts`, `useProjectVerificationInspection`,
+`ProjectVerificationInspectionPanel`) decodes each whole raw answer before generated normalization can hide a bad value (exact keys,
+the requested identity, canonical identifier, time and fingerprint forms, the closed status tuples, descending unique page keys and the
+cursor, the stable selected identity bound to the listed number, name and claim time, and ADR-0052's byte-cursor invariants) and renders
+untrusted values as literal text. One collapsed region in the project workspace's verification area, outside the current-run controls,
+reads the newest page only when opened; the page, an execution visit and a stream visit own their callbacks and results through the
+existing owned-lifetime primitives, a pending read is bounded by ten seconds, and late or overlapping answers never settle a newer one.
+The shared 16 KiB manual windows and 256 KiB source-byte view limit apply. Nothing polls, drains, prefetches, persists or exports, and
+the region neither enables nor disables Run or configuration actions.

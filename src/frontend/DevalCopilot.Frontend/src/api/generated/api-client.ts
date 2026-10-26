@@ -5684,6 +5684,207 @@ export class GetProjectWorkspaceEndpointClient {
     }
 }
 
+export class GetProjectVerificationOutputWindowEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getProjectVerificationOutputWindow(projectId: string, executionId: string, stream: string, fromOffset: number | null | undefined, maxBytes: number | null | undefined): Promise<GetProjectVerificationOutputWindowResponse> {
+        let url_ = this.baseUrl + "/api/projects/{projectId}/verification-history/{executionId}/artifact-window/{stream}?";
+        if (projectId === undefined || projectId === null)
+            throw new globalThis.Error("The parameter 'projectId' must be defined.");
+        url_ = url_.replace("{projectId}", encodeURIComponent("" + projectId));
+        if (executionId === undefined || executionId === null)
+            throw new globalThis.Error("The parameter 'executionId' must be defined.");
+        url_ = url_.replace("{executionId}", encodeURIComponent("" + executionId));
+        if (stream === undefined || stream === null)
+            throw new globalThis.Error("The parameter 'stream' must be defined.");
+        url_ = url_.replace("{stream}", encodeURIComponent("" + stream));
+        if (fromOffset !== undefined && fromOffset !== null)
+            url_ += "fromOffset=" + encodeURIComponent("" + fromOffset) + "&";
+        if (maxBytes !== undefined && maxBytes !== null)
+            url_ += "maxBytes=" + encodeURIComponent("" + maxBytes) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetProjectVerificationOutputWindow(_response);
+        });
+    }
+
+    protected processGetProjectVerificationOutputWindow(response: Response): Promise<GetProjectVerificationOutputWindowResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = GetProjectVerificationOutputWindowResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            let resultData400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result400 = ApiProblemDetails.fromJS(resultData400);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ApiProblemDetails.fromJS(resultData404);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<GetProjectVerificationOutputWindowResponse>(null as any);
+    }
+}
+
+export class GetProjectVerificationInspectionEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getProjectVerificationInspection(projectId: string, executionId: string): Promise<GetProjectVerificationInspectionResponse> {
+        let url_ = this.baseUrl + "/api/projects/{projectId}/verification-history/{executionId}";
+        if (projectId === undefined || projectId === null)
+            throw new globalThis.Error("The parameter 'projectId' must be defined.");
+        url_ = url_.replace("{projectId}", encodeURIComponent("" + projectId));
+        if (executionId === undefined || executionId === null)
+            throw new globalThis.Error("The parameter 'executionId' must be defined.");
+        url_ = url_.replace("{executionId}", encodeURIComponent("" + executionId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetProjectVerificationInspection(_response);
+        });
+    }
+
+    protected processGetProjectVerificationInspection(response: Response): Promise<GetProjectVerificationInspectionResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = GetProjectVerificationInspectionResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            let resultData400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result400 = ApiProblemDetails.fromJS(resultData400);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ApiProblemDetails.fromJS(resultData404);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<GetProjectVerificationInspectionResponse>(null as any);
+    }
+}
+
+export class GetProjectVerificationHistoryEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getProjectVerificationHistory(projectId: string, beforeExecutionNumber: number | null | undefined): Promise<GetProjectVerificationHistoryResponse> {
+        let url_ = this.baseUrl + "/api/projects/{projectId}/verification-history?";
+        if (projectId === undefined || projectId === null)
+            throw new globalThis.Error("The parameter 'projectId' must be defined.");
+        url_ = url_.replace("{projectId}", encodeURIComponent("" + projectId));
+        if (beforeExecutionNumber !== undefined && beforeExecutionNumber !== null)
+            url_ += "beforeExecutionNumber=" + encodeURIComponent("" + beforeExecutionNumber) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetProjectVerificationHistory(_response);
+        });
+    }
+
+    protected processGetProjectVerificationHistory(response: Response): Promise<GetProjectVerificationHistoryResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = GetProjectVerificationHistoryResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            let resultData400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result400 = ApiProblemDetails.fromJS(resultData400);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ApiProblemDetails.fromJS(resultData404);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<GetProjectVerificationHistoryResponse>(null as any);
+    }
+}
+
 export class GetProjectVerificationExecutionsEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -20058,6 +20259,374 @@ export interface IGetProjectWorkspaceResponse {
     leaseStatus?: string | undefined;
     blockedReasonCode?: string | undefined;
     blockedReasonMessage?: string | undefined;
+}
+
+export class GetProjectVerificationOutputWindowResponse implements IGetProjectVerificationOutputWindowResponse {
+    projectId?: string;
+    executionId?: string;
+    stream?: string;
+    status?: string;
+    artifact?: ProjectVerificationInspectionStreamResponse | undefined;
+    text?: string;
+    nextOffset?: number;
+    totalLength?: number;
+
+    constructor(data?: IGetProjectVerificationOutputWindowResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.projectId = _data["projectId"];
+            this.executionId = _data["executionId"];
+            this.stream = _data["stream"];
+            this.status = _data["status"];
+            this.artifact = _data["artifact"] ? ProjectVerificationInspectionStreamResponse.fromJS(_data["artifact"]) : undefined as any;
+            this.text = _data["text"];
+            this.nextOffset = _data["nextOffset"];
+            this.totalLength = _data["totalLength"];
+        }
+    }
+
+    static fromJS(data: any): GetProjectVerificationOutputWindowResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GetProjectVerificationOutputWindowResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["projectId"] = this.projectId;
+        data["executionId"] = this.executionId;
+        data["stream"] = this.stream;
+        data["status"] = this.status;
+        data["artifact"] = this.artifact ? this.artifact.toJSON() : undefined as any;
+        data["text"] = this.text;
+        data["nextOffset"] = this.nextOffset;
+        data["totalLength"] = this.totalLength;
+        return data;
+    }
+}
+
+export interface IGetProjectVerificationOutputWindowResponse {
+    projectId?: string;
+    executionId?: string;
+    stream?: string;
+    status?: string;
+    artifact?: ProjectVerificationInspectionStreamResponse | undefined;
+    text?: string;
+    nextOffset?: number;
+    totalLength?: number;
+}
+
+export class ProjectVerificationInspectionStreamResponse implements IProjectVerificationInspectionStreamResponse {
+    status?: string;
+    artifactId?: string | undefined;
+    byteLength?: number | undefined;
+    captureOutcome?: string | undefined;
+    truncated?: boolean | undefined;
+
+    constructor(data?: IProjectVerificationInspectionStreamResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.status = _data["status"];
+            this.artifactId = _data["artifactId"];
+            this.byteLength = _data["byteLength"];
+            this.captureOutcome = _data["captureOutcome"];
+            this.truncated = _data["truncated"];
+        }
+    }
+
+    static fromJS(data: any): ProjectVerificationInspectionStreamResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new ProjectVerificationInspectionStreamResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["status"] = this.status;
+        data["artifactId"] = this.artifactId;
+        data["byteLength"] = this.byteLength;
+        data["captureOutcome"] = this.captureOutcome;
+        data["truncated"] = this.truncated;
+        return data;
+    }
+}
+
+export interface IProjectVerificationInspectionStreamResponse {
+    status?: string;
+    artifactId?: string | undefined;
+    byteLength?: number | undefined;
+    captureOutcome?: string | undefined;
+    truncated?: boolean | undefined;
+}
+
+export class GetProjectVerificationInspectionResponse implements IGetProjectVerificationInspectionResponse {
+    projectId?: string;
+    executionId?: string;
+    status?: string;
+    execution?: ProjectVerificationInspectionExecutionResponse | undefined;
+
+    constructor(data?: IGetProjectVerificationInspectionResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.projectId = _data["projectId"];
+            this.executionId = _data["executionId"];
+            this.status = _data["status"];
+            this.execution = _data["execution"] ? ProjectVerificationInspectionExecutionResponse.fromJS(_data["execution"]) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): GetProjectVerificationInspectionResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GetProjectVerificationInspectionResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["projectId"] = this.projectId;
+        data["executionId"] = this.executionId;
+        data["status"] = this.status;
+        data["execution"] = this.execution ? this.execution.toJSON() : undefined as any;
+        return data;
+    }
+}
+
+export interface IGetProjectVerificationInspectionResponse {
+    projectId?: string;
+    executionId?: string;
+    status?: string;
+    execution?: ProjectVerificationInspectionExecutionResponse | undefined;
+}
+
+export class ProjectVerificationInspectionExecutionResponse implements IProjectVerificationInspectionExecutionResponse {
+    executionNumber?: number;
+    commandId?: string;
+    commandName?: string;
+    workspaceId?: string;
+    checkpointId?: string;
+    checkpointNumber?: number;
+    claimFingerprintSha256?: string;
+    completionFingerprintSha256?: string | undefined;
+    status?: string;
+    outcome?: string | undefined;
+    exitCode?: number | undefined;
+    claimedAtUtc?: string;
+    dispatchedAtUtc?: string | undefined;
+    completedAtUtc?: string | undefined;
+    standardOutput?: ProjectVerificationInspectionStreamResponse;
+    standardError?: ProjectVerificationInspectionStreamResponse;
+
+    constructor(data?: IProjectVerificationInspectionExecutionResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.executionNumber = _data["executionNumber"];
+            this.commandId = _data["commandId"];
+            this.commandName = _data["commandName"];
+            this.workspaceId = _data["workspaceId"];
+            this.checkpointId = _data["checkpointId"];
+            this.checkpointNumber = _data["checkpointNumber"];
+            this.claimFingerprintSha256 = _data["claimFingerprintSha256"];
+            this.completionFingerprintSha256 = _data["completionFingerprintSha256"];
+            this.status = _data["status"];
+            this.outcome = _data["outcome"];
+            this.exitCode = _data["exitCode"];
+            this.claimedAtUtc = _data["claimedAtUtc"];
+            this.dispatchedAtUtc = _data["dispatchedAtUtc"];
+            this.completedAtUtc = _data["completedAtUtc"];
+            this.standardOutput = _data["standardOutput"] ? ProjectVerificationInspectionStreamResponse.fromJS(_data["standardOutput"]) : undefined as any;
+            this.standardError = _data["standardError"] ? ProjectVerificationInspectionStreamResponse.fromJS(_data["standardError"]) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): ProjectVerificationInspectionExecutionResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new ProjectVerificationInspectionExecutionResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["executionNumber"] = this.executionNumber;
+        data["commandId"] = this.commandId;
+        data["commandName"] = this.commandName;
+        data["workspaceId"] = this.workspaceId;
+        data["checkpointId"] = this.checkpointId;
+        data["checkpointNumber"] = this.checkpointNumber;
+        data["claimFingerprintSha256"] = this.claimFingerprintSha256;
+        data["completionFingerprintSha256"] = this.completionFingerprintSha256;
+        data["status"] = this.status;
+        data["outcome"] = this.outcome;
+        data["exitCode"] = this.exitCode;
+        data["claimedAtUtc"] = this.claimedAtUtc;
+        data["dispatchedAtUtc"] = this.dispatchedAtUtc;
+        data["completedAtUtc"] = this.completedAtUtc;
+        data["standardOutput"] = this.standardOutput ? this.standardOutput.toJSON() : undefined as any;
+        data["standardError"] = this.standardError ? this.standardError.toJSON() : undefined as any;
+        return data;
+    }
+}
+
+export interface IProjectVerificationInspectionExecutionResponse {
+    executionNumber?: number;
+    commandId?: string;
+    commandName?: string;
+    workspaceId?: string;
+    checkpointId?: string;
+    checkpointNumber?: number;
+    claimFingerprintSha256?: string;
+    completionFingerprintSha256?: string | undefined;
+    status?: string;
+    outcome?: string | undefined;
+    exitCode?: number | undefined;
+    claimedAtUtc?: string;
+    dispatchedAtUtc?: string | undefined;
+    completedAtUtc?: string | undefined;
+    standardOutput?: ProjectVerificationInspectionStreamResponse;
+    standardError?: ProjectVerificationInspectionStreamResponse;
+}
+
+export class GetProjectVerificationHistoryResponse implements IGetProjectVerificationHistoryResponse {
+    projectId?: string;
+    status?: string;
+    items?: ProjectVerificationHistoryItemResponse[];
+    hasMore?: boolean;
+    nextBeforeExecutionNumber?: number | undefined;
+
+    constructor(data?: IGetProjectVerificationHistoryResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.projectId = _data["projectId"];
+            this.status = _data["status"];
+            if (Array.isArray(_data["items"])) {
+                this.items = [] as any;
+                for (let item of _data["items"])
+                    this.items!.push(ProjectVerificationHistoryItemResponse.fromJS(item));
+            }
+            this.hasMore = _data["hasMore"];
+            this.nextBeforeExecutionNumber = _data["nextBeforeExecutionNumber"];
+        }
+    }
+
+    static fromJS(data: any): GetProjectVerificationHistoryResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GetProjectVerificationHistoryResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["projectId"] = this.projectId;
+        data["status"] = this.status;
+        if (Array.isArray(this.items)) {
+            data["items"] = [];
+            for (let item of this.items)
+                data["items"].push(item ? item.toJSON() : undefined as any);
+        }
+        data["hasMore"] = this.hasMore;
+        data["nextBeforeExecutionNumber"] = this.nextBeforeExecutionNumber;
+        return data;
+    }
+}
+
+export interface IGetProjectVerificationHistoryResponse {
+    projectId?: string;
+    status?: string;
+    items?: ProjectVerificationHistoryItemResponse[];
+    hasMore?: boolean;
+    nextBeforeExecutionNumber?: number | undefined;
+}
+
+export class ProjectVerificationHistoryItemResponse implements IProjectVerificationHistoryItemResponse {
+    executionId?: string;
+    executionNumber?: number;
+    commandName?: string;
+    claimedAtUtc?: string;
+
+    constructor(data?: IProjectVerificationHistoryItemResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.executionId = _data["executionId"];
+            this.executionNumber = _data["executionNumber"];
+            this.commandName = _data["commandName"];
+            this.claimedAtUtc = _data["claimedAtUtc"];
+        }
+    }
+
+    static fromJS(data: any): ProjectVerificationHistoryItemResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new ProjectVerificationHistoryItemResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["executionId"] = this.executionId;
+        data["executionNumber"] = this.executionNumber;
+        data["commandName"] = this.commandName;
+        data["claimedAtUtc"] = this.claimedAtUtc;
+        return data;
+    }
+}
+
+export interface IProjectVerificationHistoryItemResponse {
+    executionId?: string;
+    executionNumber?: number;
+    commandName?: string;
+    claimedAtUtc?: string;
 }
 
 export class VerificationExecutionResponse implements IVerificationExecutionResponse {

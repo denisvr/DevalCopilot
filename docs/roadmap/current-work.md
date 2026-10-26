@@ -6,7 +6,201 @@ was prepared ([recovery](development-workflow.md#recovery)). Git and code
 prevail; compare branch, `HEAD`, `origin/main` and staged/unstaged/untracked
 state first.
 
-## Active slice: PLAN-INSPECT-01 inspect the recorded steps of one planning sequence (ADR-0068)
+## Active slice: PROJECT-VER-INSPECT-01 inspect recorded project verification executions (ADR-0069)
+
+This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
+Reconcile publication with Git and the slice's independent publication-verification record, when available. This record alone grants no
+publication authority.
+
+**Delivery phase: first return to Codex for review, by the new Claude executor chat (superseded by [Correction 1](#correction-1-codex-review-1-no-go-pvi-r1-p2-and-pvi-r2-p3)); the complete diff (including the four planner inputs) is
+unstaged, uncommitted and unpushed. No GO exists.** Review and publication are separate later events; nothing here claims either.
+Baseline: `main`, `HEAD`, local `origin/main` and the live ref equalled `7949f37668641e9f5cd3468d12947a32f9fc6ff8` (PLAN-INSPECT-01, independently
+verified published and neither repeated nor reopened) at the start and, for `HEAD` and the live ref, again at the return; divergence 0/0 and an empty
+index were verified once before editing. The four planner inputs (`decisions/README.md`, `mvp-delivery-plan.md`, `planner-handoff.md`, ADR-0069) equal
+their `logs/planner-review/project-ver-inspect-01/selection.txt` SHA-256 values at the start and at the return and were not edited. ADR-0050 stays
+Proposed, P9 unproven, AI Memory deferred, Increments 4/5/6 incomplete; every standing restriction in the handoff stays. No frozen profile,
+native/provider/credential experiment, real run, recovery, cleanup or commit/push was touched or performed; deterministic doubles remained the
+validation boundary.
+
+### What exists
+
+- **Application.** Three queries (`GetProjectVerificationHistoryQuery`, `GetProjectVerificationInspectionQuery`, `GetProjectVerificationOutputWindowQuery`)
+  with closed results, operation-owned validators and one policy folder (`Policies/ProjectVerificationInspection`). The page reads at most 21 scalar rows
+  through the unique `(ProjectId, ExecutionNumber)` index (`ORDER BY ExecutionNumber DESC LIMIT 21`), admits the 20 displayed rows (identity, positive
+  Int32 number, snapshot name, claim time) and only the identity and number of the lookahead row, and refuses the whole page when any of them cannot be
+  admitted. The selected execution is a database membership predicate over the stored identities (an unknown project, an absent or foreign execution
+  is the fixed `project_verification_inspection.not_found`) followed by **one** bounded EF statement over the execution, its workspace and its named
+  checkpoint (at most two rows) and one pure proof: workspace in the project, checkpoint in that workspace with a positive Int32 number and the claim
+  fingerprint, 64 lowercase hex fingerprints, nondefault UTC times with claim <= dispatch <= completion at tick precision, and the complete supported
+  status/outcome/exit-code/completion-fingerprint tuple (`ProjectVerificationExecutionTuple`, including SourceChanged's differing completion fingerprint).
+  Every identifier and time is raw stored bytes within its bound parsed by one strict parser (canonical uppercase 36-character identifier, the writer's
+  UTC time text), every enum is classified by the database and every number is an exact stored INTEGER in range (the three Int32 extrema compared
+  directly), so malformed storage is Unavailable and never a fault. The two sealed streams are resolved per exact execution and purpose with at most two
+  rows and admitted by the **unchanged** `RecordedVerificationOutputAdmission`; the window re-proves the execution first, reads only its requested stream's
+  row, applies the unchanged storage admission and an offset check, and calls the unchanged `IArtifactStore.VerifyAndReadSealedAsync`. Metadata and page
+  handlers take no artifact store. No current recipe, run, attempt, Agent membership, sequence, lease, eligibility, Git, filesystem, process or provider
+  reader is consulted, nothing is written and no exception is swallowed. No table, migration, event, producer, worker or dependency was added; the Agent
+  and sequence handlers and their shared projections are unchanged.
+- **API.** Three protected, bodyless MVC GETs, `/api/projects/{projectId}/verification-history`, `.../{executionId}` and
+  `.../{executionId}/artifact-window/{stream}`, one class and one action each behind `ProjectsBaseEndpoint`, dispatching through `IApplicationMediator`
+  behind one guard filter (abstract base plus three tiny sealed key lists) that runs before binding: body refusal (declared length, any transfer encoding,
+  a readable undeclared byte) `project_verification_inspection.body_not_allowed`; query refusal `.query_not_allowed` for anything but the exact ordinal,
+  once-only keys of the operation (history: `beforeExecutionNumber`; window: `fromOffset`, `maxBytes`; detail: none). Operation-owned model binders refuse a
+  blank, non-canonical or overflowing value (and the validators the out-of-range ones) with the shared validation problem, never clamping or echoing.
+  API-owned closed response graphs; NSwag regenerates the client reproducibly, additive only (569 insertions, 0 deletions).
+- **Frontend.** `projectVerificationInspection.ts` (whole raw-wire decoders: exact keys, requested identity, canonical identifier/time/fingerprint forms,
+  descending unique page keys with the cursor, the host's result tuple, the selected answer bound to the indexed number, snapshot name and claim time, and
+  ADR-0052's byte-cursor invariants through the shared descriptor decoder), `projectVerificationInspectionWire.ts` (parsed-body wire clients with a real
+  abort signal), `useProjectVerificationInspection` (project, opening, page-visit, execution-visit and stream-visit lifetimes over the unchanged owned-lifetime
+  primitives, ten-second bounded reads, the shared `useRecordedStreamWindow` machine with its 16 KiB manual windows and 256 KiB view cap), fixed copy and the
+  collapsed **Inspect recorded verifications** region (`ProjectVerificationInspectionPanel`/`...Detail`) mounted once in `CandidateWorkspacePanel`, right after
+  `VerificationCommandsPanel` and outside it. The live list, its polling and `VerificationExecutionOutputViewer` and every execution/configuration control are
+  unchanged.
+- **Journey.** `e2e/project-verification-inspection.journey.ts` (new, one authenticated owned-fixture journey, details under Evidence).
+- **Documents.** The evidence-inspection architecture document (new section "Project verification history and inspection"), the cockpit specification
+  ("Inspect recorded verifications"), the security plan (one boundary row), the engineering context and this record. The four planner inputs are included
+  unedited; ADR-0069's status line and the roadmap wording of the planner were not touched by the executor.
+
+### Evidence (logs under `logs/executor/project-ver-inspect-01/`, git-ignored; commands run at the repository root unless a frontend script)
+
+One concise log per matrix: `final-matrix.log` (backend; raw outputs in `final-raw/`) and `final-frontend.log` (frontend; `final-frontend-raw/`); the journey
+output is `journey-run-1.txt`. Fresh on the final stable sources unless stated:
+
+- **Build and generation.** Two non-incremental Api builds (`-m:1`, serial, build server shut down first) produced byte-identical `api-client.ts`
+  (SHA-256 `cd5d0b82a4318f546573d657e5bfbe6b4e18416f68f296e69ed4a68953b215ef`; `git diff --numstat` 569 insertions, 0 deletions, additive only); the
+  Application, Api integration, Architecture and journey-host projects built non-incrementally with 0 warnings, 0 errors. Nothing was edited in the generated file.
+- **Application**, `--filter "FullyQualifiedName~ProjectVerificationHistory|FullyQualifiedName~ProjectVerificationInspection|FullyQualifiedName~GetAgentAttemptVerification|FullyQualifiedName~LocalExecutionVerificationOutputWindow"`:
+  **456 passed**, 106 s (260 new in `Features.Projects.ProjectVerificationHistory` and `...ProjectVerificationInspection`; the other 196 are the unchanged ADR-0052/0061
+  regression of the shared stream primitives). Real migrated file-backed SQLite: empty, partial and multiple pages, every cursor/lookahead boundary (20/21/40/41,
+  before 1/2/21/22/Int32.Max), cursor walks of 45, an older manual execution beyond the latest 20 beside a newer run/workspace/checkpoint/execution with no
+  Agent, attempt or sequence row, another project, snapshot names surviving recipe rename/disable/removal, reopening, every Domain result shape (13), the Int32 exit-code
+  extrema, a different SourceChanged completion fingerprint, 24 history and 86 selected-execution damage cases (identifiers, times, numbers, fingerprints, names,
+  workspace/checkpoint ownership and the contradictory result tuples), 15 descriptor and 24 window-storage defects, sibling isolation, multiwindow UTF-8, missing/tampered
+  files, offset and cap bounds, NotFound/Unavailable before any store call, per-window re-proof, SELECT-only, forbidden-column, statement-count, EXPLAIN QUERY PLAN
+  (index-driven, no sort or scan) and zero-write proofs, database faults and store faults propagating.
+- **Api**, `--filter "FullyQualifiedName~ProjectVerificationHistory|FullyQualifiedName~ProjectVerificationInspection|FullyQualifiedName~AgentAttemptVerification|FullyQualifiedName~LocalExecutionInspectionEndpoint|FullyQualifiedName~LaunchSessionAuthentication"`:
+  **228 passed**, 76 s (93 new: complete authentication and method matrix for all three routes, the explicit MVC authorization inventory (exactly three routes, each an authorized
+  GET, no anonymous endpoint), three body shapes, 29 query-key shapes, 36 rejected values, fixed 404 identity matrix, closed wire graphs of pages, metadata and windows,
+  Unavailable over damaged storage, the older-than-twenty path, no write or artifact read, a second host over the same database and the actual OpenAPI graph).
+  Existing project routes (`FullyQualifiedName~Features.Projects`, the shared consumer of the `api/projects` route family): **288 passed**, 62 s.
+- **Architecture**, whole project: **219 passed** (210 before; nine new boundary facts for ADR-0069).
+- **Frontend** (fresh, run once by this chat on the final sources after the forked implementer's own matrix, which agrees): the five new test files
+  **77 passed** (decoder 26, contract 6, hook 24, panel 17, composition 4); the planner-named existing `VerificationCommandsPanel`, `VerificationRunRefresh`,
+  `VerificationRunOwnership`, `CandidateWorkspacePanel` and `layoutBoundary` tests **45 passed**; `projectOwnership -t "useVerificationExecutionOutput ownership"`
+  **3 passed** (33 skipped by the name filter); `npm run lint` exit 0 (only pre-existing warnings, none in this slice's files); `npm run build` (includes the product `tsc -b`)
+  exit 0; the separate strict e2e `tsc` (`npx tsc --ignoreConfig --noEmit --strict --target es2023 --module esnext --moduleResolution bundler --skipLibCheck --noUnusedLocals
+  --noUnusedParameters --verbatimModuleSyntax --allowImportingTsExtensions --erasableSyntaxOnly --types node` over the 52 e2e files of `e2e/*.ts`, `e2e/journey/*.ts` and `e2e/harness/*.ts`
+  plus `playwright.config.ts` and `playwright.journey.config.ts`, which now include the new journey; the true exit status was captured, inventory in `strict-e2e-inventory.txt`) exit 0.
+  The implementer's broadened shared-consumer run (the seven other `CandidateWorkspacePanel` component tests plus `App` and `App.queueInspection`, 149 passed) is retained evidence of
+  its own earlier matrix (`frontend-matrix.log`), not repeated here.
+- **Format and hygiene.** `dotnet format DevalCopilot.slnx --verify-no-changes --include <the 66 new or modified C# files>` clean (exit 0, 29 s); `git diff --check` exit 0 (the generated
+  client's CRLF notice only); the new files carry no CR or tab; non-ASCII appears only in UI copy and in multibyte test inputs; no dependency, package or configuration file changed.
+- **Journey**, one automatic headed run on the final binaries (`playwright test -c playwright.journey.config.ts e2e/project-verification-inspection.journey.ts --headed --trace off --workers 1`;
+  no Inspector, `--debug`, `--ui`, `PWDEBUG` or manual Resume; trace, video and screenshots off; the owner was told before the run in the executor's message): **1 passed**, 51.6 s (58.5 s wall).
+  Setup used rendered controls only: project, workspace, checkpoint #1, one recipe and manual verification #1 (no run, Agent attempt or sequence exists then), a manual run and checkpoint #2, then 20
+  more manual verifications (21 in all; the live latest-20 list, read once, no longer holds #1). After the setup settled it baselined the business POSTs, the 21 executable invocations and a durable
+  fingerprint, then: cold collapsed region with no history read; open (awaited newest-page response: 20 items #21 to #2, `hasMore`, cursor 2, every member compared with the database); **Older verifications**
+  (awaited response for `beforeExecutionNumber=2`: #1 only, page replaced); select #1 (awaited metadata response compared with the database: Failed/Exited/1, checkpoint #1 not the latest, fingerprints,
+  times, both descriptors; no window read); explicit View and Load of each stream (awaited windows equal to the sealed bytes on disk, whose SHA-256 equals the recorded hash); a page reload (cold closed
+  state, no read until opened); reopen, older, select and the explicit **Reload recorded verifications** (one new response, selection and content cleared). The inspection added no business POST, no
+  invocation and no durable change. **The fingerprint covers exactly:** the project's execution, checkpoint, run, attempt, event, message and output row counts; every execution's number, status, outcome,
+  exit code, checkpoint, completion fingerprint and dispatch/completion times; every output row's purpose, length, hash and capture facts; and the SHA-256 of execution #1's two sealed files. It is not a byte
+  identity of every stored row, of other artifact files or of another project's rows. A page reload is not a host restart; the file-backed Application and API tests prove reopening separately.
+- **Compiling controls** (`dev-controls.log`, `dev-controls-2.log`; serial, hash-guarded, every restored file byte-identical, targeted regressions only, not a mutation campaign): C1 history stops admitting the
+  lookahead row **killed** (4 cases); C2 SourceChanged no longer requires a differing completion fingerprint **killed**; C3 exit-code guard drops the `-int.MaxValue` comparison **killed** (the extremum case);
+  C4 no workspace-in-project check **killed**; C5 lowercase identifier admitted **killed** (4 cases); C6b no offset-past-length refusal **killed**; C7 membership ignores the project **killed** (3);
+  C8b no incoherent-execution refusal before the stream read **killed** (2); C9 no lookahead row read **killed** (7); **C10 survived** (the descriptor's in-memory execution-identity check). That is the demonstrated scope: the same statement's database predicate also restricts rows to the exact execution, so the mutation changed no tested
+  outcome; no broader equivalence proof is claimed (a differently cased stored `VerificationExecutionId` fails that predicate and reads as `NotRecorded`; see Correction 1).
+  The frontend implementer's own five controls are in `fe-dev-controls.log` (three killed; two survived as guard removals that the owned-state commit and the derived selection also enforce, at that demonstrated scope only and without a broader equivalence proof).
+- **Planner inputs.** The four planner inputs equal their `selection.txt` SHA-256 values at the start and at the return; the 82 non-document paths of the delivery are listed with their SHA-256 in
+  `final-source-manifest-before-docs.sha256`.
+
+Retained, not rerun and not run: the whole Application, Api, Infrastructure and Domain suites, the whole Vitest suite, the other journeys and the standalone harness tests (no schema, producer, ownership,
+shared transport, authentication or lifetime code changed; the shared Agent/sequence handlers and `RecordedVerificationProjection` are byte-unchanged and covered by their named regressions). No earlier
+slice's evidence is fresh evidence for this one.
+
+### Preserved development attempts and failures
+
+All failed output is kept (`logs/executor/project-ver-inspect-01/`); none was rerun blindly.
+
+- A shell heredoc of the first Application query files failed to parse on an apostrophe; nothing was written and the files were then created with the Write tool.
+- First Application run of the new tests (`app-dev-1.txt`): 259 of 260 passed; the failure was my own fault-injection test, which looked for `FROM "git_checkpoints"` while the join statement names it as
+  `JOIN`; the predicate now matches the quoted table name (no product change).
+- First Architecture run (`arch-dev-1.txt`): four of my new boundary facts failed on my own counts and an over-broad forbidden token (`ProjectVerification` appears in the shared projection's method
+  `ProjectVerificationOwnership`, and `LocalExecutionSequenceDispatchRefused` is a legitimate status name); the facts were narrowed (`arch-dev-2.txt`: 219 passed). A sed attempt to change two counts
+  silently did not apply and the Edit tool did.
+- First controls script (`dev-controls-attempt-1-aborted-stderr-under-stop.log`, `dev-controls-attempt-1-raw/`, `dev-controls-attempt-1-task-output.txt`): a native-command stderr line terminated the script
+  under `$ErrorActionPreference = 'Stop'` during C1; the `finally` restore ran and all seven controlled files were verified byte-identical before the rerun. In the second script C6 and C8 did not compile
+  (`if (false)` made the guarded block unreachable code; output retained under `dev-controls-raw/`), so C6b and C8b were run with compiling always-false/never-true predicates.
+- API test development: two compile errors of mine (a variable named `out`, an internal record in a public base type) before the first run; the first run passed 93 of 93.
+- Frontend (implementer): the first matrix failed `npm run build` on an unused test parameter and two lint warnings, five failures were defects of the implementer's own tests (details in `frontend-matrix.log`,
+  `*-failed-original.txt`); the superseded first matrix is retained.
+- Journey: the first run passed. The React duplicate-key console errors (one repeated key, 149 occurrences) appear in this journey as in earlier journeys; whether the new region contributes is not established
+  (its list keys are unique execution identities) and it was not investigated; one SignalR negotiation was stopped while the page was being closed.
+
+### Challenges, limits and risks for review
+
+- **No material challenge to ADR-0069.** Everything it requires fit the additive read-only contract. Two interpretations were put to the planner and accepted in Review 1: (1) a stored identifier is admitted only in the provider's
+  canonical uppercase form (the form the database compares); a differently cased stored `VerificationExecutionId` fails the exact database predicate (so the stream reads as `NotRecorded`), and a matching artifact row whose own `Id` is
+  lowercase is `Unavailable` (the broader first wording is corrected here); (2) a blank supplied query value (`fromOffset=`) is rejected and only an absent key defaults; the older Agent binders are unchanged.
+- **Not a replay or authentication.** Pages, metadata and windows are separate recorded reads; matching rewrites of the recorded rows stay outside the assurance (as the ADR states). A recorded Passed or
+  exit code is bookkeeping, never approval, source currency or a physical-exit proof, and no run is attributed.
+- **SourceChanged tuple.** SourceChanged requires a completion fingerprint that differs from the claim; a SourceChanged row with an equal fingerprint is Unavailable. This already follows ADR-0069's supported tuple (the first return's
+  "beyond the ADR text" was wrong); the sibling local-sequence proof states the same rule.
+- **Window timeout display.** A window read that times out shows as "could not be loaded", the same as any other read error (the shared window state has no timeout state, and the shared hook was not changed).
+- **Journey scope.** It proves the Recorded path through the browser with 21 real manual verifications of one project; damaged storage, every result tuple, Unavailable pages and the lifecycle races are proved below
+  the browser boundary. The "newer run/checkpoint" is a manual run and checkpoint #2 of the same unchanged source (identical fingerprint), so what separates it from #1 is its identity and number, not different source content.
+- **Not in scope and not done:** run attribution, recovery, retry, release, approval, commit and publication, a real-provider or real-run read, any frozen-experiment renewal, polling, prefetch, export or browser persistence.
+
+### Correction 1 (Codex Review 1 NO-GO: PVI-R1 P2 and PVI-R2 P3)
+
+**Delivery phase: correction 1 returned by the same Claude executor chat, complete diff (including the reviewed handoff), unstaged, uncommitted and unpushed. No GO exists.**
+The first return above stays as written except where this section or an inline correction says otherwise; the fresh evidence below supersedes the Application, Api and Architecture runs it repeats, at the scopes stated.
+Baseline at the start of the correction: `main`, `HEAD` and local `origin/main` equal `7949f37668641e9f5cd3468d12947a32f9fc6ff8` (the live ref as observed fresh by the planner; the executor did not re-read the remote), divergence 0/0, empty
+index, exactly 91 pending paths (11 modified, 80 untracked) equal to `logs/planner-review/project-ver-inspect-01/review-01/correction-paths-status.txt` (compared ignoring that file's CR line endings), the reviewed `planner-handoff.md`
+at `5dbf6324…ee7ac0` (preserved, not edited), ADR-0069, the decision index and the roadmap at their selection hashes, and all 82 entries of `final-source-manifest-before-docs.sha256` matching, before any edit. The reviewer's `review.json`
+and complete handoff were read. The two reviewer diagnostic sources are archived (hashes in `review-01/reviewer-diagnostics.sha256`) and are not in the test tree.
+
+- **PVI-R1 (P2): an unknown project still disclosed selected evidence. Corrected.** `ProjectVerificationInspectionReader` proved only the execution's `ProjectId`, so executions, workspace, checkpoint and sealed output retained after the project row
+  was deleted (foreign keys off, damage setup only) returned Recorded metadata and served the sealed file, while history answered the fixed 404. The actual project is now part of both database proofs: the membership predicate joins the
+  registered project, and the single bounded ownership/result statement (`ProjectExecution`) joins it first, so an execution with no project row selects nothing, is `project_verification_inspection.not_found` before any stream metadata or file access, and
+  never reaches the descriptor reads or the artifact store. A present project with a damaged member stays `Unavailable`, an absent or foreign execution stays the fixed 404, the exact historical workspace and checkpoint ownership proof, the one
+  bounded relational statement, zero writes and the absence of any transaction, retry or shared-reader change are preserved. No store member, shared projection or handler of Agent/sequence inspection changed.
+- **Permanent regressions** (adapted from the reviewer's archived diagnostics, which are not delivered): `ProjectVerificationInspectionMissingProjectTests` (Application, 7 cases over disposable migrated SQLite; real sealed file and a recording store) and
+  `ProjectVerificationInspectionMissingProjectEndpointTests` (API, 6 cases; the real artifact store over a class-owned root with a counting wrapper). For history, detail and window with the project row deleted but every child and the real sealed output
+  retained they assert the fixed non-echoing 404 (code, fixed description, no project or execution identity, no output text, one shared body across the three routes), zero stream metadata reads (the statement log never selects
+  `verification_output_artifacts`, a path or a hash), zero artifact-store calls, SELECT-only statements and an unchanged durable fingerprint and file inventory; controls: the same scene with the project present is Recorded and serves the sealed bytes with exactly
+  one store call, a foreign execution of a present project is the fixed 404 without a store call, a damaged member of a present project is `Unavailable` before any stream row or file read, and deleting only the project row after a successful read stops the next
+  window and metadata read. First run: Application 7/7, API 6/6 (`correction-1/app-pvir1-1.txt`, `api-pvir1-1.txt`).
+- **Red evidence** (one hash-guarded compiling control, `correction-1/control-*.txt`; original files restored byte-identical, SHA-256 verified): with the project join removed from both the membership predicate and the ownership statement the same 7 Application cases
+  run **3 failed, 4 passed** (the absent-project detail and window cases and the delete-after-read case fail; the history case and the controls pass), reproducing the reviewer's diagnostics at the Application level. This is one targeted control, not a mutation campaign.
+- **PVI-R2 (P3): multiple top-level types in four test files. Corrected.** `ExecutionShape` and `SeededExecution` now have their own files (from the seed), `DamageScene` its own (from the base damage class), `StoreCall`,
+  `ProjectVerificationRecordingStore` and `ProjectVerificationThrowingStore` their own (the multi-type `ProjectVerificationStores.cs` is removed) and `ApiSeededExecution` its own (from the API test base). Names, accessibility, behavior, isolation and every
+  assertion are unchanged; no shared fixture or abstraction was added. A scan of every new C# file for more than one top-level type now finds none.
+- **Record precision (accepted decisions, Review 1).** Uppercase canonical identifier admission is accepted and is stated precisely above (a differently cased stored `VerificationExecutionId` fails the exact database predicate and reads as `NotRecorded`; a matching
+  artifact row with a lowercase artifact `Id` is `Unavailable`). Blank supplied query values are rejected and only absent keys default. SourceChanged requiring a differing completion fingerprint already follows ADR-0069 (corrected above). The shared generic
+  window read-failure display for a timeout is accepted and the real ten-second abort is retained. The journey's newer checkpoint with the same fingerprint is accepted as proof of later identity and number, not of changed source content. The new project-verification section of the cockpit specification no longer says
+  "never a clean exit unless Passed": even Passed is recorded bookkeeping, not proof of a physical exit. The final strict e2e inventory is **54 files: 52 e2e files plus the two configuration files**. C10 and the frontend guard-removal survivors are preserved at their
+  demonstrated scopes only (the three "equivalent" wordings above were softened accordingly).
+
+**Fresh evidence on the corrected stable inputs** (`correction-1/final-matrix.log`, raw outputs in `correction-1/final-raw/`; non-incremental serial builds, build server shut down first; the Api build regenerated the client again):
+
+- Application, the original filter `FullyQualifiedName~ProjectVerificationHistory|FullyQualifiedName~ProjectVerificationInspection|FullyQualifiedName~GetAgentAttemptVerification|FullyQualifiedName~LocalExecutionVerificationOutputWindow`: **463 passed** (456 before; 7 new), 102 s.
+- Api, the original filter `FullyQualifiedName~ProjectVerificationHistory|FullyQualifiedName~ProjectVerificationInspection|FullyQualifiedName~AgentAttemptVerification|FullyQualifiedName~LocalExecutionInspectionEndpoint|FullyQualifiedName~LaunchSessionAuthentication`: **234 passed** (228 before; 6 new), 73 s.
+- Architecture, whole project: **219 passed**; the reader fact now also requires the registered project in both reads (six untracked table reads, three joins in the ownership statement, two project reads).
+- `dotnet format DevalCopilot.slnx --verify-no-changes --include <the 74 new or modified C# files>`: clean (exit 0, 27 s); `git diff --check` exit 0 (the generated client's CRLF notice only); the NSwag client SHA-256 is unchanged (`cd5d0b82…b215ef`, 569 insertions, 0 deletions).
+- The non-document manifest was recomputed (`correction-1/final-source-manifest-before-docs.sha256`, now 90 paths): against the first return exactly sixteen entries differ, all intended (changed: the reader, the projection, the architecture test, the seed, the base damage class and
+  the API test base; added: the two missing-project test classes and the seven split type files; removed: `ProjectVerificationStores.cs`); no frontend, journey or generated-client entry changed.
+
+**Retained, not rerun and not run:** the frontend evidence (77 new tests, 45 + 3 existing, lint, build and the strict e2e check over 54 files), client-generation reproducibility (two builds in the first return, identical bytes again now), the one headed journey (no frontend,
+wire or journey source changed; the correction changes only the backend missing-project proof, test files and a documentation sentence, and the journey's project is present), the `FullyQualifiedName~Features.Projects` route run (288) and the nine first-return controls.
+The whole Application, API, Infrastructure, Domain and Vitest suites remain not run for this slice; no such result is claimed as retained. No browser journey, mutation campaign or whole-suite run was needed or performed in this correction.
+
+**Preserved, unchanged by this correction:** every first-return failure and limit above (the first controls script abort and non-compiling C6/C8, the Application first-run fault-test predicate, the Architecture first-run count failures, the frontend development failures and the duplicate-key
+uncertainty). The reviewer's first restricted Application run aborted after a 90-second testhost connection failure and produced no test results; the permitted run is separate evidence and establishes no cause. The reviewer's tool limits (the first manifest parser misreading `*`, two guessed
+sealed-read type paths, the failed patch deletion of an archived source, 637 retained frontend temporary files) are recorded in the reviewed handoff and attributed to no product behavior.
+
+## Previous slice (independently verified published as 7949f37; historical record): PLAN-INSPECT-01 inspect the recorded steps of one planning sequence (ADR-0068)
 
 This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
 Reconcile publication with Git and the slice's independent publication-verification record, when available. This record alone grants no

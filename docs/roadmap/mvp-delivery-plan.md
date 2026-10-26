@@ -263,11 +263,17 @@ and an explicit region in the current and historical selected-step inspectors, s
 termination facts. It mints no confirmation and changes no ownership, release, queue, recovery, approval or publication authority. It is a bounded
 part of evidence inspection, not complete run replay or increment completion.
 
-**Recorded planning-sequence inspection (implemented, reviewed GO; publication pending).**
+**Recorded planning-sequence inspection (independently verified published).**
 [ADR-0068](../decisions/0068-inspect-the-recorded-steps-of-one-planning-sequence.md) / PLAN-INSPECT-01 delivers a bounded recorded index,
 one selected step's exact Agent association and reuse of existing guarded evidence in both the current run and selected run history.
 All five possible steps, unlinked preparations and attempts without messages belong to this one read-only outcome. It changes no live
 status, admission, execution, recovery, approval, commit or publication authority, adds no semantic replay and completes no increment.
+
+**Recorded project verification inspection (selected, not implemented).**
+[ADR-0069](../decisions/0069-inspect-recorded-project-verification-executions.md) / PROJECT-VER-INSPECT-01 selects paged project verification
+history beyond the latest 20, exact historical execution metadata and explicitly loaded sealed stdout/stderr windows, including manual
+executions without Agent or local-sequence membership. Verification rows have no RunId: this view infers no run attribution, current
+source applicability, approval or liveness. No execution, recovery or publication authority changes and no increment is completed.
 
 **Agent supervision observations (partial).** ADR-0056 / AGENT-SUP-01 adds, for all seven existing Agent response contracts, a
 durable disclosure of what the host's own observer last reported for the current Agent attempt (phase, last report, absolute deadline,

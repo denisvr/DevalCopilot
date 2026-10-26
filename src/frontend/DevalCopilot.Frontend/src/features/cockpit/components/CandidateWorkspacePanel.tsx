@@ -3,6 +3,7 @@ import { useProjectWorkspace } from '../hooks/useProjectWorkspace'
 import { useOwnedLifetime, useOwnedState } from '../hooks/useOwnedLifetime'
 import { WorkspaceEvidencePanel } from './WorkspaceEvidencePanel'
 import { VerificationCommandsPanel } from './VerificationCommandsPanel'
+import { ProjectVerificationInspectionPanel } from './ProjectVerificationInspectionPanel'
 import { CheckpointReviewPanel } from './CheckpointReviewPanel'
 import { WorkspaceExecutionGuidance } from './WorkspaceExecutionGuidance'
 import { ExecutionCapacityGuidance } from './ExecutionCapacityGuidance'
@@ -166,6 +167,7 @@ export function CandidateWorkspacePanel({
         runWithheldReason={effectiveRunWithheldReason}
         configureWithheldReason={localExecutionWithheld}
       />
+      <ProjectVerificationInspectionPanel key={`verification-history:${projectId}`} projectId={projectId} />
       <CheckpointReviewPanel key={`reviews:${projectId}`} projectId={projectId} refreshGeneration={generation} />
 
       {!needsIdentityRecheck && workspace.state === 'Blocked' ? (

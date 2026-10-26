@@ -77,6 +77,7 @@ No agent response is an identity or authorization decision.
 | Project registration | Local user | Canonical approved roots | Path validation and explicit confirmation |
 | Local quarantine release | Loopback MVC GET and POST, same bearer policy | Human-only, exact versioned confirmation with a two-minute expiry; original-host termination evidence required | Closed 512-byte request, write-locked revalidation, exact replay, one append-only release and one event |
 | Recorded quarantine release inspection | Loopback MVC GET, same bearer policy | Read-only, bodyless and queryless behind the inspection guard; fixed non-echoing 400 and 404 | One bounded untracked statement, closed answer, no nonce, launch identity, confirmation or candidate, no write or external read |
+| Recorded project verification inspection | Loopback MVC GET (page, execution, sealed window), same bearer policy | Read-only and bodyless behind one guard that admits only exact ordinal query keys once; fixed non-echoing 400 and 404; strict values refused, never clamped | Membership by database predicate, one bounded ownership statement, raw-byte identifier and time admission, no path, hash, argument, executable or current recipe leaves the host, windows only through the unchanged sealed verification, no write or external read |
 | Agent output | Child-process stream | Untrusted evidence | Size, schema, rate, and artifact limits |
 | CI and PR content | GitHub CLI response | Untrusted evidence | Exact-SHA correlation, bounding, redaction |
 
