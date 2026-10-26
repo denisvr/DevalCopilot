@@ -178,7 +178,10 @@ under [Proposed decisions](#proposed-decisions).
   (accepted during review 2 and implemented in independently verified published LOCAL-QUARANTINE-RELEASE-01; typed exact-intent columns in the existing release row bind every canonical fact at the read, ownership and SQL seams; only a checksum-only mismatch may make inspection/replay unavailable without reacquiring an otherwise proved Human release; exact tick lifetime and all original physical/authority boundaries remain)
 
 - [ADR-0067: Inspect recorded local quarantine release receipts](0067-inspect-recorded-local-quarantine-release-receipts.md)
-  (accepted, selected for LOCAL-RELEASE-INSPECT-01; one bounded protected recorded read and an explicit receipt/termination-evidence region in the current and historical selected-step inspectors; reuses the complete release proof without minting a confirmation or changing release, ownership, queue, recovery, approval or publication authority)
+  (accepted, implemented in independently verified published LOCAL-RELEASE-INSPECT-01 after LRI-R1/LRI-V1 corrections; one bounded protected recorded read and an explicit receipt/termination-evidence region in the current and historical selected-step inspectors; reuses the complete release proof without minting a confirmation or changing release, ownership, queue, recovery, approval or publication authority)
+
+- [ADR-0068: Inspect the recorded steps of one planning sequence](0068-inspect-the-recorded-steps-of-one-planning-sequence.md)
+  (accepted, implemented in PLAN-INSPECT-01, reviewed GO after PLI-R1/PLI-R2 correction; reconcile publication with Git and the planner handoff; two bounded protected recorded reads and one explicit current/historical planning inspector, with exact selected-step Agent association and reuse of existing guarded evidence; no semantic replay, new execution, recovery, approval, commit or publication authority)
 
 ## Partially superseded decisions
 

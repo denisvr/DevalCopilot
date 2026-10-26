@@ -2441,6 +2441,71 @@ export class GetProcessAttemptOutputEndpointClient {
     }
 }
 
+export class GetPlanningStepInspectionEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getPlanningStepInspection(runId: string, stepId: string): Promise<GetPlanningStepInspectionResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/planning-sequence/inspection/steps/{stepId}";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        if (stepId === undefined || stepId === null)
+            throw new globalThis.Error("The parameter 'stepId' must be defined.");
+        url_ = url_.replace("{stepId}", encodeURIComponent("" + stepId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetPlanningStepInspection(_response);
+        });
+    }
+
+    protected processGetPlanningStepInspection(response: Response): Promise<GetPlanningStepInspectionResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = GetPlanningStepInspectionResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            let resultData400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result400 = ApiProblemDetails.fromJS(resultData400);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ApiProblemDetails.fromJS(resultData404);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<GetPlanningStepInspectionResponse>(null as any);
+    }
+}
+
 export class GetPlanningSequenceEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -2580,6 +2645,68 @@ export class ArmPlanningSequenceEndpointClient {
             });
         }
         return Promise.resolve<ArmPlanningSequenceResponse>(null as any);
+    }
+}
+
+export class GetPlanningSequenceInspectionEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getPlanningSequenceInspection(runId: string): Promise<GetPlanningSequenceInspectionResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/planning-sequence/inspection";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetPlanningSequenceInspection(_response);
+        });
+    }
+
+    protected processGetPlanningSequenceInspection(response: Response): Promise<GetPlanningSequenceInspectionResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = GetPlanningSequenceInspectionResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            let resultData400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result400 = ApiProblemDetails.fromJS(resultData400);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ApiProblemDetails.fromJS(resultData404);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<GetPlanningSequenceInspectionResponse>(null as any);
     }
 }
 
@@ -11341,6 +11468,202 @@ export interface IGetProcessAttemptOutputResponse {
     truncated?: boolean | undefined;
 }
 
+export class GetPlanningStepInspectionResponse implements IGetPlanningStepInspectionResponse {
+    runId?: string;
+    sequenceId?: string;
+    stepId?: string;
+    status?: string;
+    step?: PlanningSequenceInspectionStepResponse | undefined;
+    agent?: PlanningStepInspectionAgentResponse | undefined;
+
+    constructor(data?: IGetPlanningStepInspectionResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.runId = _data["runId"];
+            this.sequenceId = _data["sequenceId"];
+            this.stepId = _data["stepId"];
+            this.status = _data["status"];
+            this.step = _data["step"] ? PlanningSequenceInspectionStepResponse.fromJS(_data["step"]) : undefined as any;
+            this.agent = _data["agent"] ? PlanningStepInspectionAgentResponse.fromJS(_data["agent"]) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): GetPlanningStepInspectionResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GetPlanningStepInspectionResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["runId"] = this.runId;
+        data["sequenceId"] = this.sequenceId;
+        data["stepId"] = this.stepId;
+        data["status"] = this.status;
+        data["step"] = this.step ? this.step.toJSON() : undefined as any;
+        data["agent"] = this.agent ? this.agent.toJSON() : undefined as any;
+        return data;
+    }
+}
+
+export interface IGetPlanningStepInspectionResponse {
+    runId?: string;
+    sequenceId?: string;
+    stepId?: string;
+    status?: string;
+    step?: PlanningSequenceInspectionStepResponse | undefined;
+    agent?: PlanningStepInspectionAgentResponse | undefined;
+}
+
+export class PlanningSequenceInspectionStepResponse implements IPlanningSequenceInspectionStepResponse {
+    stepId?: string;
+    ordinal?: number;
+    role?: string;
+    provider?: string;
+    responseContract?: string;
+    recordedState?: string;
+    reasonCode?: string | undefined;
+    revision?: string;
+    predecessorAttemptId?: string | undefined;
+    inputProposalMessageId?: string | undefined;
+    attemptId?: string | undefined;
+    preparationReservedAtUtc?: string;
+    preparationDeadlineUtc?: string;
+    updatedAtUtc?: string;
+
+    constructor(data?: IPlanningSequenceInspectionStepResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.stepId = _data["stepId"];
+            this.ordinal = _data["ordinal"];
+            this.role = _data["role"];
+            this.provider = _data["provider"];
+            this.responseContract = _data["responseContract"];
+            this.recordedState = _data["recordedState"];
+            this.reasonCode = _data["reasonCode"];
+            this.revision = _data["revision"];
+            this.predecessorAttemptId = _data["predecessorAttemptId"];
+            this.inputProposalMessageId = _data["inputProposalMessageId"];
+            this.attemptId = _data["attemptId"];
+            this.preparationReservedAtUtc = _data["preparationReservedAtUtc"];
+            this.preparationDeadlineUtc = _data["preparationDeadlineUtc"];
+            this.updatedAtUtc = _data["updatedAtUtc"];
+        }
+    }
+
+    static fromJS(data: any): PlanningSequenceInspectionStepResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new PlanningSequenceInspectionStepResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["stepId"] = this.stepId;
+        data["ordinal"] = this.ordinal;
+        data["role"] = this.role;
+        data["provider"] = this.provider;
+        data["responseContract"] = this.responseContract;
+        data["recordedState"] = this.recordedState;
+        data["reasonCode"] = this.reasonCode;
+        data["revision"] = this.revision;
+        data["predecessorAttemptId"] = this.predecessorAttemptId;
+        data["inputProposalMessageId"] = this.inputProposalMessageId;
+        data["attemptId"] = this.attemptId;
+        data["preparationReservedAtUtc"] = this.preparationReservedAtUtc;
+        data["preparationDeadlineUtc"] = this.preparationDeadlineUtc;
+        data["updatedAtUtc"] = this.updatedAtUtc;
+        return data;
+    }
+}
+
+export interface IPlanningSequenceInspectionStepResponse {
+    stepId?: string;
+    ordinal?: number;
+    role?: string;
+    provider?: string;
+    responseContract?: string;
+    recordedState?: string;
+    reasonCode?: string | undefined;
+    revision?: string;
+    predecessorAttemptId?: string | undefined;
+    inputProposalMessageId?: string | undefined;
+    attemptId?: string | undefined;
+    preparationReservedAtUtc?: string;
+    preparationDeadlineUtc?: string;
+    updatedAtUtc?: string;
+}
+
+export class PlanningStepInspectionAgentResponse implements IPlanningStepInspectionAgentResponse {
+    id?: string;
+    attemptNumber?: number;
+    role?: string;
+    provider?: string;
+    responseContract?: string;
+
+    constructor(data?: IPlanningStepInspectionAgentResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.id = _data["id"];
+            this.attemptNumber = _data["attemptNumber"];
+            this.role = _data["role"];
+            this.provider = _data["provider"];
+            this.responseContract = _data["responseContract"];
+        }
+    }
+
+    static fromJS(data: any): PlanningStepInspectionAgentResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new PlanningStepInspectionAgentResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["id"] = this.id;
+        data["attemptNumber"] = this.attemptNumber;
+        data["role"] = this.role;
+        data["provider"] = this.provider;
+        data["responseContract"] = this.responseContract;
+        return data;
+    }
+}
+
+export interface IPlanningStepInspectionAgentResponse {
+    id?: string;
+    attemptNumber?: number;
+    role?: string;
+    provider?: string;
+    responseContract?: string;
+}
+
 export class GetPlanningSequenceResponse implements IGetPlanningSequenceResponse {
     runId?: string;
     status?: string;
@@ -11719,6 +12042,138 @@ export interface IPlanningSequenceArmingResponse {
     workspaceId?: string | undefined;
     checkpointId?: string | undefined;
     fingerprintSha256?: string | undefined;
+}
+
+export class GetPlanningSequenceInspectionResponse implements IGetPlanningSequenceInspectionResponse {
+    runId?: string;
+    status?: string;
+    sequence?: PlanningSequenceInspectionHeaderResponse | undefined;
+    steps?: PlanningSequenceInspectionStepResponse[];
+
+    constructor(data?: IGetPlanningSequenceInspectionResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.runId = _data["runId"];
+            this.status = _data["status"];
+            this.sequence = _data["sequence"] ? PlanningSequenceInspectionHeaderResponse.fromJS(_data["sequence"]) : undefined as any;
+            if (Array.isArray(_data["steps"])) {
+                this.steps = [] as any;
+                for (let item of _data["steps"])
+                    this.steps!.push(PlanningSequenceInspectionStepResponse.fromJS(item));
+            }
+        }
+    }
+
+    static fromJS(data: any): GetPlanningSequenceInspectionResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GetPlanningSequenceInspectionResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["runId"] = this.runId;
+        data["status"] = this.status;
+        data["sequence"] = this.sequence ? this.sequence.toJSON() : undefined as any;
+        if (Array.isArray(this.steps)) {
+            data["steps"] = [];
+            for (let item of this.steps)
+                data["steps"].push(item ? item.toJSON() : undefined as any);
+        }
+        return data;
+    }
+}
+
+export interface IGetPlanningSequenceInspectionResponse {
+    runId?: string;
+    status?: string;
+    sequence?: PlanningSequenceInspectionHeaderResponse | undefined;
+    steps?: PlanningSequenceInspectionStepResponse[];
+}
+
+export class PlanningSequenceInspectionHeaderResponse implements IPlanningSequenceInspectionHeaderResponse {
+    sequenceId?: string;
+    workspaceId?: string;
+    checkpointId?: string;
+    fingerprintSha256?: string;
+    recordedState?: string;
+    reasonCode?: string | undefined;
+    revision?: string;
+    armedAtUtc?: string;
+    updatedAtUtc?: string;
+    stopRequestedAtUtc?: string | undefined;
+    endedAtUtc?: string | undefined;
+
+    constructor(data?: IPlanningSequenceInspectionHeaderResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.sequenceId = _data["sequenceId"];
+            this.workspaceId = _data["workspaceId"];
+            this.checkpointId = _data["checkpointId"];
+            this.fingerprintSha256 = _data["fingerprintSha256"];
+            this.recordedState = _data["recordedState"];
+            this.reasonCode = _data["reasonCode"];
+            this.revision = _data["revision"];
+            this.armedAtUtc = _data["armedAtUtc"];
+            this.updatedAtUtc = _data["updatedAtUtc"];
+            this.stopRequestedAtUtc = _data["stopRequestedAtUtc"];
+            this.endedAtUtc = _data["endedAtUtc"];
+        }
+    }
+
+    static fromJS(data: any): PlanningSequenceInspectionHeaderResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new PlanningSequenceInspectionHeaderResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["sequenceId"] = this.sequenceId;
+        data["workspaceId"] = this.workspaceId;
+        data["checkpointId"] = this.checkpointId;
+        data["fingerprintSha256"] = this.fingerprintSha256;
+        data["recordedState"] = this.recordedState;
+        data["reasonCode"] = this.reasonCode;
+        data["revision"] = this.revision;
+        data["armedAtUtc"] = this.armedAtUtc;
+        data["updatedAtUtc"] = this.updatedAtUtc;
+        data["stopRequestedAtUtc"] = this.stopRequestedAtUtc;
+        data["endedAtUtc"] = this.endedAtUtc;
+        return data;
+    }
+}
+
+export interface IPlanningSequenceInspectionHeaderResponse {
+    sequenceId?: string;
+    workspaceId?: string;
+    checkpointId?: string;
+    fingerprintSha256?: string;
+    recordedState?: string;
+    reasonCode?: string | undefined;
+    revision?: string;
+    armedAtUtc?: string;
+    updatedAtUtc?: string;
+    stopRequestedAtUtc?: string | undefined;
+    endedAtUtc?: string | undefined;
 }
 
 export class PlanningImplementationAuthorizationResponse implements IPlanningImplementationAuthorizationResponse {

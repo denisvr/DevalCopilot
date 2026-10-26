@@ -126,11 +126,17 @@ public sealed class PlanningSequenceEndpointTests : IClassFixture<ApiWebApplicat
         Assert.Empty(await WithDbAsync(db => db.PlanningSequences.AsNoTracking().Where(sequence => sequence.RunId == seed.RunId).ToListAsync()));
     }
 
+    private static bool IsOperationRoute(string? route) =>
+        route is not null
+        && route.Contains("planning-sequence", StringComparison.OrdinalIgnoreCase)
+        && !route.Contains("/inspection", StringComparison.OrdinalIgnoreCase);
+
     [Fact]
     public void Exactly_three_planning_sequence_routes_exist_each_authorized_with_its_one_method_and_none_anonymous()
     {
+        // The two read-only inspection routes of ADR-0068 have their own inventory (PlanningSequenceInspectionEndpointTests).
         var endpoints = holder.Factory.Services.GetRequiredService<EndpointDataSource>().Endpoints.OfType<RouteEndpoint>()
-            .Where(endpoint => endpoint.RoutePattern.RawText?.Contains("planning-sequence", StringComparison.OrdinalIgnoreCase) == true)
+            .Where(endpoint => IsOperationRoute(endpoint.RoutePattern.RawText))
             .ToList();
 
         Assert.Equal(3, endpoints.Count);

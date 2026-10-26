@@ -653,6 +653,7 @@ describe('the Agent attempts of a historical run detail', () => {
       'Recorded collaboration outputs',
       // LOCAL-INSPECT-01: the collapsed recorded local execution inspection region of the selected run.
       'Inspect local execution',
+      'Inspect recorded planning',
       'Close selected run',
     ])
     expect(detail().querySelector('form, input, textarea, [role="textbox"]')).toBeNull()

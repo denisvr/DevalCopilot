@@ -1,119 +1,117 @@
 # Planner/reviewer handoff
 
-## Current action: LOCAL-RELEASE-INSPECT-01
+## Current action: PLAN-INSPECT-01
 
-**Review 3: GO for exact-content publication (2026-10-25).** LRI-R1 and LRI-V1
-are resolved. Publication is pending. Only the complete Codex GO and its external
-approved tree/path identity authorize staging, commit and push; no later change
-or next slice is authorized. Publish in the same Claude executor chat.
+**Review 2 GO for exact-content publication (2026-10-26). PLI-R1 and PLI-R2
+are resolved. Publication is pending.** Only the complete Codex GO and its
+external approved tree/path identity authorize staging, commit and push in the
+same Claude executor chat. No later substantive change or next slice is granted.
 
-[ADR-0067](../decisions/0067-inspect-recorded-local-quarantine-release-receipts.md)
-is implemented: one protected recorded query and one explicit collapsed region
-in the current and historical selected-step inspectors. It shows a proved Human
-release and supporting physical facts, mints no confirmation, sends no command
-and changes no ownership, queue, recovery, approval or publication authority.
+[ADR-0068](../decisions/0068-inspect-the-recorded-steps-of-one-planning-sequence.md)
+is implemented: two protected bodyless recorded queries, one bounded planning
+index and exact selected-step Agent association, and one explicit collapsed
+current/historical inspector reusing the existing guarded evidence. It adds no
+semantic replay, live-control change, ownership, recovery or execution authority.
 
-### Verified return and review decision
+### Verified return and acceptance
 
-Branch main; HEAD, local origin/main and fresh live main equal
-`7ab7a15eab9ce5682578517f1bb106ca7557db21`, divergence 0/0; index empty;
-22 modified and 30 untracked files, 52 total. All four planner inputs matched
-review-2/selection hashes before this intentional acceptance edit. The executor's
-complete correction-2 Git inventory matched all 52 paths before reviewer edits.
-Review records: `logs/planner-review/local-release-inspect-01/review-03/`.
-Reviewed content identity lives outside the files it identifies.
+Planner verified main, HEAD, local origin/main and fresh live main at
+`8b7085649cb8c67085f3583705789e8d8af532c4`, divergence 0/0, empty index and
+68 pending paths (11 modified, 57 new). All 63 executor non-document hashes
+matched current source. Before reviewer edits, the review-1 handoff and the
+other three selection inputs matched their expected hashes. Review records,
+original documents and approved-content identity are external under
+`logs/planner-review/plan-inspect-01/review-02/`.
 
-LRI-R1 is resolved by exact numeric admission before provider conversion and a
-fresh raw-storage validity value in the same untracked provider-neutral statement.
-The whole row is refused before eligibility/replay if a nullable numeric fact is
-unsupported nonnull storage; actual NULL and every supported integer remain
-representable. The historical chain, exact snapshot, original-host, Human event,
-chronology/lifetime and digest proof remain required. Candidate/first confirmation/
-replay now refuse the same incoherent storage as inspection, with no new grant.
+- **PLI-R1 resolved.** The operation-owned WhereAttemptNumberSupported restricts
+  the very statement that materializes the shared identity. Range and exact
+  remainder admission refuse unsupported numeric storage before conversion;
+  the direct maximum comparison preserves int.MaxValue. Legitimate INTEGER
+  affinity values remain supported. The shared scalar identity, schemas and
+  other consumers are unchanged; no catch substitutes for admission. Permanent
+  damage/valid controls and protected API responses prove the requested refusal.
+- **PLI-R2 resolved.** A successful NoLinkedAttempt answer now rechecks revision
+  after the membership query. The linked association keeps its final comparison.
+  A deterministic independent writer fires at the actual membership statement;
+  the changed read is Unavailable and an explicit reload reads the later coherent
+  no-link shape. No write, retry, transaction or new authority is introduced.
 
-Accept the three sibling tick guards and queued admission recipe-ordinal guard:
-same defect, same projection/proof boundary and permanent regressions, with no
-new consumer or policy. Removing the prior Int32 sentinel preserves legitimate
-codes. The added internal row validity/admission is the precise review-2 scope,
-not a persisted eligibility flag, ownership change or broader reader redesign.
-No Domain eligibility, SQL guard, migration, public graph, process or provider
-change is included. Normal storage rejects the corrupt rows used by these tests;
-no normal-host corruption or ownership bypass is claimed.
+Independent correction verification: **Application 45/45**, comprising the
+23 new admission/race cases, 15 selected-operation cases and the seven unchanged
+review-1 diagnostics; **API 4/4**, the complete storage/response class. The six
+previously failing behavioral diagnostics now pass, as does the valid maximum
+control. Current-source serial builds pass without warnings/errors; the
+Application review build was non-incremental because the correction disclosed
+binary-provenance uncertainty. Reviewer source was removed after its archived
+hash was checked, and the Application assembly rebuilt without it.
 
-LRI-V1 remains resolved: the journey awaits the actual new reload response,
-checks its body/rendered receipt and exactly one request, and marks before page
-reload for the cold closed state. The candidate/artifact GET check is scoped to
-host API requests to exclude dev-server modules; the business-POST inventory is
-unchanged. The durable fingerprint proves its selected fields/counts, not all-row
-byte identity. The inspector still owns no mutation or candidate control.
+Accept executor correction-1 final selected Application **298** (102 s runner,
+112 s command wall), API **53** (27 s runner, 30 s wall), Architecture **210**,
+44-file format and document checks at their recorded scopes. Client bytes remain
+`739015aa8986a6ac8c3bdc047c057b33bb74b1d8396d963de40f0487afe4d6f6`.
+Retain the original 166-test frontend selection, lint/build/strict-e2e and the
+reviewer's earlier 62/62 new frontend tests. The executor reports a further
+62-test subset run in correction 1; that is not a new complete frontend matrix.
+The original 60-new-tests count was a reporting error, corrected to 62.
 
-### Evidence and retained qualifications
+The headed journey remains its original pre-correction-host evidence. It proves
+Recorded inspection in current/history, explicit content, reload/cold state and
+its stated selected-field/count fingerprint, not either corrected path, a host
+restart, all-row byte identity or an older run beside a newer one. Current
+Application/API evidence supports retaining it without a redundant visual run.
+Other suites, shared Agent readers and harness evidence keep their actual scope;
+mandatory CI/security/provider/release gates are not waived.
 
-Independent review-3 Application: **200/200** (178 permanent: original 54,
-numeric 68 and nullable 56; plus 22 reviewer diagnostics: original six,
-fifteen nullable cases and the Agent Exited case). New protected API **13/13**;
-full Architecture **204/204**. Current-source builds pass. Reviewer source is the
-archived review-2 file, was removed from tests and the Application assembly rebuilt
-without it. Architecture's build regenerated NSwag with identical client bytes:
-`71898d8c4c6ffd4f9061177da967c919710d72ff5c1732783a1e8c58f49d65fa`.
+Preserve every earlier failure and evidence limit. The first correction matrix
+behaved like C7 after an incremental non-rebuild; stale mutant binaries are an
+executor inference, not verified binary contents or an established cause. Its
+results are superseded at the stated scopes. Raw final-matrix output shows
+**three** CS2012 build failures (Domain, Domain, Application), three associated
+missing-test-assembly attempts, then a successful **fourth** serial build/test.
+References to a third attempt/two failures in the return were inaccurate.
+Defender/VBCSCompiler mentions, MSBuild/graph log hypotheses and a later pass
+prove no cause. Reviewer documentation edits correct those counts and qualify
+the provenance claim; raw logs remain unchanged.
 
-Accept executor correction-2 final Application release/inspection **647**, API
-release/inspection/route **199**, Architecture **204**, changed-file format and
-link checks at their recorded final-source scope. Retain unchanged frontend 549
-in 21 files, lint/build and prior independent 165; correction-1 strict e2e checking
-and automatic headed journey remain at their actual sources/binaries. The browser
-host predates correction 2; no fresh latest-host browser proof is claimed. The
-valid-data controls and current API pass support retaining that journey without
-a redundant run. Domain/Infrastructure, broader suites and other journeys retain
-their earlier scope; mandatory CI/security/provider/release gates remain.
+C6/C7 are accepted bounded compiling controls with restored source hashes: C6
+kills seven unsupported-number cases plus the SQL-shape fact, not the values
+already refused by shared evaluation; C7 kills the membership race. Preserve the
+first invalid reviewer race interceptor, the earlier Application and journey
+setup failures, unretained first API CA2100 build output, tail-status strict-tsc
+claim, temporary-path ENOENT, interrupted restricted runner, unexplained build
+failures and duplicate-key console errors. Earlier occurrence does not establish
+the warning's cause or whether this slice contributes. Later passes reconstruct,
+authenticate or explain none of those observations.
 
-Preserve all failed attempts: both reviews' numeric diagnostics; incorrect first
-nullable-red fixture setup; the subsequent compiling omitted-admission control
-(48 failed, eight controls passed); the two failed tick translations; overflow,
-compile and shell failures; formatter reports and prior warnings. The corrected
-proof hash matches its saved source. The correction-2 named formatter log holds
-the clean final result, not its initial failure; CRLF causation remains executor-
-reported. Earlier failures are not explained or erased by later passes. Control
-2a's masked survivor and 2b's combined-defense kill remain accepted; no additional
-mutation campaign is required. The Exited challenge is resolved by ResultConsistent
-(the independent matching rewrite probe concerns Agent only). The older candidate
-decoder's millisecond chronology remains out of scope.
+The structural index remains an unsigned recorded relational reading, not
+semantic acceptance or authenticated history. Matching rewrites remain outside
+its assurance. A malformed sequence identity cannot supply a selected envelope
+and gives the fixed 404; the index still reports Unavailable. The existing
+independent evidence readers retain their own contracts. No broader shared
+projection redesign or historical semantic claim is accepted.
 
-The former 46-entry manifest covered only its listed paths; correction 2 refreshed
-the complete 52-path inventory. Reviewer edits only consolidate this checkpoint,
-correct the architecture statement that the proof was entirely unchanged and
-qualify the nullable tests' selected-field fingerprint and formatter evidence.
-They change no executable input or acceptance behavior. The previous full handoff
-is retained as `review-03/handoff-before-acceptance.md` under the review directory;
-permanent implementation/correction facts remain in current-work.
+### Publication and continuity
 
-### Publication and standing authority
-
-Stage only the externally approved 52-path set, verify the staged tree, commit
-with expected sole parent 7ab7a15 and verify committed tree/paths/parent before a
+Stage only the external approved 68-path set, verify its exact expected tree,
+commit with sole parent 8b70856, then verify committed tree/paths/parent before a
 normal fast-forward push of main. Verify live remote and report the exact SHA.
-No source/docs edits, builds, regeneration, cleanup or closure commit during
+No source/document edit, build, regeneration, cleanup or closure commit during
 publication. Any mismatch, material change, failed push or divergence stops for
-Codex without reset, force or history reconciliation. Independent publication
-verification and a fresh observed context-usage decision follow; no next slice
-is selected here.
+Codex without reset, force-push or history reconciliation. Independent publication
+verification and the workflow's current-context continuity check follow; this
+GO selects no next slice.
 
-LOCAL-QUARANTINE-RELEASE-01 is independently verified published as `7ab7a15`, tree
-`13384a72a80b440b976c18528d74f5d8f82d9aa0`, sole parent
-`569c6b13169bd55a259ca4f17d0780a8cc6ef259`, exact approved 171 paths. Its independent
-publication and prior-chat continuity records remain under
-`logs/planner-review/local-quarantine-release-01/`; no republish or closure action.
-Its LQR findings are resolved; all retained evidence limits stay in current-work
-and the prior handoff at that commit.
+LOCAL-RELEASE-INSPECT-01 remains independently verified published at the parent
+baseline (tree `261eda63c69910e5492c103431a3415d05b16da4`, sole parent 7ab7a15,
+52 approved paths). Its publication/continuity records remain under
+`logs/planner-review/local-release-inspect-01/`; no repeat review or publication.
+Preserve ADR-0065/0066's checksum-only distinction, typed immutable intent,
+original-host and exact Human evidence, invoked-process-only physical proof and
+unsigned-consistency limit. No recovery or frozen grant is renewed.
 
-Preserve ADR-0065/0066's checksum-only distinction, invoked-process-only evidence,
-normalized UTC/typed-storage qualifications and unsigned relational-consistency
-limit. No automatic checksum repair, history authentication, real-run recovery or
-frozen experiment is authorized. Increments 4/5/6 remain incomplete.
-
-Owner viewing preference: announce short controlled browser journeys, run headed
-automatically, owner watches only; no Inspector, --debug/--ui/PWDEBUG or manual
-Resume, trace/video/screenshots off. Backend tests are not visible app simulations.
+Owner preference remains short announced automatic headed journeys, no Inspector,
+--debug/--ui/PWDEBUG or manual Resume, trace/video/screenshots off. No additional
+journey is required for these unchanged frontend inputs.
 
 ## Retained review and evidence limits
 
@@ -144,7 +142,7 @@ untouched; no historical result is reconstructed by this selection.
 
 ## Standing decision constraints
 
-- ADR-0050 stays Proposed; P9 unproven; no mechanism selected. Frozen patches
+- ADR-0050 stays Proposed; P9 unproven; AI Memory deferred; no mechanism selected. Frozen patches
   A/B/C, C's assertions, write-ahead and sticky-flag alternatives stay
   unapplied/unaccepted. Owner GCM/ancestry-profile and residual name-to-ID risk
   acceptance was design-only; human rearm/resolution is absent.
@@ -167,12 +165,12 @@ untouched; no historical result is reconstructed by this selection.
   hung submissions; retention beside disposal failure is unproven.
 - Increments 4/5/6 incomplete. Account/context, raw Git read, non-Windows limits:
   [current-work](current-work.md#open-risks). Production code and necessary tests
-  are selected only for LOCAL-RELEASE-INSPECT-01 under ADR-0067's read-only
-  recorded-receipt contract. ADR-0065/0066 retain their delivered release authority.
+  are selected only for PLAN-INSPECT-01 under ADR-0068's read-only recorded
+  planning-inspection contract. ADR-0065/0066 retain their delivered release authority.
   PLAN-COORD-01, AGENT-SUP-01, WORKSPACE-EXCL-01, GLOBAL-ADMIT-01,
   GLOBAL-LIMIT-01, LOCAL-COORD-01, LOCAL-INSPECT-01, LOCAL-QUEUE-01,
-  LOCAL-QUEUE-INSPECT-01, LOCAL-QUEUE-OVERVIEW-01 and
-  LOCAL-QUARANTINE-RELEASE-01 are independently verified
+  LOCAL-QUEUE-INSPECT-01, LOCAL-QUEUE-OVERVIEW-01,
+  LOCAL-QUARANTINE-RELEASE-01 and LOCAL-RELEASE-INSPECT-01 are independently verified
   published. Inspection grants no mutation, scheduling,
   executor lease, operation retry/resume, quarantine release, recovery, approval,
   commit or publication authority. ADR-0065/0066 alone own the separately owner-authorized

@@ -4,6 +4,7 @@ import type { RunHistoryEntry } from '../projectRunHistory'
 import { toUtcText } from '../utcText'
 import { AgentAttemptHistoryPanel } from './AgentAttemptHistoryPanel'
 import { LocalExecutionInspectionPanel } from './LocalExecutionInspectionPanel'
+import { PlanningSequenceInspectionPanel } from './PlanningSequenceInspectionPanel'
 import { LocalDeliveryReceipt } from './LocalDeliveryReceipt'
 import { CollaborationHistoryPanel } from './CollaborationHistoryPanel'
 import { RunEventHistoryPanel } from './RunEventHistoryPanel'
@@ -59,6 +60,7 @@ export function ProjectRunHistoryDetail({ entry, onClose }: ProjectRunHistoryDet
       <CollaborationHistoryPanel runId={entry.runId} />
       <AgentAttemptHistoryPanel runId={entry.runId} />
       <LocalExecutionInspectionPanel runId={entry.runId} />
+      <PlanningSequenceInspectionPanel runId={entry.runId} />
       <p>
         <button type="button" onClick={onClose}>
           Close selected run

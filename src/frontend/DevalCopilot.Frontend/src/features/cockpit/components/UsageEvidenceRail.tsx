@@ -5,6 +5,7 @@ import { useCodexModelCatalog } from '../hooks/useCodexModelCatalog'
 import { describeCodexModelCatalog, describeCodexModelCatalogRetrievedAt } from '../describeCodexModelCatalog'
 import { AgentAttemptHistoryPanel } from './AgentAttemptHistoryPanel'
 import { LocalExecutionInspectionPanel } from './LocalExecutionInspectionPanel'
+import { PlanningSequenceInspectionPanel } from './PlanningSequenceInspectionPanel'
 import { CodexAccountUsageStopControl } from './CodexAccountUsageStopControl'
 import { CodexAccountUsageWarningControl } from './CodexAccountUsageWarningControl'
 import type { CodexAccountUsageStopResponse, CodexAccountUsageWarningSettingResponse } from '../../../api/clients'
@@ -143,6 +144,7 @@ export function UsageEvidenceRail({
           ))}
           {runId && <AgentAttemptHistoryPanel key={runId} runId={runId} />}
           {runId && <LocalExecutionInspectionPanel key={runId} runId={runId} />}
+          {runId && <PlanningSequenceInspectionPanel key={runId} runId={runId} />}
         </>
       )}
     </aside>

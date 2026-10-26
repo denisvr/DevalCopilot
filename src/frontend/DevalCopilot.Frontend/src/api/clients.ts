@@ -121,6 +121,10 @@ import {
   LocalExecutionInspectionWindowWireClient,
 } from '../features/cockpit/localExecutionInspectionWire'
 import {
+  PlanningSequenceInspectionIndexWireClient,
+  PlanningSequenceInspectionStepWireClient,
+} from '../features/cockpit/planningSequenceInspectionWire'
+import {
   LocalExecutionOwnershipReleaseCommandWireClient,
   LocalExecutionOwnershipReleaseReadWireClient,
 } from '../features/cockpit/localExecutionOwnershipReleaseWire'
@@ -183,6 +187,9 @@ export const localExecutionAdmissionHistoryClient = () => new LocalExecutionAdmi
 export const localExecutionQueueInspectionClient = (signal?: AbortSignal) => new LocalExecutionQueueInspectionWireClient(getApiBaseUrl(), authenticatedHttp, signal)
 export const localExecutionInspectionStepClient = () => new LocalExecutionInspectionStepWireClient(getApiBaseUrl(), authenticatedHttp)
 export const localExecutionInspectionWindowClient = () => new LocalExecutionInspectionWindowWireClient(getApiBaseUrl(), authenticatedHttp)
+// The recorded planning sequence index and selected-association reads (ADR-0068), as parsed-body facades for the whole-answer decoders.
+export const planningSequenceInspectionIndexClient = () => new PlanningSequenceInspectionIndexWireClient(getApiBaseUrl(), authenticatedHttp)
+export const planningSequenceInspectionStepClient = () => new PlanningSequenceInspectionStepWireClient(getApiBaseUrl(), authenticatedHttp)
 
 export const agentAttemptVerificationEvidenceClient = () =>
   new AgentAttemptVerificationEvidenceWireClient(getApiBaseUrl(), authenticatedHttp)

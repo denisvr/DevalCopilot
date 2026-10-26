@@ -6,7 +6,232 @@ was prepared ([recovery](development-workflow.md#recovery)). Git and code
 prevail; compare branch, `HEAD`, `origin/main` and staged/unstaged/untracked
 state first.
 
-## Active slice: LOCAL-RELEASE-INSPECT-01 inspect recorded local quarantine release receipts (ADR-0067)
+## Active slice: PLAN-INSPECT-01 inspect the recorded steps of one planning sequence (ADR-0068)
+
+This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
+Reconcile publication with Git and the slice's independent publication-verification record, when available. This record alone grants no
+publication authority.
+
+**Delivery phase: first return to Codex for review, by the new Claude executor chat (superseded by [Correction 1](#correction-1-codex-review-1-no-go-pli-r1-and-pli-r2-both-p2)); the complete diff (including the four planner inputs) is
+unstaged, uncommitted and unpushed. No GO exists.** Review and publication are separate later events; nothing here claims either.
+Baseline: `main`, `HEAD`, local `origin/main` and the live ref equalled `8b7085649cb8c67085f3583705789e8d8af532c4` (LOCAL-RELEASE-INSPECT-01,
+independently verified published and neither repeated nor reopened) as stated by the dispatch; divergence 0/0 and an empty index were
+re-verified by the executor once before editing and again at the return (the live remote was not re-read by the executor). The four planner
+inputs (`decisions/README.md`, `mvp-delivery-plan.md`, `planner-handoff.md`, ADR-0068) equal their `logs/planner-review/plan-inspect-01/selection.txt`
+SHA-256 values at the start and at the return. ADR-0050 stays Proposed, P9 unproven, AI Memory deferred, Increments 4/5/6 incomplete; every
+standing restriction in the handoff stays. No frozen profile, native/provider/credential experiment, real run, recovery, cleanup or
+commit/push was touched or performed; deterministic doubles remained the validation boundary.
+
+### What exists
+
+- **Application.** Two queries (`GetPlanningSequenceInspectionQuery`, `GetPlanningStepInspectionQuery`) with closed results (`Recorded` /
+  `NotRecorded` / `Unavailable`; `Recorded` / `NoLinkedAttempt` / `Unavailable`) and one shared structural reader,
+  `Policies/PlanningSequenceInspection`. It reads at most six step rows (a sixth is detected), through bounded untracked scalar projections in
+  which every identifier and time is the raw stored bytes within their bound, parsed by one strict parser (36-character D-format nonempty UUID,
+  the provider's UTC time text with a zero offset), every enum is classified by the database, every number is guarded to an exact stored INTEGER
+  in its range (revisions 1 to 2^53 - 1) and every text is byte-bounded; a corrupt value is therefore an explicit refusal and never a conversion
+  fault. It proves the ManualAgent run, the sequence's own run and project, the pinned workspace's project, the pinned checkpoint's workspace and
+  fingerprint, ADR-0055's fixed progression (roles, providers and contracts by ordinal, gapless ordinals, unique identities, fixed reasons, the
+  claimed/unlinked link shape, every earlier step Concluded, the predecessor chain, every input Proposal a Proposal of this run attributed to the
+  predecessor attempt for a reviewer and equal to its review's for a Resolver) and the stop/end/reason/time shape of the sequence. It does not
+  require an ended sequence's last attempt to be terminal. The revision is read with the header and compared after the structural reads (and
+  again after the selected association proof); a change withholds the answer with no retry. The selected step re-proves the structure and the
+  exact membership (decided by a database join of stored identities, so damage elsewhere cannot make a foreign step a member), then, for a
+  linked step only, proves the exact attempt of this run (reserved identity, Agent kind, the fixed role, provider and contract, a coherent
+  assignment identity by the unchanged `ScalarAgentAttemptIdentity`, and the pinned workspace, checkpoint and fingerprint recorded at claim) and
+  returns only the existing immutable header. The Reserved, Revoked and Unresolved shapes are `NoLinkedAttempt` and nothing is discovered by a
+  reserved identity. No live status, arming, classifier, lineage, fence, lease, message content, Git, filesystem, process, provider or account
+  reader is consulted, nothing is written, no exception is swallowed, no table, migration, event, worker or dependency was added.
+- **API.** Two protected, bodyless, queryless MVC GETs, `/api/runs/{runId}/planning-sequence/inspection` and `.../inspection/steps/{stepId}`, one
+  class and one action each, dispatching through `IApplicationMediator` behind one new resource filter that refuses any query key or text and
+  any body (declared length, any transfer encoding, a readable undeclared byte) with the fixed non-echoing 400 codes
+  `planning_sequence_inspection.query_not_allowed` / `.body_not_allowed` before binding; an unknown run and a missing or foreign step are the
+  one fixed 404 `planning_sequence_inspection.not_found`. API-owned closed graphs (revisions as canonical Int64 strings, times as UTC
+  round-trip strings). NSwag regenerates the client reproducibly; the diff of `api-client.ts` is purely additive (455 insertions, 0 deletions).
+- **Frontend.** `planningSequenceInspection.ts` (whole-answer decoders: exact keys, closed vocabularies, bound run/sequence/step identity,
+  the fixed role/provider/contract table, chronology compared as canonical texts at tick precision, the host's structural rules, and for the
+  selected answer the very indexed step at or after its indexed state with an immutable-fact comparison and the attempt header equal to the
+  step's link and fixed identity), parsed-body wire clients, `usePlanningSequenceInspection` (run, opening, index visit, step visit lifetimes
+  over the unchanged owned-lifetime primitives; reload ends the selection and its content in the render that starts the read), fixed copy and
+  the collapsed **Inspect recorded planning** region (`PlanningSequenceInspectionPanel` and `...StepDetail`) mounted once for the current run
+  (`UsageEvidenceRail`) and once for the selected historical run (`ProjectRunHistoryDetail`). A selected linked step mounts the existing
+  `AgentAttemptDetail` with the immutable expectation (metadata read; inputs, outputs, verification and sealed artifacts stay their own explicit
+  reads) and the explicit existing `CollaborationEvidenceDrilldown` of the step's input Proposal. No arming, stop, implementation, recovery,
+  approval or publication control is mounted; no shared Agent rendering or lifetime code changed.
+- **Journey.** `e2e/planning-sequence-inspection.journey.ts` (new, one authenticated owned-fixture journey): one rendered arming records the real
+  five-step sequence; after the setup settled (every host observation closed) it baselines the business POSTs, the provider invocations and a
+  selected durable fingerprint, then inspects the finished sequence from the current rail and from Run history (awaited actual index and step
+  responses, whole bodies, rendered identity, the exact inspection request lists), reaches one recorded input, one recorded output, one sealed
+  artifact window and the input Proposal evidence explicitly, performs an explicit reload (one new awaited response, the same body, selection and
+  content cleared), then a page reload marked before it (cold closed state, no inspection or attempt/message read) and a final read; the segment
+  adds no business POST, no provider invocation and no change to the fingerprint.
+
+### Evidence (logs under `logs/executor/plan-inspect-01/`, git-ignored; commands run at the repository root unless a frontend script)
+
+One concise retained log, `final-matrix.log` (exact commands, filters, outcomes, elapsed seconds; raw outputs in `final-raw/`), on the final stable
+sources; the changed-path manifest of the 62 non-document paths is `final-source-manifest-before-docs.sha256` (recomputed after the document edit, see
+the end of this section). Fresh unless stated:
+
+- **Builds.** Api normal build and a second `--no-incremental` Api build (which regenerated the NSwag client) produced byte-identical
+  `src/api/generated/api-client.ts` (SHA-256 `739015aa8986a6ac8c3bdc047c057b33bb74b1d8396d963de40f0487afe4d6f6`; the diff against HEAD is 455 insertions, 0
+  deletions); Application, Api integration, Architecture and journey host projects built with 0 warnings, 0 errors. Nothing was edited in the generated file.
+- **Application**, `--filter "FullyQualifiedName~PlanningSequenceInspection|FullyQualifiedName~Features.Runs.PlanningSequences"`: **275 passed**, 97 s (new 144
+  in namespace `...Runs.PlanningSequenceInspection`: 19 index, 15 selected-step, 110 damage and race cases; the other 131 are the unchanged ADR-0055 regression).
+  Real migrated file-backed SQLite; zero to five steps, every fixed role, stopped, stopping, interrupted, attention and unresolved shapes, unlinked
+  uncertainty, linked Running, failed, refused, interrupted and message-less attempts, later legitimate facts (a newer checkpoint and run) not invalidating a
+  coherent record, 85 structural and 22 association damage cases (the sixth row, unsupported numeric storage, malformed identifiers and times, foreign
+  and wrongly typed references, misattributed Proposals, corrupt linked-attempt time columns), three deterministic independent-writer revision races
+  (structural read, no-link step and association proof) and the zero-write, SELECT-only, forbidden-column and zero-external-observation proofs
+  (`StatementLog`, change fingerprint, capture and seal counters).
+- **Api**, `--filter "FullyQualifiedName~PlanningSequenceInspection|FullyQualifiedName~PlanningSequenceEndpointTests|FullyQualifiedName~PlanningSequenceInt64WireTests|FullyQualifiedName~LaunchSessionAuthenticationTests"`:
+  **51 passed**, 17 s (new 22: both routes' authentication, MVC authorization inventory, methods, three body shapes, query shapes, fixed 404, closed wire graphs
+  of all five real steps, NotRecorded, Unavailable over damaged storage, revision limits, no write or artifact read or provider call, and the actual OpenAPI graph).
+  The planner-named existing regression is **one edited assertion**: `PlanningSequenceEndpointTests.Exactly_three_planning_sequence_routes_exist...` counted every
+  route containing `planning-sequence` and failed 3 vs 5 once the two inspection routes existed; it now excludes `/inspection` (ADR-0055 still has exactly its three
+  operations) and the inspection routes have their own exact inventory. Nothing was weakened.
+- **Architecture**, whole project: **210 passed** (204 before; six new boundary facts for ADR-0068).
+- **Frontend**, named files (the five new test files and the existing `ProjectRunHistoryPanel*`, `ProjectRunHistoryAgentAttempts`, `PlanningSequencePanel` and
+  `PlanningSequenceStaleAction` tests): **166 passed in 10 files** (62 new in the five new test files; this record first said 60, a miscount corrected in Correction 1), 5 s; `npm run lint` exit 0;
+  `npm run build` (includes the product `tsc -b`) exit 0; the strict e2e `tsc` check, run separately, exit 0 over 53 files (the 51 files of `e2e/*.ts`,
+  `e2e/journey/*.ts` and `e2e/harness/*.ts`, which include the new journey, plus `playwright.config.ts` and `playwright.journey.config.ts`) with
+  `npx tsc --ignoreConfig --noEmit --strict --target es2023 --module esnext --moduleResolution bundler --skipLibCheck --noUnusedLocals --noUnusedParameters
+  --verbatimModuleSyntax --allowImportingTsExtensions --erasableSyntaxOnly --types node` plus those globs.
+- **Format and hygiene.** `dotnet format DevalCopilot.slnx --verify-no-changes --include <the 43 new or modified C# files>`: clean (exit 0, 27 s); `git diff --check` reports
+  only the existing CRLF notice of the generated client; the new files have no CR, tab or trailing space; a bounded lexical scan for secrets found only comments and
+  clearly fictitious test values; no dependency, package or configuration file changed.
+- **Documents.** `check-doc-links.js` (the earlier slice's script, copied unchanged; negative-controlled with a deliberately broken link and anchor, which it reported) over this
+  record: 35 relative links, 0 problems; `git diff --check` clean for the documents; the SHA-256 manifest of the 62 non-document paths is identical before and after this document edit
+  (`final-source-manifest-before-docs.sha256`, `final-source-manifest-after-docs.sha256`), so no binary, test or browser evidence is invalidated by it.
+- **Journey**, one automatic headed run on the final binaries (`playwright test -c playwright.journey.config.ts e2e/planning-sequence-inspection.journey.ts --headed
+  --trace off --workers 1`; no Inspector, `--debug`, `--ui`, `PWDEBUG` or manual Resume; trace, video and screenshots off; the owner was told before the run
+  in the executor's message): **1 passed**, 17.6 s (24 s wall). It proves the five-step scene (one arming POST; five Concluded steps in the fixed roles with exact
+  predecessor links), the current-run and run-history surfaces, each read's awaited actual response (whole body, exact members, rendered identity, exact request
+  lists), one recorded input, one recorded output, one sealed artifact window and the input Proposal evidence as explicit reads, the explicit reload (one new awaited
+  index response, equal body, selection and content cleared), a page reload marked before it (cold closed state: no inspection or attempt or message read) and a
+  final read. After the setup settled it baselined all business POSTs (the one arming), the five provider invocations and a durable fingerprint; the inspection segment
+  added no business POST, no provider invocation and no fingerprint change. **The fingerprint covers exactly:** the run's event, collaboration-message, attempt and
+  attempt-input row counts; each attempt's status and outcome; the sequence row's state, reason code and revision; each step row's state, revision and attempt link; and
+  each host observation's revision and closure marker. It is not a byte identity of every stored row, of the artifact files or of another run's rows.
+  A page reload is not a host restart; the file-backed Application and API tests prove database and host reopening separately.
+- **Five bounded compiling controls** (`dev-controls.log`, serial, hash-guarded, baseline and restored hashes identical, targeted regressions only): C1 remove the
+  association-proof revision recheck, **killed** by `A_revision_change_during_the_selected_association_proof...`; C2 stop reading the sixth row, **killed** by
+  `step_sixth_row_past_the_bound`; C3 drop the Resolver same-Proposal rule, **killed** by `step_resolver_input_differs`; C4 drop the reviewer attribution check,
+  **killed** by `proposal_attributed_to_another_attempt` and `proposal_unattributed`; C5 drop the linked attempt time admission, **killed** by its four new cases.
+  This is not a mutation campaign; surviving scope was not searched.
+- **Planner inputs.** The four planner inputs equal their `selection.txt` SHA-256 values at the start and at the return. HEAD, local `origin/main` and the empty index were
+  re-verified; the live remote was not re-read by the executor.
+
+Retained, not rerun and not run: Domain, Infrastructure (persistence and process) tests, the whole Application and Api suites, the whole Vitest suite, the other
+journeys and the standalone harness tests (no schema, producer, ownership, shared transport or shared Agent rendering or lifetime code changed; two existing test
+inventories changed by one line each for the new button, one existing route assertion as stated). No earlier slice's evidence is fresh evidence for this one.
+
+### Preserved development attempts and failures
+
+All failed output is kept (`logs/executor/plan-inspect-01/`): none was rerun blindly.
+
+- A shell heredoc of the first API source files failed to parse (an apostrophe in a comment); the files were then written with the Write tool. Nothing ran.
+- Application damage first run, 104 of 106 passed: two cases were invalid setup of mine (a unique index refused the duplicated reserved identity; `UPDATE runs SET ProjectId`
+  hit another run of the shared database). The cases now drop the unique index and scope to the sequence's run. Output: `application-damage-dev-attempt-1-failed-original.txt`.
+- Api first build failed on analyzer CA2100 for the test's raw SQL text (a pragma with a stated reason was added); that build output was not retained (overwritten by the
+  next run). The next focused run failed one test of mine (`'7'` stored in an INTEGER column is converted to the integer 7 by SQLite, so it is a legitimate revision;
+  the case now stores non-numeric text): `api-dev-attempt-1-failed-original.txt`.
+- Journey development attempts 1 to 3 failed on defects of my script, none in the product: the sealed window route is `.../evidence/artifact-window/...` (attempt 1), the evidence
+  dt/dd layout is not `Attempt number: 1` (attempt 2) and the live cockpit's own kind-named eligibility reads (`agent-attempts/codex-plan`...) are not attempt evidence
+  (attempt 3): `journey-dev-attempt-{1,2,3}-failed-original.txt`. A fourth run passed on binaries built before the hardening below and is superseded by the final run.
+- The first final-matrix run (`final-matrix-superseded-prehardening.log`, `final-raw-superseded-prehardening/`) failed the existing route-inventory assertion above, and its
+  strict-`tsc` step failed only because my script passed unexpanded globs (exit 2, `TS6053`); an earlier strict-`tsc` "exit 0" of mine had been the exit status of a `tail` pipe and is not
+  claimed. The strict check was then run with the true exit status (above).
+- **Hardening found by my own review during that run (product, corrected before the final matrix).** The unchanged shared `ScalarAgentAttemptIdentity` projection converts the attempt's
+  `ClaimedAtUtc`, `CompletedAtUtc` and `AgentDispatchedAtUtc`, so a corrupt time on a linked attempt would have faulted the selected read instead of answering Unavailable. The association
+  proof now reads those three columns (with the pin) as bounded raw bytes and admits them first; four new cases and control C5 prove it. The shared projection itself is unchanged.
+- The React duplicate-key console errors (one repeated key, hundreds of occurrences) appear in this journey as in earlier journeys that mount none of this slice's UI
+  (the LOCAL-RELEASE-INSPECT-01 final journey log); they establish an earlier occurrence, not the cause, and were not investigated further; whether this slice contributes to them is not established.
+
+### Challenges, limits and risks for review
+
+- **No material challenge to ADR-0068.** Everything it requires fit the additive read-only contract: no schema, live control, shared ownership or release proof, provider capability
+  or semantic replay change was needed, and none was made.
+- **Not a replay or authentication.** The index proves structure and identity of recorded facts; the selected read proves the exact Agent association; neither proves acceptance,
+  liveness, a dispatch, or that the source is current, and matching rewrites of the recorded rows stay outside the assurance (as ADR-0068 states). A recorded `Concluded` is
+  bookkeeping; the Proposal and review content are read only through the existing explicit readers.
+- **Frontend cannot prove reviewer attribution.** It needs message rows, so only the host proves that a reviewer's input Proposal is attributed to its predecessor attempt; the decoder checks every
+  other rule the wire exposes. The selected-answer comparison additionally requires the step's revision and update time not to run backwards (implied by the Domain, not stated in the ADR).
+- **404 for an unparseable sequence identity.** When the sequence row's own identity is not a valid UUID the selected read answers the fixed 404 (no identity can be named), while the
+  index answers Unavailable; a step whose own identity is damaged cannot be addressed at all.
+- **Existing shared code reused unchanged.** `ScalarAgentAttemptIdentity` and `AgentAttemptDetail`/`CollaborationEvidenceDrilldown` (and so their limits, redaction and window
+  behaviour) are unchanged; their own corrupt-storage behavior for other columns is theirs, not this slice's.
+- **Journey scope.** It proves the Recorded five-step path through both surfaces and the reload behaviours against a real sequence. "Historical" is run #1 of the only run of its project (as in
+  earlier journeys); an older run beside a newer one is proved in the Application tests (a newer checkpoint and run beside a recorded sequence), not in the browser. Reserved, Revoked,
+  Unresolved, Stopping, Interrupted, Unavailable and NotRecorded renderings are proved by the component, surfaces, hook and decoder tests and by the Application and Api tests.
+- **Other documents.** Only this record changed; the cockpit specification, evidence-inspection architecture document, engineering context, security plan and threat model carry no
+  ADR-0068 text (the dispatch named only this record). That is a possible follow-up for the planner, not done here.
+- **Not in scope and not done:** semantic planning replay, a final-delivery summary, recovery, queue controls, retry, approval, commit and publication, a real-provider or real-run read,
+  any frozen-experiment renewal, polling, prefetch, export or browser persistence.
+
+### Correction 1 (Codex review 1 NO-GO: PLI-R1 and PLI-R2, both P2)
+
+**Delivery phase: correction 1 returned by the same Claude executor chat, complete diff (including the reviewed handoff), unstaged, uncommitted and unpushed. No GO exists.**
+The first return above stays as written except where this section corrects it; the fresh evidence below supersedes the Application, Api and Architecture runs it repeats, at the
+scopes stated. Baseline at the start of the correction: `main`, `HEAD`, local `origin/main` (and the live ref, as verified by the planner) equal
+`8b7085649cb8c67085f3583705789e8d8af532c4`, divergence 0/0, empty index, 67 pending paths; all 67 entries of `logs/planner-review/plan-inspect-01/review-01/correction-preflight.sha256`
+matched before editing, including the reviewed `planner-handoff.md` (`290d141b…`), which is preserved. ADR-0068, the decision index and the roadmap still equal the selection hashes.
+
+- **PLI-R1 (P2): the linked attempt number was converted without exact storage admission. Corrected.** `PlanningSequenceInspectionAgentProof` read the shared
+  `ProjectScalarIdentity`, which materializes `AttemptNumber` unguarded: the reviewer reproduced REAL 1.75 as Recorded/1, TEXT `'7tail'` as Recorded/7, BLOB `X'31'` as Recorded/1 and
+  INTEGER 2147483648 and 4294967297 as an `OverflowException`. The operation now owns the admission: `WhereAttemptNumberSupported` (in the operation's projection) restricts the same
+  statement that materializes the identity to a stored INTEGER from 1 to `int.MaxValue` (range check, which excludes TEXT and BLOB; remainder with the column's own `int` type as modulus,
+  which excludes a REAL; `int.MaxValue`, the one value that is not its own remainder, compared directly). An unsupported value selects no row and is read as Unavailable with null step and
+  agent, while the structural index stays Recorded. `ScalarAgentAttemptIdentity` is unchanged; no catch, schema, provider-specific code or shared-reader change.
+- **PLI-R2 (P2): a successful no-link answer was returned without a final revision comparison. Corrected.** The structural reader rechecks the revision before the membership read, so a
+  separate writer advancing it during that later `SELECT EXISTS` was missed on the unlinked branch. `GetPlanningStepInspectionQueryHandler` now compares the revision once more after
+  membership before returning `NoLinkedAttempt` (otherwise Unavailable with null payloads); the linked association's final check is unchanged. No retry, transaction, write, live status
+  or authority change.
+- **Permanent regressions.** `PlanningStepInspectionAdmissionTests` (new, 23 cases, adapted from the reviewer's archived diagnostics, whose source is not in the delivery):
+  fourteen unsupported stored values (the five demonstrated ones plus 0.5, 1e300, 9223372036854775807, 0, -1, -2147483648, `'seven'`, `''`, `X''`) are Unavailable with null step and agent, the
+  index stays Recorded and a sibling step stays Recorded; six valid controls stay Recorded with the stored number (2147483647, 2147483646, 1, 65536, `'7'` and `7.0`, which SQLite's
+  INTEGER affinity stores as the integer 7); one fact reads the executed identity statement and asserts the four admission predicates are in it; the membership-seam race uses a deterministic
+  independent SQLite writer at the `SELECT EXISTS ... planning_sequence_steps` statement, **asserts the writer fired**, expects Unavailable with null payloads and then, on an explicit reload,
+  the coherent `NoLinkedAttempt`; a companion fact proves the membership statement is observed on the unchanged path. The Architecture ordering fact now requires the no-link recheck after the
+  membership read and before the association proof, and exactly two revision rechecks in the handler. Protected API evidence (two new facts in
+  `PlanningSequenceInspectionEndpointStorageTests`, each over its own recorded five-step sequence): the five demonstrated unsupported numbers answer 200 Unavailable with null step and agent (no
+  server error) beside a Recorded index, and `int.MaxValue` answers Recorded; a Reserved, Revoked and Unresolved last step each answer 200 `NoLinkedAttempt` with null payloads beside a Recorded index.
+  The reviewer's first membership interceptor never fired (a wrong SQL predicate) and is preserved by the reviewer as invalid setup; the corrected predicate is the one used here.
+- **Red evidence (compiling controls, serial, hash-guarded, restored byte-identical; `correction-1/dev-controls.log`).** C6 remove `WhereAttemptNumberSupported`: **killed** (seven of the unsupported
+  cases and the statement-shape fact fail; the 0, -1, `''` and similar values were already refused by the shared evaluation and are not claimed to discriminate). C7 return the no-link answer
+  without the recheck: **killed** by the membership-seam race. The new regressions were also run first on the corrected source: 23 of 23 and 4 of 4 passed.
+
+**Fresh evidence on the corrected stable sources** (`correction-1/final-matrix.log`, raw outputs in `final-raw/`; non-incremental builds before the tests):
+
+- Application, `--filter "FullyQualifiedName~PlanningSequenceInspection|FullyQualifiedName~Features.Runs.PlanningSequences"`: **298 passed**, 102 s test-runner duration (112 s command wall time; 167 new inspection cases, the unchanged 131 ADR-0055 regression).
+- Api, `--filter "FullyQualifiedName~PlanningSequenceInspection|FullyQualifiedName~PlanningSequenceEndpointTests|FullyQualifiedName~PlanningSequenceInt64WireTests|FullyQualifiedName~LaunchSessionAuthenticationTests"`:
+  **53 passed**, 27 s test-runner duration (30 s command wall time; 24 new). The Api build is the fourth attempt (see the failures below).
+- Architecture, whole project: **210 passed**.
+- `dotnet format DevalCopilot.slnx --verify-no-changes --include <the 44 new or modified C# files>`: clean (exit 0, 32 s); `git diff --check` clean apart from the generated client's CRLF notice; the new file has no CR,
+  tab or trailing space. The NSwag client bytes are unchanged (`739015aa…`); the SHA-256 manifest of the now 63 non-document paths is in `correction-1/`.
+
+**Retained at their actual scope:** the original complete frontend selection, lint, build and strict e2e `tsc` (no frontend or journey source changed; the executor reports one further test command over the five new files,
+which reported **62 passed in 5 files**, not a repeat of the complete frontend selection); client generation (identical bytes above); the headed journey, which ran on the **pre-correction** host (it contains neither the attempt-number admission nor the
+no-link recheck; the correction changes only backend admission and rechecking and tests, so no redundant visual run was made and none of the journey's claims depends on these two paths).
+The first record's "60 new" frontend tests was a miscount; the reviewer's five-file test run and the executor's reported subset command both give **62** (the 166 total in the first record was accepted at its scope and is not re-claimed here).
+Domain, Infrastructure, the whole Application and Api suites, the whole Vitest suite, the other journeys and the harness tests were not run.
+
+**Failures and limits of the correction, preserved:**
+
+- The first correction matrix (`final-matrix-stale-mutant-binaries-superseded.log`, `final-raw-stale-mutant-binaries-superseded/`, `final-app-tests-failed-original.txt`) failed one Application test of 298, the new
+  membership-seam race, with the same behavior as control C7. The control script restored the source byte-identically, but the following incremental build did not rebuild (1 s), leaving binary provenance uncertain.
+  The executor inferred stale mutant binaries from behavior, without inspecting the binary: the class failed identically three times in isolation until a `--no-incremental` rebuild, after which it passed, and the matrix
+  was rerun with non-incremental builds. That supports a provenance concern, not independent proof of the failed binary's contents or cause. Its Api (53) and Architecture (210) results are superseded, not claimed.
+- Planner review reconciled **three** failed Api `--no-incremental` builds, followed by success on the **fourth** attempt: `final-raw/api-build.txt` and `api-build-retry.txt` report CS2012 for Domain.dll;
+  `api-build-retry-2.txt` reports it for Application.dll; `api-build-retry-3.txt` builds serially with `-m:1` and passes. The three associated failed test commands report that the test assembly was not found,
+  not executed test failures. The retry error mentions Microsoft Defender and the second-retry error mentions VBCSCompiler, without establishing cause. A build-server shutdown preceded another failure;
+  neither the log's MSBuild/graph hypotheses nor the final pass proves the cause. Original output and retry sections remain unchanged. The Architecture build in the same matrix passed non-incrementally.
+- The reviewer's limits stand and are not explained here: the first reviewer build failed with zero reported warnings or errors, the restricted test runner produced no results and was interrupted, and the first
+  frontend attempt failed module loading with a temporary-path ENOENT (a workspace TEMP/TMP run passed). The reviewer's corrected diagnostic run was 151 cases, 145 passed and six failed (five numeric cases and the corrected
+  membership race), with all 144 permanent inspection cases and the maximum-number control passing; the reviewer's archived source and output are under `logs/planner-review/plan-inspect-01/review-01/`.
+- Remaining risks: the admission covers `AttemptNumber`; the other columns of the shared identity projection are guarded by it (strings by byte bounds, enums by database classification) and the three time columns by the
+  earlier hardening, but no further column audit of that projection was made. The browser has not exercised the two corrected paths.
+
+## Previous slice (independently verified published as 8b70856; historical record): LOCAL-RELEASE-INSPECT-01 inspect recorded local quarantine release receipts (ADR-0067)
 
 This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
 Reconcile publication with Git and the slice's independent publication-verification record, when available. This record alone grants no
