@@ -649,7 +649,7 @@ export function RunCockpitView({
           )}
           {cockpit.runId === runId && executionMode.kind === 'ManualAgent' && (
             <LocalCommitPanel
-              key={runId}
+              key={`local-commit:${runId}`}
               runId={runId}
               projectId={cockpit.projectId}
               latestSequence={cockpit.latestSequence}
@@ -668,7 +668,7 @@ export function RunCockpitView({
           )}
           {cockpit.runId === runId && executionMode.kind === 'ManualAgent' && (
             <AbandonRunPanel
-              key={runId}
+              key={`abandon-run:${runId}`}
               runId={runId}
               latestSequence={cockpit.latestSequence}
               evidenceRefreshGeneration={evidenceRefreshGeneration}

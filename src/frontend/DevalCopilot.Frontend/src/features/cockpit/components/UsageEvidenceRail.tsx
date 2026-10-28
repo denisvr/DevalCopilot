@@ -142,9 +142,9 @@ export function UsageEvidenceRail({
               {tab}: not yet collected.
             </div>
           ))}
-          {runId && <AgentAttemptHistoryPanel key={runId} runId={runId} />}
-          {runId && <LocalExecutionInspectionPanel key={runId} runId={runId} />}
-          {runId && <PlanningSequenceInspectionPanel key={runId} runId={runId} />}
+          {runId && <AgentAttemptHistoryPanel key={`agent-attempt-history:${runId}`} runId={runId} />}
+          {runId && <LocalExecutionInspectionPanel key={`local-execution-inspection:${runId}`} runId={runId} />}
+          {runId && <PlanningSequenceInspectionPanel key={`planning-sequence-inspection:${runId}`} runId={runId} />}
         </>
       )}
     </aside>

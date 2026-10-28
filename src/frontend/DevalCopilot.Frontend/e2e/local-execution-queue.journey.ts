@@ -1,6 +1,7 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
+import { agentStageInvocations } from './journey/accountUsage'
 import { JourneyData, sameId, withJourneyDb } from './journey/journeyDb'
 import { createJourneyRepository, journeyRoot, markInvocations, readInvocations, readLaunchTargetVerdict } from './journey/journeyEnv'
 import { injectJourneySession, registerProject, selectProject } from './journey/journeySupport'
@@ -114,6 +115,17 @@ test('the queued local execution cycle journey: waiting behind a held owner at l
     if (request.method() === 'GET') {
       gets.push(new URL(request.url()).pathname)
     }
+  })
+  // COCKPIT-IDENTITY-01: observed from before the first navigation to the end. Duplicate-key diagnostics must stay at zero; every other
+  // console error or warning is only retained (printed at the end), never suppressed or judged here.
+  const duplicateKeyDiagnostics: string[] = []
+  const otherConsoleDiagnostics: string[] = []
+  page.on('console', (message) => {
+    if (message.type() !== 'error' && message.type() !== 'warning') {
+      return
+    }
+    const text = message.text()
+    ;(/two children with the same key/i.test(text) ? duplicateKeyDiagnostics : otherConsoleDiagnostics).push(`${message.type()}: ${text}`)
   })
 
   await injectJourneySession(page)
@@ -450,6 +462,53 @@ test('the queued local execution cycle journey: waiting behind a held owner at l
     await expect(currentDetail).toContainText('Failed · process outcome Exited · exit code 1', { timeout: 30_000 })
     expect(inspectionPaths(getsBeforeCurrentLedger)).toEqual([admissionsPath, stepPath(allSteps[1].Id)])
 
+    // 10b. COCKPIT-IDENTITY-01: the settled current-run inspection survives ordinary nonmutating updates of its parents. The rail's own
+    // account and model refreshes and the project's Refresh evidence re-render the rail and the cockpit; the open ledger and the selected
+    // step stay exactly as they were. Nothing is read again for them, posted, invoked for an Agent stage, claimed or recorded: the account
+    // and model reads are the provider double's capability observations, not stages, and are not inspection reads.
+    const allowancePath = '/api/environment/codex-account-allowance'
+    const catalogPath = '/api/environment/codex-model-catalog'
+    const settledInspectionGets = inspectionPaths(getsBeforeCurrentLedger)
+    const getsBeforeIdentityRefresh = gets.length
+    const postsBeforeIdentityRefresh = posts.length
+    const invocationsBeforeIdentityRefresh = markInvocations()
+    const attemptsBeforeIdentityRefresh = data.attempts().length
+    const executionsBeforeIdentityRefresh = data.executions().length
+    const admissionRowsBeforeIdentityRefresh = JSON.stringify(admissions(sequence.Id))
+    const expectSettledCurrentInspection = async () => {
+      await expect(page.getByRole('region', { name: 'Inspect local execution' })).toHaveCount(1)
+      await expect(current.getByRole('button', { name: 'Hide local execution inspection' })).toHaveAttribute('aria-expanded', 'true')
+      await expect(currentLedger).toContainText('Queued sequence')
+      await expect(currentLedger.getByRole('listitem')).toHaveCount(12)
+      await expect(current.getByRole('button', { name: 'Inspect step 2', exact: true })).toHaveAttribute('aria-pressed', 'true')
+      await expect(current.getByRole('region', { name: 'Selected local execution step' })).toHaveCount(1)
+      await expect(currentDetail).toContainText('Failed · process outcome Exited · exit code 1')
+      expect(inspectionPaths(getsBeforeCurrentLedger)).toEqual(settledInspectionGets)
+    }
+
+    await page.getByRole('button', { name: 'Refresh Codex account usage' }).click()
+    await expect.poll(() => gets.slice(getsBeforeIdentityRefresh).filter((path) => path === allowancePath), { timeout: 30_000 }).toHaveLength(1)
+    await expect(page.getByText('Codex account usage: loading…')).toHaveCount(0, { timeout: 30_000 })
+    await expectSettledCurrentInspection()
+
+    await page.getByRole('button', { name: 'Refresh Codex model catalog' }).click()
+    await expect.poll(() => gets.slice(getsBeforeIdentityRefresh).filter((path) => path === catalogPath), { timeout: 30_000 }).toHaveLength(1)
+    await expect(page.getByText('Codex model catalog: loading…')).toHaveCount(0, { timeout: 30_000 })
+    await expectSettledCurrentInspection()
+
+    const getsBeforeEvidenceRefresh = gets.length
+    await page.getByRole('button', { name: 'Refresh evidence' }).click()
+    await expect.poll(() => gets.length, { timeout: 30_000 }).toBeGreaterThan(getsBeforeEvidenceRefresh)
+    await expect(page.getByRole('button', { name: 'Refresh evidence' })).toBeEnabled({ timeout: 30_000 })
+    await expectSettledCurrentInspection()
+
+    expect(posts.slice(postsBeforeIdentityRefresh)).toEqual([])
+    expect(agentStageInvocations(readInvocations(invocationsBeforeIdentityRefresh))).toEqual([])
+    expect(data.attempts()).toHaveLength(attemptsBeforeIdentityRefresh)
+    expect(data.executions()).toHaveLength(executionsBeforeIdentityRefresh)
+    expect(JSON.stringify(admissions(sequence.Id))).toBe(admissionRowsBeforeIdentityRefresh)
+    expect(duplicateKeyDiagnostics).toEqual([])
+
     const getsBeforeHistoryLedger = gets.length
     const history = page.getByRole('region', { name: 'Run history' })
     await history.getByRole('button', { name: 'Show run history' }).click()
@@ -484,6 +543,8 @@ test('the queued local execution cycle journey: waiting behind a held owner at l
     expect(data.attempts()).toHaveLength(8)
     expect(data.executions()).toHaveLength(6)
     expect(runId).toBe(data.runId())
+    expect(duplicateKeyDiagnostics).toEqual([])
+    console.log(`Browser console errors and warnings other than duplicate keys (retained, not judged): ${JSON.stringify(otherConsoleDiagnostics)}`)
   } finally {
     // Never leave the owned gate behind, even when an assertion above failed.
     rmSync(gate, { force: true })

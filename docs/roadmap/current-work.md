@@ -6,7 +6,103 @@ was prepared ([recovery](development-workflow.md#recovery)). Git and code
 prevail; compare branch, `HEAD`, `origin/main` and staged/unstaged/untracked
 state first.
 
-## Active slice: LOCAL-COMMIT-INSPECT-01 inspect recorded local-commit operations (ADR-0070)
+## Active slice: COCKPIT-IDENTITY-01 correct sibling component identity in the current cockpit
+
+This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
+Reconcile publication with Git and the slice's independent publication-verification record, when available. This record alone grants no
+publication authority.
+
+**Delivery phase: first return to Codex for review, by the new Claude executor chat; the complete diff (including the two planner inputs) is
+unstaged, uncommitted and unpushed. No GO exists.** Review and publication are separate later events; nothing here claims either.
+Baseline: `main`, `HEAD`, local `origin/main` and a live `git ls-remote` read of `origin/main` equalled `a9e06ac634927b097d49f36a7064bd94f0cc46db`
+(LOCAL-COMMIT-INSPECT-01, independently verified published; neither repeated, republished nor reopened, and no closure commit was made). The index was
+empty, no file was untracked and exactly the two planner inputs were modified. `planner-handoff.md` (`1d849c07…67ef`) and `mvp-delivery-plan.md`
+(`33e708a4…5f9`) equalled the dispatch SHA-256 values at the start and again at the return and were not edited. ADR-0050 stays Proposed, P9 unproven, AI
+Memory deferred, Increments 4/5/6 incomplete; every standing restriction in the handoff stays. No frozen profile, native, provider or credential
+experiment, real run, recovery, cleanup, dependency, backend, schema, generated-client, hook, decoder or transport change was made, and no commit or push.
+
+### What exists
+
+Two sibling groups gave different components the same `key={runId}`, so React tied their state to one identity. Each key now names its component and keeps
+the run, so a run replacement still ends the state and an ordinary parent update keeps it. Nothing else in either source changed.
+
+- **`UsageEvidenceRail.tsx`:** `AgentAttemptHistoryPanel`, `LocalExecutionInspectionPanel` and `PlanningSequenceInspectionPanel` now use
+  `agent-attempt-history:${runId}`, `local-execution-inspection:${runId}` and `planning-sequence-inspection:${runId}`.
+- **`RunCockpitView.tsx`:** `LocalCommitPanel` and `AbandonRunPanel` now use `local-commit:${runId}` and `abandon-run:${runId}`.
+- **Inspected and left unchanged (no collision shown):** the rail's `account-usage-stop:${runId}:${state}:${percent}` control (its state and percent are the
+  deliberate version identity), its `EVIDENCE_TABS` map (its own array) and the two index-keyed line lists; in `RunCockpitView.tsx` the fragment-level keys
+  `${runId}:${model}:${effort}`, `turn-limit:${runId}:…`, `token-stop:${runId}` and the bare `key={runId}` of `TokenWarningPanel`, which cannot equal either of the
+  first two (each carries a suffix) and has no same-keyed sibling. `App.tsx` keys the whole `RunCockpitView` by run, so a run replacement in the real
+  application remounts everything regardless; the panel keys matter for ordinary updates and for the unkeyed composition.
+- **New `CockpitIdentityRail.test.tsx` (6 tests):** the real rail, generated clients and transport over a counted fake network. All three inspectors are
+  opened and given a selection, then: the account observation held pending and resolved, the model observation held pending and resolved, same-run parent
+  updates with the stop and warning controls appearing, changing and disappearing, a run replacement with held late answers and an A to B to A return, a
+  collapse and re-expand, and an unmount with a pending read. Each stable-run case asserts exactly one instance of each inspector, still open with its
+  selection, no inspection read beyond the baseline, only GET requests and no duplicate-key diagnostic; each lifetime case asserts the inspectors open cold and
+  closed and that a late answer changes nothing.
+- **New `CockpitIdentityCommandPanels.test.tsx` (5 tests):** the real `RunCockpitView` with the real `LocalCommitPanel` and `AbandonRunPanel`, their real hooks and
+  four mocked clients whose command methods must never be called. It asserts the same two form elements (by identity) keep their drafts through same-run parent
+  updates, a projection refresh and a lifecycle change that swaps the Agent-action siblings before them, with no added status read; that both end when the manual
+  mode ends and start cold when it returns; that a run replacement and an A to B to A return start cold; and that an unmount with a pending read acts on nothing.
+- **Local console observer:** both files spy on `console.error` without replacing it (every diagnostic still reaches the original) and only judge messages
+  matching "two children with the same key".
+- **`e2e/local-execution-queue.journey.ts` (extended):** a `console` listener registered before the first navigation collects duplicate-key diagnostics and
+  retains every other error or warning (printed at the end, not judged); phase 10b, at the settled current-run inspection (open ledger, selected step 2),
+  clicks the rail's account and model refreshes and the project's Refresh evidence, each time re-asserting the open inspector, the 12-row ledger, the pressed
+  step and its detail, and afterwards that the inspection GET list, the POST list, Agent-stage invocations (`agentStageInvocations`), attempts, executions and
+  admission rows are unchanged and that no duplicate-key diagnostic occurred; the same check closes the journey. Existing queue and historical assertions are untouched.
+
+### Evidence (logs under `logs/executor/cockpit-identity-01/`, git-ignored; `00-validation-summary.txt` indexes every raw output; commands run from `src/frontend/DevalCopilot.Frontend`)
+
+Fresh on the final sources unless stated; elapsed times are wall clock.
+
+- **Original failing files, unchanged by me, original sources:** `vitest run` of `LocalExecutionAdmissionSurfaces` and `LocalExecutionReleaseInspectionSurfaces`: 10 failed / 10 passed (20.0 s), the planner's result reproduced.
+  After the correction the same two files pass 20/20 inside the final set below (their sources are byte-identical to `HEAD`).
+- **Red control with the new tests (hash-guarded):** the five keys were put back to run-only, the original hashes were proven (`UsageEvidenceRail.tsx` `862f764c…b31e`,
+  `RunCockpitView.tsx` `39184369…61c4`), and `CockpitIdentityRail`, `CockpitIdentityCommandPanels` and the two original files ran: 21 failed (rail 6/6, command panels 5/5, original files 2 and 8), 11.0 s;
+  the fixed sources were restored and their hashes verified (`7a4933b1…6805`, `271d7e5d…24c7`). The command-panel failures include "Found multiple elements" for the "Local commit" region and a "Local commit" region that
+  stays mounted after the mode ends, besides the duplicate-key diagnostic (see the challenges below).
+- **Final frontend set, once, stable sources:** `vitest run UsageEvidenceRail RunCockpitView RunCockpitSelectionOwnership RunEvidenceRefreshComposition LocalExecutionAdmissionSurfaces LocalExecutionReleaseInspectionSurfaces PlanningSequenceInspectionSurfaces AgentAttemptHistoryPanel LocalExecutionInspectionPanel PlanningSequenceInspectionPanel LocalCommitPanel AbandonRunPanel LocalCommitInspectionSurfaces layoutBoundary App.test.tsx App.queueInspection CockpitIdentity`:
+  20 files (every filter matched at least one; `vitest list --filesOnly` shows both new files), 1054 tests passed, 14.1 s, no duplicate-key text and no stderr in the log.
+- `npm run lint`: exit 0 in 1.1 s with nine existing `react(set-state-in-effect)`/`purity` warnings, all in untouched hooks and none in a changed file.
+  `npm run build` (`tsc -b && vite build`, so the product typecheck): exit 0, 6.9 s, with the existing chunk-size notice.
+  Strict e2e TypeScript check (the recorded flag set) over the current 54-file e2e/config inventory: exit 0, 5.3 s.
+- **Journey host provenance:** the executor reported the four `DevalCopilot.*.dll` of the host bin (written 2026-10-26) hash-equal to the then-present `src/backend` outputs (written 2026-10-28 20:39). The first
+  incremental serial `dotnet build` of `BrowserJourneyHost.csproj` **failed** (15.4 s, `CS2012`, reporting `VBCSCompiler` and Defender as possible lock owners; kept as `11a-…`), but it had already
+  rewritten the four `src/backend` outputs with different hashes; the single retry succeeded (1.8 s) and the host bin and `src/backend` outputs are hash-equal again (`11c-host-provenance.txt`). No backend or test source
+  differs from `HEAD`, and the successful build supplies fresh current-source evidence for the later journey. Hash changes alone do not establish which sources produced the earlier binaries or why bytes changed. The earlier equality is an executor report, not a separately retained before-build hash record; lock causation also remains unestablished.
+- **Headed journey, once:** `npx playwright test -c playwright.journey.config.ts e2e/local-execution-queue.journey.ts --headed --trace off --workers 1`: 1 passed, 61.4 s (test 53.3 s); trace, video and screenshots
+  off; no Inspector, debug, UI or manual Resume. It observed zero duplicate-key diagnostics from before the first navigation to the end. The other diagnostics it retained (not judged) were one 404 and five 409 resource
+  failures and three SignalR "connection was stopped during negotiation" errors (also relayed by Vite), verbatim in `12-journey-local-execution-queue.txt`; none is explained or attributed here.
+- **Hygiene:** `git diff --check` exit 0; the two new test files carry no CR or tab (their only non-ASCII bytes are the existing `…` of the product copy they match); the sensitive-pattern scan over the diff and new
+  files found nothing; the existing `check-links.ps1` of the previous slice (reused, not re-proved against negative controls) over the three changed documents checked 64 links and fragments with 0 failures
+  (`13-doc-links.txt`); the renamed previous-slice heading has no inbound reference; both planner inputs equal their dispatch hashes at the return.
+
+Retained, not rerun and not run: the planner's baseline, control and identity logs under `logs/planner-review/cockpit-identity-01/` keep their unchanged-input scope. Not run: the whole Vitest suite, every backend suite,
+client regeneration, the other journeys, the standalone harness tests and any mutation campaign (no schema, producer, ownership, transport, authentication or hook code changed). No earlier slice's evidence is fresh evidence here.
+
+### Preserved development attempts and failures
+
+All failed output is kept; none was rerun blindly.
+
+- `02-rail-red-original-sources.txt`: my first rail test against the original sources failed all six at opening the history, because the rail re-rendered (the allowance and catalog reads resolved) and remounted the panel.
+- `03-rail-fixed-sources-dev1.txt`: against the fixed sources one rail test failed on my own helper, which replayed an already-consumed `Response`; the helper now builds a fresh response per read.
+- `06a-control-ABORTED-stderr-under-Stop.txt` (103 bytes): the first control run was aborted by my script's `Stop` error preference turning vitest's stderr into an exception before any result; its `finally` had restored the fixed sources
+  (hashes in `06-control-identity.txt`) and the control was rerun once without that preference (`06b`).
+- `11a-host-build-FAILED-CS2012-first-attempt.txt`: the host build failure above, retried once and not called flaky; the cause of the lock is not established.
+
+### Challenges, limits and risks for review
+
+- **The second collision is behavioral, not only diagnostic (new evidence for the planner).** The handoff claims none for `LocalCommitPanel` and `AbandonRunPanel`. With the original keys the new composition test shows a duplicated "Local commit" region and that region left mounted
+  after the manual mode ends, which is the duplicated and omitted children React documents for non-unique keys. This holds in my harness (the run-scoped hooks and unrelated children replaced); I did not reproduce it in the real application, which keys the whole cockpit by run,
+  so the real-user effect of this collision is unestablished.
+- **Journey sensitivity is unproved by a control.** The journey passed on the fixed sources; no second journey was run on the original keys (the policy permits one run), so the new duplicate-key and preservation assertions are exercised against a fix but not shown red. Their sensitivity rests on the component tests above.
+  Earlier slices recorded duplicate-key console errors in journeys on the earlier frontend; that observation is not a control for this journey, and it does not explain every earlier occurrence.
+- **Test scope.** The rail test uses real clients over a fake network but observes the rail alone; the command-panel test mocks about 25 cockpit hooks and four clients and mounts neither the rail nor the real transport. Run replacement is proved at the component level by re-rendering without the app's outer key.
+- **Journey 10b relies on Refresh evidence being a read.** It asserts no POST, no Agent-stage invocation and unchanged durable rows after it, and passed; account and model reads are the provider double's capability observations, not stages, and are excluded from that invocation check by `agentStageInvocations`.
+- **Not in scope and not done:** the remaining sibling groups were only inspected; no repository-wide key cleanup, no new summary, replay, scheduling, recovery, provider or publication capability, and no selection of the next slice.
+
+## Previous slice (independently verified published as a9e06ac; historical record): LOCAL-COMMIT-INSPECT-01 inspect recorded local-commit operations (ADR-0070)
 
 This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
 Reconcile publication with Git and the slice's independent publication-verification record, when available. This record alone grants no

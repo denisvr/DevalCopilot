@@ -275,12 +275,19 @@ history beyond the latest 20, exact historical execution metadata and explicitly
 executions without Agent or local-sequence membership. Verification rows have no RunId: this view infers no run attribution, current
 source applicability, approval or liveness. No execution, recovery or publication authority changes and no increment is completed.
 
-**Recorded local-commit inspection (selected, not implemented).**
-[ADR-0070](../decisions/0070-inspect-recorded-local-commit-operations.md) / LOCAL-COMMIT-INSPECT-01 selects one bounded recorded read and
+**Recorded local-commit inspection (independently verified published).**
+[ADR-0070](../decisions/0070-inspect-recorded-local-commit-operations.md) / LOCAL-COMMIT-INSPECT-01 delivers one bounded recorded read and
 explicit current/historical run inspection of all six local-commit operation states, including Failed, Interrupted and ambiguous
 NeedsAttention when no completed receipt source is available. It exposes the commit SHA only for a recorded Completed operation,
 reads no current eligibility or physical Git state and leaves the stronger completed receipt proof/discovery unchanged. It changes
 no execution, ownership, recovery, approval, commit or publication authority and completes no increment.
+
+**Cockpit component identity correction (reviewed GO, publication pending).** COCKPIT-IDENTITY-01 repairs the identical sibling run keys of the three
+recorded inspectors in Usage & Evidence and of the local-commit/abandonment panels in the cockpit. A bounded planner control makes the
+ten reproduced current-run inspection failures pass without changing tests; original source is restored. This preserves existing
+run/visit lifetimes and authority, adds focused composition regressions and one affected headed journey, and completes no increment.
+Resolved scope and validation: [planner handoff](planner-handoff.md#current-action-cockpit-identity-01). This corrects existing contracts
+without adding a capability or reversing architecture.
 
 **Agent supervision observations (partial).** ADR-0056 / AGENT-SUP-01 adds, for all seven existing Agent response contracts, a
 durable disclosure of what the host's own observer last reported for the current Agent attempt (phase, last report, absolute deadline,
