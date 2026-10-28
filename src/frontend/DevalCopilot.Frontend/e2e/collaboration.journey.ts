@@ -26,6 +26,7 @@ import { planIdentityProblems } from './journey/planIdentity'
 import { canonicalSnapshot, EXPECTED_MODEL_LIMITS, renderedRows, responseMember } from './journey/modelContextLimits'
 import type { ExpectedModelLimit } from './journey/modelContextLimits'
 import { injectJourneySession, readJson, registerProject, selectProject, workflowLines } from './journey/journeySupport'
+import { PostInventory } from './journey/requestInventory'
 
 // The browser-driven local collaboration proof (Increment 4): ONE explicit manual journey through the rendered controls of the
 // production frontend, over the real generated client, MVC authentication, mediator, SQLite, supervisors, provider adapters, process
@@ -43,6 +44,7 @@ const CORRECTION_GUIDANCE = normalizeGuidance(CORRECTION_GUIDANCE_DRAFT)
 const VERIFICATION_CLAIM_PATH = /\/api\/projects\/[^/]+\/verification-commands\/[^/]+\/executions$/
 const CHECKPOINT_REVIEW_PATH = /\/api\/projects\/[^/]+\/reviews$/
 const RECEIPT_PATH = /\/api\/runs\/[^/]+\/local-delivery-receipt$/
+const LOCAL_COMMIT_INSPECTION_PATH = /\/api\/runs\/[^/]+\/local-commit-inspection$/
 const OBSERVATION_TARGET_PATH = /\/api\/runs\/[^/]+\/github-observation-target$/
 const IDENTITY_PATH = /\/api\/runs\/[^/]+\/github-repository-observation$/
 const BRANCH_PATH = /\/api\/runs\/[^/]+\/github-branch-observation$/
@@ -594,7 +596,8 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
 
   // 14. The explicitly approved checkpoint is delivered only through the rendered local-commit control. The host creates the
   // unsigned, hook-free commit on its owned branch; the source repository stays untouched and no remote is added or pushed.
-  const localCommit = page.getByRole('region', { name: 'Local commit' })
+  // Exact: the recorded local commit region ("Inspect recorded local commit") also contains this name as a substring (ADR-0070).
+  const localCommit = page.getByRole('region', { name: 'Local commit', exact: true })
   await expect(localCommit.getByRole('button', { name: 'Commit locally' })).toBeVisible({ timeout: 30_000 })
   await localCommit.getByLabel('Commit message').fill('Deliver the verified local change')
   await expect(localCommit.getByRole('button', { name: 'Commit locally' })).toBeEnabled()
@@ -715,6 +718,162 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
     await expect(receiptRegion.getByRole('button')).toHaveCount(0)
   }
   const assertRenderedReceipt = () => assertReceiptRegion(deliveryReceipt)
+  await assertRenderedReceipt()
+
+  // 14b2. The recorded local commit inspection (ADR-0070): a collapsed region beside the Local commit panel (and, below, inside every
+  // selected historical run) that reads the run's recorded operation only on an explicit open or reload. Every exact response is awaited
+  // and compared with the stored operation row (never with a callback or a final timing), and the rendered facts are compared with
+  // that same row. The inspection is read-only: it sends no business POST, invokes no executable and changes no durable fact. The
+  // durable fingerprint covers exactly this project's row counts (runs, attempts, messages, events, executions, operations, reviews and
+  // checkpoints), the operation's stored disclosed facts, the invocation count of the doubles, the worktree HEAD and status and the
+  // source repository snapshot; it is not a byte identity of every stored row or file. A page reload is not a host restart.
+  const posts = new PostInventory()
+  const inspectionRequests: { method: string; path: string; search: string; body: string | null }[] = []
+  page.on('request', (request) => {
+    const { pathname, search } = new URL(request.url())
+    if (request.method() === 'POST') {
+      posts.record(pathname)
+    }
+
+    if (LOCAL_COMMIT_INSPECTION_PATH.test(pathname)) {
+      inspectionRequests.push({ method: request.method(), path: pathname.toLowerCase(), search, body: request.postData() })
+    }
+  })
+  // The provider writes a stored instant as `yyyy-MM-dd HH:mm:ss.FFFFFFF+00:00`; the wire carries it as a seven-digit UTC round trip.
+  const storedInstant = (text: string): string => {
+    const match = /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})(?:\.(\d{1,7}))?\+00:00$/.exec(text)
+    expect(match, `stored instant ${text}`).not.toBeNull()
+    return `${match![1]}T${match![2]}.${(match![3] ?? '').padEnd(7, '0')}Z`
+  }
+  const expectedInspection = (runId: string, status: 'Recorded' | 'NotRecorded') => {
+    const facts = data.localCommitInspectionFacts(runId)
+    if (status === 'NotRecorded') {
+      expect(facts).toBeNull()
+      return { runId: lower(runId), status, operation: null }
+    }
+
+    expect(facts).not.toBeNull()
+    expect(facts!.OutcomeReasonCode).toBeNull()
+    return {
+      runId: lower(runId),
+      status,
+      operation: {
+        operationId: lower(facts!.Id),
+        projectId: lower(facts!.ProjectId),
+        workspaceId: lower(facts!.GitWorkspaceId),
+        checkpointId: lower(facts!.GitCheckpointId),
+        checkpointNumber: facts!.CheckpointNumber,
+        checkpointFingerprintSha256: facts!.CheckpointFingerprintSha256,
+        status: facts!.Status,
+        branchName: facts!.BranchName,
+        parentCommitSha: facts!.ParentCommitSha,
+        treeSha: facts!.TreeSha,
+        commitSha: facts!.Status === 'Completed' ? facts!.CommitSha : null,
+        changedPathCount: facts!.ChangedPathCount,
+        totalBytes: facts!.TotalBytes,
+        createdAtUtc: storedInstant(facts!.CreatedAtUtc),
+        executionStartedAtUtc: facts!.ExecutionStartedAtUtc === null ? null : storedInstant(facts!.ExecutionStartedAtUtc),
+        completedAtUtc: facts!.CompletedAtUtc === null ? null : storedInstant(facts!.CompletedAtUtc),
+        reason: { kind: 'None', code: null },
+      },
+    }
+  }
+  const durableBaseline = (runId: string) => ({
+    totals: data.projectTotals(),
+    operation: data.localCommitInspectionFacts(runId),
+    invocations: stageInvocations().length,
+    head: git('rev-parse', 'HEAD'),
+    worktreeStatus: git('status', '--porcelain'),
+    source: repositorySnapshot(repository.path),
+  })
+  // Opens the region of exactly this run in `scope` (cold and collapsed first), awaits the exact response, compares the wire and the
+  // rendered facts with the stored row, reloads explicitly (one more response), closes (the answer disappears, nothing is read) and
+  // proves that none of it sent a business POST or changed a durable fact.
+  const inspectRecordedLocalCommit = async (scope: Page | Locator, runId: string, status: 'Recorded' | 'NotRecorded') => {
+    const region = scope.getByRole('region', { name: 'Inspect recorded local commit', exact: true })
+    const toggle = region.getByRole('button', { name: 'Inspect recorded local commit', exact: true })
+    const path = `/api/runs/${lower(runId)}/local-commit-inspection`
+    const answered = () =>
+      page.waitForResponse(
+        (response) => response.request().method() === 'GET' && new URL(response.url()).pathname.toLowerCase() === path,
+        { timeout: 30_000 },
+      )
+    const expected = expectedInspection(runId, status)
+    const renderedFacts = async () => {
+      if (expected.operation === null) {
+        await expect(region).toContainText('found no local commit operation associated with this run')
+        await expect(region).not.toContainText('Recorded status')
+        return
+      }
+
+      const operation = expected.operation
+      await expect(region).toContainText('Recorded status')
+      await expect(region).toContainText(operation.status)
+      await expect(region).toContainText(operation.branchName)
+      await expect(region).toContainText(`parent commit ${operation.parentCommitSha} · tree ${operation.treeSha}`)
+      await expect(region).toContainText(operation.commitSha ?? 'not disclosed')
+      await expect(region).toContainText(`${operation.changedPathCount} changed ${operation.changedPathCount === 1 ? 'path' : 'paths'} · ${operation.totalBytes} bytes`)
+      await expect(region).toContainText(`#${operation.checkpointNumber} · ${operation.checkpointId} · fingerprint ${operation.checkpointFingerprintSha256}`)
+      await expect(region).toContainText(`operation ${operation.operationId} · project ${operation.projectId} · workspace ${operation.workspaceId}`)
+      await expect(region).toContainText(
+        `Prepared ${operation.createdAtUtc} · execution marker ${operation.executionStartedAtUtc} · outcome recorded ${operation.completedAtUtc}`,
+      )
+      await expect(region).toContainText('No reason was recorded.')
+      await expect(region.getByRole('button')).toHaveText(['Hide recorded local commit', 'Reload recorded local commit'])
+    }
+
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    await expect(region.getByRole('button')).toHaveCount(1)
+    const requestsBefore = inspectionRequests.length
+    const postMark = posts.mark()
+    const before = durableBaseline(runId)
+
+    const first = answered()
+    await toggle.click()
+    const opened = await first
+    expect(opened.status()).toBe(200)
+    const body = await opened.json()
+    expect(body).toEqual(expected)
+    if (expected.operation !== null) {
+      expect(expected.operation.status).toBe('Completed')
+      expect(expected.operation.commitSha).toBe(deliveredCommit)
+      expect(Object.keys(body.operation).sort()).toEqual(Object.keys(expected.operation).sort())
+    }
+
+    const wireText = JSON.stringify(body)
+    for (const hidden of [worktree, repository.path, 'dotnet', 'AGENTS.md']) {
+      expect(wireText).not.toContain(hidden)
+    }
+
+    await renderedFacts()
+    expect(inspectionRequests.slice(requestsBefore)).toEqual([{ method: 'GET', path, search: '', body: null }])
+
+    const second = answered()
+    await region.getByRole('button', { name: 'Reload recorded local commit', exact: true }).click()
+    const reloaded = await second
+    expect(reloaded.status()).toBe(200)
+    expect(await reloaded.json()).toEqual(body)
+    await renderedFacts()
+    expect(inspectionRequests.slice(requestsBefore)).toHaveLength(2)
+
+    await region.getByRole('button', { name: 'Hide recorded local commit', exact: true }).click()
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    await expect(region.getByRole('button')).toHaveCount(1)
+    await expect(region).not.toContainText('Recorded status')
+    await expect(region).not.toContainText('found no local commit operation associated with this run')
+    expect(inspectionRequests.slice(requestsBefore)).toHaveLength(2)
+
+    expect(posts.businessSince(postMark)).toEqual([])
+    expect(durableBaseline(runId)).toEqual(before)
+    return body
+  }
+  const deliveredRunId = data.runs()[0].Id
+  const liveInspection = await inspectRecordedLocalCommit(page, deliveredRunId, 'Recorded')
+  // It describes the very operation the delivery receipt above reports.
+  expect(lower(liveInspection.operation.operationId)).toBe(lower(wire.receipt.operationId))
+  expect(liveInspection.operation.commitSha).toBe(wire.receipt.commitSha)
+  expect(liveInspection.operation.parentCommitSha).toBe(wire.receipt.parentCommitSha)
+  expect(liveInspection.operation.treeSha).toBe(wire.receipt.treeSha)
   await assertRenderedReceipt()
 
   // 14c. The explicit, local Human selection of the delivery's GitHub observation scope (ADR-0040). The collapsed region beside the
@@ -2641,14 +2800,17 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
     await expect(detail).toContainText(lower(firstRunId))
     await expect(detail).toContainText(`commit ${deliveredCommit}, operation ${lower(operation!.Id)}, checkpoint #3 (${lower(cps[2].Id)})`)
     await assertReceiptRegion(detail.getByRole('region', { name: 'Local delivery receipt' }))
-    // The selected historical run offers only its own close control and the three collapsed toggles (recorded events, recorded collaboration and,
-    // since HIST-ATT-01, the Agent attempt history), which have read nothing: no mutation, configuration or live-progress control. This
-    // expectation predates the attempt history panel mounted in the selected run and had not been updated for it.
+    // The selected historical run offers only its own close control and the collapsed toggles (the recorded local commit, recorded events,
+    // recorded collaboration, the Agent attempt history, the recorded local execution and the recorded planning), which have read nothing:
+    // no mutation, configuration or live-progress control. The recorded local commit toggle (ADR-0070) follows the receipt. The recorded
+    // planning toggle (ADR-0068) was mounted in the selected run before this expectation listed it.
     expect(await detail.getByRole('button').allTextContents()).toEqual([
+      'Inspect recorded local commit',
       'Show recorded events',
       'Show recorded collaboration',
       'Show Agent attempt history',
       'Inspect local execution',
+      'Inspect recorded planning',
       'Close selected run',
     ])
     await expectCollapsedEvents()
@@ -2665,6 +2827,17 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   const firstReading = await openHistoryAndInspectDelivery()
   // The same exact receipt the delivery showed, read again from the pinned rows after another objective replaced it in the cockpit.
   expect(firstReading.receipt).toEqual(wire)
+
+  // The recorded local commit of the older delivered run (ADR-0070), beside its located receipt source: the region mounts collapsed in the
+  // selected run, opening reads exactly this run's recorded operation (the same exact facts as the live cockpit showed), and neither the
+  // receipt nor the live Local commit panel is read or mounted for it.
+  const olderDetail = historyRegion.getByRole('region', { name: 'Selected run' })
+  const receiptReadsBeforeOlderInspection = receiptRequests.length
+  const olderInspection = await inspectRecordedLocalCommit(olderDetail, firstRunId, 'Recorded')
+  expect(olderInspection).toEqual(liveInspection)
+  expect(receiptRequests).toHaveLength(receiptReadsBeforeOlderInspection)
+  await expect(olderDetail.getByRole('region', { name: 'Local commit', exact: true })).toHaveCount(0)
+  await assertReceiptRegion(olderDetail.getByRole('region', { name: 'Local delivery receipt' }))
 
   // Recorded events of the older delivered run, through the rendered controls only: the newest page on open, every older page on an
   // explicit request until the last, a reload and a close and reopen. The pages, in order and without repetition, are exactly the
@@ -2796,6 +2969,14 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   await expect(newerDetail.getByRole('region', { name: 'Local delivery receipt' })).toHaveCount(0)
   expect(receiptRequests).toHaveLength(receiptsBeforeNewer)
 
+  // The recorded local commit region is mounted for the newer run too although no receipt source exists: it reads exactly this run and
+  // answers NotRecorded (no operation is associated with it), which says nothing about eligibility or a previous request and changes
+  // nothing the older run's answer showed. The receipt disclosure above stays as it was and no receipt is requested.
+  const newerInspection = await inspectRecordedLocalCommit(newerDetail, followUpRun.Id, 'NotRecorded')
+  expect(newerInspection).toEqual({ runId: lower(followUpRun.Id), status: 'NotRecorded', operation: null })
+  await expect(newerDetail).toContainText('No completed delivery source is available in this view')
+  expect(receiptRequests).toHaveLength(receiptsBeforeNewer)
+
   // The newer run's events replace the older run's inside the same detail: collapsed first, then only its own durable rows (one page),
   // and returning to the older run (A to B to A) starts collapsed again without reading anything.
   const durableNewer = data.eventHeadersOf(followUpRun.Id)
@@ -2813,12 +2994,19 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   await expect(messagesRegion()).toContainText('No collaboration messages have been recorded for this run.')
   const eventReadsBeforeReturn = eventRequests.length
   const messageReadsBeforeReturn = messageRequests.length
+  const inspectionReadsBeforeReturn = inspectionRequests.length
   await historyRegion.getByRole('button', { name: 'Inspect run #1' }).click()
   await expect(historyRegion.getByRole('region', { name: 'Selected run' })).toContainText(OBJECTIVE)
   await expectCollapsedEvents()
   await expectCollapsedMessages()
   expect(eventRequests).toHaveLength(eventReadsBeforeReturn)
   expect(messageRequests).toHaveLength(messageReadsBeforeReturn)
+  // A to B to A: the older run's recorded local commit starts collapsed again, shows nothing of its earlier answer and reads nothing.
+  const returnedInspection = historyRegion.getByRole('region', { name: 'Selected run' }).getByRole('region', { name: 'Inspect recorded local commit', exact: true })
+  await expect(returnedInspection.getByRole('button')).toHaveText(['Inspect recorded local commit'])
+  await expect(returnedInspection.getByRole('button')).toHaveAttribute('aria-expanded', 'false')
+  await expect(returnedInspection).not.toContainText('Recorded status')
+  expect(inspectionRequests).toHaveLength(inspectionReadsBeforeReturn)
 
   // Closing discards every row and the selection; reopening reads a fresh first page and the same delivery again.
   await historyRegion.getByRole('button', { name: 'Hide run history' }).click()
@@ -2832,15 +3020,25 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   const requestsBeforeReload = historyRequests.length
   const eventRequestsBeforeReload = eventRequests.length
   const messageRequestsBeforeReload = messageRequests.length
+  const inspectionRequestsBeforeReload = inspectionRequests.length
   await reloadAndReselect(page)
   await expect(page.getByRole('heading', { name: FOLLOW_UP_OBJECTIVE })).toBeVisible({ timeout: 30_000 })
   await expect(historyRegion.getByRole('button', { name: 'Show run history' })).toHaveAttribute('aria-expanded', 'false')
   expect(historyRequests).toHaveLength(requestsBeforeReload)
   expect(eventRequests).toHaveLength(eventRequestsBeforeReload)
   expect(messageRequests).toHaveLength(messageRequestsBeforeReload)
+  // The live cockpit follows the newer run: its recorded local commit region is cold after the reload and has read nothing.
+  await expect(
+    page.getByRole('region', { name: 'Inspect recorded local commit', exact: true }).getByRole('button', { name: 'Inspect recorded local commit', exact: true }),
+  ).toHaveAttribute('aria-expanded', 'false')
+  expect(inspectionRequests).toHaveLength(inspectionRequestsBeforeReload)
   const afterReload = await openHistoryAndInspectDelivery()
   expect(afterReload.body).toEqual(firstReading.body)
   expect(afterReload.receipt).toEqual(wire)
+  await expect(
+    historyRegion.getByRole('region', { name: 'Selected run' }).getByRole('region', { name: 'Inspect recorded local commit', exact: true }).getByRole('button'),
+  ).toHaveText(['Inspect recorded local commit'])
+  expect(inspectionRequests).toHaveLength(inspectionRequestsBeforeReload)
 
   // After the real browser reload the recorded collaboration is collapsed and read nothing; opening it again reads the same durable
   // messages page by page, rendered with the same labels and exact values as before the reload.

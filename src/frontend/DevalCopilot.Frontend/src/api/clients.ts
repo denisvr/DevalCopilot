@@ -130,6 +130,7 @@ import {
 } from '../features/cockpit/localExecutionOwnershipReleaseWire'
 import { LocalExecutionQueueInspectionWireClient } from '../features/cockpit/localExecutionQueueInspectionWire'
 import { LocalExecutionReleaseInspectionWireClient } from '../features/cockpit/localExecutionReleaseInspectionWire'
+import { LocalCommitInspectionWireClient } from '../features/cockpit/localCommitInspectionWire'
 import {
   ProjectVerificationHistoryWireClient,
   ProjectVerificationInspectionWireClient,
@@ -185,6 +186,7 @@ export const localExecutionOwnershipReleaseReadClient = (signal?: AbortSignal) =
 export const localExecutionOwnershipReleaseCommandClient = (signal?: AbortSignal) => new LocalExecutionOwnershipReleaseCommandWireClient(getApiBaseUrl(), authenticatedHttp, signal)
 // The recorded quarantine-release receipt read of one step (ADR-0067): a parsed-body facade whose own signal cancels the actual request.
 export const localExecutionReleaseInspectionClient = (signal?: AbortSignal) => new LocalExecutionReleaseInspectionWireClient(getApiBaseUrl(), authenticatedHttp, signal)
+export const localCommitInspectionClient = (signal?: AbortSignal) => new LocalCommitInspectionWireClient(getApiBaseUrl(), authenticatedHttp, signal)
 // The recorded project verification history, selected execution and sealed window reads (ADR-0069): parsed-body facades whose own signal cancels the actual request.
 export const projectVerificationHistoryClient = (signal?: AbortSignal) => new ProjectVerificationHistoryWireClient(getApiBaseUrl(), authenticatedHttp, signal)
 export const projectVerificationInspectionClient = (signal?: AbortSignal) => new ProjectVerificationInspectionWireClient(getApiBaseUrl(), authenticatedHttp, signal)

@@ -3088,6 +3088,34 @@ describe('RunCockpitView local commit composition', () => {
     expect(screen.queryByRole('region', { name: 'Local commit' })).not.toBeInTheDocument()
     expect(useLocalCommitStatusMock).not.toHaveBeenCalledWith('run-2', expect.anything(), expect.anything())
   })
+
+  it('mounts the collapsed recorded local commit region beside the panel of the selected manual Agent run, reading nothing', () => {
+    mockCockpit()
+
+    render(<RunCockpitView runId="run-1" evidenceRefreshGeneration={3} localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+
+    const panel = screen.getByRole('region', { name: 'Local commit' })
+    const inspection = screen.getByRole('region', { name: 'Inspect recorded local commit' })
+    expect(inspection.parentElement).toBe(panel.parentElement)
+    expect(panel.compareDocumentPosition(inspection) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(within(panel).queryByRole('button', { name: 'Inspect recorded local commit' })).not.toBeInTheDocument()
+    expect(within(inspection).getByRole('button', { name: 'Inspect recorded local commit' })).toHaveAttribute('aria-expanded', 'false')
+    expect(within(inspection).getAllByRole('button')).toHaveLength(1)
+  })
+
+  it('does not mount the recorded local commit region for a simulated or unrecognized mode or for a projection held from another run', () => {
+    mockCockpit({ executionMode: 'Simulated' })
+    const { rerender } = render(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    expect(screen.queryByRole('region', { name: 'Inspect recorded local commit' })).not.toBeInTheDocument()
+
+    mockCockpit({ executionMode: 'SomethingNew' })
+    rerender(<RunCockpitView runId="run-1" localExecutionSequence={noneLocalReader('run-1')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    expect(screen.queryByRole('region', { name: 'Inspect recorded local commit' })).not.toBeInTheDocument()
+
+    mockCockpit({ runId: 'run-1' })
+    rerender(<RunCockpitView runId="run-2" localExecutionSequence={noneLocalReader('run-2')} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
+    expect(screen.queryByRole('region', { name: 'Inspect recorded local commit' })).not.toBeInTheDocument()
+  })
 })
 
 describe('RunCockpitView abandonment composition', () => {

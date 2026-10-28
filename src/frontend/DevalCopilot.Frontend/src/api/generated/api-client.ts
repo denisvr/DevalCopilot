@@ -3518,6 +3518,68 @@ export class GetLocalDeliveryReceiptEndpointClient {
     }
 }
 
+export class GetLocalCommitInspectionEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getLocalCommitInspection(runId: string): Promise<GetLocalCommitInspectionResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/local-commit-inspection";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetLocalCommitInspection(_response);
+        });
+    }
+
+    protected processGetLocalCommitInspection(response: Response): Promise<GetLocalCommitInspectionResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = GetLocalCommitInspectionResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            let resultData400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result400 = ApiProblemDetails.fromJS(resultData400);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ApiProblemDetails.fromJS(resultData404);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<GetLocalCommitInspectionResponse>(null as any);
+    }
+}
+
 export class GetGitHubRepositoryPermissionObservationEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -14487,6 +14549,190 @@ export interface IGetLocalCommitStatusResponse {
     humanCheckpointReviewId?: string | undefined;
     operation?: LocalCommitOperationResponse | undefined;
     latestEventSequence?: number;
+}
+
+export class GetLocalCommitInspectionResponse implements IGetLocalCommitInspectionResponse {
+    runId?: string;
+    status?: string;
+    operation?: LocalCommitInspectionOperationResponse | undefined;
+
+    constructor(data?: IGetLocalCommitInspectionResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.runId = _data["runId"];
+            this.status = _data["status"];
+            this.operation = _data["operation"] ? LocalCommitInspectionOperationResponse.fromJS(_data["operation"]) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): GetLocalCommitInspectionResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GetLocalCommitInspectionResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["runId"] = this.runId;
+        data["status"] = this.status;
+        data["operation"] = this.operation ? this.operation.toJSON() : undefined as any;
+        return data;
+    }
+}
+
+export interface IGetLocalCommitInspectionResponse {
+    runId?: string;
+    status?: string;
+    operation?: LocalCommitInspectionOperationResponse | undefined;
+}
+
+export class LocalCommitInspectionOperationResponse implements ILocalCommitInspectionOperationResponse {
+    operationId?: string;
+    projectId?: string;
+    workspaceId?: string;
+    checkpointId?: string;
+    checkpointNumber?: number;
+    checkpointFingerprintSha256?: string;
+    status?: string;
+    branchName?: string;
+    parentCommitSha?: string;
+    treeSha?: string;
+    commitSha?: string | undefined;
+    changedPathCount?: number;
+    totalBytes?: number;
+    createdAtUtc?: string;
+    executionStartedAtUtc?: string | undefined;
+    completedAtUtc?: string | undefined;
+    reason?: LocalCommitInspectionReasonResponse;
+
+    constructor(data?: ILocalCommitInspectionOperationResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.operationId = _data["operationId"];
+            this.projectId = _data["projectId"];
+            this.workspaceId = _data["workspaceId"];
+            this.checkpointId = _data["checkpointId"];
+            this.checkpointNumber = _data["checkpointNumber"];
+            this.checkpointFingerprintSha256 = _data["checkpointFingerprintSha256"];
+            this.status = _data["status"];
+            this.branchName = _data["branchName"];
+            this.parentCommitSha = _data["parentCommitSha"];
+            this.treeSha = _data["treeSha"];
+            this.commitSha = _data["commitSha"];
+            this.changedPathCount = _data["changedPathCount"];
+            this.totalBytes = _data["totalBytes"];
+            this.createdAtUtc = _data["createdAtUtc"];
+            this.executionStartedAtUtc = _data["executionStartedAtUtc"];
+            this.completedAtUtc = _data["completedAtUtc"];
+            this.reason = _data["reason"] ? LocalCommitInspectionReasonResponse.fromJS(_data["reason"]) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): LocalCommitInspectionOperationResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new LocalCommitInspectionOperationResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["operationId"] = this.operationId;
+        data["projectId"] = this.projectId;
+        data["workspaceId"] = this.workspaceId;
+        data["checkpointId"] = this.checkpointId;
+        data["checkpointNumber"] = this.checkpointNumber;
+        data["checkpointFingerprintSha256"] = this.checkpointFingerprintSha256;
+        data["status"] = this.status;
+        data["branchName"] = this.branchName;
+        data["parentCommitSha"] = this.parentCommitSha;
+        data["treeSha"] = this.treeSha;
+        data["commitSha"] = this.commitSha;
+        data["changedPathCount"] = this.changedPathCount;
+        data["totalBytes"] = this.totalBytes;
+        data["createdAtUtc"] = this.createdAtUtc;
+        data["executionStartedAtUtc"] = this.executionStartedAtUtc;
+        data["completedAtUtc"] = this.completedAtUtc;
+        data["reason"] = this.reason ? this.reason.toJSON() : undefined as any;
+        return data;
+    }
+}
+
+export interface ILocalCommitInspectionOperationResponse {
+    operationId?: string;
+    projectId?: string;
+    workspaceId?: string;
+    checkpointId?: string;
+    checkpointNumber?: number;
+    checkpointFingerprintSha256?: string;
+    status?: string;
+    branchName?: string;
+    parentCommitSha?: string;
+    treeSha?: string;
+    commitSha?: string | undefined;
+    changedPathCount?: number;
+    totalBytes?: number;
+    createdAtUtc?: string;
+    executionStartedAtUtc?: string | undefined;
+    completedAtUtc?: string | undefined;
+    reason?: LocalCommitInspectionReasonResponse;
+}
+
+export class LocalCommitInspectionReasonResponse implements ILocalCommitInspectionReasonResponse {
+    kind?: string;
+    code?: string | undefined;
+
+    constructor(data?: ILocalCommitInspectionReasonResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.kind = _data["kind"];
+            this.code = _data["code"];
+        }
+    }
+
+    static fromJS(data: any): LocalCommitInspectionReasonResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new LocalCommitInspectionReasonResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["kind"] = this.kind;
+        data["code"] = this.code;
+        return data;
+    }
+}
+
+export interface ILocalCommitInspectionReasonResponse {
+    kind?: string;
+    code?: string | undefined;
 }
 
 export class ImplementationAttemptStatusResponse implements IImplementationAttemptStatusResponse {

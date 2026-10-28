@@ -75,6 +75,7 @@ import { VerificationDiagnosisAction } from './VerificationDiagnosisAction'
 import { ConnectionBanner } from './ConnectionBanner'
 import { LatestAgentAttemptEvidence } from './LatestAgentAttemptEvidence'
 import { LiveOutputDrawer } from './LiveOutputDrawer'
+import { LocalCommitInspectionRegion } from './LocalCommitInspectionRegion'
 import { LocalCommitPanel } from './LocalCommitPanel'
 import { AbandonRunPanel } from './AbandonRunPanel'
 import { OneAgentClaimSlotRemainingWarning } from './OneAgentClaimSlotRemainingWarning'
@@ -661,6 +662,9 @@ export function RunCockpitView({
               }
               onSaved={refresh}
             />
+          )}
+          {cockpit.runId === runId && executionMode.kind === 'ManualAgent' && (
+            <LocalCommitInspectionRegion runId={runId} projectId={cockpit.projectId ?? null} />
           )}
           {cockpit.runId === runId && executionMode.kind === 'ManualAgent' && (
             <AbandonRunPanel

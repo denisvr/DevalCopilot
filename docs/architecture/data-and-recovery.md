@@ -202,6 +202,25 @@ or removed because its bytes or file id match, and `NeedsAttention` for a pendin
 takeover path. The expected worktree tip of a later run is the unique coherent chain of completed recorded parent-to-commit
 edges rooted at the workspace's immutable source commit; any gap, fork or cycle has no tip and fails closed.
 
+[ADR-0070](../decisions/0070-inspect-recorded-local-commit-operations.md) adds only a read-only recorded inspection of a run's one
+operation in any of its six states, through one protected bodyless GET (`/api/runs/{runId}/local-commit-inspection`) and one collapsed region
+in the current run and in run history. One bounded, untracked scalar statement reads the registered run and project, the operation associated
+by the unique run key and that operation's named workspace and checkpoint (left joins, at most two rows), so an associated operation whose
+workspace or checkpoint is missing, damaged, foreign or doubled is Unavailable and never absent: NotRecorded is decided only by the absence
+of the run-keyed association (an operation whose stored run key is not that run's exact stored form is not associated with it). The run must be
+a ManualAgent run of the project; the operation must belong to that run and project; the workspace must belong to the project with exactly
+the operation's branch; and the checkpoint must belong to that workspace with exactly the pinned number, fingerprint and parent head. Stored
+identifiers are admitted only in the provider's canonical uppercase form, times only as the provider writer's UTC text, object identifiers
+and the fingerprint only as lowercase hexadecimal, and the checkpoint number, changed-path count and total bytes only as exact stored
+INTEGERs of their ranges (Int32.MaxValue included), so unsupported storage, an unknown status and an incoherent status/time/reason tuple
+(Failed, Interrupted and NeedsAttention may lack the execution marker; no time is invented) read as Unavailable instead of a default. The
+prepared commit identity is projected only for a Completed operation, so it cannot escape for another state even when damaged, and the
+reason is returned only as one of thirteen fixed codes (any other bounded reason is Unrecognized, with no text). Authority members,
+digests, the commit message, author, physical receipts, prepared artifacts, leases, Git, files, processes and providers are never read. It
+writes nothing, swallows no database fault, adds no table, migration, event, worker or recovery authority, and a Recorded answer is
+unsigned relational consistency, not a receipt (which keeps its stronger, independent pinned-admission proof), current eligibility or
+ownership, present activity or publication.
+
 ### Explicit abandonment of an inactive manual run
 
 An explicit abandonment ([ADR-0031](../decisions/0031-abandon-an-inactive-manual-run-through-an-explicit-human-decision.md)) is metadata only. In one short write-locked transaction it saves the run's

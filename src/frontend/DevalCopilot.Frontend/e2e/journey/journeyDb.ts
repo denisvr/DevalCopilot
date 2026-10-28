@@ -68,6 +68,27 @@ export interface LocalCommitOperationRow {
   HumanCheckpointReviewId: string
 }
 
+/** The stored facts of one local-commit operation that the recorded inspection (ADR-0070) discloses, selected by run identity. */
+export interface LocalCommitInspectionFactsRow {
+  Id: string
+  ProjectId: string
+  GitWorkspaceId: string
+  GitCheckpointId: string
+  CheckpointNumber: number
+  CheckpointFingerprintSha256: string
+  Status: string
+  BranchName: string
+  ParentCommitSha: string
+  TreeSha: string
+  CommitSha: string
+  ChangedPathCount: number
+  TotalBytes: number
+  CreatedAtUtc: string
+  ExecutionStartedAtUtc: string | null
+  CompletedAtUtc: string | null
+  OutcomeReasonCode: string | null
+}
+
 export interface GitHubObservationTargetRow {
   Id: string
   RunId: string
@@ -385,6 +406,16 @@ export class JourneyData {
       this.all<LocalCommitOperationRow>(
         'select Id, Status, CommitSha, GitCheckpointId, CheckpointNumber, CheckpointFingerprintSha256, ExecutionReportMessageId, CodeReviewAttemptId, CodeReviewApprovalMessageId, HumanCheckpointReviewId from local_commit_operations where RunId = ?',
         this.runId(),
+      )[0] ?? null
+    )
+  }
+
+  /** The recorded inspection's stored facts of the operation of exactly this run (any run of the project, by identity); null when none. */
+  localCommitInspectionFacts(runId: string): LocalCommitInspectionFactsRow | null {
+    return (
+      this.all<LocalCommitInspectionFactsRow>(
+        'select Id, ProjectId, GitWorkspaceId, GitCheckpointId, CheckpointNumber, CheckpointFingerprintSha256, Status, BranchName, ParentCommitSha, TreeSha, CommitSha, ChangedPathCount, TotalBytes, CreatedAtUtc, ExecutionStartedAtUtc, CompletedAtUtc, OutcomeReasonCode from local_commit_operations where RunId = ?',
+        runId,
       )[0] ?? null
     )
   }

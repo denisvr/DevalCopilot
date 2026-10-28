@@ -6,7 +6,235 @@ was prepared ([recovery](development-workflow.md#recovery)). Git and code
 prevail; compare branch, `HEAD`, `origin/main` and staged/unstaged/untracked
 state first.
 
-## Active slice: PROJECT-VER-INSPECT-01 inspect recorded project verification executions (ADR-0069)
+## Active slice: LOCAL-COMMIT-INSPECT-01 inspect recorded local-commit operations (ADR-0070)
+
+This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
+Reconcile publication with Git and the slice's independent publication-verification record, when available. This record alone grants no
+publication authority.
+
+**Delivery phase: documented recovery of existing unreviewed output (see [Recovery phase](#recovery-phase-2026-10-28)); the earlier first-return text below is
+retained as the prior session's unreviewed claim, whose authoring session is not authenticated. The complete diff (including the four planner inputs) is
+unstaged, uncommitted and unpushed. No GO exists.** Review and publication are separate later events; nothing here claims either.
+Baseline: `main`, `HEAD` and local `origin/main` equalled `e7bd118b65dba6c9fde2a3f07e1fda773bc25b08` (PROJECT-VER-INSPECT-01, independently
+verified published and neither repeated, republished nor reopened); divergence and the index were verified once before editing (the live remote was
+not re-read by the executor). The four planner inputs (`decisions/README.md`, `mvp-delivery-plan.md`, `planner-handoff.md`, ADR-0070) equalled their
+`logs/planner-review/local-commit-inspect-01/selection.txt` SHA-256 values at the start and were not edited. ADR-0050 stays Proposed, P9 unproven,
+AI Memory deferred, Increments 4/5/6 incomplete; every standing restriction in the handoff stays. No frozen profile, native/provider/credential
+experiment, real run, recovery, cleanup, commit or push was touched or performed; deterministic doubles remained the validation boundary.
+
+### Recovery phase (2026-10-28)
+
+A documented recovery transition decided by Codex ([planner-handoff.md](planner-handoff.md)), executed in the executor chat that had stopped at its first preflight. The
+preflight matched `logs/planner-review/local-commit-inspect-01/recovery-01/preflight.json` exactly (`HEAD` and local `origin/main` `e7bd118b65dba6c9fde2a3f07e1fda773bc25b08`, empty
+index, 17 modified and 52 untracked individually listed files, every one of the 69 SHA-256 values equal; the handoff is at its superseding `bf8160f1…0513` and the other three
+planner inputs at their selection hashes; all four preserved unchanged). The existing code, the report below and the logs were treated as unreviewed evidence: their authoring
+session (the "this chat" and "forked implementer" statements below) is not authenticated, and no result is attributed to a source or binary by timestamp alone. **No GO exists; nothing
+is staged, committed or pushed; this recovery record is not acceptance.** New recovery output is under `logs/executor/local-commit-inspect-01/recovery-01/`; every earlier log and failure is unchanged.
+
+**Audit result.** The complete tracked and untracked diff was read against ADR-0070 (one bounded five-table statement with `Take(2)`; association by the run key; the six-state tuple;
+commit identity only for Completed; the thirteen-code allowlist; guard filter and fixed errors; closed API graph; raw-wire decoder, hook lifetimes and region; both mounts; journey and
+journeyDb additions; documents). No divergence from the contract was found in the product code; two corrections were made (finding IDs stay in this chat):
+
+- **R-1, historical copy accuracy.** The `local_commit.head_not_bound` explanation said the workspace head "was not bound to the recorded parent". The code (`LocalCommitGit.HeadBoundToBranchAsync`
+  compares `symbolic-ref HEAD` with `refs/heads/<owned branch>`; the recovery policy also refuses a missing branch tip) is about HEAD naming the owned branch, not the parent. It now says "HEAD did not name
+  the owned branch, or that the branch tip could not be read" (`localCommitInspectionCopy.ts`; no test asserted the old text). Observations left unchanged and out of scope: the existing live copy
+  (`describeLocalCommit.ts`) carries the same loose `head_not_bound` wording, and the `authority_changed` ("the approval authority changed") and `unpromoted_state_unknown` explanations are narrower or looser than
+  the code (the execution seam also compares the authority digest, workspace, lease and expected parent) but not false.
+- **R-2, acceptance gap.** ADR-0070 requires tick precision, but only the frontend decoder and the journey exercised it. New `LocalCommitInspectionTickPrecisionTests` (11 cases, migrated file-backed SQLite):
+  seven-digit ticks returned exactly, equal instants admitted, the writer's trimmed fractions, and a one-tick ordering violation Unavailable for Completed and for a Failed outcome recorded without a marker.
+  A bounded compiling control (T1, `recovery-01/control-T1.ps1`, hash-guarded: Completed ordering compared at millisecond precision) was killed by 4 of the 11 cases and the file was restored byte-identical
+  (SHA-256 `D98048594E6A5A76B50E41E8BF44EE81A9D225F762188FBC6EFF51BF269F41F5`, equal to the earlier controls' baseline). Its scope is that one edit.
+
+**Named questions (interpretations remain proposals for the planner, none accepted).**
+
+1. *Exact stored run key.* The operation is associated by the stored `RunId` text equal to the run's stored text (the unique `ix_local_commit_operations_run`, BINARY comparison). An operation whose stored `RunId`
+   is lowercase, malformed or another run's therefore reads `NotRecorded` (cases `op_run_key_lowercase_is_not_the_association`, `op_run_key_of_another_run_is_not_the_association`), while a damaged
+   operation `Id`, `ProjectId`, workspace or checkpoint identity reads `Unavailable`. This resolves a tension between two ADR clauses (absence is proved from the association only; the unique run index is the sole access
+   path, no scan): a case-insensitive association would need a scan and is not what is implemented. The retained plan shows `SEARCH l USING INDEX ix_local_commit_operations_run (RunId=?)`. The production writer
+   stores uppercase text, so only external corruption produces the other forms. Uncertainty: such corruption is indistinguishable from absence.
+2. *Uppercase stored versus lowercase wire.* Stored identifiers are admitted only as uppercase 36-character text; `System.Text.Json` writes lowercase, and the decoder requires lowercase D-format and the
+   requested run by strict comparison. A hypothetical uppercase run identity held by a caller would be refused as `invalid`; every identity in the product's own flows is a lowercase wire value.
+3. *Numeric NULL, left joins and Int32 bytes.* The CLR `int`/`long` properties map to `NOT NULL INTEGER` columns (migration snapshot). The captured statement adds `OR column IS NULL` inside an AND chain whose first
+   comparison is already NULL for an absent left-joined row, so the CASE yields NULL (never an admitted value); an absent workspace or checkpoint therefore reaches the reader as null and is Unavailable, and the
+   present-operation flag is `l.Id IS NOT NULL`. The exact-INTEGER guards use a same-typed modulus plus direct maximum compares (44 numeric cases, extrema admitted, REAL/TEXT/BLOB/overflow refused). `totalBytes` is a
+   `checked((int)...)` of a value already bounded to 0..4194304, an Int32 in the generated client and OpenAPI.
+4. *The two collateral journey edits.* `{ name: 'Local commit', exact: true }` is required by this diff: Playwright name matching is a case-insensitive substring, which now also matches the new "Inspect recorded
+   local commit" region (no other e2e file names that region). The added `'Inspect recorded planning'` entry in the selected-run button list is independent of this diff: `ProjectRunHistoryDetail` at `HEAD` already mounts
+   `PlanningSequenceInspectionPanel` (commit `7949f37`) while `HEAD`'s journey list omitted its toggle. That is inferred from source, not from a journey run at `HEAD`; the fresh passing journey confirms the corrected list against current sources.
+5. *The ten broadened frontend failures.* `LocalExecutionAdmissionSurfaces` (2) and `LocalExecutionReleaseInspectionSurfaces` (8) "current run in Usage & Evidence" cases wait for `/Recorded state/` and never find it. Retained
+   `baseline-head-surfaces.txt` (a pristine `HEAD` worktree, which used this tree's `node_modules`; the worktree no longer exists) and `parent-vitest-consumers.txt` fail the **same ten test names** (compared in this recovery
+   after whitespace normalization), and the same ten fail again on the current tree (below). A baseline reproduction proves failure on that baseline; it does not establish the cause and does not exclude a contribution
+   by this diff to anything beyond those names. The cause is not established and nothing was changed for them.
+6. *The first journey's 404.* Run 1 (`journey-run-1.txt`) failed at the first awaited inspection response, 404 instead of 200. The claim that the prebuilt journey host held a stale binary is **supported but not proven**:
+   the preceding backend builds (`final-raw/api-tests-build.txt`, `api-build-*.txt`) do not build the separate `BrowserJourneyHost` project; run 2 followed an explicit host build and passed. No artifact or process evidence of the old
+   host binaries survives (the build overwrote them), the 404 body was not captured and no other cause was excluded.
+
+**Evidence, retained versus new versus unverifiable.**
+
+- **New in this recovery, on current sources** (`recovery-01/`; the first four serial after `dotnet build-server shutdown`, non-incremental `-m:1`, 0 warnings, 0 errors): Api build 13.5 s with the generated client SHA-256
+  `c601a846c31d5d3440abfbc924ca111814498627cd3db08cc73c15afe62d880d` after it and after the test builds, equal to the two retained builds' value (additive, 246 insertions, 0 deletions); Application dispatched filter **269 passed**
+  (258 retained-scope tests plus the 11 new), 58.4 s; Api dispatched filter **139 passed**, 126.4 s; whole Architecture **225 passed**, 4.7 s. The four product assemblies of that fresh build are **byte-identical** to the
+  copies in the `BrowserJourneyHost` output (built 2026-10-26 21:55; .NET builds are deterministic on equal inputs). That establishes byte equality of the current on-disk host assemblies with a fresh build of these sources; it does
+  not authenticate the images a past journey process loaded (the first run's 404 stays unexplained), so it is not historical process evidence. `dotnet format --verify-no-changes` over the 40 changed
+  C# files exit 0 (29.8 s); every new C# file has one top-level type matching its name. Frontend (the dispatched list, 21 files): **1074 passed** (31.9 s); `npm run lint` exit 0 (nine existing warnings, none in the new files); `npm run
+  build` exit 0 (includes `tsc -b`; the chunk-size note is the existing stderr); strict e2e `tsc` over 54 files exit 0. Broadened consumers (4 files): **10 failed, 21 passed**, the ten named above. Extended collaboration journey
+  rerun once, announced and headed (`--headed --trace off --workers 1`; no Inspector, `--debug`, `--ui`, `PWDEBUG` or manual Resume), **1 passed, 2.0 m**, `journey-run.txt`; the React duplicate-key console error (1355 occurrences) and
+  14 stopped SignalR negotiations are the noise recorded for the earlier runs, their cause not investigated. Hygiene (`recovery-01/check-links.txt`): 282 links and fragments over the nine changed or planner
+  documents, 0 failures (a negative control proved the checker detects a missing file and fragment); `git diff --check` clean apart from the generated client's CRLF notice; the 53 new files hold no CR or tab byte; the
+  sensitive-pattern scan found only the clearly fictitious `not-a-real-session` test value in four new tests; the four planner inputs equal their recorded hashes at the return.
+- **Retained, not rerun, at its original scope:** the twelve compiling controls C1 to C12 (`controls.log`: all killed, files restored; the six edited sources are byte-identical now to the baseline hashes that log recorded);
+  the backend matrix of 21:46 to 21:53 (258/139/225, superseded for the current sources by the fresh run); the first format failure (two whitespace findings, 2026-10-26); the implementer's frontend matrix, the first failed
+  build and the two history-detail test failures; the broadened and baseline logs; both earlier journey runs.
+- **Not run:** the other journeys (they were not selected; none of them names the new region), the whole Application, Api, Infrastructure, Domain and Vitest suites, any real-provider, native or recovery check.
+- **Unverifiable:** the authoring session of the existing output; whether any source changed between the earlier logs and now beyond what the byte-equal binaries and hashes above show; the cause of the ten failures and
+  of the first journey's 404 (above); the earlier frontend run against its source, the dev server having left no artifact (superseded by the fresh frontend matrix and journey).
+
+### Correction 1 (Codex review 1 NO-GO: LCMI-R1, P2)
+
+Planner finding **LCMI-R1** (distinct from the executor-reported R-1 and R-2 above, neither renumbered nor dropped; open until Codex's next review): `localCommitInspection.ts` admitted the default UTC instant
+`0001-01-01T00:00:00.0000000Z` through the shared shape-only `isUtcRoundTrip`, so a Prepared, or a Completed with otherwise ordinary later times, operation carrying it as `createdAtUtc` decoded as Recorded although
+the backend refuses the stored default. Correction, frontend decoder only: an operation-owned `isRecordedInstant` (the shared parser result, and not the default instant) now guards `createdAtUtc` and every supplied
+`executionStartedAtUtc` and `completedAtUtc`; canonical seven-digit formatting, full-tick string ordering, nullable-marker semantics and legitimate year-0001 values (`0001-01-01T00:00:00.0000001Z`) are unchanged, no
+millisecond `Date` is involved, and the shared parser, the backend and the other inspection contracts are untouched. Four permanent regressions in `localCommitInspection.test.ts` (adapted from the archived reviewer
+diagnostic): the Prepared reproduction, the Completed reproduction, default markers/completions that would otherwise be coherent (all-default Completed, Failed and NeedsAttention without a marker) and the one-tick positive boundary
+with tick ordering. A bounded control (`recovery-01/correction-01/control-default-instant.txt`: the decoder's default check removed, file restored byte-identical) fails the three refusal regressions and keeps the positive one.
+
+- **Fresh on the corrected source** (`recovery-01/correction-01/`): focused `localCommitInspection.test` **43 passed** (2 files by the filter), 2.1 s; the dispatched frontend selection (21 files) **1078 passed** (1074 plus the four regressions), 14.3 s;
+  `npm run lint` exit 0 (the same nine existing warnings, none in the new or changed files); `npm run build` exit 0 (includes the product `tsc -b`). Hygiene is recorded below.
+- **Retained, with reasoning:** backend (Application 269, Api 139, Architecture 225, format, client SHA-256 `c601a846…`) covers sources that this correction does not touch (no `.cs` file, schema, API contract or generated client
+  changed; the client equals its fresh-build hash); strict e2e `tsc` over 54 files covers `e2e/` and the two Playwright configs, which are unchanged, and the corrected module is not among them; the fresh recovery journey ran
+  against the previous decoder. It never rendered a default instant (its real operation carries a nondefault time), so the correction cannot change what it asserted, but it is **not** evidence of the corrected frontend and no
+  journey was rerun. The reviewer's original ENOENT suite-load failure, its interrupted restricted Application attempt and their later actual results stand as recorded in `review-01/`; later success establishes no cause for those tool failures.
+- **Not run:** a routine backend matrix, client regeneration, mutation campaign beyond the control above, and any browser rerun.
+
+### What exists
+
+- **Application.** `GetLocalCommitInspectionQuery` (run id only) with its handler, a validator (a nil run is the fixed `validation.invalid_run`) and a
+  closed result (`NotRecorded`, `Unavailable`, `Recorded` with one operation), plus one operation-owned policy folder
+  (`Policies/RecordedLocalCommit`). **One** bounded no-tracking EF statement (`RecordedLocalCommitReader`, at most two rows, `Take(2)`) reads the registered
+  run and project (inner joins), the operation associated by the unique run key and that operation's named workspace and named checkpoint (left joins),
+  so an associated operation whose workspace or checkpoint is missing is `Unavailable`, never absent; no operation is `NotRecorded`; an unknown run or a run
+  whose registered project is absent is the fixed `local_commit_inspection.not_found`. The guarded scalar projection (`RecordedLocalCommitProjection`)
+  carries every identifier and time as raw stored bytes within their bound (parsed by `RecordedLocalCommitStorage`: canonical uppercase 36-character
+  identifiers, the provider writer's UTC time text), classifies the status in the database, guards the checkpoint number (1 to Int32.MaxValue, the maximum compared
+  directly), changed-path count (1 to 128) and total bytes (0 to 4194304) as exact stored INTEGERs, bounds every text by its stored bytes and selects the commit
+  SHA only while the stored status is Completed. `RecordedLocalCommitReader.Prove` requires a ManualAgent run, the operation's own run and project, the workspace in
+  the project with exactly the operation's branch, the checkpoint in that workspace with exactly the pinned number, fingerprint and parent head, lowercase 40/64-hex
+  identities and a branch of at most 512 characters without control characters; `RecordedLocalCommitTuple` enforces the complete status/time/reason/commit tuple of
+  ADR-0070 (Failed, Interrupted and NeedsAttention may lack the execution marker and no time is invented), and `RecordedLocalCommitReasons` maps the thirteen
+  allowlisted codes to Known and any other bounded nonblank reason to Unrecognized with no code. Nothing is written, no authority member, digest, message, author,
+  physical receipt, artifact, lease, Git, file, process or provider is read, and no exception is swallowed. The existing physical `LocalCommitInspection` port
+  model, the live status query, the receipt and run-history discovery are untouched.
+- **API.** One protected bodyless MVC GET, `GET /api/runs/{runId}/local-commit-inspection` (`GetLocalCommitInspectionEndpoint`, one class and one action behind
+  `RunsBaseEndpoint`, dispatching through `IApplicationMediator`), behind `LocalCommitInspectionGuardFilter`, which refuses before binding and dispatch any query
+  key or text (`local_commit_inspection.query_not_allowed`) and a declared length, any transfer encoding or a readable undeclared byte
+  (`local_commit_inspection.body_not_allowed`). API-owned closed response graph (`GetLocalCommitInspectionResponse`, `LocalCommitInspectionOperationResponse`,
+  `LocalCommitInspectionReasonResponse`; times as UTC round-trip strings, `totalBytes` an Int32). NSwag regenerates the client reproducibly, additive only (246
+  insertions, 0 deletions).
+- **Frontend** (implemented by a forked implementer, reviewed and re-run by this chat). `localCommitInspection.ts` (whole-answer raw-wire decoder: exact keys at every
+  level, requested run, lowercase wire GUIDs, exact bounds, the full tuple, the allowlist; any violation refuses the whole answer), `localCommitInspectionWire.ts`
+  (parsed-body wire client with a real abort signal), `useLocalCommitInspection` (run/opening/read-visit lifetimes over the unchanged `useOwnedLifetime` /
+  `useOwnedState`, a real ten-second abort, read only on open or explicit reload, a reload clears the old answer at once), `localCommitInspectionCopy.ts` and the
+  collapsed **Inspect recorded local commit** region (`LocalCommitInspectionRegion`), mounted once beside `LocalCommitPanel` in `RunCockpitView` (same ManualAgent
+  condition) and once in `ProjectRunHistoryDetail` for every selected run, after the receipt line, with or without a receipt source. `LocalCommitPanel`, the receipt and
+  history discovery are unchanged; the generated client is registered in `clients.ts`.
+- **Journey.** `e2e/collaboration.journey.ts` is extended at its completed-delivery phase and at its later historical-run phase (details under Evidence); two small
+  collateral edits are described under Challenges. `e2e/journey/journeyDb.ts` gains one additive read of the stored operation facts.
+- **Documents.** The explicit-local-commit recovery section of data-and-recovery, the cockpit specification (new "Recorded local commit inspection" section and one
+  pointer in Run history), the security plan (one boundary row), the engineering context and this record. The four planner inputs are included unedited.
+
+### Evidence (logs under `logs/executor/local-commit-inspect-01/`, git-ignored; commands run at the repository root unless a frontend script)
+
+Backend matrix: `final-matrix.ps1`, `final-matrix.log`, raw outputs in `final-raw/`. Fresh on the final stable sources unless stated:
+
+- **Build and generation.** Build server shut down, then two serial non-incremental Api builds (`-m:1`) produced byte-identical `api-client.ts` (SHA-256
+  `c601a846c31d5d3440abfbc924ca111814498627cd3db08cc73c15afe62d880d`, `identical True`; `git diff --numstat` 246 insertions, 0 deletions). The Application, Api integration and Architecture test projects built non-incrementally with 0 warnings and 0 errors. Nothing was edited in the generated file.
+- **Application**, the dispatched filter (`LocalCommitInspection|LocalCommitOutcomeRecorderTests|LocalCommitRecoveryPolicyTests|GetProjectRunHistoryQueryHandlerTests`):
+  **258 passed**, 60 s (203 new, in `Features.Runs.RecordedLocalCommitInspection`; 55 unchanged existing). Real migrated file-backed SQLite: all nine recorded tuples (Prepared, Executing,
+  Completed, Failed/Interrupted/NeedsAttention each with and without the execution marker) with exact identities, numbers, times and the commit identity only for Completed; the thirteen
+  allowlisted reasons and ten unrecognized ones (prefix lookalike, trailing/leading blank, upper case, native detail with a path, 128 characters); NotRecorded beside a recorded run;
+  fixed 404 for an unknown run and for an absent registered project; **96 named damage cases** (operation, workspace, checkpoint and run identities lowercase, blank, oversized,
+  embedded NUL, braced, nil; foreign project, workspace and checkpoint; missing workspace and checkpoint rows; run modes Legacy, Simulated, text, out of range, fractional and oversized;
+  branch, parent, tree, fingerprint and commit-SHA shapes; created, started and completed times; every status/time/reason/commit tuple violation; unknown, lower-case, empty and numeric
+  status; a second operation for one run with the unique index dropped) each proved Recorded first, then exactly Unavailable, NotRecorded or the fixed 404; **44 exact-number cases** (Int32.MaxValue
+  and 1 for the checkpoint number, 1/128 for the path count, 0/4194304 for the bytes admitted; zero, negative, overflow, a truncated 64-bit value, REAL, TEXT and BLOB refused); an operation of
+  another registered project, a foreign workspace/checkpoint and a damaged operation of another run; survival of later work (newer checkpoint, workspace `MissingExternally`, an abandoned
+  run) and of a file-backed reopen; durable fingerprint unchanged in every shape. **Read proof:** exactly one statement per read (also for NotRecorded and 404), SELECT only, `LIMIT @p = 2`,
+  exactly the five tables `runs`, `projects`, `local_commit_operations`, `git_workspaces`, `git_checkpoints`, none of 40 forbidden column/table names, EXPLAIN QUERY PLAN driven by `ix_local_commit_operations_run`
+  with no scan or sort, a damaged commit SHA of a non-Completed operation never disclosed, the handler's only dependency the database context, and injected database faults on each table propagating.
+  The captured statement and plan are kept in `recorded-statement-and-plan.txt`.
+- **Api**, the dispatched filter (`LocalCommitInspection|LocalDeliveryReceipt|ProjectRunHistory|LocalCommitEndpointTests|LaunchSessionAuthentication`): **139 passed** (35 new, 104 existing). Run twice: 139/139 in
+  127 s, then once more after a whitespace-only test-helper edit (`final-raw/api-matrix-2.txt`, 139/139). The new class covers authentication (anonymous, wrong secret, query token), the four wrong verbs, the
+  route inventory (exactly one authorized GET and no anonymous route under `api/runs`), three body shapes plus the undeclared readable byte through `TestServer` (refused before dispatch even for a nil run),
+  thirteen query shapes (blank, unknown, repeated, differently cased, token-like) refused before dispatch with fixed text that repeats nothing, a lone `?` read normally, the fixed 404 for an unknown run and an
+  absent registered project (identical bodies), the nil-run validation, the closed wire of all nine recorded shapes (member order, canonical times, commit only for Completed, reasons), an unrecognized reason with
+  no raw text, NotRecorded, Unavailable over damaged storage, a real database fault (dropped table) answered by the host's 500 failure boundary and none of the three statuses, zero durable change and no Git
+  adapter call (tripwired ports), and the actual OpenAPI contract (one path, `runId` only, no request body, 200/400/404, closed schemas, `totalBytes` int32).
+- **Architecture**, whole project: **225 passed** (219 before; six new boundary facts for ADR-0070: read-only five tables, no live policy or latest row, no swallowed fault or forbidden column, one statement with the
+  commit only behind Completed, endpoint shape and guard).
+- **Format and hygiene.** `dotnet format DevalCopilot.slnx --verify-no-changes --include <the 39 new C# files>`: the first run **failed** (exit 2: two WHITESPACE findings in my API test helper,
+  `final-raw/format-verify.txt`, kept); after the fix the same command is clean (exit 0, 29.6 s, `final-raw/format-verify-2.txt`). Every new C# file has exactly one top-level type and a matching file name (checked, 39/39). Changed-document links
+  and fragments: see below. No dependency, package, configuration, migration or schema file changed.
+- **Compiling controls** (`controls.ps1`, `controls.log`; serial, hash-guarded, every restored file byte-identical, run before the final matrix; not a mutation campaign): twelve controls, **all killed**: C1 commit identity projected for
+  every status (66 failed), C2 ManualAgent no longer required (2), C3 unparseable operation Id read as absence (6), C4 branch compared ignoring case (1), C5 second associated row ignored (10), C6 Int32.MaxValue extremum dropped (1),
+  C7 exact-INTEGER guard dropped for total bytes (2), C8 Completed time order relaxed (1), C9 Executing start order dropped (1), C10 allowlist case-insensitive (1), C11 lowercase identifier admitted (3), C12 undeclared-body peek removed from the guard (1, Api).
+  Their scope is only these twelve edits; masking by a second defense (for example the reader's own commit gate behind the projection's) was deliberately not tested.
+- **Frontend** (fresh, run once by this chat after the forked implementer's own matrix, which agrees): the six new LocalCommitInspection files plus the dispatched existing files (the substring filters also select `LocalCommitPanelReceipt`,
+  `LocalCommitPanelGitHubTarget`, `localDeliveryReceiptContract` and `ProjectRunHistoryPanelSelection`): **21 files, 1074 passed**, 17 s (87 new tests: decoder 20, contract, hook, transport with a real abort and fake timers, region, and the
+  two-surface composition with and without a receipt source). `npm run lint` exit 0 (only pre-existing warnings), `npm run build` exit 0 (includes the product `tsc -b`), the separate strict e2e `tsc` over 54 files exit 0
+  (inventory in `parent-strict-e2e-inventory.txt`). Broadened shared-consumer run (`parent-vitest-consumers.txt`; 14 files that render the changed views): **185 passed, 10 failed** — the same ten
+  `LocalExecutionAdmissionSurfaces` / `LocalExecutionReleaseInspectionSurfaces` "current run in Usage & Evidence" cases that also fail identically on a pristine worktree of `e7bd118` (`baseline-head-surfaces.txt`);
+  not caused by this slice and not explained here (see Challenges).
+- **Journey**, announced to the owner before the run, then run headed with `npx playwright test -c playwright.journey.config.ts e2e/collaboration.journey.ts --headed --trace off --workers 1` (no Inspector, `--debug`, `--ui`, `PWDEBUG` or manual
+  Resume; trace, video and screenshots off). **Run 1 failed** at the first awaited inspection response (404 instead of 200, `journey-run-1.txt`, 40 s): the journey host executable
+  (`BrowserJourney/Host/bin/Debug/net10.0/BrowserJourneyHost.exe`) is a prebuilt binary and I had not yet rebuilt that project, so it did not contain the route; this is a validation-order mistake of mine, not a product failure. After a
+  serial non-incremental build of the journey host (`journey-host-build.txt`, 0 warnings, 0 errors) **run 2 passed: 1 passed, 1.9 m** (`journey-run-2.txt`), the only browser run on the final binaries. It
+  used the production-written owned fixture, normal authentication and supervisors and the deterministic executables. After the delivery settled it baselined the business POSTs (`PostInventory`), the stage-executable invocations and a durable fingerprint, then at the completed-delivery phase: cold collapsed
+  region (one button, `aria-expanded=false`, no read), open (awaited exact 200 response equal to the stored operation row: Completed, the delivered commit, branch, parent, tree, counts, checkpoint, creation, marker and completion times, no reason), the rendered
+  facts compared with the same row, an explicit reload (one more exact response, identical), close (answer gone, nothing read) and the same operation as the delivery receipt reports (identity, commit, parent, tree); and at the later historical-run phase the same exact answer for the older run inside Run history
+  beside its receipt source (no receipt request, no live Local commit panel), the newer run with no receipt source answering NotRecorded, a collapsed A-to-B-to-A return that read nothing, and a collapsed region after a real page reload with no read.
+  Every inspection added no business POST, no executable invocation and no durable change. **The fingerprint covers exactly:** the project's row totals (runs, attempts, messages, events, executions, operations, reviews, checkpoints), the operation's stored disclosed facts, the invocation count of the doubles,
+  the worktree HEAD and status and the source repository snapshot; it is not a byte identity of every stored row or file. A page reload is not a host restart (file-backed reopening is proved at the Application layer). The passing run also confirms the formerly stale expectation that the selected run's
+  button list lacked "Inspect recorded planning". The React duplicate-key console errors (one repeated key, 1382 occurrences in run 2, 938 in the failed run 1) appear in this journey as in earlier journeys; whether the new region contributes is not established (its own lists key on unique strings) and was not
+  investigated; one SignalR negotiation was stopped while the page was closing.
+- **Remaining hygiene.** Changed-document links and fragments (`check-links.ps1`, negative controls proved it detects a missing file and fragment): 280 links and fragments over the nine changed or planner documents, 0 failures; the one heading renamed in this record (the previous slice's) has no inbound reference. `git diff --check` exit 0 (the generated client's CRLF notice only); the new files carry no CR or tab; the sensitive-pattern scan found only the existing
+  `journeySecret()` identifier; the four planner inputs equal their `selection.txt` SHA-256 values again at the return.
+- **Planner inputs.** The four planner inputs equal their `selection.txt` SHA-256 values at the start (verified before editing); the final check is recorded below.
+
+Retained, not rerun and not run: the whole Application, Api, Infrastructure and Domain suites, the whole Vitest suite, the other journeys and the standalone harness tests (no schema, producer, ownership, shared transport,
+authentication or lifetime code changed). No earlier slice's evidence is fresh evidence for this one.
+
+### Preserved development attempts and failures
+
+All failed output is kept; none was rerun blindly.
+
+- First Application build of the new classes was green and its first run passed 18 of 18, which looked too easy: the controls above were added to show the tests are sensitive.
+- First full Application run of the new classes: 201 of 203; both failures were defects of my tests (`ExecuteSqlRawAsync` treats `{`/`}` as format placeholders in the braced-identifier case; two workspaces of two projects collided on `WorkspaceNumber`).
+  First Architecture run: one of six new facts failed because its window did not include the null guard that precedes the Completed check (fact corrected, no product change).
+- First Api run: 15 of 33 failed on my own assumption that the Problem Details error member is `description` (it is `detail`); one more failed because the shared Problem Details `instance` member names the request path (the check now excludes it).
+  A first attempt at the database-fault test asserted too much about the developer failure page and was narrowed to the 500 status and the absence of any of the three statuses.
+- The first control-script launch was refused by the permission classifier (it used `-ExecutionPolicy Bypass`); it was relaunched without altering the policy.
+- Frontend (implementer): the first build failed on `RunCockpitView.tsx(667,56)` TS2322 (`string | undefined`), fixed with `cockpit.projectId ?? null`; the first matrix had two failures in existing tests that enumerate the history detail's buttons (they correctly saw the new toggle; both expected lists
+  were updated, original output kept in `final-vitest.txt`).
+
+### Challenges, limits and risks for review
+
+- **No material challenge to ADR-0070.** Interpretations put to the planner:
+  1. *Association by exact stored run key.* An operation whose stored `RunId` is not that run's exact stored (uppercase) form is not associated with the run, so the read is `NotRecorded` for it (case named
+     `op_run_key_lowercase_is_not_the_association`). A case-insensitive join would abandon the unique `ix_local_commit_operations_run` access path ADR-0070 requires. A differently cased operation `Id`, `ProjectId`,
+     `GitWorkspaceId` or `GitCheckpointId` is Unavailable.
+  2. *Wire GUIDs are lowercase.* ADR-0070's "uppercase 36-character form" is the stored form; the host serializes GUIDs in lowercase and the decoder (like the sibling inspection decoders) requires lowercase D-format and refuses uppercase.
+  3. *`totalBytes` is an Int32 on the wire* (the admitted range 0 to 4194304 fits; the Domain value stays a long).
+  4. *Generated null guards.* The translator adds `OR column IS NULL` to the numeric guards of left-joined columns; that only affects the absent-entity branch (a stored column is never NULL) and is visible in `recorded-statement-and-plan.txt`.
+- **Not a receipt, replay or authentication.** A Recorded operation is unsigned relational consistency; matching rewrites of the recorded rows stay outside the assurance. Recorded Completed is bookkeeping, not a live Git observation, current source applicability or publication; it does not prove the admission lineage.
+- **Collateral journey edits (please review).** The existing `getByRole('region', { name: 'Local commit' })` became `exact: true` (Playwright names are case-insensitive substrings and would now also match "Inspect recorded local commit"); the existing selected-run button list in the journey lacked the "Inspect recorded planning" toggle that
+  an earlier slice mounted (the Vitest list already had it) and now lists it with the new toggle. Whether the latter was really stale is confirmed only by the journey run.
+- **Ten pre-existing frontend failures** in two broadened files (above) fail identically on a pristine `e7bd118` worktree; their cause is not established and nothing was changed for them.
+- **Known-reason copy** is a fixed literal restatement of each code ("the host recorded that ..."); the wording is for the planner's review.
+- **Journey scope.** It proves the Recorded (Completed) path of one operation and the NotRecorded run through the browser; the other five states, damaged storage, tuples, timeouts and lifecycle races are proved at the Application, Api and component boundaries. Its durable fingerprint covers named fields and counts, not a byte identity of every row or file; a page reload is not a host restart.
+- **Not in scope and not done:** recovery, retry, release, approval, commit and publication behavior, a real-provider or real-run read, any frozen-experiment renewal, polling, prefetch, export or browser persistence.
+
+## Previous slice (independently verified published as e7bd118; historical record): PROJECT-VER-INSPECT-01 inspect recorded project verification executions (ADR-0069)
 
 This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
 Reconcile publication with Git and the slice's independent publication-verification record, when available. This record alone grants no

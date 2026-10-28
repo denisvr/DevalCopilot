@@ -329,6 +329,8 @@ describe('ProjectRunHistoryPanel', () => {
         'Reload latest runs',
         'Inspect run #3',
         'Inspect run #2',
+        // LOCAL-COMMIT-INSPECT-01: the collapsed, read-only recorded local commit region beside the receipt (ADR-0070).
+        'Inspect recorded local commit',
         'Show recorded events',
         'Show recorded collaboration',
         'Show Agent attempt history',

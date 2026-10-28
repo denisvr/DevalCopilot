@@ -269,11 +269,18 @@ one selected step's exact Agent association and reuse of existing guarded eviden
 All five possible steps, unlinked preparations and attempts without messages belong to this one read-only outcome. It changes no live
 status, admission, execution, recovery, approval, commit or publication authority, adds no semantic replay and completes no increment.
 
-**Recorded project verification inspection (selected, not implemented).**
-[ADR-0069](../decisions/0069-inspect-recorded-project-verification-executions.md) / PROJECT-VER-INSPECT-01 selects paged project verification
+**Recorded project verification inspection (independently verified published).**
+[ADR-0069](../decisions/0069-inspect-recorded-project-verification-executions.md) / PROJECT-VER-INSPECT-01 delivers paged project verification
 history beyond the latest 20, exact historical execution metadata and explicitly loaded sealed stdout/stderr windows, including manual
 executions without Agent or local-sequence membership. Verification rows have no RunId: this view infers no run attribution, current
 source applicability, approval or liveness. No execution, recovery or publication authority changes and no increment is completed.
+
+**Recorded local-commit inspection (selected, not implemented).**
+[ADR-0070](../decisions/0070-inspect-recorded-local-commit-operations.md) / LOCAL-COMMIT-INSPECT-01 selects one bounded recorded read and
+explicit current/historical run inspection of all six local-commit operation states, including Failed, Interrupted and ambiguous
+NeedsAttention when no completed receipt source is available. It exposes the commit SHA only for a recorded Completed operation,
+reads no current eligibility or physical Git state and leaves the stronger completed receipt proof/discovery unchanged. It changes
+no execution, ownership, recovery, approval, commit or publication authority and completes no increment.
 
 **Agent supervision observations (partial).** ADR-0056 / AGENT-SUP-01 adds, for all seven existing Agent response contracts, a
 durable disclosure of what the host's own observer last reported for the current Agent attempt (phase, last report, absolute deadline,

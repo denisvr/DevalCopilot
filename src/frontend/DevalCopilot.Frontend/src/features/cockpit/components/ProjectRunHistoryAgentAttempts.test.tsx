@@ -641,6 +641,8 @@ describe('the Agent attempts of a historical run detail', () => {
     expect(window.location.href).not.toContain('manifest')
     const names = within(detail()).getAllByRole('button').map((button) => button.getAttribute('aria-label') ?? button.textContent)
     expect(names).toEqual([
+      // LOCAL-COMMIT-INSPECT-01: the collapsed, read-only recorded local commit region beside the receipt (ADR-0070).
+      'Inspect recorded local commit',
       'Show recorded events',
       'Show recorded collaboration',
       'Hide Agent attempt history',

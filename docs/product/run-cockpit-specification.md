@@ -1286,6 +1286,36 @@ receipt ("cannot be reconstructed"), and the valid receipt are distinct states. 
 operation's status, and is never polled; its request and answer belong to the committed run and operation lifetime, so a replacement,
 a return to an earlier one, unmounting or an obsolete read cannot fetch for or show another owner.
 
+### Recorded local commit inspection (LOCAL-COMMIT-INSPECT-01)
+
+Beside the current `ManualAgent` run's **Local commit** panel, and inside every selected historical run of the Run history whether or not a
+delivery source was located, the cockpit shows one more collapsed **Inspect recorded local commit** region
+([ADR-0070](../decisions/0070-inspect-recorded-local-commit-operations.md)). Closed, it reads nothing. Opening it, or **Reload recorded local
+commit**, reads exactly one answer of the protected, bodyless and queryless `GET /api/runs/{runId}/local-commit-inspection` for that run; a
+reload clears the earlier answer at once. It is independent of the live status panel (it never reads eligibility), of the delivery receipt
+and of run-history discovery, and history mounts only this region, never the live panel.
+
+The region shows what the host recorded for the run's one operation, every value labelled **recorded** and rendered as plain text: its
+status (`Prepared`, `Executing`, `Completed`, `Failed`, `Interrupted` or `Needs attention`), the recorded reason, the creation, execution
+marker and outcome times (a missing marker is said to be unrecorded, never invented: a failed, interrupted or needs-attention outcome may
+have been recorded without one), the branch, the parent commit and tree as recorded preparation facts (never proof that anything was
+promoted), the changed-path count and bytes, and the checkpoint number, fingerprint and identities. The commit SHA is shown only for a
+`Completed` operation, as the recorded result; for every other state it is withheld and the region says no commit identity is shown, so a
+commit that was only proposed at preparation is never presented as a result. A reason the host describes appears as its fixed code with a
+fixed historical explanation; any other recorded reason reads "A reason was recorded that this version does not describe" and its text is
+never shown. Fixed copy states that `Prepared` and `Executing` are recorded markers, not an observation that anything is running; that
+`Needs attention` is ambiguous (neither terminal, success, failure nor permission to retry) and is not diagnosed or recovered here; that
+`Completed` is a recorded local result, not a new receipt, a live Git observation, current source applicability or a remote publication; and
+that this read, the live panel and any receipt are separate reads of unsigned relational facts, not one atomic replay.
+
+**Not recorded** says only that this read found no operation for the run (it says nothing about eligibility or an earlier request), and
+**unavailable** that an operation exists whose facts could not be proved as a whole, so none of it is shown. A failed read, a vanished
+run, a ten-second timeout (which aborts the request itself) and an answer that is not coherent for exactly this run are distinct and show
+no operation. The region offers no request, retry, recovery, release, approval, commit, publication, export or artifact action and sends
+no polling, automatic retry or live-event refresh. Closing, another run or project, a return to an earlier run (A to B to A), a reload and
+unmounting end the earlier lifetime, discard its answer and abort its request, so a late answer or a retained callback shows and starts
+nothing.
+
 ### Run history
 
 For the selected project the cockpit shows a **Run history** region ([ADR-0033](../decisions/0033-browse-project-run-history-and-locate-prior-delivery-receipts.md)),
@@ -1299,7 +1329,8 @@ recorded objective, lifecycle and stage, and execution mode; a value this versio
 host answered incoherently (none of it is shown) are distinct states. Selecting a row shows its recorded metadata (including both UTC
 times) and, only when the host located a delivery source for it, the existing **Local delivery receipt** region for exactly that source
 (its states and explicit retry unchanged); a run without a source says "No completed delivery source is available in this view" and that
-this does not show that no operation exists, that a delivery failed or that one succeeded, and requests no receipt. The region offers no
+this does not show that no operation exists, that a delivery failed or that one succeeded, and requests no receipt (the selected run's own
+**Inspect recorded local commit** region, described above, reads the recorded operation separately). The region offers no
 mutation, configuration or live-progress control and does not mount the live cockpit. Its rows, selection and reads belong to the
 committed project, open and selected-row lifetimes, so another project, closing, reopening, reloading or an obsolete read cannot show
 or fetch for another owner. All values are plain text.

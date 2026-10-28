@@ -134,6 +134,14 @@ explicitly loaded sealed stdout and stderr windows of a manual execution with no
 one bounded statement; the page, the metadata and each window are separate recorded reads, not an atomic replay or authenticated history. It
 reads only on an explicit action, writes nothing, controls no execution and adds no table, migration, event, worker or dependency; the
 Agent and sequence inspectors are unchanged. Increments 4 to 6 stay incomplete.
+ADR-0070 / LOCAL-COMMIT-INSPECT-01 (implemented for review, unpublished until its own GO) adds only a bodyless
+`GET /api/runs/{runId}/local-commit-inspection` and one collapsed **Inspect recorded local commit** region beside the current run's local-commit
+panel and in the selected historical run, with or without a receipt source: the recorded state of the run's one local-commit operation (Prepared,
+Executing, Completed, Failed, Interrupted or NeedsAttention, the commit identity only for Completed, reasons from a fixed allowlist), proved from
+one bounded statement over the registered run and project, the operation associated by the run key and its named workspace and checkpoint, and
+answered as Recorded, NotRecorded or Unavailable (a present damaged operation is never absent). It reads only on an explicit open or reload,
+writes nothing, reads no authority member, digest, message, Git or artifact, mounts no request, retry, recovery or publication action and adds no
+table, migration, event, worker or dependency; the live status, receipt and history discovery are unchanged. Increments 4 to 6 stay incomplete.
 ADR-0056 adds only operational evidence for all seven Agent response contracts: a
 durable observation of what the host's own observer last reported (phase, last
 report, absolute deadline, first attention) for the current attempt, an independent
