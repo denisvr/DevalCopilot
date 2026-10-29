@@ -6,7 +6,81 @@ was prepared ([recovery](development-workflow.md#recovery)). Git and code
 prevail; compare branch, `HEAD`, `origin/main` and staged/unstaged/untracked
 state first.
 
-## Active slice: QUALIFICATION-READINESS-PREFLIGHT-01 establish current installed-CLI and controlled-rehearsal evidence (preparation only, not provider qualification)
+## Active slice: QUALIFICATION-SETUP-DIAGNOSIS-01 read the last persisted setup milestone of the second failed controlled rehearsal (evidence only, no repair)
+
+This document records the evidence delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
+Reconcile publication with Git and the slice's independent publication-verification record, when available. This record alone grants no
+publication authority.
+
+**Delivery phase: first return to Codex; this evidence report is unstaged, uncommitted and unpushed. No GO exists. Outcome: the preserved database records that the second rehearsal's setup reached workspace preparation and stopped there; its workspace is terminal `FailedToPrepare` with the fixed code `workspaces.git_invocation_failed`, its lease is released, and no checkpoint or run exists. The HTTP status and exception message were not recorded, the reason `git worktree add` failed is unidentified, and nothing here selects a repair or a next slice.**
+Baseline: `main`, `HEAD`, local `origin/main` and a freshly queried live `origin/main` all equalled `fd924260c71812904c99befad102132fcb14c76e` (QUALIFICATION-READINESS-PREFLIGHT-01, not republished). The index was empty, nothing was untracked, and exactly `planner-handoff.md` was modified, SHA-256 `F7F9F5063C25E21BDA76329FDC0AEA4CF6FFC8104BB01CC7256F0EF9625BCAFA` (the planner's record, not edited by me). Authority was the owner's 2026-10-29 answer "Autorizar a leitura limitada" recorded in the handoff; it covers only the read/copy/query package below. No production or test code, project, lock, generated client, schema, ADR, host, build, test, provider, credential, GitHub, network or Git change was made, and nothing was committed or pushed.
+
+### What changed
+
+- **This file only** (a new active section; the previous slice's heading became historical, its text is unchanged). Evidence lives in `logs/executor/qualification-setup-diagnosis-01/` (git-ignored, a new directory: `scripts/`, `out/`, `copy/`). `planner-handoff.md`, the original failure logs and the preserved root were not changed.
+
+### Evidence (exact commands, tooling, results and failures: `out/commands.txt`)
+
+- **Root.** One nonrecursive listing of the exact `qualification-readiness-preflight-01/temp` root, filtered to the recorded `devalcopilot-e2e-manual-d52b67a2` prefix, matched exactly one plain directory; no path component from the drive down to it is a reparse point. The match is by that prefix only. The listing also displayed the unrelated sibling names in that temp root (.NET CLI leftovers and the compiler directory); none was opened. The ownership token was not read; a nonrecursive name listing of the `db` directory showed one name, `journey.db`.
+- **Copy.** `journey.db` is 1,183,744 bytes (SHA-256 `DD4DBE030CD8DE3625F4B9BE231740AC90E2382E64A8CA9003193736F43392A5`) with an identical length, last-write time and hash before and after the copy and again after every query; `journey.db-wal` and `journey.db-shm` do not exist beside the original at any observation. The combined size is far below the 64 MiB bound. The copy hashes equal to the original. The originals were never opened through SQLite and nothing was modified, locked around or removed.
+- **Tooling and WAL.** No `sqlite3` tool exists; Node v24.12.0's built-in `node:sqlite` (SQLite 3.50.4) was already available and opened only the copy with `readOnly` and `PRAGMA query_only = ON`. The database is in WAL mode; because the original had no `-wal` or `-shm`, no uncommitted WAL frames existed beside it at observation time. The reader's open created an empty `-wal` and a 32,768-byte `-shm` beside the copy only; the copy's `journey.db` hash did not change.
+- **Schema (`out/schema.json`).** The six tables exist. Their column counts equal those of the current EF model snapshot (14, 8, 11, 9, 6 and 29); for `runs` four property names differ from the column names only because those properties are field-backed with an explicit column name (`out/model-compare.json`, static source comparison). This compares table presence and column names/counts with those aliases accounted for; it does not validate types, constraints, indexes, migration history or general schema compatibility.
+- **Projections (`out/query.json`, v2).** Fixed literal SQL, at most ten rows per table, ordered by id, with no free text, path, hash, physical identifier, timestamp, objective or name selected: counts, ids, enum-valued status columns checked against the current source allowlists, small counters and `is not null` presence flags. Every observed status and code is a member of its allowlist; none was unknown.
+
+### Findings
+
+**Recorded facts (from the copied set; each table was read in full, none truncated).**
+
+| Table | Rows | Observed |
+|---|---|---|
+| `projects` | 1 | physical identity `Resolved`, failure reason `None`, identity tuple present; `NextBaselineNumber` 2, `NextWorkspaceNumber` 2, `NextExecutionNumber` 1 |
+| `repository_baselines` | 1 | baseline number 1, head state `OnBranch`, branch and head commit present, not dirty; linked to the project |
+| `git_workspaces` | 1 | workspace number 1, status `FailedToPrepare`, `LastFailureReasonCode` `workspaces.git_invocation_failed`, `NextCheckpointNumber` 1; linked to the project |
+| `repository_mutation_leases` | 1 | status `Released`, identity tuple present, released marker present, superseded marker absent; linked to the project and that workspace |
+| `git_checkpoints` | 0 | none |
+| `runs` | 0 | none |
+
+Identity linkage is consistent: no row lacks its parent, the workspace has its lease and no checkpoint. The counters show one baseline number and one workspace number reserved and no run number reserved.
+
+**Static inference (source at `fd92426`; each point names what it rests on).**
+
+- `workspaces.git_invocation_failed` has one writer in source: the default branch of `PrepareRepositoryWorkspaceCommandHandler.MapCreationOutcome`, reached through `FailPreparationAsync` when `GitWorktreeAdapter.CreateAsync` returned `GitInvocationFailed`. Reconciliation writes only its own `workspaces.reconciliation_*` codes. The other creation outcomes have their own codes, so path collision, workspace overlap, unresolved Git executable and timeout are not what was recorded.
+- Registration, the identity recheck and the prepare handler's inline checks, Git inspection and durable-intent commit all completed: the baseline, the resolved identity, and a workspace and lease that exist only after that commit are recorded. Preparation then failed at the worktree-creation call and the handler committed its compensating terminal state.
+- `QualificationApiClient.PostSetupAsync` throws `InvalidOperationException("Setup step 'prepare' was refused with HTTP N.")` for any non-success status, and `ProductionQualificationEnvironment.RegisterAndPrepareAsync` awaits it before the checkpoint call, the manual-run call or any later step. `QualificationSession` runs its post-setup snapshots only after that method returns, and a successful return needs a successful prepare, which one terminal `FailedToPrepare` workspace and `NextWorkspaceNumber` 2 exclude. This narrows the earlier candidate set (a refused setup step, an empty setup body, a Git failure in the snapshots) to the prepare request, with a message of the shape above. Absent checkpoint and run rows are consistent with this but are not the basis; the basis is the positive failed-preparation row plus the source ordering.
+- `GitInvocationFailed` is returned either when `git worktree add` exited non-zero or when any exception from the process adapter was absorbed as a launch failure. The adapter also clears the child environment to the two Git variables the callers pass.
+
+**Unresolved (nothing recorded settles these).**
+
+- Why the worktree-creation call failed (a non-zero Git exit or an absorbed exception anywhere in the process adapter, not necessarily before process start); neither the output nor the exit code is persisted.
+- The HTTP status and the exception message of that request; the launcher printed only the type. The `InvalidOperationException` type is consistent with a refusal but the actual exception was not observed.
+- Whether the first rehearsal failed the same way: its root was removed by its own scripted cleanup, so there is nothing to read. A common cause is a hypothesis only.
+- Whether the cause is a product defect, test or fixture drift, or an environment effect.
+- Hypotheses, untested and granting nothing: the first Git command that writes (`worktree add`) runs under the adapter's two-variable environment, whereas the earlier read-only inspections succeeded under the same environment; or a host condition on this machine. The workspace directory's 205-character length does not exclude longer descendant or source-repository paths. Independent planner string composition from the checked-in fixture layout and branch policy yields 272 characters for the possible source loose-ref lock and reflog paths. This used no fixture filesystem access; it proves neither that Git attempted those paths nor that any path limit caused the failure.
+
+### Evidence limits and disclosed deviations
+
+- Matching hashes and times do not prove an atomic snapshot, authenticate a historical process, or show that this file is the run the first report described; the root was matched by its prefix and the file's last write is consistent with, not proof of, the second test's period. The original was observed at three points (before and after the copy, and at the end); between observations it could in principle have been written and restored, which nothing indicates.
+- My first projection script (`scripts/03-query-v1-superseded.mjs`) selected, inside the process only, some path, commit, fingerprint and timestamp values to derive presence flags, and its first run also tried to read the physical volume serial and failed with a range error. These reads exceeded the dispatched projection boundary, even though the executor reports no such value was printed or kept. I replaced it with a script that derives every flag in SQL; the two successful outputs are byte-identical and both are retained. `out/commands.txt` describes the failed SQL-alias, regular-expression and range-error attempts; it is a derivative command/failure summary, not complete original failure output. The exact failing script revisions and complete original error output are not separately identified in the listed evidence, so the no-output claim for those failed attempts is not independently authenticated. Do not reconstruct or repeat them.
+- `node:sqlite` is an experimental built-in module; no installation, build, migration, repair or replay occurred. No quick check, integrity check or checkpoint pragma was run, and no other table, migration history, event, message, artifact, manifest, prompt, configuration, credential or source-file content was read.
+- Challenge, for Codex: the recorded failure is in the product's prepare operation. Planner disposition: accept that operation-boundary diagnosis, with the root-association limitation above, but it does not assign the cause to product code or exclude the launcher, fixture layout or environment. The first rehearsal remains unlocated. A later step needs its own authority; nothing here selects a repair, rerun or next slice.
+- **Not done:** any host, test, build, provider probe or inference, fixture Git operation, process-table inspection, credential or real-ledger access, LocalAppData inspection, other retained-evidence access, security experiment or cleanup; the next slice; any commit or push.
+
+### Validation
+
+Run after the final edit of this file; no unrelated suite, build or runtime check ran.
+
+- **Original files.** Before, after the copy and at the end: identical length, last-write time and SHA-256 for `journey.db`, and no sidecars (`out/copy-observations.json`, `out/final-observation.json`).
+- **Query scope.** Every SQL string in `scripts/03-query.mjs` was inspected: six counts, six bounded projections and eight id-only linkage counts; no path, hash, physical identifier, timestamp, objective or name is selected, and every presence flag is an SQL `is not null`.
+- **Documents.** Only this file changed. An in-process Node link checker kept outside the repository (relative paths and GitHub-style heading fragments, `http` links and fenced code skipped) found 60 internal links in this file against 59 at `HEAD`, no failure either time and no new failure; no other file links to the renamed heading's fragment.
+- **Hygiene.** `git diff --check` exit 0. The added lines hold no carriage return and no non-ASCII byte (byte counts), and a scan of them for drive or user paths, account names, passwords, keys, bearer values, private-key markers and GUIDs found only the word "token" in the sentence stating the ownership token was not read. The complete diff of this file was read: one heading demoted, the new section added, nothing else removed.
+- **Planner record.** `planner-handoff.md` still has SHA-256 `F7F9F5063C25E21BDA76329FDC0AEA4CF6FFC8104BB01CC7256F0EF9625BCAFA`.
+- **Git state at return.** `main`, `HEAD` and local `origin/main` unchanged at `fd92426`; index empty; no untracked files; exactly `current-work.md` and `planner-handoff.md` modified.
+
+### Planner review qualifications
+
+The planner reviewed the retained scripts, JSON results, observation records and current source without opening the original root or either database, and made the qualification edits above. QSD-R1 resolves causal attribution and the path-length inference; QSD-R2 resolves schema-check scope and failure-output provenance. The successful v1/v2 projection files have equal SHA-256, which confirms their retained output bytes, not the absence of earlier side effects. The displayed sibling names, extra database-directory listing and v1 raw-field reads are preserved as scope deviations, not retroactively authorized or precedent for further access. No runtime operation was repeated. The copy's recorded setup state remains useful evidence within these limits.
+
+## Previous slice (independently verified published as fd92426; historical record): QUALIFICATION-READINESS-PREFLIGHT-01 establish current installed-CLI and controlled-rehearsal evidence (preparation only, not provider qualification)
 
 This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
 Reconcile publication with Git and the slice's independent publication-verification record, when available. This record alone grants no

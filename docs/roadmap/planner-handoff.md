@@ -1,6 +1,124 @@
 # Planner/reviewer handoff
 
-## Current action: QUALIFICATION-READINESS-PREFLIGHT-01 selected, return for review
+## Current action: QUALIFICATION-SETUP-DIAGNOSIS-01 selected, return for review
+
+### Review 1: GO for exact-content publication of the qualified diagnosis
+
+Independent review compared the retained scripts, bounded projection results,
+copy observations, current setup handlers and adapters. It opened neither the
+original root nor either database and repeated no query or live operation.
+The copied database records one FailedToPrepare workspace with
+`workspaces.git_invocation_failed`, a released lease, no checkpoint and no run.
+Current source ties that terminal code to failed worktree creation before the
+later setup calls. This locates a recorded operation boundary, not the Git
+cause or responsibility for a product defect; root attribution remains based
+on the reported prefix, not authenticated run provenance.
+
+Address the executor's challenge explicitly: accept the prepare-step boundary,
+but the launcher, fixture layout and environment are not excluded as causes.
+QSD-R1 is resolved by planner review edits qualifying that distinction and
+the path inference: pure string geometry yields a 205-character workspace
+directory but possible 272-character source ref-lock/reflog paths. No fixture
+was read for that calculation; no path-limit failure is proved or fix chosen.
+QSD-R2 is resolved by narrowing schema evidence to table/column names and
+counts, and identifying commands.txt as a derivative failure summary. Exact
+failed helper revisions and complete original errors are not separately
+identified; no-output claims for those failures are not independently proved.
+The retained successful v1/v2 outputs have equal hashes only at their actual
+scope. No evidence is reconstructed.
+
+The displayed sibling names, extra database-directory listing and initial
+raw-field/physical-identifier reads exceeded the dispatched boundary. Preserve
+the deviations and limits; corrected queries do not undo or retroactively
+authorize them. Accept the narrowed recorded-state evidence without waiving
+the boundary or authorizing any additional read. Original before/after/final
+hash observations remain executor evidence, not an atomic snapshot or proof
+of historical process identity. Experimental node:sqlite and the untouched
+first-rehearsal evidence limits stay disclosed.
+
+The reviewer changed only qualification text in current-work.md and this
+review record. No code, test, root or evidence artifact changed. Publication
+is pending exact-content GO for these two checkpoint documents; no repair,
+diagnostic run, provider operation, cleanup or next slice is selected.
+
+### Verified publication and continuity
+
+QUALIFICATION-READINESS-PREFLIGHT-01 is independently verified published at
+`fd924260c71812904c99befad102132fcb14c76e`, tree
+`b08b6e01e5be88091f9db53bfcc5f2bec4a0b675`, sole parent
+`9566f50ebea342b34eafbe6ae161a8de81001f29`, exactly current-work.md and
+planner-handoff.md as approved in its `review-02/approval.json`. Fresh live
+main, local origin/main and HEAD matched; main, divergence 0/0, empty index,
+clean worktree and no untracked files before this selection record.
+Evidence: `logs/planner-review/qualification-readiness-preflight-01/`
+`publication-verification.json` and `continuity-after-publication.json`.
+The published preparation and GO records below keep their historical phase;
+do not republish or create a closure commit.
+
+CONTINUE_THIS_CHAT: this session's token-count event
+`2026-10-29T16:13:49.572Z` observed 191351 / 475000 (40.2844%) current
+context. The completed executor chat stays closed to new slices; any selected
+diagnosis starts in a new Claude executor chat. No implementation, new host
+run or provider operation is selected by this evidence-gathering dispatch.
+
+### Selected outcome and owner-authorized read boundary
+
+Both controlled rehearsals failed after target acceptance and before a
+submission. The generic exception code conceals the failing setup operation.
+Current source permits a useful next investigation without another host or
+provider launch: inspect bounded persisted setup facts from the second
+rehearsal's preserved database. This is the next largest coherent safe
+evidence outcome, rather than another inspector
+or an installation chosen without compatibility evidence. It can narrow the
+last durable setup milestone; it may not identify an unrecorded HTTP failure
+or the exact exception. Absence of a row is not proof of which request failed.
+
+On 2026-10-29 the owner explicitly answered "Autorizar a leitura limitada"
+to this chat's bounded request. Select only the following read/copy/query
+package for one new Claude executor chat:
+
+- Locate the one reported second-test root by a nonrecursive listing of
+  `logs/executor/qualification-readiness-preflight-01/temp/` for the recorded
+  `devalcopilot-e2e-manual-d52b67a2` prefix. Require exactly one plain directory
+  beneath that exact temp root and no reparse-point path component; otherwise
+  stop. No other retained-root inventory or ownership-token read.
+- Read only its fixed `db/journey.db` and existing `-wal`/`-shm` sidecars,
+  with a 64 MiB combined bound. Record metadata and SHA-256 before and after
+  copying those files to a new diagnostic evidence directory. Do not open the
+  originals through SQLite, modify them, bypass locks or remove anything.
+  Any observable change makes the result inconclusive; matching hashes do
+  not authenticate a historical process or prove an atomic snapshot.
+- Using already available SQLite tooling only, inspect the copied set in
+  read-only/query-only mode with WAL considered, never silently ignored.
+  No build, install, migration, repair or replay. Read schema metadata for
+  the selected tables, then bounded counts and identity-linked status/fixed
+  failure-code projections from `projects`, `repository_baselines`,
+  `git_workspaces`, `repository_mutation_leases`, `git_checkpoints` and
+  `runs` only. Cap member projections at ten rows per table and interpret
+  codes against source allowlists; unknown values stay unknown, never raw
+  payload output. No event/message/artifact/manifest body, prompt, credential,
+  configuration or source-file content. Use IDs for correlation, not timing;
+  report closed facts, not filesystem paths or physical identifiers.
+- Compare those facts with the current setup source, preserve the original
+  failure and root untouched, and return a traceable diagnosis with explicit
+  inference limits. Update current-work.md only and return for review.
+  No repair or subsequent experiment follows from a plausible hypothesis.
+
+The offered alternative was a separately designed diagnostic-bearing controlled run,
+which would require code/validation work and renewed build/host/child-process
+authority. It is not selected or authorized here. The owner chose the limited
+database read; this does not select a later diagnostic run or repair.
+
+The prior owner package explicitly excluded preserved-root reads and allowed
+only the two completed rehearsals, once each. The later owner response grants
+only the read/copy/query package above; no authority is inferred from
+publication or repository access. The real
+ledger, installed-provider probes/inference, credentials, native process
+table, LocalAppData scratch, other retained evidence, P9/profile/ACL/GCM
+experiments, fixture Git operations, GitHub operations and cleanup remain excluded. No commit or
+push is authorized; all standing decisions and historical limits remain.
+
+## Previous action: QUALIFICATION-READINESS-PREFLIGHT-01
 
 ### Review 2: GO for exact-content publication of the evidence report
 
