@@ -4,8 +4,26 @@ This is the opt-in procedure for the one real-provider acceptance session the ow
 Planner Proposal, then one real Claude CriticalReviewer Acceptance **or** Challenge replying to that exact persisted Proposal,
 through the production host, adapters, parsers and result writers, in a new disposable repository and data root. A genuine
 Challenge is a valid result; nothing forces an Acceptance. The result is version-specific compatibility evidence, not provider
-obedience, general reliability, account capacity or increment completion. See [current-work.md](current-work.md) for the
-recorded outcome of the session, and [AGENTS.md](../../AGENTS.md) for the planner/executor roles.
+obedience, general reliability, account capacity or increment completion. The only launch made so far ended `Blocked` /
+`TargetsNotReal` before any allowance was spent; see [the recorded outcome](#recorded-outcome-of-the-only-launch) below. See
+[AGENTS.md](../../AGENTS.md) for the planner/executor roles.
+
+## Recorded outcome of the only launch
+
+The launcher has been run for real once, on 2026-10-09, with the opt-in. It ended `Blocked` with code `TargetsNotReal` (exit 4)
+before any allowance was spent, so no qualification took place. The historical record is the bullet "Actual real-session
+result" in the section "Manual provider qualification (2026-10-09)" of the frozen execution-history snapshot
+[current-work-history-ba1d4c2.md](current-work-history-ba1d4c2.md); `current-work.md` does not carry it. The owner's
+authorization is recorded under "Selected slice and owner authorization" in
+[planner-handoff-history-ba1d4c2.md](planner-handoff-history-ba1d4c2.md).
+
+As observed on 2026-10-09: the host's readiness supervisor reported Codex `NotObservedExecutableNotFound` (no `codex.exe` on
+`PATH` or in `%APPDATA%\npm`, and no `@openai/codex` package), Claude Code as a real installed `DirectExecutable` target (observed
+version `2.1.276`) and Git `2.53.0`. Both allowances stayed unused, no POST was made and no inference ran; the only provider
+activity was the host's own `--version` discovery probes. That is a dated observation, not the current state of this or any
+machine: whether Codex is discoverable now has not been re-observed here. A later launch is a new run that needs the planner's
+or the owner's separate decision after the environment is prepared. This record changes none of the authority, allowance or
+no-retry boundaries below, and it is not provider qualification.
 
 ## It is not a test
 

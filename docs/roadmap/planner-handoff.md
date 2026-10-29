@@ -1,6 +1,90 @@
 # Planner/reviewer handoff
 
-## Current action: APPROVAL-STATUS-REFRESH-01
+## Current action: QUALIFICATION-OFFLINE-READINESS-01
+
+### Review 1: GO for exact-content publication
+
+The playbook now points to the dated historical blocked launch and does not
+claim current Codex availability. The selected five scripted/pure classes
+passed 89/89 on the executor's build; they establish only their exercised
+logic, not the current production-host composition, native shutdown, real
+ledger or providers. No provider or native qualification is authorized.
+
+The independent reviewer attempted StageVerifierTests with a workspace-owned
+temporary directory: the test runner started but produced no result before
+the reviewer interrupted it (exit 1). A second run outside that execution
+restriction passed 51/51. The reason for the first stall is unproved; this is
+not a failed test assertion or a clean first run. The executor's attempted
+HEAD-copy link comparison failed at an unsupported encoding argument; the
+report identifies this but no separate complete original failure output is
+identified. The subsequent changed-document link check has its stated scope.
+Preserve these limitations and the historical evidence; do not reconstruct
+missing output or treat these checks as provider qualification. Publication is
+pending exact-content GO; no next slice is selected.
+
+The read-only MVP-QUAL-EVIDENCE-01 report is assessed: the historical real
+attempt was Blocked/TargetsNotReal before either allowance was consumed; the
+Codex discovery observation is dated 2026-10-09 and is not current machine
+evidence. A later real launch needs a separate planner/owner decision after
+environment preparation, while current standing restrictions grant no new
+provider or native operation. The supported manual-qualification code was
+published at `767eede`; the backend has materially evolved since then (the
+planner compared Git source inventory). Historical passing offline checks do
+not establish today's production-host composition or provider compatibility.
+Git/GitHub qualification is separate and unstarted; P9 remains unproved and
+ADR-0050 Proposed. No mechanism or real-provider outcome is inferred.
+
+Select QUALIFICATION-OFFLINE-READINESS-01: run a restricted, explicitly
+identified offline guard selection on current code and correct the playbook's
+stale outcome pointer, recording the exact historical blocked result and its
+date. This is a preparatory check, not permission to launch a provider, native
+rehearsal, inspect the live ledger or claim readiness. The five selected test
+classes use scripted environments or pure decision logic; their own isolated
+test ledger directories may be created and removed only by their existing
+fixture, under a new workspace-local TEMP/TMP. No retained root, real ledger,
+credential, native child, profile, provider, network or real environment is
+inspected or touched. No host-composition or rehearsal test is selected; those
+need separately bounded authority. If a selected test or build would reach an
+excluded operation, stop and report rather than running it. Correct only the
+playbook's outdated outcome link and current-work implementation record. No
+production or test changes; failures return for diagnosis, not a new fix.
+
+The selected result cannot establish real-provider qualification or end-to-end
+launcher suitability on evolved inputs. Preserve all historical evidence and
+original failures. The planner owns the subsequent decision and any proposal
+for authority; no invocation or publication GO follows from this selection.
+
+## Previous action: MVP-QUAL-EVIDENCE-01
+
+APPROVAL-STATUS-REFRESH-01 was independently verified published at
+`05f48fc91989d5b9b7739a4bebec70a71ca4ed5d`, tree
+`669a1d996d579c0e957c53a4487bdbb52214c001`, sole parent
+`b32a1671ee327bd059ae4c81bc9aca01ca5fd6fc`, exactly ten approved paths.
+Local main, origin/main and fresh live main matched, divergence 0/0 and the
+index/worktree were clean before this checkpoint. See
+`logs/planner-review/approval-status-refresh-01/publication-verification.json`
+and `continuity-after-publication.json`. CONTINUE_THIS_CHAT: the session-matched
+2026-10-29T14:27:22.481Z event recorded 254685 / 475000 (53.6179%) current
+context. Review publication-pending language below is historical; no closure
+commit.
+
+Select MVP-QUAL-EVIDENCE-01 as read-only evidence gathering, not a product
+implementation or architecture delegation. The owner asked how far the MVP is
+from completion. The local chain is demonstrated with deterministic doubles,
+while actual provider qualification is Blocked/TargetsNotReal, and the proposed
+remote publication contract has unproved P9 and unstarted Git/GitHub/GCM
+qualification. More local UI polish alone cannot establish those milestones.
+Before choosing an intervention, inventory the exact retained qualification
+requirements, current blockers, authorized and spent allowances, and concrete
+missing evidence from existing non-secret repository records and code only.
+Separate Agent qualification from Git/GitHub and source-write denial. Executor
+supplies traceable facts and contradictions; Codex alone chooses architecture,
+priority, any authority request and the next implementation. No native,
+provider, credential, profile, network experiment, frozen artifact read,
+cleanup, implementation or publication is authorized. Return an evidence
+report; no new commit or slice selection. If evidence is unavailable say so.
+
+## Previous action: APPROVAL-STATUS-REFRESH-01
 
 ### Review 1: GO for exact-content publication
 

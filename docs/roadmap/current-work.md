@@ -6,7 +6,68 @@ was prepared ([recovery](development-workflow.md#recovery)). Git and code
 prevail; compare branch, `HEAD`, `origin/main` and staged/unstaged/untracked
 state first.
 
-## Active slice: APPROVAL-STATUS-REFRESH-01 request the run's local-commit status after an accepted complete-set approval (ADR-0030, ADR-0029)
+## Active slice: QUALIFICATION-OFFLINE-READINESS-01 refresh limited offline evidence for the manual-provider qualification support and correct the playbook's outcome reference
+
+This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
+Reconcile publication with Git and the slice's independent publication-verification record, when available. This record alone grants no
+publication authority.
+
+**Delivery phase: first return to Codex for GO/NO-GO; the complete diff is unstaged, uncommitted and unpushed. No GO exists.**
+Baseline: `main`, `HEAD`, local `origin/main` and a live `git ls-remote` read of `origin/main` equalled `05f48fc91989d5b9b7739a4bebec70a71ca4ed5d`
+(APPROVAL-STATUS-REFRESH-01, independently verified published per the handoff; neither repeated nor republished). The index was empty, no file was untracked,
+and exactly `planner-handoff.md` was modified, SHA-256 `2ce1876c345c2d1eb72054d239943dfb3d566aef4bff7a33346ade0dbc56756c` (not edited by me). No production or test
+code, project, lock, generated client, schema, ADR, provider, native, profile, credential, GitHub or network change was made, and no commit or push.
+
+### What changed
+
+- **[manual-provider-qualification-playbook.md](manual-provider-qualification-playbook.md).** The introduction pointed to `current-work.md` for the recorded outcome of the session, but `current-work.md` has no record of it (no `TargetsNotReal` or
+  "Blocked before any allowance" text). The pointer now reaches the real record: a new section, "Recorded outcome of the only launch", names the bullet "Actual real-session result" in the frozen execution-history snapshot
+  [current-work-history-ba1d4c2.md](current-work-history-ba1d4c2.md) and the owner's authorization in [planner-handoff-history-ba1d4c2.md](planner-handoff-history-ba1d4c2.md). It states that the single launch on 2026-10-09 ended `Blocked` /
+  `TargetsNotReal` (exit 4) before any allowance was spent, that Codex was `NotObservedExecutableNotFound`, Claude Code a real `DirectExecutable` at `2.1.276` and Git `2.53.0` **as observed on that date**, and that this is not the current state of any
+  machine (Codex discovery has not been re-observed). The one-session authority, the allowances, the ledger and the no-retry boundaries are unchanged and still stated where they were.
+- **This file** records the slice. No other document changed.
+
+### Evidence (logs under `logs/executor/qualification-offline-readiness-01/`, git-ignored; a new directory made for this slice, separate from every retained root and from the real ledger; commands run from the repository root)
+
+- **Inspection before running anything.** The five selected classes (`AcceptedAttemptIdentityTests`, `InvocationEvidenceTests`, `StageVerifierTests`, `SafeSummaryTests`, `QualificationOptInTests`, all in
+  `DevalCopilot.Api.IntegrationTests.Features.ManualQualification`) were read with their base class `QualificationTestBase`, `ScriptedEnvironment`, `QualificationReadings` and the launcher types they reach (`QualificationSession`,
+  `LauncherEntry`, `QualificationOptIn`, `SafeSummary`, `StageVerifier`, `InvocationLedger`). They drive the session only through `ScriptedEnvironment` (a recorded, scripted `IQualificationEnvironment`) or through pure decision logic over
+  `StageReading` and `SourceSnapshot` values. A text scan of the five test files, `QualificationReadings` and the launcher types they reach found no `System.Diagnostics.Process`, socket, HTTP, `WebApplication`, Kestrel, registry or `DllImport` use and no
+  environment-variable read other than the injected opt-in reader. The only filesystem effect is the base class's per-test `devalcopilot-xunit-ledger-<guid>` directory under `Path.GetTempPath()`, deleted in `Dispose`. The real-ledger factory
+  `InvocationLedger.CreateDefault()` has exactly one caller, `ManualQualificationProgram.cs`, which the test project's `Compile Remove`/`Include` rule leaves out of the test assembly. None of the five classes uses the `ProcessEnvironmentCollection`.
+  No rehearsal class, real process-table test, launcher executable or production-host composition is involved, so no excluded operation was needed.
+- **Build (`out/build.log`, complete output).** `dotnet build tests/DevalCopilot.Api.IntegrationTests/DevalCopilot.Api.IntegrationTests.csproj --no-restore -p:UseSharedCompilation=false -m:1` (normal incremental, no `--no-incremental`): **exit 0, 0 warnings, 0 errors,
+  24.97 s wall** (MSBuild 24.77 s). The Domain, Api and test assemblies (the three checked) carry write times of this build (14:39 local), so the test binary was produced from the current sources. Test assembly SHA-256 `40b200e9…debc4`
+  (full `40B200E97758FD81DFCF68A468035CAE5353FF4F6B875714773BD7A73F4DEBC4`). The build changed no tracked or untracked file outside the ignored output.
+- **Selection check (`out/filter.txt`, `out/list.txt`).** Filter: the five names as `FullyQualifiedName~DevalCopilot.Api.IntegrationTests.Features.ManualQualification.<Class>` joined with `|`. `--list-tests` with that filter (no execution) listed only those five
+  classes (43 entries: 7, 13, 10, 8 and 5; the listing does not expand `StageVerifierTests`' data-driven theories).
+- **Tests (`out/test.log`, complete detailed-logger output).** `dotnet test tests/DevalCopilot.Api.IntegrationTests/DevalCopilot.Api.IntegrationTests.csproj --no-build --no-restore --filter "<the filter above>" --logger "console;verbosity=detailed"`, with `TEMP` and `TMP` both set
+  for that process to the new `logs/executor/qualification-offline-readiness-01/temp` (restored afterwards): **exit 0, Total tests 89, Passed 89, Failed 0, Skipped 0; test-platform total 1.0008 s, 1.56 s wall.** Per class, counted from the log: `AcceptedAttemptIdentityTests` 7,
+  `InvocationEvidenceTests` 13, `QualificationOptInTests` 10, `SafeSummaryTests` 8, `StageVerifierTests` 51 (89 result lines, none for any other class). Run once; nothing was rerun, retried or skipped, and there was no failure output to preserve.
+- **Temp directory afterwards.** No `devalcopilot-*` directory remained (each test removed its own ledger). The directory held two empty directories (`3oyyn2bl.4g4`, `acvw1a5v.drq`) and one `Microsoft.NET.Workload_*.log`, all created at the instant the `dotnet` process started (14:40:00);
+  they come from the .NET CLI, not from a test, and were left in place. Nothing outside that directory was enumerated, altered or cleaned; the real ledger path and the retained fixture roots were neither read nor listed.
+- **Documents and hygiene** (run after the last edit of both changed documents; this bullet was added after them and adds no link). A small in-process PowerShell link checker kept outside the repository (it resolves relative paths and GitHub-style heading fragments, skips
+  `http` links and fenced code) over the playbook and this file: 61 internal links and fragments (4 and 57), 0 failures. A comparison run on the `HEAD` copies was attempted and not completed (my setup passed an unsupported encoding name to `Out-File`); it was not repeated, because the run on the
+  changed files found no failure. `git diff --check`: exit 0. A scan of the added lines of the two documents for user or drive paths, account names, tokens, passwords, keys and private-key markers found only the word "authorization" (two lines), no path or credential. No carriage return in the
+  added lines; this file's added lines hold 3 non-ASCII bytes (the one ellipsis in the abbreviated hash above, the same character earlier entries use) and the playbook's hold none. `planner-handoff.md` still has SHA-256 `2ce1876c345c2d1eb72054d239943dfb3d566aef4bff7a33346ade0dbc56756c`.
+
+### Fresh versus historical evidence
+
+- **Fresh, on `05f48fc` plus this documentation change:** the build and the 89 passing cases above, for those five classes only.
+- **Historical, not refreshed:** everything else in the manual-provider qualification record in [current-work-history-ba1d4c2.md](current-work-history-ba1d4c2.md): the 291 ManualQualification cases and the rehearsals (including the native-process-table rehearsal), the mutation matrices, the child-process-proof tests, the
+  real `ping.exe` controls, the 52 Architecture tests, the harness and e2e runs, and the real launch of 2026-10-09 (`Blocked` / `TargetsNotReal`). They keep their recorded scope and date and were not rerun.
+
+### Limits and risks for review
+
+- **What this proves.** On current code, the scripted-environment and pure-decision behavior covered by these five classes still holds: the opt-in and refusal rules, attempt-identity matching, the accepted-versus-observed attempt checks, the invocation-evidence states and the safe-summary
+  and forbidden-value guard, with the allowance ledger isolated to per-test directories.
+- **What it does not prove.** That the evolved production-host composition, the process-table and shutdown proof, the installed CLIs, their authentication or the real ledger are ready; that Codex is discoverable now (the playbook records only the 2026-10-09 observation); or any real-provider result.
+  A scripted environment is never provider evidence. It authorizes no real qualification call, ledger reset, installation, login, cleanup of retained evidence or expansion of authority.
+- **Scope of coverage.** 89 cases in five classes are a small part of the 291-case selection, chosen because they never start a process or host; the rehearsals and process-table classes were deliberately excluded and are unrefreshed.
+- Git/GitHub qualification remains separate and unstarted, ADR-0050 remains Proposed and P9 unproved. Agent qualification remains `Blocked` / `TargetsNotReal` with both allowances unused.
+- **Not done:** the next slice, any other change, and any commit or push.
+
+## Previous slice (independently verified published as 05f48fc; historical record): APPROVAL-STATUS-REFRESH-01 request the run's local-commit status after an accepted complete-set approval (ADR-0030, ADR-0029)
 
 This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
 Reconcile publication with Git and the slice's independent publication-verification record, when available. This record alone grants no
