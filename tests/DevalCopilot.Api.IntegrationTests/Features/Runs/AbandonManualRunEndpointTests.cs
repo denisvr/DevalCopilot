@@ -405,6 +405,89 @@ public sealed class AbandonManualRunEndpointTests(ApiWebApplicationFactory facto
         Assert.Equal(1, await WithDbAsync(db => db.Events.CountAsync(e => e.RunId == damaged && e.EventType == RunEventType.RunAbandoned)));
     }
 
+    // ---- a damaged stored event payload ---------------------------------------------------------------------------------------------
+
+    private const char Backslash = (char)92;
+
+    private static string EscapedReasonPayload(params string[] units) =>
+        "{\"reason\":\"" + string.Concat(units.Select(unit => Backslash + "u" + unit)) + "\"}";
+
+    private Task<string> StoredPayloadAsync(Guid runId) => WithDbAsync(db => db.Database.SqlQuery<string>(
+        $"SELECT hex(PayloadJson) AS Value FROM events WHERE RunId = {runId} AND EventType = 'run.abandoned'").SingleAsync());
+
+    [Theory]
+    [InlineData("d800")]
+    [InlineData("dc00")]
+    public async Task An_escaped_lone_surrogate_in_the_stored_payload_keeps_that_run_incoherent_and_breaks_no_read(string unit)
+    {
+        using var client = Client();
+        var (damagedProject, damaged) = await SeedManualRunAsync(running: true);
+        var (siblingProject, sibling) = await SeedManualRunAsync(running: true);
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync(Route(damaged), new AbandonManualRunRequest { Reason = Reason })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync(Route(sibling), new AbandonManualRunRequest { Reason = Reason })).StatusCode);
+        var payload = EscapedReasonPayload(unit);
+        await WithDbAsync(db => db.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE events SET PayloadJson = {payload} WHERE RunId = {damaged} AND EventType = 'run.abandoned'"));
+        var storedPayload = await StoredPayloadAsync(damaged);
+
+        var status = (await client.GetFromJsonAsync<GetManualRunAbandonmentResponse>($"/api/runs/{damaged}/abandonment"))!;
+        var replay = await client.PostAsJsonAsync(Route(damaged), new AbandonManualRunRequest { Reason = Reason });
+        var conflict = await client.PostAsJsonAsync(Route(damaged), new AbandonManualRunRequest { Reason = "A different reason." });
+        var cockpit = await client.GetAsync($"/api/runs/{damaged}/cockpit");
+        var intake = await client.PostAsJsonAsync("/api/runs/manual", new CreateManualRunRequest(damagedProject, "Another objective"));
+        var summaries = (await client.GetFromJsonAsync<List<ProjectRunSummaryResponse>>("/api/projects/run-summaries"))!;
+        var siblingStatus = (await client.GetFromJsonAsync<GetManualRunAbandonmentResponse>($"/api/runs/{sibling}/abandonment"))!;
+        var inspection = await client.GetAsync($"/api/runs/{damaged}/abandonment-inspection");
+        var siblingInspection = await client.GetAsync($"/api/runs/{sibling}/abandonment-inspection");
+
+        Assert.False(status.Eligible);
+        Assert.Equal("run_abandonment.abandonment_incoherent", status.RefusalCode);
+        Assert.Null(status.Abandonment);
+        Assert.Equal(HttpStatusCode.Conflict, replay.StatusCode);
+        Assert.Equal("run_abandonment.abandonment_incoherent", await ErrorCodeAsync(replay));
+        Assert.Equal("run_abandonment.abandonment_incoherent", await ErrorCodeAsync(conflict));
+        Assert.Equal(HttpStatusCode.OK, cockpit.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, intake.StatusCode);
+        Assert.False(summaries.Single(candidate => candidate.ProjectId == damagedProject).CanCreateRun);
+        Assert.True(summaries.Single(candidate => candidate.ProjectId == siblingProject).CanCreateRun);
+        Assert.Equal(Reason, siblingStatus.Abandonment!.Reason);
+        Assert.Equal(HttpStatusCode.OK, inspection.StatusCode);
+        Assert.Equal("Unavailable", await InspectionStatusAsync(inspection));
+        Assert.Equal("Recorded", await InspectionStatusAsync(siblingInspection));
+        Assert.Equal(storedPayload, await StoredPayloadAsync(damaged));
+        Assert.Equal(1, await WithDbAsync(db => db.Runs.CountAsync(run => run.ProjectId == damagedProject)));
+        Assert.Equal(1, await WithDbAsync(db => db.Events.CountAsync(e => e.RunId == damaged && e.EventType == RunEventType.RunAbandoned)));
+    }
+
+    [Fact]
+    public async Task An_escaped_valid_surrogate_pair_in_the_stored_payload_stays_a_closure_for_every_route()
+    {
+        using var client = Client();
+        var (project, runId) = await SeedManualRunAsync(running: true);
+        var reason = "Replaced by a " + char.ConvertFromUtf32(0x1D11E) + " plan";
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync(Route(runId), new AbandonManualRunRequest { Reason = reason })).StatusCode);
+        var payload = "{\"reason\":\"Replaced by a " + Backslash + "ud834" + Backslash + "udd1e plan\"}";
+        await WithDbAsync(db => db.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE events SET PayloadJson = {payload} WHERE RunId = {runId} AND EventType = 'run.abandoned'"));
+
+        var status = (await client.GetFromJsonAsync<GetManualRunAbandonmentResponse>($"/api/runs/{runId}/abandonment"))!;
+        var replay = await client.PostAsJsonAsync(Route(runId), new AbandonManualRunRequest { Reason = reason });
+        var inspection = await client.GetAsync($"/api/runs/{runId}/abandonment-inspection");
+        var intake = await client.PostAsJsonAsync("/api/runs/manual", new CreateManualRunRequest(project, "Another objective"));
+
+        Assert.Equal("run_abandonment.already_abandoned", status.RefusalCode);
+        Assert.Equal(reason, status.Abandonment!.Reason);
+        Assert.Equal(HttpStatusCode.OK, replay.StatusCode);
+        Assert.Equal("Recorded", await InspectionStatusAsync(inspection));
+        Assert.Equal(HttpStatusCode.OK, intake.StatusCode);
+    }
+
+    private static async Task<string?> InspectionStatusAsync(HttpResponseMessage response)
+    {
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        return document.RootElement.GetProperty("status").GetString();
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

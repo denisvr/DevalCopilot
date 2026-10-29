@@ -1,6 +1,99 @@
 # Planner/reviewer handoff
 
-## Current action: RUN-ABANDON-INSPECT-01
+## Current action: ABANDONMENT-PAYLOAD-01
+
+### Review 2: GO for exact-content publication
+
+ABP-R1 is resolved: the recorded inspector calls the shared reader directly,
+and the existing architecture test pins its sole remaining catch to
+DecoderFallbackException. ABP-V1 is resolved: current-work records the planner's
+dispatch transcription error and qualifies the executor's original inference.
+The shared GetString guard stays narrowly scoped. No contract or authority
+change is introduced. Review 1 below is historical.
+
+Executor correction evidence: Application 221, API 70 and Architecture 232;
+the first-return Application 532 and API 78 are retained for unchanged
+non-inspection consumers only. The initial correction Architecture build failed
+with xUnit2013 and is retained. The first control selected zero tests and has
+no separately identified original output; the subsequent control's retained
+log is a filtered excerpt reporting one test failure, not complete process
+output. Its source hash was restored. Neither is a complete original failure
+log; do not reconstruct it or claim the no-test attempt proved sensitivity.
+The original pre-fix red logs and positive controls remain separate evidence.
+No whole Application/API suite, frontend or browser run is claimed.
+
+Publication is pending exact-content GO; Git and the independent verification
+will establish delivery. This selection grants no next slice.
+
+### Review 1: NO-GO pending bounded correction
+
+The shared reader fix is accepted in principle: its InvalidOperationException
+guard surrounds only the string extraction and the original red tests demonstrate
+the defect. Independent reviewer execution of the two new Application classes
+passed 66/66. The retained original failures and executor's 532 Application,
+78 API and 232 Architecture passes remain evidence at their recorded scope.
+
+ABP-R1: remove the now-redundant InvalidOperationException catch around the
+whole shared-reader call in RecordedAbandonmentReader and call the shared reader
+directly. This avoids turning a future unexpected fault elsewhere in that call
+into Unavailable. The planner explicitly expands this correction to the existing
+RunAbandonmentInspectionBoundaryTests catch pin: require only the existing
+DecoderFallbackException there and preserve every other architecture assertion.
+Run affected inspection, payload and architecture checks and the final evidence
+invalidated by the change, once on stable sources. Preserve the initial evidence.
+
+ABP-V1: correct current-work's statement that a one-digit hash difference cannot
+come from a content edit. A cryptographic hash alone cannot establish that.
+The planner confirms its own dispatch transcribed the previously observed hash
+incorrectly: the actual pre-dispatch tool output and current handoff both read
+8432f0d720677141397966d5bec089fe85db6d3a901c7c9a5255f213e8ec7747.
+The executor says it did not edit the file. Record this distinction accurately.
+This review entry is a subsequent intentional planner edit, not part of that
+pre-dispatch hash. No GO or publication authority is granted.
+
+RUN-ABANDON-INSPECT-01 was independently verified published at
+`ed763e0680e8d9a682b8aaffbf18df53263bed99` with approved tree
+`328a911cc7f2932891db7f705db8e6419ba11c7a`, sole parent
+`a3f394d6dfee770a378035631f63538471cc60c7` and all 59 approved paths.
+Local main, origin/main and the fresh live ref matched, with zero divergence
+and a clean index and worktree before this selection. Evidence:
+`logs/planner-review/run-abandon-inspect-01/review-02/approval.json` and
+`logs/planner-review/run-abandon-inspect-01/publication-verification.json`.
+Preparation-stage publication wording below is historical. No closure commit.
+
+CONTINUE_THIS_CHAT: after publication verification, the matching session's
+token-count event at 2026-10-29T11:18:55.106Z reported 29712 / 475000
+(6.2552%) current context, not cumulative usage. A new executor chat is
+required for this next slice. See `continuity-after-publication.json` beside
+the publication record.
+
+Select ABANDONMENT-PAYLOAD-01: restore ADR-0031's existing promise that a
+malformed abandonment event payload is incoherent without throwing. The shared
+`RunAbandonmentReader.ReadReason` catches JsonException but GetString can throw
+InvalidOperationException for an escaped lone surrogate. That propagates
+through intake, replay, project summaries and live status. The history
+inspector locally guards the exception and remains Unavailable. Fix only the
+specific malformed-string decoding boundary, preserve the shared policy and
+all authority, and prove the shared consumers and healthy-neighbor isolation
+with real SQLite. Preserve other faults rather than swallowing them. This is a
+repair of an accepted contract, not a new architectural decision. The complete
+coherent outcome covers all shared consumers and the history inspector; other
+malformed storage, general JSON parser policy and recovery need separate proof.
+
+Allow the shared parser, its directly affected history-inspector wrapper/comment
+if necessary, proportional Application/API tests and current-work only. No
+Domain, producer, transport contract, generated client, schema, frontend,
+provider, recovery, new authority or unrelated refactoring. Stop and report if
+the fix needs any such expansion. Validate focused malformed and valid controls,
+real-provider integration for intake, replay, summaries, status and recorded
+inspection, affected Application and API regressions and whole Architecture;
+build and changed-C# formatting, diff/security checks and relevant document
+links. No browser journey is selected for this backend-only repair. Retain
+earlier evidence only at its original scope; do not describe historical missing
+logs as recovered. Return unstaged, uncommitted and unpushed for independent
+review, with no publication authority or next-slice selection.
+
+## Previous action: RUN-ABANDON-INSPECT-01
 
 **Review 2 GO for exact-content publication (2026-10-29): RABI-R1 and RABI-V1
 are resolved; publication is pending.** [ADR-0071](../decisions/0071-inspect-recorded-run-abandonment-in-history.md)

@@ -95,10 +95,24 @@ internal static class RunAbandonmentReader
             return document.RootElement.ValueKind == JsonValueKind.Object
                 && document.RootElement.TryGetProperty("reason", out var reason)
                 && reason.ValueKind == JsonValueKind.String
-                    ? reason.GetString()
+                    ? ReadText(reason)
                     : null;
         }
         catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    // A string whose escapes are not well-formed UTF-16 (an unmatched surrogate) parses as JSON but cannot be read as text: the decoder
+    // reports it as an InvalidOperationException. That one payload fault is an unreadable reason; only this single call is guarded.
+    private static string? ReadText(JsonElement value)
+    {
+        try
+        {
+            return value.GetString();
+        }
+        catch (InvalidOperationException)
         {
             return null;
         }

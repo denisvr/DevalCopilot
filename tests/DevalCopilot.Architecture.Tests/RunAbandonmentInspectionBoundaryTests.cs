@@ -118,9 +118,9 @@ public sealed partial class RunAbandonmentInspectionBoundaryTests
     {
         var code = ApplicationCode();
 
-        Assert.Equal(2, Regex.Matches(code, @"\bcatch\b").Count);
+        Assert.Single(Regex.Matches(code, @"\bcatch\b"));
         Assert.Equal(
-            ["DecoderFallbackException", "InvalidOperationException"],
+            ["DecoderFallbackException"],
             Regex.Matches(code, @"\bcatch \((\w+)\)").Select(match => match.Groups[1].Value).Order(StringComparer.Ordinal));
         Assert.DoesNotContain("ToListAsync", code, StringComparison.Ordinal);
         foreach (var forbidden in new[]

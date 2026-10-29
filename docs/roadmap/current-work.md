@@ -6,7 +6,120 @@ was prepared ([recovery](development-workflow.md#recovery)). Git and code
 prevail; compare branch, `HEAD`, `origin/main` and staged/unstaged/untracked
 state first.
 
-## Active slice: RUN-ABANDON-INSPECT-01 inspect recorded run abandonment in history (ADR-0071)
+## Active slice: ABANDONMENT-PAYLOAD-01 read an unreadable abandonment-event reason as no reason, never a fault (ADR-0031)
+
+This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
+Reconcile publication with Git and the slice's independent publication-verification record, when available. This record alone grants no
+publication authority.
+
+**Delivery phase: return of correction 1 (Codex review 1 NO-GO: ABP-R1 P2 and ABP-V1 P3; see [Correction 1](#correction-1-codex-review-1-no-go-abp-r1-p2-abp-v1-p3)) to Codex, in the same executor
+chat; the complete diff (including the planner's reviewed handoff) is unstaged, uncommitted and unpushed. No GO exists.** The first-return text below is kept as that return's
+record, with the statements that Correction 1 changed (the redundant guard and the hash inference) corrected in place and named there. Review and publication are separate later events; nothing here claims either.
+Baseline: `main`, `HEAD`, local `origin/main` and a live `git ls-remote` read of `origin/main` equalled `ed763e0680e8d9a682b8aaffbf18df53263bed99`
+(RUN-ABANDON-INSPECT-01, independently verified published per the handoff; neither repeated, republished nor reopened, and no closure commit was made).
+The index was empty, no file was untracked and exactly `planner-handoff.md` was modified. **Handoff hash (corrected by ABP-V1; see [Correction 1](#correction-1-codex-review-1-no-go-abp-r1-p2-abp-v1-p3)).**
+At the first return the file's SHA-256 was `8432f0d720677141397966d5bec089fe85db6d3a901c7c9a5255f213e8ec7747` at the start and at the return, and I did not edit it. The
+dispatch text gave that value except one hex digit (`…5255d213…`). That difference alone did not prove the content was unchanged: I only inferred a transcription
+error, and the inference was unverified (a digest compared with a mistyped value says nothing about which side is wrong). Codex later confirmed from its own pre-dispatch tool
+output that the planner's hash was the `…5255f213…` value and that the dispatch mistyped it, which is what establishes the file I preserved was the intended one. The handoff has since
+changed for a different, intentional reason: Codex added its Review 1 decision, and the correction preflight's value is `af195fe949e82645f9e9f721c3826252a226a5b6d80128704d22476311094f90`.
+That later edit is the planner's, is not mine and is not a discrepancy. ADR-0050 stays Proposed, P9 unproven, AI Memory deferred, Increments 4/5/6 incomplete; every standing restriction in the handoff stays. No
+Domain, producer, persistence mapping, schema, migration, generated client, frontend, provider, recovery or dependency change was made, and no commit or push.
+
+### What exists
+
+- **The defect.** `RunAbandonmentReader.ReadReason` caught `JsonException` only. A payload such as `{"reason":"\ud800"}` is valid JSON, but `JsonElement.GetString()`
+  throws `InvalidOperationException` ("Cannot read invalid UTF-16 JSON text as string") for any escaped surrogate that is not half of a valid pair, so intake, replay
+  arbitration, the project summaries and the live status faulted on one damaged event row. ADR-0031 already promises that a payload that cannot be read is incoherent
+  and never throws; the shared reader did not keep it. The earlier record of RUN-ABANDON-INSPECT-01 (limit 1) reported this as a pre-existing defect left unchanged.
+- **The fix** (`RunAbandonmentReader.cs`, 15 insertions, 1 deletion; ADR-0071's bar on changing the shared reader governed that slice, and this repair restores
+  ADR-0031's own statement that a malformed stored payload is incoherent without throwing). `GetString()` now runs through one private `ReadText` that catches `InvalidOperationException` around that single
+  call and returns no reason; the existing `JsonException` catch, the object/property/string-kind checks and the coherence policy are unchanged. Valid strings, valid
+  surrogate pairs (escaped or literal) and every malformed or non-string shape read exactly as before. Nothing else is caught: database, cancellation and other faults
+  still propagate. The exception carries no inner decoder exception on this runtime, so the narrowest available guard is the type around that one call.
+- **The history inspector** (corrected by ABP-R1). `RecordedAbandonmentReader` had guarded the same exception around its call. At the first return the shared reader absorbed it and that guard was
+  left as a redundant second line with a corrected comment; Correction 1 removed the wrapper, its catch and its comment, so the inspector calls `RunAbandonmentReader.ReadReason` directly and the
+  shared guard is the only one. The Architecture catch pin of that folder now permits only the existing `DecoderFallbackException`.
+- **Tests.** `AbandonmentPayloadReasonTests` (new, 47 cases, pure): 16 unreadable shapes (isolated high and low, both extremes, upper-case digits, inside, at the end and at the
+  start of text, high-high, low-high, high before a plain escape, a plain character and a short escape, and each beside a valid pair), a damaged value or name elsewhere in the
+  object (never decoded), 10 readable forms (ordinary, empty, escaped basics, escaped valid pairs including the lowest and highest, literal supplementary characters,
+  mixed) and 19 existing malformed or non-string payloads. Escapes are assembled from a backslash character so no tool can turn a damaged case into a valid one.
+  `AbandonmentPayloadSurrogateTests` (new, 19 cases, real migrated file-backed SQLite through independent contexts): for an isolated high, an isolated low and a
+  misordered pair stored in the one `run.abandoned` payload of a production-closed run, the shared reading, the live status and the recorded inspection report it
+  incoherent or Unavailable; a replay and a conflict are both refused `abandonment_incoherent` with a populated tracker; another objective stays blocked and creates nothing;
+  a healthy neighbouring project reads, lists as creatable and takes a new objective; a healthy earlier run of the same project is read beside the damaged one by
+  `ReadForProjectAsync`; and the stored payload bytes (hex) and the run/event snapshot are identical after the reads and refusals. Four controls (the producer's own
+  payload, the escaped pair in lower and upper case digits, and the literal character) stay coherent, replay exactly, and permit intake. `AbandonManualRunEndpointTests`
+  (+3 cases, real host): the two lone surrogates make the damaged run's status, replay, conflict and intake the existing 409/incoherent answers (no 500), the cockpit loads,
+  the summaries and a healthy sibling's status and inspection are unaffected, the damaged run's `abandonment-inspection` is `Unavailable`, and the stored payload and counts
+  are unchanged; an escaped valid pair stays a closure on every route.
+
+### Evidence (logs under `logs/executor/abandonment-payload-01/`, git-ignored; commands run at the repository root; wall-clock times)
+
+- **Original failure, retained** (the new tests against the unmodified shared reader, before any source edit; no tracked file under `src` was modified until the fix): unit `01-red-unit.txt` **17 failed, 30 passed of 47**, 5 s; SQLite `02-red-sqlite.txt` **15 failed, 4 passed of 19** (every damaged case failed, every valid control passed), 8 s;
+  API `03-red-api.txt` **2 failed, 1 passed of 3**, 6 s. Failure text: `System.InvalidOperationException : Cannot read invalid UTF-16 JSON text as string. Invalid surrogate value:
+  '0xDC00'.` (also `'0xDE00'`, `'0xDD1E'` and `Cannot read incomplete UTF-16 JSON text as string with missing low surrogate.`) from `JsonDocument.GetString` through `ReadReason`; the API cases
+  failed with `HttpRequestException … 500 (Internal Server Error)` on the status read. No control mutation of any source was used, so there was nothing to restore; the red state is the
+  original implementation itself.
+- **After the fix** (`04-green-focused.txt`): the two new Application classes **66 passed**, 8 s.
+- **Builds.** Incremental builds of the Application, Architecture and Api test projects (1 to 4 s, no source change since): 0 warnings, 0 errors (`06-build-*.txt`). `DevalCopilot.Application.dll` has
+  the same SHA-256 prefix `4d631f06a976ac80` in the Application output and the three test outputs and is newer than the last source edit. No direct Api build was run, so no client regeneration; the generated
+  client is untouched (`git status`).
+- **Application, the affected filter** (`07-application-filter.txt`: abandonment, status, replay, intake, project summaries, budget creation, recorded inspection): **532 passed**, 59 s, including the 66 new.
+- **Architecture, the whole project:** **232 passed**, 6 s (`08-architecture.txt`).
+- **Api, abandonment and inspection** (`09-api-filter.txt`: `AbandonManualRunEndpointTests`, `RunAbandonmentInspection*`, `LocalCommitAbandonmentTests`): **78 passed**, 38 s, including the 3 new.
+- **Format and hygiene.** `dotnet format DevalCopilot.slnx --verify-no-changes --no-restore --include <the five changed C# files>`: exit 0, 27 s (`05-format.txt`); a negative control (a throwaway
+  mis-indented file, deleted) made the same command exit 2 (`05b-…`). `git diff --check` clean; both new files carry one top-level type, no CR and no non-ASCII; the sensitive-pattern scan over
+  added lines found only the word `CancellationToken` (`10-diff-checks.txt`). The reused, unchanged `check-links.ps1` of the previous slice over this record and the handoff: 45 links and
+  fragments, 0 failures (`11-doc-links.txt`; run with a process-scoped `-ExecutionPolicy Bypass` because scripts are disabled here); a negative control detected a missing file and a
+  missing fragment (`11b-…`) and was deleted. These ran before this sentence was written; it adds no link. The handoff SHA-256 and the Git state (`HEAD`, local and live `origin/main` still
+  `ed763e0…`, index empty) were rechecked at the end.
+- **Not run, and why.** Domain tests (no Domain change); Infrastructure integration tests (no persistence change); whole Application and Api suites (the affected filters cover every consumer of the
+  shared reader and nothing else changed); a direct Api build and client regeneration (no contract change); frontend build, Vitest and the browser journey (backend-only correction, as dispatched);
+  mutation runs (not selected: the red run on the original implementation is the proof that the cases detect the defect). No earlier evidence of RUN-ABANDON-INSPECT-01 was reused as this slice's.
+
+### Challenges, limits and risks for review
+
+- **No material challenge to the dispatch.** One input discrepancy (the one-digit handoff hash above) was recorded; its first explanation is corrected by ABP-V1.
+- **The redundant guard** (first-return limit, resolved by ABP-R1 in Correction 1): the wrapper and its `InvalidOperationException` catch are removed and the Architecture pin updated, as the planner selected.
+- **Other faults still propagate by design.** A database or cancellation failure is not swallowed. Only the one string extraction is guarded, so an `InvalidOperationException` raised elsewhere in `ReadReason`
+  would still surface; none can occur there today (a damaged string elsewhere in the object is never decoded, tested).
+- **The stored run reason column cannot hold a lone surrogate** (SQLite text is UTF-8), so the damage that matters is the event payload; a damaged run-column reason is already covered by the existing damage
+  matrices. Whether other readers of `PayloadJson` of other event types tolerate such text is outside this slice.
+- **Not in scope and not done:** broader damaged-storage handling, a general JSON policy, recovery, the next slice, and any commit or push.
+
+### Correction 1 (Codex review 1 NO-GO: ABP-R1 P2, ABP-V1 P3)
+
+Findings **ABP-R1** and **ABP-V1** (identifiers kept; open until Codex's next review). Preflight: `main`; `HEAD`, local `origin/main` and a live `git ls-remote` read equalled `ed763e0680e8d9a682b8aaffbf18df53263bed99`;
+index empty; exactly the five tracked modifications and two untracked tests of the first return were pending; `planner-handoff.md` SHA-256 `af195fe949e82645f9e9f721c3826252a226a5b6d80128704d22476311094f90`
+(the planner's Review 1 entry, preserved, not edited). The scope boundary of the first return was expanded only as the dispatch stated: `RunAbandonmentInspectionBoundaryTests`.
+
+- **ABP-R1 (resolved).** `RecordedAbandonmentReader` now calls `RunAbandonmentReader.ReadReason(payload)` directly; its private `ReadReason` wrapper, the `InvalidOperationException` catch and the comment are removed
+  (against `HEAD`: 1 insertion, 15 deletions). The shared reader's guard around `JsonElement.GetString()` is unchanged. In `RunAbandonmentInspectionBoundaryTests.Only_unreadable_text_and_payload_faults_are_caught_and_no_column_beyond_the_recorded_facts_is_selected`
+  the pin now asserts exactly one `catch` in the recorded-inspection folders and that its type is `DecoderFallbackException` (`Assert.Single`, since the analyzer rejected `Assert.Equal(1, …Count)`; the first build of this edit
+  failed on `xUnit2013` and is retained in `13-build-Architecture.Tests.txt`). Every other assertion of that test is unchanged: the forbidden-column list, `ToListAsync`, the row-shape checks. Database, cancellation and unexpected
+  faults still propagate: nothing catches them, and the pin now fails on any additional catch.
+- **ABP-V1 (resolved).** The hash passage in the header above is rewritten: a one-digit difference between the dispatch text and the file did not by itself prove the content was unchanged, my transcription inference was
+  unverified, Codex's own pre-dispatch output (`…5255f213…`) established the dispatch typo, and the later change to the handoff is the planner's intentional Review 1 entry, distinct from that typo.
+- **Control: the inspection boundary now depends on the shared fix.** With the wrapper gone, temporarily reverting only the shared `ReadText` to a bare `GetString()` made the existing inspection case
+  `payload_lone_surrogate_escape` fail (`InvalidOperationException … missing low surrogate`; `12-control-wrapper-removed.txt`); the reader was restored from a verified backup and its SHA-256
+  `5c8c772a3fdbcd44cebbbf63e49a4bf06bfbd0771054a818ee0777735703c15f` is identical before and after. (A first attempt of this control used a filter that matched no test and proved nothing; it was repeated with `DisplayName~`.)
+- **Fresh on the corrected, stable sources** (Application project builds 3 s, Architecture 4 s after the analyzer fix, Api 1 s; 0 warnings, 0 errors; `DevalCopilot.Application.dll` prefix `5b4ebffffee671f9` identical in the Application, Application-test, Api-test and
+  Architecture-test outputs; logs `13-*`):
+  - `dotnet test tests/DevalCopilot.Application.Tests --no-build --no-restore --filter "FullyQualifiedName~AbandonmentPayload|FullyQualifiedName~RunAbandonmentInspection"`: **221 passed**, 46 s (`14-application.txt`; the 66 payload cases plus the whole recorded-inspection class family).
+  - `dotnet test tests/DevalCopilot.Architecture.Tests --no-build --no-restore` (whole project): **232 passed**, 5 s (`15-architecture.txt`).
+  - `dotnet test tests/DevalCopilot.Api.IntegrationTests --no-build --no-restore --filter "FullyQualifiedName~AbandonManualRunEndpointTests|FullyQualifiedName~RunAbandonmentInspection"`: **70 passed**, 22 s (`16-api.txt`; the new endpoint cases and the inspection endpoint matrix).
+  - `dotnet format DevalCopilot.slnx --verify-no-changes --no-restore --include <the six changed C# files>`: exit 0, 27 s (`17-format.txt`); the first return's negative control for this command still stands. `git diff --check` clean; no CR in any changed C# file; no sensitive-pattern hit in the added code.
+- **Retained at pre-correction scope only.** The first return's **532 Application** (affected filter, 59 s) and **78 Api** results and its builds ran on the first-return sources: the only inputs changed since are
+  `RecordedAbandonmentReader.cs` (wrapper removed, so the inspector's behavior now rests on the shared reader) and `RunAbandonmentInspectionBoundaryTests.cs`; the shared reader, the policy, every other consumer
+  (intake, replay, summaries, live status), the new tests and the Api surface did not change. Those 532/78 results therefore still describe intake, replay, summaries, live status and abandonment, but **not** the inspector
+  after the removal; the fresh 221 and 70 above are what cover it. The first return's whole-Architecture 232 predates the pin change and is superseded by the fresh 232. The original red evidence (`01`–`03`) is untouched.
+  Not rerun: the broader 532 and 78 filters, Domain, Infrastructure, frontend and the journey (nothing they cover changed).
+- **Documents.** This record only; no change to the planner handoff (SHA-256 still `af195fe9…4f90` at the return; `HEAD`, local and live `origin/main` still `ed763e0…`, index empty). The reused, unchanged
+  `check-links.ps1` over this record and the handoff: 47 links and fragments, 0 failures, the new Correction 1 anchor resolving (`18-doc-links.txt`; its negative control from the first return stands). `git diff --check` clean.
+  These ran before this bullet was written; it adds no link.
+
+## Previous slice (independently verified published as ed763e0; historical record): RUN-ABANDON-INSPECT-01 inspect recorded run abandonment in history (ADR-0071)
 
 This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
 Reconcile publication with Git and the slice's independent publication-verification record, when available. This record alone grants no

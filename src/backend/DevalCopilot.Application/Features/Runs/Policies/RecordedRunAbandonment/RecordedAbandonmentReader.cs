@@ -103,23 +103,9 @@ internal static class RecordedAbandonmentReader
             abandonedAt,
             advancedAt,
             row.NoActiveParticipant,
-            [new RunAbandonmentEventFacts(row.EventHumanAndRunScoped, ReadReason(payload), eventAt)]);
+            [new RunAbandonmentEventFacts(row.EventHumanAndRunScoped, RunAbandonmentReader.ReadReason(payload), eventAt)]);
         return RunAbandonmentPolicy.IsCoherent(facts)
             ? new RecordedAbandonment(project, reason, abandonedAt, supportingEvent, sequence)
             : null;
-    }
-
-    // The shared interpretation reports malformed JSON as no reason but lets a lone-surrogate escape throw an InvalidOperationException;
-    // here that one payload fault is the same unreadable payload, never a failure of the read. Nothing else is caught.
-    private static string? ReadReason(string payload)
-    {
-        try
-        {
-            return RunAbandonmentReader.ReadReason(payload);
-        }
-        catch (InvalidOperationException)
-        {
-            return null;
-        }
     }
 }
