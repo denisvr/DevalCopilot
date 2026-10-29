@@ -1,6 +1,169 @@
 # Planner/reviewer handoff
 
-## Current action: QUALIFICATION-OFFLINE-READINESS-01
+## Current action: QUALIFICATION-READINESS-PREFLIGHT-01 selected, return for review
+
+### Review 2: GO for exact-content publication of the evidence report
+
+QRP-R1, QRP-R2 and QRP-R3 are resolved by Correction 1, independently read
+against the retained command records, original failure output and current
+source. The executor reports that its visible incoming text contained
+`-p=false`; this planner's visible dispatch contains
+`-p:UseSharedCompilation=false`. The transmission discrepancy remains
+unresolved and unattributed. Preserve the actual successful build, the
+derivative switch-check summary and its missing original output, and both
+failed rehearsals; no cause is inferred from the switch or compiler directory.
+
+The report now preserves the historical binary-string evidence for
+`--max-turns`, limits fresh discovery to the approximate manual replica,
+separates the unobserved real ledger from test ledgers, names the two real
+Claude metadata probes and excludes the completed startup guard from the
+later failure hypotheses. The failed setup operation or post-setup snapshot
+is still unidentified. Neither prerequisite is established, and no actual
+provider compatibility, native shutdown or MVP completion is claimed.
+
+Independent review used Git, the corrected document and retained evidence;
+no build, test, CLI probe or preserved-root read was repeated. Executor's
+documentation checks retain their reported scope. Accept this bounded negative
+evidence report for publication; passing rehearsals are not a condition of its
+delivery. All original failures, evidence limitations and excluded authority
+remain. Publication is pending exact-content GO; no next slice is selected.
+
+### Review 1: NO-GO pending documentation correction only
+
+The independent reviewer confirmed main, HEAD, local origin/main and fresh
+live origin/main at `9566f50`; index and untracked state are empty, with only
+the two checkpoint documents modified. The original two-method log records
+two failures, accepted double targets and no attempted submission. No test,
+provider probe, build or preserved-root read was repeated by the reviewer.
+Failed preparation evidence can be delivered as such; acceptance of this
+report does not require turning either prerequisite green. No runtime repair,
+diagnostic rerun or additional authority is selected by this review.
+
+- **QRP-R1 (P2), open: build-command provenance.** This chat's visible dispatch
+  specified `-p:UseSharedCompilation=false`; the executor command record and
+  report instead name `-p=false`. Correct "exactly as dispatched" and record
+  the discrepancy without attributing where it arose unless the actual
+  received prompt establishes that. Preserve the successful actual build and
+  failed tests; the command difference does not prove their cause or invalidate
+  the build by itself. The compiler directory is not process-liveness proof.
+  The SDK-less switch check is retained as a derivative summary; complete
+  original output is not identified. Do not reconstruct or rerun it.
+- **QRP-R2 (P2), open: evidence classes and historical flag evidence.** The
+  provider contract explicitly records `--max-turns` in the historical binary
+  string table and its absence from abbreviated help. The fresh help observation
+  is consistent with that limitation, not a newly established incompatibility;
+  it neither authenticates the earlier binary nor proves current behavior.
+  Correct the claim that only a behavior check or real call can supply evidence.
+  No further probe or binary inspection is selected. Scope Codex absence to
+  this manual approximate replica and its evaluated candidates, never an
+  observed production-host result or proof of no installation anywhere. Keep
+  the dated real-session outcome and unobserved real ledger distinct from the
+  fresh manual results and rehearsal test ledgers. Replace "no real provider
+  ran" with the precise exception for the two real Claude metadata probes.
+- **QRP-R3 (P3), open: exception-location inference.** Accepted targets require
+  `ProductionHost.Start` to have returned, so its synchronous log-provider guard
+  cannot explain the later exception on this recorded path. Remove that
+  hypothesis. The exact failing setup operation or post-setup snapshot remains
+  unidentified. Static source tracing may narrow candidates; it is not a
+  substitute for observing the failing operation, and root reads or a new run
+  are not authorized by this correction.
+
+Correct current-work.md only in the same Claude executor chat, preserve all
+original evidence and this planner record, and run documentation checks only.
+No repeat of the two methods, build, CLI discovery/help, MSBuild probe or any
+other live operation. Return unstaged, uncommitted and unpushed for review.
+
+### Verified baseline and critical-path decision
+
+QUALIFICATION-OFFLINE-READINESS-01 is independently verified published at
+`9566f50ebea342b34eafbe6ae161a8de81001f29`, tree
+`e04fae9f769a7b3f6f88b5006f4f1624b1e7a3fa`, sole parent
+`05f48fc91989d5b9b7739a4bebec70a71ca4ed5d`, exactly the three paths in
+`logs/planner-review/qualification-offline-readiness-01/review-01/approval.json`.
+This receiving planner independently compared the commit metadata and paths,
+read the existing publication record and freshly queried live main. Branch
+main, HEAD, local origin/main and live origin/main matched that commit; index,
+worktree and untracked state were clean before this selection record. The
+outgoing chat's START_NEW_CHAT has been fulfilled. Its publication-pending
+wording below is historical; no republication or closure commit is selected.
+CONTINUE_THIS_CHAT: this is the receiving planner chat; current context usage
+is unavailable, and no new transition is justified. The next action is the
+bounded evidence package below in one new Claude executor chat.
+
+The next priority is evidence for Increment 4's actual installed-provider
+boundary, a prerequisite for meaningful real local-delivery and self-hosting
+proof. The delivered deterministic-double local chain and the 89 scripted/pure
+qualification-support cases do not supply it. Repository inspection identifies
+two independently missing prerequisites: current installed CLI discovery and
+argument compatibility, and the evolved production composition exercised by
+the existing controlled qualification rehearsals. No production defect has
+been established that would justify another implementation or inspector now.
+Increment 5 recovery/lease work needs its own material contract; Increment 6's
+publication additionally lacks P9 and separate Git/GitHub/GCM qualification.
+None is silently selected to avoid the actual provider dependency.
+
+### Owner-authorized bounded evidence package
+
+The owner explicitly answered "Autorizar o pacote limitado" to this chat's
+bounded authorization request on 2026-10-29. Select the following package for
+one new Claude executor chat. That answer authorizes these preparation
+operations only; it is not approval of real qualification or publication.
+
+- Inspect only the current catalog's fixed provider candidates and required
+  package metadata, using the resolver's validation rules. No recursive search,
+  private desktop fallback, installation, configuration change or credential
+  read. On each validated real launch target, permit one `--version` and one
+  top-level `--help`; on Codex also one `exec --help`. These are manual
+  observations compared with current adapter argv, not production-host
+  discovery snapshots or authenticated compatibility evidence. Missing,
+  ambiguous or unsupported targets remain blockers; do not substitute or fix.
+- Build the API integration-test project once with its existing references,
+  including the deterministic fixture apphosts, then run exactly
+  `ManualQualificationRehearsalTests.A_controlled_complete_observation_authorizes_cleanup_of_only_the_owned_root`
+  and
+  `ManualQualificationRehearsalTests.A_controlled_unknown_origin_observation_preserves_the_root_reports_its_reason_and_exits_6`,
+  once each, serially. Both use the production host, real loopback Kestrel,
+  disposable SQLite/Git and native deterministic doubles, but a scripted
+  process table. Neither proves native shutdown or real-provider behavior.
+  The third, native-process-table rehearsal is expressly excluded.
+- Give the build/tests a fresh workspace-owned TEMP/TMP. The existing fixture
+  may create and remove only its own new roots and test ledgers there. Allow
+  the host's existing discovery scratch and new per-attempt scratch leaves at
+  their production LocalAppData locations, including their ordinary guarded
+  teardown; no enumeration, inspection or cleanup of older scratch leaves.
+  The host's ordinary catalog version probes of Git, .NET, Node and Docker,
+  where present, are part of the requested scope; Codex, Claude and gh in the
+  rehearsals must resolve to the newly installed deterministic doubles.
+- Retain exact commands, source/build identity, elapsed times and original
+  failures in one new evidence directory. Stop the dependent action on an
+  unexpected target, effect, failure or timeout; no blind rerun, product/test
+  repair or broader suite. Return a source-traceable report and update only
+  current-work.md; preserve this planner record.
+
+This groups the two preparation gaps into one reviewable outcome. It stops
+before a real session because installed compatibility and current composition
+are unproved. A real session would also read/spend the real ledger and invoke
+authenticated providers; those are a separate subsequent decision, not a
+conditional permission in this proposal. The real launcher has no read-only
+readiness mode: after accepted targets and setup it can consume and submit,
+so it must not be used as a preflight shortcut.
+
+The offered alternative was to keep all existing live-operation restrictions
+and defer this package. The owner selected the limited package. Repository-only
+evidence cannot resolve current executable availability or composition behavior;
+no unrelated product work or larger qualification is selected.
+
+The incoming transition renewed no native build, launch, helper or provider
+operation. The subsequent explicit owner answer supplies only the authority
+enumerated above; repository access supplies none. This package grants no real inference,
+authentication/account probe, ledger access/reset, native process-table test,
+profile/ACL/security experiment, retained-root or frozen-artifact access,
+credential/GCM/GitHub operation, remote mutation, retry, commit or push.
+ADR-0050 remains Proposed, P9 unproved, and ADR-0065/0066 retain only their
+already delivered separately Human-authorized release. All historical failure
+and evidence limits remain unchanged.
+
+## Previous action: QUALIFICATION-OFFLINE-READINESS-01
 
 ### Review 1: GO for exact-content publication
 
