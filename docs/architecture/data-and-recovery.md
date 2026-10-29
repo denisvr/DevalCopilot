@@ -239,6 +239,23 @@ Reversing the migration drops only the two columns, by native `ALTER TABLE ... D
 rename of the whole table, which collides with the guard trigger on `attempts`, it keeps every trigger and index, although SQLite still
 rewrites the table content to remove a column.
 
+[ADR-0071](../decisions/0071-inspect-recorded-run-abandonment-in-history.md) adds only a read-only recorded inspection of that decision for
+any run, independent of the run's present eligibility, through one protected bodyless and queryless GET
+(`/api/runs/{runId}/abandonment-inspection`) and one collapsed region in the selected historical run. One bounded, untracked scalar statement
+reads the registered run and project with a left join to the run's exact stored-key `run.abandoned` events and materializes at most two
+rows. A recognized non-Abandoned run with both abandonment columns SQL NULL and no associated event is `NotRecorded`; anything present that
+cannot pass the proof (an Abandoned run without its event, stray facts beside another lifecycle, an unrecognized mode or lifecycle, a
+damaged or doubled event, a malformed, oversized or non-canonical value) is `Unavailable` and never absent; one admitted event whose facts
+pass the unchanged shared interpretation (`RunAbandonmentReader.ReadReason`) and the unchanged `RunAbandonmentPolicy.IsCoherent` is
+`Recorded` with the owning project, the exact canonical reason, the recorded instant and the supporting event's identity and positive
+Int64 sequence. Variable storage is bounded before it is read (identifiers 36 bytes, times 64, the reason 2048 and the event payload
+16384 UTF-8 bytes, the last fitting every production reason even when each UTF-16 unit is escaped as six bytes) and read as raw bytes
+or, for the abandonment time alone, through the column's own TEXT-only mapping, so a BLOB of the exact timestamp bytes is refused. Full
+tick equality and every supported instant and offset (the policy-coherent default instant included) are preserved and normalized to UTC
+only for transport. No objective, stage, budget, attempt, workspace, lease, commit or artifact, no present eligibility or blocker and no
+file, Git, process or provider is read; nothing is written and no database fault is swallowed. Recorded is unsigned relational
+consistency, not an ownership release, a cancellation, a workspace repair, current permission to record another objective or publication.
+
 ### Agent supervision observations
 
 An Agent supervision observation ([ADR-0056](../decisions/0056-observe-agent-supervision-without-granting-execution-authority.md))

@@ -11,6 +11,7 @@ import {
   readSealedManifestText,
   repositorySnapshot,
 } from './journey/journeyEnv'
+import { PostInventory } from './journey/requestInventory'
 import { injectJourneySession, registerProject, selectProject } from './journey/journeySupport'
 
 // The browser-driven proof of the explicit abandonment of an inactive manual run (ADR-0031), through the rendered controls of the
@@ -31,6 +32,7 @@ const SECOND_OBJECTIVE = 'Record a different objective after the abandonment'
 const REASON = 'The ledger total will be delivered by a different change.'
 const ABANDON_PATH = /\/api\/runs\/[^/]+\/abandon$/
 const MANUAL_PATH = '/api/runs/manual'
+const INSPECTION_PATH = /\/api\/runs\/[^/]+\/abandonment-inspection$/
 
 const data = new JourneyData(PROJECT)
 
@@ -66,6 +68,26 @@ function eventTypes(runId: string): { EventType: string; ActorKind: string; Payl
       db
         .prepare('select EventType, ActorKind, PayloadJson from events where RunId = ? order by Sequence')
         .all(runId) as unknown as { EventType: string; ActorKind: string; PayloadJson: string }[],
+  )
+}
+
+interface EventRow {
+  Sequence: number
+  Id: string
+  RunId: string
+  EventType: string
+  ActorKind: string
+  PayloadJson: string
+  OccurredAtUtc: string
+}
+
+/** Every stored event row of the run, with the identity, sequence and time the recorded abandonment inspection discloses. */
+function allEventRows(runId: string): EventRow[] {
+  return withJourneyDb(
+    (db) =>
+      db
+        .prepare('select Sequence, Id, RunId, EventType, ActorKind, PayloadJson, OccurredAtUtc from events where RunId = ? order by Sequence')
+        .all(runId) as unknown as EventRow[],
   )
 }
 
@@ -264,4 +286,168 @@ test('the abandonment journey: plan, abandon through the form, reload the record
   await expect(page.getByRole('heading', { name: SECOND_OBJECTIVE })).toBeVisible({ timeout: 30_000 })
   expect(runs()).toEqual(all)
   expect(stageInvocations()).toHaveLength(stagesBefore)
+
+  // 7. The recorded abandonment inspection (ADR-0071). The second objective has settled and the live cockpit follows it, so the earlier
+  // closure is reachable only through the collapsed Run history. Everything the inspection must leave alone is baselined first: the
+  // business POSTs, the invocation count of the doubles and the named durable, repository, workspace and sealed observations (the run
+  // rows, every event row, the attempts, the owned workspace and its bytes, the sealed manifests and the source repository). Every exact
+  // response is awaited and compared with the stored rows, and the rendered facts with that same row. A page reload is not a host restart.
+  const posts = new PostInventory()
+  const inspectionRequests: { method: string; path: string; search: string; body: string | null }[] = []
+  page.on('request', (request) => {
+    const { pathname, search } = new URL(request.url())
+    if (request.method() === 'POST') {
+      posts.record(pathname)
+    }
+
+    if (INSPECTION_PATH.test(pathname)) {
+      inspectionRequests.push({ method: request.method(), path: pathname.toLowerCase(), search, body: request.postData() })
+    }
+  })
+  const lower = (value: string) => value.toLowerCase()
+  // The provider writes a stored instant as `yyyy-MM-dd HH:mm:ss.FFFFFFF+00:00`; the wire carries it as a seven-digit UTC round trip.
+  const storedInstant = (text: string): string => {
+    const match = /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})(?:\.(\d{1,7}))?\+00:00$/.exec(text)
+    expect(match, `stored instant ${text}`).not.toBeNull()
+    return `${match![1]}T${match![2]}.${(match![3] ?? '').padEnd(7, '0')}Z`
+  }
+  const durableBaseline = () => ({
+    runs: runs(),
+    events: [first.Id, second.Id].map((runId) => allEventRows(runId)),
+    attempts: [first.Id, second.Id].map((runId) => attemptsOf(runId)),
+    workspace: workspaceFacts(),
+    workspaceBytes: workspaceDigest(workspace.WorkspacePath),
+    manifests: sealedManifests(first.Id),
+    source: repositorySnapshot(repository.path),
+    invocations: stageInvocations().length,
+  })
+  const baseline = durableBaseline()
+  const postMark = posts.mark()
+
+  const closureEvent = allEventRows(first.Id).filter((event) => event.EventType === 'run.abandoned')
+  expect(closureEvent).toHaveLength(1)
+  const expectedRecorded = {
+    runId: lower(first.Id),
+    status: 'Recorded',
+    abandonment: {
+      projectId: lower(data.projectId()),
+      reason: REASON,
+      abandonedAtUtc: storedInstant(abandoned.AbandonedAtUtc!),
+      eventId: lower(closureEvent[0].Id),
+      eventSequence: String(closureEvent[0].Sequence),
+    },
+  }
+  const expectedNotRecorded = { runId: lower(second.Id), status: 'NotRecorded', abandonment: null }
+  expect(allEventRows(second.Id).filter((event) => event.EventType === 'run.abandoned')).toEqual([])
+
+  const historyRegion = page.getByRole('region', { name: 'Run history' })
+  const historyRows = historyRegion.locator('.dc-run-history-items > li')
+  const selected = historyRegion.getByRole('region', { name: 'Selected run' })
+  const inspection = selected.getByRole('region', { name: 'Inspect recorded abandonment', exact: true })
+  const toggle = inspection.getByRole('button', { name: 'Inspect recorded abandonment', exact: true })
+  const inspectionAnswered = (runId: string) =>
+    page.waitForResponse(
+      (answer) => answer.request().method() === 'GET' && new URL(answer.url()).pathname.toLowerCase() === `/api/runs/${lower(runId)}/abandonment-inspection`,
+      { timeout: 30_000 },
+    )
+  const expectCold = async () => {
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    await expect(inspection.getByRole('button')).toHaveText(['Inspect recorded abandonment'])
+    await expect(inspection).not.toContainText(REASON)
+    await expect(inspection).not.toContainText('found no recorded abandonment')
+  }
+  const expectRecordedRendered = async () => {
+    await expect(inspection).toContainText(REASON)
+    await expect(inspection).toContainText(expectedRecorded.abandonment.abandonedAtUtc)
+    await expect(inspection).toContainText(`${expectedRecorded.abandonment.eventId} · sequence ${expectedRecorded.abandonment.eventSequence}`)
+    await expect(inspection).toContainText(expectedRecorded.abandonment.projectId)
+    await expect(inspection).toContainText('without successful completion')
+    await expect(inspection.getByRole('button')).toHaveText(['Hide recorded abandonment', 'Reload recorded abandonment'])
+  }
+
+  await historyRegion.getByRole('button', { name: 'Show run history' }).click()
+  await expect(historyRows).toHaveCount(2, { timeout: 30_000 })
+  await expect(historyRows.nth(0)).toContainText('Run #2')
+  await expect(historyRows.nth(0)).toContainText('Created · Intake')
+  await expect(historyRows.nth(1)).toContainText('Run #1')
+  await expect(historyRows.nth(1)).toContainText('Abandoned · ')
+  expect(inspectionRequests).toEqual([])
+
+  // The earlier run: collapsed and cold, then one exact recorded answer, an explicit reload, and a cold close.
+  await historyRegion.getByRole('button', { name: 'Inspect run #1' }).click()
+  await expect(selected).toContainText(FIRST_OBJECTIVE)
+  await expectCold()
+  expect(inspectionRequests).toEqual([])
+  const firstPath = `/api/runs/${lower(first.Id)}/abandonment-inspection`
+  const opened = inspectionAnswered(first.Id)
+  await toggle.click()
+  const openedAnswer = await opened
+  expect(openedAnswer.status()).toBe(200)
+  const body = await openedAnswer.json()
+  expect(body).toEqual(expectedRecorded)
+  expect(Object.keys(body).sort()).toEqual(['abandonment', 'runId', 'status'])
+  expect(Object.keys(body.abandonment).sort()).toEqual(['abandonedAtUtc', 'eventId', 'eventSequence', 'projectId', 'reason'])
+  expect(typeof body.abandonment.eventSequence).toBe('string')
+  expect(JSON.stringify(body)).not.toContain(workspace.WorkspacePath)
+  await expectRecordedRendered()
+  expect(inspectionRequests).toEqual([{ method: 'GET', path: firstPath, search: '', body: null }])
+
+  const reloaded = inspectionAnswered(first.Id)
+  await inspection.getByRole('button', { name: 'Reload recorded abandonment', exact: true }).click()
+  const reloadedAnswer = await reloaded
+  expect(reloadedAnswer.status()).toBe(200)
+  expect(await reloadedAnswer.json()).toEqual(expectedRecorded)
+  await expectRecordedRendered()
+  expect(inspectionRequests).toHaveLength(2)
+
+  await inspection.getByRole('button', { name: 'Hide recorded abandonment', exact: true }).click()
+  await expectCold()
+  expect(inspectionRequests).toHaveLength(2)
+
+  // Selection replacement: the newer objective's own region is cold too, and its one read is NotRecorded, never the earlier decision.
+  await toggle.click()
+  await expectRecordedRendered()
+  expect(inspectionRequests).toHaveLength(3)
+  await historyRegion.getByRole('button', { name: 'Inspect run #2' }).click()
+  await expect(selected).toContainText(SECOND_OBJECTIVE)
+  await expectCold()
+  await expect(inspection).not.toContainText(REASON)
+  expect(inspectionRequests).toHaveLength(3)
+  const newer = inspectionAnswered(second.Id)
+  await toggle.click()
+  const newerAnswer = await newer
+  expect(newerAnswer.status()).toBe(200)
+  expect(await newerAnswer.json()).toEqual(expectedNotRecorded)
+  await expect(inspection).toContainText('found no recorded abandonment for this run')
+  await expect(inspection).not.toContainText(REASON)
+  await expect(inspection.getByRole('button')).toHaveText(['Hide recorded abandonment', 'Reload recorded abandonment'])
+  expect(inspectionRequests).toHaveLength(4)
+  expect(inspectionRequests[3]).toEqual({ method: 'GET', path: `/api/runs/${lower(second.Id)}/abandonment-inspection`, search: '', body: null })
+
+  // A to B to A: the earlier run's region starts collapsed again, shows nothing of its earlier answer and reads nothing.
+  await historyRegion.getByRole('button', { name: 'Inspect run #1' }).click()
+  await expect(selected).toContainText(FIRST_OBJECTIVE)
+  await expectCold()
+  expect(inspectionRequests).toHaveLength(4)
+
+  // After a real page reload the cockpit follows the newer run, the history is collapsed and nothing was read; the recorded abandonment
+  // of the earlier run is cold when it is selected again.
+  const requestsBeforeReload = inspectionRequests.length
+  await page.reload()
+  await selectProject(page, PROJECT)
+  await expect(page.getByRole('heading', { name: SECOND_OBJECTIVE })).toBeVisible({ timeout: 30_000 })
+  await expect(historyRegion.getByRole('button', { name: 'Show run history' })).toHaveAttribute('aria-expanded', 'false')
+  expect(inspectionRequests).toHaveLength(requestsBeforeReload)
+  await historyRegion.getByRole('button', { name: 'Show run history' }).click()
+  await expect(historyRows).toHaveCount(2, { timeout: 30_000 })
+  await historyRegion.getByRole('button', { name: 'Inspect run #1' }).click()
+  await expect(selected).toContainText(FIRST_OBJECTIVE)
+  await expectCold()
+  expect(inspectionRequests).toHaveLength(requestsBeforeReload)
+
+  // The inspection added no command, no invocation and no named durable change.
+  expect(posts.businessSince(postMark)).toEqual([])
+  expect(abandonRequests).toHaveLength(1)
+  expect(durableBaseline()).toEqual(baseline)
+  expect(runs()).toEqual(all)
 })

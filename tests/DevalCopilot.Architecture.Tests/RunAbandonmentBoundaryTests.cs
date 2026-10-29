@@ -156,12 +156,16 @@ public sealed class RunAbandonmentBoundaryTests
             [
                 "DevalCopilot.Application/Features/Projects/Queries/GetProjectRunSummaries/GetProjectRunSummariesQueryHandler.cs",
                 "DevalCopilot.Application/Features/Runs/Commands/AbandonManualRun/AbandonManualRunCommandHandler.cs",
+                "DevalCopilot.Application/Features/Runs/Policies/RecordedRunAbandonment/RecordedAbandonmentReader.cs",
                 "DevalCopilot.Application/Features/Runs/Queries/GetManualRunAbandonment/GetManualRunAbandonmentQueryHandler.cs",
                 "DevalCopilot.Application/Features/Runs/RunIntentRecorder.cs",
             ],
             SourcesContaining(root, "RunAbandonmentReader."));
         Assert.Equal(
-            ["DevalCopilot.Application/Features/Runs/Policies/Abandonment/RunAbandonmentReader.cs"],
+            [
+                "DevalCopilot.Application/Features/Runs/Policies/Abandonment/RunAbandonmentReader.cs",
+                "DevalCopilot.Application/Features/Runs/Policies/RecordedRunAbandonment/RecordedAbandonmentReader.cs",
+            ],
             SourcesContaining(root, "RunAbandonmentPolicy.IsCoherent("));
     }
 }

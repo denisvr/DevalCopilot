@@ -4,6 +4,7 @@ import type { RunHistoryEntry } from '../projectRunHistory'
 import { toUtcText } from '../utcText'
 import { AgentAttemptHistoryPanel } from './AgentAttemptHistoryPanel'
 import { LocalCommitInspectionRegion } from './LocalCommitInspectionRegion'
+import { RunAbandonmentInspectionRegion } from './RunAbandonmentInspectionRegion'
 import { LocalExecutionInspectionPanel } from './LocalExecutionInspectionPanel'
 import { PlanningSequenceInspectionPanel } from './PlanningSequenceInspectionPanel'
 import { LocalDeliveryReceipt } from './LocalDeliveryReceipt'
@@ -58,6 +59,7 @@ export function ProjectRunHistoryDetail({ entry, onClose }: ProjectRunHistoryDet
       </dl>
       {source ? <LocalDeliveryReceipt source={source} /> : <p>{NO_SOURCE}</p>}
       <LocalCommitInspectionRegion runId={entry.runId} projectId={entry.projectId} />
+      <RunAbandonmentInspectionRegion runId={entry.runId} projectId={entry.projectId} />
       <RunEventHistoryPanel runId={entry.runId} />
       <CollaborationHistoryPanel runId={entry.runId} />
       <AgentAttemptHistoryPanel runId={entry.runId} />

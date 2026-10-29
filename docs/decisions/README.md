@@ -187,7 +187,10 @@ under [Proposed decisions](#proposed-decisions).
   (accepted, implemented in independently verified published PROJECT-VER-INSPECT-01 after PVI-R1/PVI-R2 corrections; project-owned paged history, exact historical execution metadata and explicit sealed stdout/stderr windows independent of Agent/sequence membership; no inferred run attribution, live eligibility, execution, recovery, approval or publication authority)
 
 - [ADR-0070: Inspect recorded local-commit operations](0070-inspect-recorded-local-commit-operations.md)
-  (accepted, selected for LOCAL-COMMIT-INSPECT-01; one bounded protected recorded read and explicit current/historical inspection of all six operation states, independent of live eligibility and the completed delivery receipt; no new execution, ownership, recovery, approval, commit or publication authority)
+  (accepted, implemented in independently verified published LOCAL-COMMIT-INSPECT-01; one bounded protected recorded read and explicit current/historical inspection of all six operation states, independent of live eligibility and the completed delivery receipt; no new execution, ownership, recovery, approval, commit or publication authority)
+
+- [ADR-0071: Inspect recorded run abandonment in history](0071-inspect-recorded-run-abandonment-in-history.md)
+  (accepted, implemented in RUN-ABANDON-INSPECT-01, reviewed GO after RABI-R1/RABI-V1 correction; reconcile publication with Git and the planner handoff; one bounded protected recorded read and one explicit historical region for the Human reason/time and supporting event of an abandoned run, reusing the unchanged coherence rule; no live eligibility, intake, recovery, execution or publication authority)
 
 ## Partially superseded decisions
 

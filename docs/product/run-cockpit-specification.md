@@ -1330,7 +1330,8 @@ host answered incoherently (none of it is shown) are distinct states. Selecting 
 times) and, only when the host located a delivery source for it, the existing **Local delivery receipt** region for exactly that source
 (its states and explicit retry unchanged); a run without a source says "No completed delivery source is available in this view" and that
 this does not show that no operation exists, that a delivery failed or that one succeeded, and requests no receipt (the selected run's own
-**Inspect recorded local commit** region, described above, reads the recorded operation separately). The region offers no
+**Inspect recorded local commit** region, described above, reads the recorded operation separately; its **Inspect recorded abandonment**
+region, described under [Recorded abandonment inspection](#recorded-abandonment-inspection-run-abandon-inspect-01), reads a recorded abandonment separately). The region offers no
 mutation, configuration or live-progress control and does not mount the live cockpit. Its rows, selection and reads belong to the
 committed project, open and selected-row lifetimes, so another project, closing, reopening, reloading or an obsolete read cannot show
 or fetch for another owner. All values are plain text.
@@ -1437,6 +1438,32 @@ the objective was not completed; the header badge reads "Abandoned" with the kep
 the Agent request actions are replaced by a fixed note, and a reload shows the same durable facts. The project list shows the
 `Abandoned` lifecycle and offers the normal intake form again; the new run is a distinct run that inherits nothing from the abandoned
 one.
+
+### Recorded abandonment inspection (RUN-ABANDON-INSPECT-01)
+
+Inside every selected historical run of the Run history, whatever its listed lifecycle and whether or not a delivery source was located, the
+cockpit shows one collapsed **Inspect recorded abandonment** region
+([ADR-0071](../decisions/0071-inspect-recorded-run-abandonment-in-history.md)). Closed, it reads nothing. Opening it, or **Reload recorded
+abandonment**, reads exactly one answer of the protected, bodyless and queryless `GET /api/runs/{runId}/abandonment-inspection` for that run;
+a reload clears the earlier answer at once. It exists because an earlier objective's abandonment reason is otherwise visible only while that
+run is current: it is independent of the live **Abandon run** panel and its status read (it never reads eligibility or project blockers),
+of the delivery receipt and of run-history discovery, and history mounts only this region, never the live panel or its command.
+
+A recorded abandonment shows, as plain text, the **recorded reason** with its own line breaks preserved, the full recorded UTC instant, the
+**supporting event** identity and its decimal sequence, and the owning project; only then does fixed copy say that a Human ended the run by
+explicit abandonment, that this ended its objective without successful completion and that the shown facts agree within one database read
+(unsigned, not authenticated history). The notes shown in every state of the open region (reading, failed, not recorded, unavailable,
+recorded) assert nothing about the run: a recorded abandonment is shown only if one was recorded and can be proved, no answer proves a
+cancellation, workspace repair, ownership release, current permission to record another objective or publication, and this read and the
+independently loaded history headers are separate reads, not one atomic replay. **No recorded abandonment** says only that this read found
+none for the run (nothing about whether it can be abandoned now, how it ended or whether another objective may be recorded), and **not
+provable** that the facts this read needs could not be proved as a whole, so nothing is shown; it says neither that an abandonment was
+recorded nor that none was (a never-abandoned run whose stored mode is unrecognized is also answered this way). A failed read, a vanished run, a ten-second timeout (which aborts the request
+itself) and an answer that is not coherent for exactly this run and the selected entry's project are distinct and show no abandonment. The
+region offers no abandon, cancel, repair, release, retry, intake, approval, commit, publication, export or artifact action and sends no
+polling, automatic retry or live-event refresh. Closing, another run or project, a return to an earlier run (A to B to A), a reload and
+unmounting end the earlier lifetime, discard its answer and abort its request, so a late answer or a retained callback shows and starts
+nothing.
 
 ### Run-isolated asynchronous controls
 

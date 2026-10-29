@@ -142,6 +142,14 @@ one bounded statement over the registered run and project, the operation associa
 answered as Recorded, NotRecorded or Unavailable (a present damaged operation is never absent). It reads only on an explicit open or reload,
 writes nothing, reads no authority member, digest, message, Git or artifact, mounts no request, retry, recovery or publication action and adds no
 table, migration, event, worker or dependency; the live status, receipt and history discovery are unchanged. Increments 4 to 6 stay incomplete.
+ADR-0071 / RUN-ABANDON-INSPECT-01 (implemented for review, unpublished until its own GO) adds only a bodyless, queryless
+`GET /api/runs/{runId}/abandonment-inspection` and one collapsed **Inspect recorded abandonment** region in every selected historical run,
+with or without a receipt source: the Human reason and time of an earlier abandonment (from Created without a workspace or from Running at
+its preserved stage) with its supporting `run.abandoned` event identity and sequence, proved from one bounded statement over the registered
+run and project and the run's exact stored-key events, reusing the unchanged shared reason interpretation and coherence rule, and answered
+as Recorded, NotRecorded or Unavailable (present damaged evidence is never absent). It is independent of present eligibility, reads only on an
+explicit open or reload, writes nothing, mounts no abandon, cancel, repair, release, intake or recovery action and adds no table, migration,
+event, worker or dependency; the live abandonment status, command and panel are unchanged. Increments 4 to 6 stay incomplete.
 ADR-0056 adds only operational evidence for all seven Agent response contracts: a
 durable observation of what the host's own observer last reported (phase, last
 report, absolute deadline, first attention) for the current attempt, an independent

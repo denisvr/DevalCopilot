@@ -643,6 +643,8 @@ describe('the Agent attempts of a historical run detail', () => {
     expect(names).toEqual([
       // LOCAL-COMMIT-INSPECT-01: the collapsed, read-only recorded local commit region beside the receipt (ADR-0070).
       'Inspect recorded local commit',
+      // RUN-ABANDON-INSPECT-01: the collapsed, read-only recorded abandonment region of the selected run (ADR-0071).
+      'Inspect recorded abandonment',
       'Show recorded events',
       'Show recorded collaboration',
       'Hide Agent attempt history',

@@ -6,7 +6,221 @@ was prepared ([recovery](development-workflow.md#recovery)). Git and code
 prevail; compare branch, `HEAD`, `origin/main` and staged/unstaged/untracked
 state first.
 
-## Active slice: COCKPIT-IDENTITY-01 correct sibling component identity in the current cockpit
+## Active slice: RUN-ABANDON-INSPECT-01 inspect recorded run abandonment in history (ADR-0071)
+
+This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
+Reconcile publication with Git and the slice's independent publication-verification record, when available. This record alone grants no
+publication authority.
+
+**Delivery phase: return of correction 1 (Codex review 1 NO-GO: RABI-R1 P2, RABI-V1 P3; see [Correction 1](#correction-1-codex-review-1-no-go-rabi-r1-p2-rabi-v1-p3))
+to Codex, in the same executor chat; the complete diff (including the four planner inputs, the handoff now at the reviewer's
+`2a4102d7…28cf`) is unstaged, uncommitted and unpushed. No GO exists.** The first-return text below is kept as that return's record, with the
+retention, count and baseline statements that RABI-V1 found inaccurate corrected in place and named in Correction 1. Review and publication
+are separate later events; nothing here claims either.
+Baseline: `main`, `HEAD`, local `origin/main` and a live `git ls-remote` read of `origin/main` equalled `a3f394d6dfee770a378035631f63538471cc60c7`
+(COCKPIT-IDENTITY-01, independently verified published; neither repeated, republished nor reopened, and no closure commit was made). The index was
+empty, exactly the three planner files were modified and exactly ADR-0071 was untracked. The four planner inputs (`0071-…md` `92774e63…f162`,
+`decisions/README.md` `06b473f1…8f5b`, `mvp-delivery-plan.md` `7def0360…9ae3`, `planner-handoff.md` `c70db324…c402`) equalled the dispatch SHA-256 values at the
+start and were not edited. ADR-0050 stays Proposed, P9 unproven, AI Memory deferred, Increments 4/5/6 incomplete; every standing restriction in the
+handoff stays. No frozen profile, native, provider or credential experiment, real run, recovery, cleanup, Domain, shared reader or policy, persistence mapping,
+schema, migration, producer, shared hook, worker or dependency change was made, and no commit or push.
+
+### What exists
+
+- **Application.** `GetRunAbandonmentInspectionQuery` (run id only) with its handler, a validator (a nil run is the fixed `validation.invalid_run`), a closed
+  `RunAbandonmentInspectionStatus` (`NotRecorded`, `Unavailable`, `Recorded`) and result, and one operation-owned policy folder
+  (`Policies/RecordedRunAbandonment`, types named `RecordedAbandonment*` so that only the two real call sites contain the shared reader's name). **One**
+  bounded no-tracking EF statement (`RecordedAbandonmentReader`, `Take(2)`) reads the registered run and project (inner join) and a left join to the run's
+  events filtered to the exact `run.abandoned` type, so an unknown run or a run whose registered project is absent is the fixed
+  `run_abandonment_inspection.not_found`, no row of the left join is a run with no associated event and a second row is excess evidence. The guarded scalar
+  projection (`RecordedAbandonmentProjection`) classifies the lifecycle in the database (1 to 6, 0 unknown), carries the stored mode only within 8 bytes (read by
+  the unchanged `RunExecutionModeStorage`), every identifier and the last-advance and event times as raw bytes within 36/64 bytes, the reason within 2048 bytes and
+  the event payload within 16384 bytes (a cast to a blob counts an embedded NUL; a value beyond its bound is never fetched), the event sequence only when it is at
+  least 1, and the Human/run-scoped comparison and the no-active-participant comparison as booleans decided in the database. The recorded abandonment time alone is
+  projected through its own TEXT-only tolerant column mapping, bounded the same way, so a BLOB, integer, REAL or unparsable value reads as present-but-null.
+  `RecordedAbandonmentReader.Classify` answers NotRecorded only for a recognized mode and a recognized non-Abandoned lifecycle with both abandonment columns SQL
+  NULL and no event row; every other incomplete, stray, damaged, unsupported or doubled shape is Unavailable; Recorded requires one admitted event and then calls the
+  **unchanged** `RunAbandonmentReader.ReadReason` and **unchanged** `RunAbandonmentPolicy.IsCoherent` on the selected facts (Abandoned, the proved mode, the strictly
+  decoded reason, the tolerant time, the last advance, the participant boolean and one event fact). Nothing is written, no objective, stage, budget, attempt,
+  message, verification, workspace, lease, commit, artifact, eligibility or blocker is read and the only catches are of unreadable text and an unreadable payload
+  (below), never a database or cancellation fault.
+- **API.** One protected bodyless, queryless MVC GET, `GET /api/runs/{runId}/abandonment-inspection` (`GetRunAbandonmentInspectionEndpoint`, one class and one action
+  behind `RunsBaseEndpoint`, dispatching through `IApplicationMediator`), behind `RunAbandonmentInspectionGuardFilter` (the sibling guard: any query key or text is
+  the fixed 400 `run_abandonment_inspection.query_not_allowed`; a declared length, any transfer encoding or a readable undeclared byte is
+  `run_abandonment_inspection.body_not_allowed`, both before binding and dispatch and echoing nothing). API-owned closed graph (`GetRunAbandonmentInspectionResponse`,
+  `RunAbandonmentInspectionRecordedResponse`; the instant as a UTC `O` string with seven fractional digits, the sequence as a canonical decimal string). NSwag regenerates
+  the client reproducibly, additive only (158 insertions, 0 deletions).
+- **Frontend** (implemented by a forked implementer and reviewed by this chat, which read the decoder, wire facade, hook, region, copy and mounts). `runAbandonmentInspection.ts`
+  (whole-answer raw-wire decoder: exact keys at both levels, a closed status vocabulary, null shapes, requested run and the selected entry's project, lowercase non-nil
+  GUIDs, the ADR-0031 canonical reason by Unicode scalar and UTF-8 bytes, the shared shape-only UTC round trip with no default-instant exclusion, and a BigInt-checked
+  canonical positive Int64 sequence; any violation rejects the whole answer), `runAbandonmentInspectionWire.ts` (parsed-body wire client with a real abort signal),
+  `useRunAbandonmentInspection` (the run/opening/read-visit lifetimes of the sibling hook over the unchanged `useOwnedLifetime`/`useOwnedState`, a real ten-second
+  abort, read only on open or explicit reload, a reload clears the old answer at once), `runAbandonmentInspectionCopy.ts` and the collapsed **Inspect recorded
+  abandonment** region (`RunAbandonmentInspectionRegion`: the reason as literal text with `white-space: pre-wrap`), mounted once in `ProjectRunHistoryDetail` after the
+  local-commit region, for every selected run, with or without a receipt source. `AbandonRunPanel`, the live status and command hooks and the receipt are
+  unchanged; the wire client is registered in `clients.ts`.
+- **Journey.** `e2e/abandon-run.journey.ts` is extended after the second objective settles (step 7, details under Evidence) with one local event-row reader in the file itself
+  (`allEventRows`); `journeyDb.ts` is unchanged.
+- **Documents.** The explicit-abandonment section of data-and-recovery, the cockpit specification (a new "Recorded abandonment inspection" section and one pointer in Run
+  history), the security plan (one boundary row), the engineering context and this record. The four planner inputs are included unedited.
+- **One existing architecture test changed.** `RunAbandonmentBoundaryTests.Intake_recognizes_an_abandonment_only_through_the_shared_coherence_reader` pins which sources may name the
+  shared reader and call `IsCoherent`; the new reader is a legitimate third consumer (it must call both on the selected facts, as ADR-0071 requires), so it is added to both expected
+  lists. No other existing test changed except the two history-detail button lists (the new toggle only).
+
+### Evidence (logs under `logs/executor/run-abandon-inspect-01/`, git-ignored; commands run at the repository root unless a frontend script)
+
+Fresh on the final stable sources unless stated; elapsed times are wall clock.
+
+- **Build and generation.** Build server shut down, then serial non-incremental builds (`-m:1`, 0 warnings, 0 errors): the Api build (15 s) and the four test projects. The generated
+  `api-client.ts` SHA-256 `929e360ba18546d5d9ef74528a5f46fd14f6efd499548dbad3b052e9759c19ba` was identical at the first regeneration (the development build) and after the final Api build (two generations), and
+  unchanged after the test-project and journey-host builds (those reference the Api with `SkipNSwag=True`, so they are unchanged snapshots, not further generations);
+  `git diff --numstat` 158 insertions, 0 deletions. Nothing was edited in the generated file.
+- **Domain** `RunAbandonmentTests`: **54 passed**, 2 s (unchanged shared rule).
+- **Application**, the dispatched filter: **273 passed**, 57 s (**155 new** in `Features.Runs.RunAbandonmentInspection`, 118 unchanged existing). Real migrated file-backed SQLite: production-written closures
+  from Created without a workspace and from Running with and without workspace rows; NotRecorded for Created, Running, Completed, Failed, Interrupted and for recognized non-manual modes; a newer
+  run in the same project; fixed 404 for an unknown run and a missing registered project (identical); a nil run's fixed validation text; stability after a second abandonment, later workspace, attempt
+  and `MissingExternally` work and a pool-cleared reopen; multiline and Unicode (surrogate pair) reasons; **91 named damage cases** (closed run: event missing, type case/blank, foreign or lowercase run key, a second event with a good and a
+  damaged identity, event identity lowercase/blank/oversized/NUL/nil/braced, non-Human actor, role, provider and attempt scope, sequence 0 and negative, payload not JSON/empty/array/non-string/different/NUL/invalid UTF-8/lone-surrogate escape/beyond
+  its bound, event time one tick either way/unparsable/non-writer text/oversized/integer, lifecycle unknown or still Running/Completed beside every fact, mode Legacy/Simulated/text/out of range/fractional/oversized/BLOB, participants, lowercase project
+  key on both sides, unregistered project, reason null/empty/untrimmed/CRLF/control/line separator/beyond 2 KiB/NUL/invalid UTF-8/different from the event, abandonment time null/unparsable/BLOB/integer/REAL/oversized/one tick either way,
+  last advance one tick later/unparsable/oversized; open run: stray reason, time, BLOB or unparsable time, empty reason, a stray or damaged event, an event of another type as no association, unknown lifecycle, unrecognized, fractional and oversized
+  mode, lowercase project key, unregistered project) each proved Recorded or NotRecorded first, then exactly Unavailable, NotRecorded or the fixed 404, and damage of another run leaving a healthy run Recorded; storage and
+  text bounds (reasons of exactly 2048 bytes in ASCII, two-, three- and four-byte scalars, LF multiline, 2048 `<` and `"`, whose escaped payload stays under 16384; a payload of exactly 16384 admitted and one byte more refused; a reason of 2048
+  bytes admitted and 2049 refused; a reason over the byte bound by multibyte characters; a supplementary-plane format character; untrimmed text never repaired); times (every producer instant, the offsets +03:00 and -05:30,
+  one tick, a BLOB of each exact abandonment text beside its TEXT control, the default instant and both calendar extremes, equal instants in different offsets and one tick apart, explicit zero fractions); **read proof** (below).
+  Read proof: exactly one SELECT per read for each scene and the 404, `LIMIT @p = 2`, exactly the tables `events`, `projects` and `runs`, none of 31 forbidden names, no `COUNT(` or `SELECT *`, zero change of the stored run and event rows
+  and row counts, the handler's only dependency the database context, injected faults on each of the three tables and a cancelled token propagating. The captured statement and its `EXPLAIN QUERY PLAN`
+  (`SEARCH r USING INDEX sqlite_autoindex_runs_1 (Id=?)`, `SEARCH p USING COVERING INDEX sqlite_autoindex_projects_1`, `SEARCH e USING INDEX IX_events_RunId_Sequence (RunId=?) LEFT-JOIN`, no scan, no sort) are kept in `recorded-statement-and-plan.txt`.
+- **Api**, the dispatched filter: **124 passed**, 28 s (**37 new**, 87 existing, run once on the final build; an earlier development run of the same filter passed 121 before three cases were added). Through the real host and the real abandon POST: authentication (anonymous, wrong secret, query token),
+  the four wrong verbs, the route inventory (exactly one authorized GET, no anonymous `api/runs` route, the live status route unchanged), three body shapes and an undeclared readable byte refused before dispatch even for a nil run, thirteen query shapes
+  refused before dispatch with fixed non-echoing text, a lone `?` read normally, the fixed 404 for an unknown run and a missing project (identical bodies), the nil-run validation, the closed wire of Recorded after Created and Running closures
+  (member order, canonical times, the stored event identity and sequence), exact sequences 9007199254740993 and 9223372036854775807 as strings, offsets and the default instant normalized to seven-digit UTC text, a multiline Unicode reason,
+  NotRecorded (newer run, another lifecycle), Unavailable for four damage kinds (never a leaked reason), a real database fault (a renamed `events` table) answered by the host's 500 and none of the three statuses, three repeated reads changing nothing, and the actual OpenAPI contract (one path,
+  `runId` only, no request body, 200/400/404, closed schemas, `eventSequence` a string).
+- **Architecture**, whole project: **232 passed** (225 before; seven new boundary facts for ADR-0071 and the one updated pin).
+- **Format and hygiene.** `dotnet format DevalCopilot.slnx --verify-no-changes --include <the 31 changed C# files listed in 04-changed-cs.txt>`: exit 0, 35 s (its log `04-format.txt` is empty because the command printed nothing). Every one of the 30 new C# files has exactly one top-level type matching its name.
+  No dependency, package, configuration, migration or schema file changed. `git diff --check` is clean apart from the generated client's CRLF notice; the sensitive-pattern scan over the diff and new files found only clearly fictitious test values
+  (`not-a-real-session`, `not-the-launch-secret`, `access_token=secret`).
+- **Frontend**, the dispatched filter once: **21 files, 387 passed** (executed cases, `it.each` rows included), 7 s. The six new files executed **160** cases (decoder 96, contract 9, hook 19, transport with a real abort 7, region 13, history-detail
+  composition with and without a receipt source 16; per-file counts taken from the JSON reporter of the correction run, whose six unchanged-logic files ran the same cases). The "69 listed test titles" first reported here came from a `grep` over
+  `vitest list` output and undercounted; it is withdrawn. The `LocalExecutionAdmissionSurfaces`/`LocalExecutionReleaseInspectionSurfaces` cases passed, as expected on the published COCKPIT-IDENTITY-01 baseline whose key correction
+  made them pass; their earlier failures remain that slice's bounded correction evidence. `npm run lint` exit 0 (nine existing warnings, none in the new files), `npm run build` exit 0
+  (`tsc -b`, the existing chunk-size notice), strict e2e `tsc` (the recorded flag set) over the 52 e2e files and two Playwright configs exit 0.
+- **Journey**, announced to the owner before the run, then run once headed with `npx playwright test -c playwright.journey.config.ts e2e/abandon-run.journey.ts --headed --trace off --workers 1` (no Inspector, `--debug`, `--ui`, `PWDEBUG` or manual Resume; trace, video and screenshots off): **1 passed, 20.3 s**
+  (test 13.2 s), `11-journey-run-1.txt`. Before the run the journey host was rebuilt serially and non-incrementally (`10-host-build.txt`, 0 warnings, 0 errors) and its four `DevalCopilot.*.dll` equalled the fresh `src/backend` outputs byte for byte (`10-host-provenance.txt`; the pre-build host hashes are in `01-host-dll-hashes-before.txt`).
+  Step 7 runs after the second objective settled: it baselines the business POSTs (`PostInventory`, transport excluded), the doubles' invocation count and the run rows, every event row, the attempts, the owned workspace row and bytes, the sealed manifests and the source repository, then opens Run history (two rows), selects Run #1 (collapsed, cold, nothing read),
+  opens the region (an awaited exact 200 response equal to the stored run, event identity and sequence, the stored instant and the reason, with the exact key sets and the sequence a string), checks the rendered reason, instant, `event · sequence`, project and note, reloads explicitly (one more identical exact response), closes cold, reopens, replaces the selection with Run #2
+  (cold, nothing read, then an exact `NotRecorded` response and its rendered copy with no reason), returns to Run #1 (A to B to A: cold, nothing read), reloads the page (history collapsed, nothing read, the earlier run's region cold) and finally proves no business POST, no further abandon request, no invocation and an unchanged durable baseline.
+  **The baseline covers exactly** those named rows and files; it is not a byte identity of every stored row or file, and a page reload is not a host restart. The SignalR "connection was stopped during negotiation" console errors (five, relayed by Vite) appear as in earlier journeys; not investigated.
+- **Hygiene of documents.** The existing `check-links.ps1` (reused from the previous slice) over the nine changed or planner documents: 290 links and fragments, 0 failures; a negative control (a temporary document with a missing file and a missing fragment) was detected, both. The one heading renamed in this record (the previous slice's) has no inbound reference. The four planner inputs equal their dispatch SHA-256 values again at the return (`14-planner-input-hashes-final.txt`). This check ran before the final edit of this bullet; that edit adds no link.
+
+Retained, not rerun and not run: the whole Application, Api, Infrastructure and Domain suites, the whole Vitest suite, the other journeys, the standalone harness tests and any mutation or compiling-control campaign (none was requested; no schema, producer, ownership, shared transport, authentication or lifetime code changed).
+No earlier slice's evidence is fresh evidence for this one.
+
+### Preserved development attempts and failures
+
+None was rerun blindly, but **not all failed output was kept** (corrected for RABI-V1; the first return said it all was). The development runs before the
+final matrix were captured through `grep`, `head`, `tail` and `cut` pipelines into tool results only: no complete unfiltered process log of any failure
+below exists. The reviewer located the exact retained tool-result excerpts and their invocations in the executor and fork transcripts and preserved
+them (`logs/planner-review/run-abandon-inspect-01/review-01/retained-executor-failure-tool-results.json` and
+`retained-frontend-failure-tool-results.json`); they are excerpts, not process logs. Retention, failure by failure:
+
+- Application 19/93 damage run, Architecture 3/232 run and the first journey draft's strict-`tsc` errors: filtered excerpts only, in the executor JSON above.
+- The fork's first `npm run build` (six `error TS…` lines shown, in two new test files): it wrote `/tmp/build.txt` and showed it through `tail | cut`; its own passing
+  rebuild overwrote that file (modified 23:02:55Z, 17 s after the failing tool result was recorded at 23:02:38Z), so the original is **lost**; the filtered excerpt is in the frontend JSON above. The surviving fork files
+  `/tmp/build.txt` (passing rebuild), `/tmp/lint.txt`, `/tmp/vitest-final.txt` and `fix2.js`, and my edit scripts `ln.js`, `fix.js`, `add.js` and `j.js`, are now copied
+  with a hash manifest to `logs/executor/run-abandon-inspect-01/correction-01/retained-temp/`; they are post-failure files, not the failures. The fork's first `vitest` run is
+  not retained as a file.
+- Not in the reviewer's list and **unretained except as filtered excerpts in this chat's own transcript**: the Application build error CS0472 (a `long` compared with null),
+  the missing-`using` CS0103 and `ITestOutputHelper` CS0246 test-build errors, the first focused Application run (1 of 18 failed: the later run read NotRecorded because its abandonment, which the test did not
+  assert, was not recorded; I inferred a project blocker my test had added first, reordered the setup and asserted the abandonment, without proving that cause), the Api test-build errors CS1503 (a concatenated interpolated string is not a `FormattableString`) and the first Api run (1 of 34 failed:
+  `SQLite Error 1: near "@p0"`, my own statement), all fixed in tests before the final matrix.
+- No historical failure was rerun to replace its output and none is reconstructed here.
+
+- The first Application run of the new damage matrix: 19 of 93 failed. Eighteen were my own test helper (`ExecuteSqlRawAsync` treats `{`/`}` as format placeholders, so every JSON payload statement threw `FormatException`; the helper now uses a raw command); one was a real product finding (below).
+- The first journey draft had a duplicate `answered` binding and a regex whose backslashes the shell halved; strict e2e `tsc` and a re-read caught both before any journey run. Several shell-generated edits lost backslashes the same way and were redone with the Edit tool.
+- The forked frontend implementer's first `npm run build` failed on type errors in its new tests (a lifecycle type and a missing `projectId`); it fixed them and reran (`vitest` twice, `build` twice).
+- The first Architecture run failed three facts: two were my own new facts (the shared reader's name is a substring of my first class name, and the storage parser's own `DecoderFallbackException` catch was not counted) and one was the existing pin above. I renamed the type family and updated the pin and facts; no behavior changed.
+
+### Challenges, limits and risks for review
+
+- **No material challenge to ADR-0071; interpretations put to the planner (none accepted until recorded):**
+  1. **The shared reader throws on a lone-surrogate escape.** `RunAbandonmentReader.ReadReason` catches `JsonException` only; a payload such as `{"reason":"\ud800"}` makes `GetString()` throw `InvalidOperationException`. The new reader catches that one exception around the unchanged call and treats the payload as unreadable (Unavailable, case `payload_lone_surrogate_escape`). The same stored payload would still fault the existing intake, replay, summary and status consumers: a **pre-existing defect outside this slice** (the ADR bars changing the shared reader), reported, not changed.
+  2. **Only the abandonment column is TEXT-only.** ADR-0071 requires the BLOB refusal for that column, and it is proved (and paired with its TEXT control) for every producer instant. The last-advance and event times are read like every sibling inspector reads times, as bounded stored bytes of the writer's text, so a BLOB holding those exact bytes is read as that text (cases in `RunAbandonmentInspectionTimeTests`, stated plainly there). The ADR does not extend the TEXT-only rule to them; a stricter reading would need a storage-class probe EF cannot express and would change what the existing readers admit.
+  3. **Stored time text is the provider writer's form.** The event and last-advance times are admitted only as `yyyy-MM-dd HH:mm:ss[.F…]zzz` (any offset, the default instant, full ticks); a `T`-separated or otherwise parseable text is refused, though the standard EF mapping used by the existing readers would accept some of it.
+  4. **Root identities are proved for every status.** A damaged stored run or project key (lowercase, oversized, NUL, braced) is Unavailable even for a never-abandoned run; ADR-0071 lists "unsupported root disclosures" among Unavailable causes, and the project key is only disclosed for Recorded. An unrecognized stored mode is Unavailable for NotRecorded; Legacy and Simulated are recognized and read NotRecorded.
+  5. **Uppercase stored versus lowercase wire.** As in the sibling inspectors, stored identifiers are admitted only as uppercase D-format text and the decoder requires lowercase wire GUIDs for the run, project and event.
+  6. **JavaScript versus .NET Unicode data.** The frontend classifies the reason with `\p{Cc}`, `\p{Cf}`, `\p{Zl}`, `\p{Zp}` and a whitespace/control edge check approximating `Trim`; very new format characters could differ between the runtimes. The backend remains the authority and its answers are only ever admitted if the frontend also accepts them.
+- **Not a replay, receipt or authentication.** A Recorded answer is unsigned relational consistency read now; matching rewrites of the recorded rows stay outside the assurance. It proves no cancellation, workspace repair, ownership release, current intake permission or publication, and independently loaded history headers and this answer are separate reads.
+- **Journey scope.** It proves the Recorded closure (from Running with a prepared workspace) and the newer NotRecorded run through the browser; Created/no-workspace closure, Unavailable, damaged storage, bounds, timeouts and lifecycle races are proved at the Application, Api and component boundaries. It ran once on passing sources; no control showed it red. The history-detail button regex of other journeys (`Abandon`) is untouched and not run.
+- **Not in scope and not done:** recovery, retry, release, intake, approval, commit and publication behavior, a real-provider or real-run read, any frozen-experiment renewal, polling, prefetch, export or browser persistence, and no selection of the next slice.
+
+### Correction 1 (Codex review 1 NO-GO: RABI-R1 P2, RABI-V1 P3)
+
+Planner findings **RABI-R1** and **RABI-V1** (identifiers kept; open until Codex's next review). Preflight matched
+`logs/planner-review/run-abandon-inspect-01/review-01/preflight.json` exactly before any edit: `main`, `HEAD`, local `origin/main` and a live `git ls-remote` read
+equal `a3f394d6dfee770a378035631f63538471cc60c7`, empty index, 58 pending paths (15 modified, 43 untracked), every SHA-256 equal; the four planner inputs at the stated
+values (the handoff at the reviewer's `2a4102d7…28cf`). The existing implementation was continued, not recreated.
+
+- **RABI-R1 (agreed).** The three common notes were shown for every state of the open region and said that abandonment ended this run's objective and that
+  the record is internally consistent; the Unavailable text said abandonment facts are recorded, although an unrecognized mode on a never-abandoned run is also
+  Unavailable (the backend open-run damage cases `mode_unrecognized_*`). Correction in `runAbandonmentInspectionCopy.ts` only: the common notes are now generic
+  (the region shows an abandonment only if one was recorded and can be proved; whatever it answers proves no cancellation, workspace repair, ownership release,
+  current permission or publication; this read and the history headers are separate reads); the ended-objective-without-successful-completion and
+  agree-within-one-read statements moved into the Recorded note; Unavailable now says the facts this read needs could not be proved as a whole and that this says
+  neither that an abandonment was recorded nor that none was, nor how the run ended; the pending, read-failure, timeout and incoherent-answer texts no longer
+  presuppose a recorded abandonment ("Reading what the host recorded for this run…", "This read failed, so nothing is shown.", "…so nothing is shown.",
+  "The host answered with something that is not coherent for this run…"). Labels, the NotRecorded and not-found texts, the Recorded facts, statuses, route, hooks,
+  lifetimes and authority are unchanged. Five pending-text patterns (three in `RunAbandonmentInspectionRegion.test.tsx`, two in
+  `RunAbandonmentInspectionSurfaces.test.tsx`) and one region assertion on the moved sentence (now checked in the rendered Recorded note) were updated.
+- **New permanent regressions** `RunAbandonmentInspectionCopySemantics.test.tsx` (7 cases): the real region, generated client and transport over a fake network, asserting the
+  rendered text with literal patterns, not the imported constants. Pending, read failure, the real ten-second timeout (fake timers), an incoherent answer, NotRecorded and
+  Unavailable each show the common notes and nothing that says this run was abandoned, ended its objective, completed without success, or that facts are recorded or agree;
+  Unavailable additionally makes no absence claim; the positive Recorded control shows the historical abandonment, the ended objective, the within-one-read consistency, the
+  reason and `event · sequence`. The reviewer's two archived diagnostics are covered by equivalent assertions (NotRecorded and Unavailable cases).
+- **Bounded controls** (hash-guarded swaps of the copy file, restored byte-identical to `fed2e671…702d` each time; logs `correction-01/02-…` to `04-…`): A, the reviewed copy
+  itself (`8501ba9c…2552`, equal to the review preflight hash): 7 of 7 failed, mostly at the new wording expectations, so A does not isolate the forbidden-claim checks;
+  B, the corrected copy with only the old ended-objective sentence put back into a common note and the old Unavailable presence sentence put back: 6 failed (every
+  non-Recorded case, each at `must not claim /ended the objective/i`), the positive control passed; C, only the Unavailable presence sentence put back: exactly the Unavailable case
+  failed at `must not claim /facts are recorded/i`. Their scope is these three edits.
+- **Consequential document edit, flagged for review.** The cockpit specification's own new section (part of this slice's diff) described the Unavailable copy as "abandonment facts
+  exist" and the common copy as asserting the ended objective. I corrected that one paragraph to the new meaning. This goes beyond "copy, tests and report" by one paragraph of this
+  slice's own document; it changes no contract, and the planner may ask for it to be reverted.
+- **RABI-V1 (agreed).** Corrected in place above: the blanket retention claim (now failure by failure, with the lost fork build output and the unretained development failures
+  named), the frontend counts (160 executed cases in the six original new files; the "69 titles" figure withdrawn), the client statement (two generations; later builds are
+  `SkipNSwag` snapshots), the format log's empty content, and the cockpit-failure wording (expected passes on the published COCKPIT-IDENTITY-01 baseline, not a new
+  phenomenon). Surviving temp files were copied with a hash manifest (`correction-01/retained-temp/00-manifest.txt`). Nothing was reconstructed or rerun as a replacement.
+
+**First-return final matrix command record.** Original recorded tool-use inputs, including the explicit backend project/filter arguments, are retained in
+`logs/planner-review/run-abandon-inspect-01/review-02/retained-final-validation-invocations.json`. The following human-readable list abbreviates repeated project paths and filters; it is not a verbatim command capture.
+Repository root unless noted: `dotnet build-server shutdown`; `dotnet build src/backend/DevalCopilot.Api/DevalCopilot.Api.csproj -m:1 --no-incremental`;
+`dotnet build <Domain, Application, Api integration and Architecture test projects> -m:1 --no-incremental`; `dotnet format DevalCopilot.slnx --verify-no-changes --include <04-changed-cs.txt>`;
+`dotnet test <project> --no-build --filter "<the dispatched filter>"` for Domain, Application and Api and `dotnet test tests/DevalCopilot.Architecture.Tests/DevalCopilot.Architecture.Tests.csproj --no-build`;
+`dotnet build tests/DevalCopilot.Api.IntegrationTests/BrowserJourney/Host/BrowserJourneyHost.csproj -m:1 --no-incremental`; from the frontend, `npx vitest run <the 14 dispatched filters>`, `npm run lint`,
+`npm run build`, `npx tsc --ignoreConfig --noEmit --strict --target es2023 --module esnext --moduleResolution bundler --skipLibCheck --noUnusedLocals --noUnusedParameters --verbatimModuleSyntax --allowImportingTsExtensions --erasableSyntaxOnly --types node e2e/*.ts e2e/journey/*.ts e2e/harness/*.ts playwright.config.ts playwright.journey.config.ts`
+and `npx playwright test -c playwright.journey.config.ts e2e/abandon-run.journey.ts --headed --trace off --workers 1`. `dotnet test` counts executed cases, so the Application 155, Api 37 and the 91 damage
+cases are executed theory rows, not titles.
+
+**Correction checks (fresh on the corrected sources; logs `logs/executor/run-abandon-inspect-01/correction-01/`; frontend commands from `src/frontend/DevalCopilot.Frontend`):**
+`npx vitest run RunAbandonmentInspectionCopySemantics`: 7 passed, 3 s (before the controls). The dispatched selection once on stable sources,
+`npx vitest run AbandonmentInspection ProjectRunHistoryPanel ProjectRunHistoryAgentAttempts useProjectRunHistory PlanningSequenceInspectionSurfaces LocalCommitInspectionSurfaces LocalExecutionAdmissionSurfaces LocalExecutionReleaseInspectionSurfaces AbandonRunPanel useManualRunAbandonment useAbandonManualRun describeRunAbandonment layoutBoundary CockpitIdentity --reporter=default --reporter=json --outputFile.json=<log>`:
+**22 files, 394 executed cases passed**, 8 s (the 387 of the first return plus the 7 new; per-file counts in `05-vitest-per-file.txt`). `npm run lint`: exit 0, nine existing warnings, none in these files.
+`npm run build` (`tsc -b && vite build`): exit 0, 8 s, no `error TS`. No stray emitted `.js`. Changed-document links, the complete correction diff and the sensitive-pattern scan are recorded in the last bullet below.
+
+**Retained, with input-scope reasoning:** no `.cs`, schema, API contract, generated client, `e2e/` file or Playwright config changed in this correction, so the first return's backend matrix
+(Domain 54, Application 273, Api 124, Architecture 232), format, one-type check, client hash, host provenance and strict e2e `tsc` keep their scope; Codex's independent 155/155 Application,
+160/160 frontend and reproduced client `929e360b…19ba` stand as the reviewer's evidence. The headed journey **predates this correction and is not a run of the corrected frontend**. Its
+copy assertions still name text that exists in the same states (`without successful completion` now lives only in the Recorded note, where the journey checks it; the NotRecorded text is
+unchanged), but that is reasoning from source, not a browser result. Not run: backend tests, regeneration, the journey, whole Vitest and any other campaign.
+
+- **Correction hygiene.** The correction changed exactly six paths against the review preflight (`10-correction-inventory.txt`: the copy file, two existing test files, the new
+  regression file, the cockpit specification and this record), leaving 59 pending paths. The reused `check-links.ps1` over the nine changed or planner documents: 291 links and fragments,
+  0 failures, the new Correction 1 anchor resolving; a negative control detected a missing file and a missing fragment. `git diff --check` clean apart from the generated client's CRLF
+  notice; the new and changed frontend files carry no CR; the sensitive-pattern scan over the added lines found only the fictitious `not-a-real-session`, `not-the-launch-secret` and
+  `access_token=secret` values and the test-only `C:\secret` string. The four planner inputs equal the review's stated values (`09-planner-input-hashes.txt`). These checks ran before
+  this bullet was written; it adds no link.
+
+## Previous slice (independently verified published as a3f394d; historical record): COCKPIT-IDENTITY-01 correct sibling component identity in the current cockpit
 
 This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
 Reconcile publication with Git and the slice's independent publication-verification record, when available. This record alone grants no

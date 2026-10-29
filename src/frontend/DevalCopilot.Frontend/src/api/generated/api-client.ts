@@ -2381,6 +2381,68 @@ export class GetRunCockpitEndpointClient {
     }
 }
 
+export class GetRunAbandonmentInspectionEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getRunAbandonmentInspection(runId: string): Promise<GetRunAbandonmentInspectionResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/abandonment-inspection";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetRunAbandonmentInspection(_response);
+        });
+    }
+
+    protected processGetRunAbandonmentInspection(response: Response): Promise<GetRunAbandonmentInspectionResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = GetRunAbandonmentInspectionResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            let resultData400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result400 = ApiProblemDetails.fromJS(resultData400);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ApiProblemDetails.fromJS(resultData404);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<GetRunAbandonmentInspectionResponse>(null as any);
+    }
+}
+
 export class GetProcessAttemptOutputEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -11513,6 +11575,102 @@ export class CodexAccountUsageWarningSettingResponse implements ICodexAccountUsa
 export interface ICodexAccountUsageWarningSettingResponse {
     state?: string;
     percent?: number | undefined;
+}
+
+export class GetRunAbandonmentInspectionResponse implements IGetRunAbandonmentInspectionResponse {
+    runId?: string;
+    status?: string;
+    abandonment?: RunAbandonmentInspectionRecordedResponse | undefined;
+
+    constructor(data?: IGetRunAbandonmentInspectionResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.runId = _data["runId"];
+            this.status = _data["status"];
+            this.abandonment = _data["abandonment"] ? RunAbandonmentInspectionRecordedResponse.fromJS(_data["abandonment"]) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): GetRunAbandonmentInspectionResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GetRunAbandonmentInspectionResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["runId"] = this.runId;
+        data["status"] = this.status;
+        data["abandonment"] = this.abandonment ? this.abandonment.toJSON() : undefined as any;
+        return data;
+    }
+}
+
+export interface IGetRunAbandonmentInspectionResponse {
+    runId?: string;
+    status?: string;
+    abandonment?: RunAbandonmentInspectionRecordedResponse | undefined;
+}
+
+export class RunAbandonmentInspectionRecordedResponse implements IRunAbandonmentInspectionRecordedResponse {
+    projectId?: string;
+    reason?: string;
+    abandonedAtUtc?: string;
+    eventId?: string;
+    eventSequence?: string;
+
+    constructor(data?: IRunAbandonmentInspectionRecordedResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.projectId = _data["projectId"];
+            this.reason = _data["reason"];
+            this.abandonedAtUtc = _data["abandonedAtUtc"];
+            this.eventId = _data["eventId"];
+            this.eventSequence = _data["eventSequence"];
+        }
+    }
+
+    static fromJS(data: any): RunAbandonmentInspectionRecordedResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new RunAbandonmentInspectionRecordedResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["projectId"] = this.projectId;
+        data["reason"] = this.reason;
+        data["abandonedAtUtc"] = this.abandonedAtUtc;
+        data["eventId"] = this.eventId;
+        data["eventSequence"] = this.eventSequence;
+        return data;
+    }
+}
+
+export interface IRunAbandonmentInspectionRecordedResponse {
+    projectId?: string;
+    reason?: string;
+    abandonedAtUtc?: string;
+    eventId?: string;
+    eventSequence?: string;
 }
 
 export class ReviewCorrectionAttemptStatusResponse implements IReviewCorrectionAttemptStatusResponse {

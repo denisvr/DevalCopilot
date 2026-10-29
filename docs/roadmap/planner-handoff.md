@@ -1,204 +1,329 @@
 # Planner/reviewer handoff
 
-## Current action: COCKPIT-IDENTITY-01
+## Current action: RUN-ABANDON-INSPECT-01
 
-**Review 1 GO for exact-content publication; publication pending.** Correct sibling component identity in the current
-cockpit, preserving existing run-owned forms and recorded inspection lifetimes.
-This repairs ADR-0031, ADR-0061, ADR-0067, ADR-0068 and ADR-0070's existing
-contracts without changing them; no new ADR is needed. Planner-owned inputs
-are this handoff and the MVP delivery plan. Preserve both during execution.
+**Review 2 GO for exact-content publication (2026-10-29): RABI-R1 and RABI-V1
+are resolved; publication is pending.** [ADR-0071](../decisions/0071-inspect-recorded-run-abandonment-in-history.md)
+resolves the complete contract. Planner-owned inputs are that ADR, the decision
+index, the MVP delivery plan and this handoff; preserve all four during execution.
+No next implementation was dispatched before this selection.
 
-### Review 1 acceptance and publication boundary
+### Review 2 acceptance and publication boundary
 
 Planner confirmed main, HEAD, local origin/main and fresh live main at
-`a9e06ac634927b097d49f36a7064bd94f0cc46db`, empty index and exactly eight
-pending paths (six modified, two new). Both planner inputs matched dispatch
-hashes before the deliberate reviewer edits to this handoff and the roadmap.
-The substantive implementation is exactly five stable feature-qualified run
-keys in the two selected composition owners; no hook, eligibility, transport,
-backend or shared harness changed. The complete new tests and journey diff
-were reviewed. No blocking implementation finding remains.
+`a3f394d6dfee770a378035631f63538471cc60c7`, empty index and 59 pending paths
+(15 modified tracked, 44 individually untracked). Against review-01's inventory,
+only the owning copy, two existing new component test files, current-work and
+the cockpit specification changed, and CopySemantics was added. All other
+reviewed content and all four planner inputs matched before deliberate review
+edits to this handoff, the decision index and roadmap. The reviewer also
+qualified the command-list heading in current-work; these document edits are
+included in the external approved identity.
 
-Independent frontend **31/31**, four files: both new composition files and the
-two unchanged originally failing surface files. Independent strict e2e checking
-passed over **54 files**, with exact flags/inventory retained. Evidence:
-`logs/planner-review/cockpit-identity-01/review-01/`. The executor's final
-frontend **1054/1054**, lint, build/typecheck, red control and headed journey
-are accepted at their recorded scopes. The original strict-e2e log is empty
-and its summary abbreviates the flags; the independent command provides the
-explicitly retained strict check, not a reconstruction of that invocation.
+**RABI-R1 resolved.** Common notes are generic/conditional, Unavailable asserts
+neither presence nor absence, and positive abandonment/within-read consistency
+statements belong only to Recorded. Pending/read-failure/timeout/invalid copy
+also avoids presupposing a decision. Only product copy changed; route, statuses,
+decoder, hook, lifetime, fields, backend and generated client are unchanged.
+Seven permanent cases exercise the real region/transport over a fake network,
+including a positive Recorded control. Accept the bounded control B (six
+negative cases fail, positive passes) and C (Unavailable alone fails) at those
+scopes; control A mostly fails on changed wording and does not isolate the
+semantic assertions. Each restored copy hash matches the corrected source.
 
-Accept the executor's second-collision challenge: the original-key control
-shows duplicated/retained Local commit UI in the composition harness, beyond
-a diagnostic alone. Its mocked hooks and synthetic projection changes prove
-the composition property, not a reachable Abandoned-to-Running transition or
-a reproduced real-user incident. App's outer run key remains unchanged.
+Independent corrected frontend: **169/169**, eight files, including the seven
+permanent regressions and both original reviewer diagnostics with unchanged
+archived bytes. The temporary source copy was removed after a hash comparison.
+Evidence: `logs/planner-review/run-abandon-inspect-01/review-02/`.
+Accept executor corrected frontend **394/394**, 22 files, lint/build and
+document checks. The additional cockpit-spec paragraph correction is accepted:
+it removes the same inaccurate presence claim from this slice's own description,
+aligns it with ADR-0071 and grants no new scope or authority.
 
-The headed journey need not be repeated on original keys: component red
-controls establish sensitivity at the changed boundary; browser sensitivity
-is not independently demonstrated. Explicit account/model refresh invokes
-existing capability observations. Clarify the invocation acceptance to mean
-no additional Agent-stage invocation, command, claim or named durable change;
-the existing probe/account observations are allowed by those requested reads.
-This grants no new provider operation or mutation authority. The journey's
-zero duplicate-key result does not explain every past console occurrence.
+**RABI-V1 resolved as a reporting correction; historical evidence loss remains
+a nonblocking limitation, not restored compliance or recovered stdout.** The
+record now identifies filtered captures, the lost fork build output, additional
+unretained development failures and unproved setup causation, and distinguishes
+160 executed parameterized frontend cases from the withdrawn title count.
+The copied surviving temporary files are post-failure artifacts, with their
+manifest checked, never original failure logs. Preserve every captured excerpt
+and unknown. The original final-validation tool-use inputs are retained in
+review-02/retained-final-validation-invocations.json; current-work labels its
+abbreviated list honestly rather than calling placeholders verbatim commands.
+Passing cockpit regressions on the published five-key fix remain expected.
 
-Reviewer qualified current-work's binary claim: successful build and later
-matching outputs support the fresh journey, but changed hashes do not prove
-earlier source mismatch or its cause. The before-build equality is reported,
-not independently retained in a before-build hash record. CS2012 names
-possible lock owners, not established causation. Preserve the failed build,
-aborted control, test-helper failure, all red outputs, journey 404/409/SignalR
-diagnostics and every earlier limit. No backend/whole-suite/provider/recovery
-result or historical process authentication is claimed.
+Retain reviewer freshly built Application **155/155**, explicit API generation
+and full current DLL comparisons, and executor Domain **54**, Application
+**273**, API **124**, Architecture **232**, changed-C# format, strict-e2e and
+the original headed journey at their unchanged-input scopes. Client SHA-256:
+`929e360ba18546d5d9ef74528a5f46fd14f6efd499548dbad3b052e9759c19ba`.
+The journey predates this copy correction; it is not a run of the corrected
+frontend. No repeat browser/backend/generation run or whole-suite claim is
+needed. The fingerprint covers named fields/files, not complete database/file
+byte identity; page reload is not host restart. Current on-disk equality does
+not authenticate images loaded by a past process.
 
-Publish only the eight paths, expected tree and sole parent in the external
-review approval and complete GO. These reviewer document edits are included
-in that identity. No further source/document edit, build, generation, cleanup
-or closure commit is authorized during publication. Any identity mismatch,
-material change, failed push or divergence returns to Codex; no recomputation,
-broader staging, force-push or history reconciliation. Planner independently
-verifies publication afterwards and then checks current context usage; no
-current usage percentage has been observed in this review.
+All review-1 interpretation dispositions below stand within their stated limits.
+The shared lone-surrogate parser defect remains open and outside this slice;
+no shared-reader, intake/replay or authority change is granted. Preserve the
+development/control failures, filtered/lost evidence, first control's limited
+sensitivity, five SignalR observations and every prior qualification. There is
+no remaining blocking finding for this exact substantive diff.
 
-The original selection and acceptance matrix below remain historical context;
-the review dispositions above resolve their reporting and scope qualifications.
+Publish only the external approved 59-path set with its expected tree and sole
+parent in the complete GO. No further source/document edit, build, generation,
+browser, cleanup or closure commit during publication. Any mismatch, material
+change, failed push or divergence returns to Codex; no recomputation, broader
+staging, force-push or history reconciliation. Planner independently verifies
+publication afterwards and then checks current chat context usage. No current
+context percentage was observed in this correction review; the selection's
+earlier observation is not a current percentage or a new continuity decision.
 
-### Verified baseline and selection evidence
+### Review 1 decision and correction boundary
 
-On 2026-10-28, main, HEAD, local origin/main and a fresh permitted live main
-matched `a9e06ac634927b097d49f36a7064bd94f0cc46db`; index, working tree and
-untracked inventory were clean before planning. The restricted live read
-failed with `getaddrinfo() thread failed to start`; the permitted read succeeded.
-No reconciliation, repeat publication or closure commit is needed. Dispatch
-preflight adds only the two unstaged planner documents above, with empty index
-and no untracked files; verify their selection hashes before execution.
+Historical NO-GO, superseded by Review 2 above. Both identifiers and every
+evidence limitation remain retained; the old correction instruction is no
+longer the current action.
 
-Evidence: `logs/planner-review/cockpit-identity-01/`. Fresh unchanged-source
-LocalExecutionAdmissionSurfaces and LocalExecutionReleaseInspectionSurfaces:
-10 failed / 10 passed, 12.51 s, precisely the ten current-run cases seen in the
-previous slice; historical counterparts pass. UsageEvidenceRail assigns the
-same sibling `key={runId}` to AgentAttemptHistoryPanel,
-LocalExecutionInspectionPanel and PlanningSequenceInspectionPanel. A serial
-control changed only these three keys to stable component-qualified run keys:
-the unchanged 20 tests passed, 4.34 s, with no duplicate-key diagnostic. Source
-was restored byte-identical: SHA-256
-`862f764c9f3902fc1897bca431357414e84859cb16c9aa6d8a933b14a8b4e31e`.
-Raw logs: baseline-focused.log, distinct-keys-focused.log; control-identity.txt
-records candidate/original/restored hashes. First invocation never started
-Vitest because its output directory resolved from the wrong working directory;
-that tool failure remains in the planner transcript, not a test result or a
-reconstructed original log. One documentation-edit attempt stopped before any
-write on an exact-text guard because its expected newline did not match.
+Planner reconciled main, HEAD, local origin/main and fresh live main at
+`a3f394d6dfee770a378035631f63538471cc60c7`, empty index and 58 pending paths
+(15 modified tracked, 43 individually untracked). All four planner inputs
+matched dispatch hashes before this deliberate review edit; only this handoff's
+selection hash is superseded. The other three inputs remain unchanged.
+Evidence: `logs/planner-review/run-abandon-inspect-01/review-01/`.
 
-RunCockpitView also gives sibling LocalCommitPanel and AbandonRunPanel the
-same run key. This is source-established; no behavioral failure or historical
-browser cause is claimed for this second collision. React requires keys unique
-among siblings and ties state to identity ([keys](https://react.dev/learn/rendering-lists),
-[state](https://react.dev/learn/preserving-and-resetting-state)).
+**RABI-R1, P2: common and Unavailable copy assert facts not established by the
+answer.** The common note says abandonment ended this run's objective and that
+the record is internally consistent, while it is mounted for pending, failed,
+NotRecorded and Unavailable reads too. A newer Created run with NotRecorded
+therefore receives an affirmative abandonment statement. Unavailable copy says
+abandonment facts are recorded, but a never-abandoned run with an unrecognized
+mode also returns Unavailable without any abandonment column or event present
+(existing open-run damage tests prove that case). Keep common explanations
+generic/conditional and reserve positive historical assertions for Recorded.
+Unavailable must not assert either presence or absence of a decision.
 
-### Selected outcome and boundary
+Two independent component diagnostics reproduce both errors (2 failed).
+Their exact source is archived as RunAbandonmentInspection.review.test.tsx;
+the temporary source copy was removed after a byte/hash comparison. Correct
+the owning copy and add permanent component regressions for negative/common
+states plus the positive Recorded control. Preserve the existing route,
+status semantics, evidence fields, lifetime behavior and journey assertions;
+do not fix this by hiding or changing a backend status.
 
-Repair both identified groups together in UsageEvidenceRail.tsx and
-RunCockpitView.tsx with stable feature-qualified keys retaining the existing
-run and deliberate version identities. Inspect sibling groups in those two
-owners; change only demonstrated collisions. No random/time keys, removing run
-reset, remount on ordinary refresh, console suppression, panel movement/reorder,
-condition/eligibility change, hook replacement or repository-wide key cleanup.
-This is one composition defect; splitting the inspectors from the command
-panels leaves the same identified violation in this cockpit. A cross-stage
-summary/replay adds independent proof contracts; scheduling/recovery and
-provider/publication work cross separate authority. None is selected.
+**RABI-V1, P3: qualify retained evidence and execution history accurately.**
+Current-work's "All failed output is kept" overstates the supplied retention.
+The first Application 19/93 failure and Architecture 3/232 failure were captured
+through grep/head pipelines; the fork's first build was displayed through
+tail/cut from temporary files. Exact retained tool-result excerpts and their
+invocations were located in the executor/fork transcripts and preserved in
+retained-executor-failure-tool-results.json and
+retained-frontend-failure-tool-results.json. They are not complete unfiltered
+process logs, and later passes cannot reconstruct discarded output. State
+which originals actually remain available, preserve them if present, and
+explicitly record missing/overwritten/unretained originals rather than inventing
+them or rerunning a historical failure as a replacement. Retain all excerpts.
+Also record exact final check commands/flags and distinguish title counts from
+executed parameterized cases. The previously fixed ten cockpit failures remain
+published correction evidence at that bounded scope, not unexplained new
+failures merely because they pass on this corrected baseline.
 
-Allowed implementation: the two sources, focused feature-owned component and
-composition tests (new CockpitIdentity-named test if useful), minimal existing
-feature-owned fixture setup, a small extension of
-`e2e/local-execution-queue.journey.ts`, and current-work.md. The two planner
-inputs remain unchanged in the final diff. No shared test setup/harness,
-global console policy, hook, decoder, transport, generated client, backend,
-schema, dependency, native/provider experiment or authority change. If a
-sufficient correction requires any excluded source/contract, stop and present
-evidence and a bounded alternative before dependent work.
+Independent frontend feature tests: **160/160** across six files, before the
+separate two failing reviewer diagnostics. Independent freshly built
+Application feature tests: **155/155**, including the raw storage, full-tick,
+default/offset, bounded statement, missing-project, fault and cancellation
+cases. An explicit fresh API build/generation passed with 0 warnings/errors
+and reproduced the identical client SHA-256
+`929e360ba18546d5d9ef74528a5f46fd14f6efd499548dbad3b052e9759c19ba`.
+API-test and journey-host references set SkipNSwag=True; unchanged client
+snapshots after those builds are not additional generation invocations.
+Current full four-DLL hashes match the fresh source outputs; original retained
+host comparison printed only hash prefixes. Current equality supports current
+on-disk provenance, not authentication of images loaded by a past process.
 
-### Acceptance and proportional validation
+Retain the executor's Domain 54/Application 273/API 124/Architecture 232,
+frontend 387, lint/build, format and one headed journey at their original
+scopes, subject to RABI-R1 and accurate RABI-V1 reporting. No independent API,
+whole-suite or browser rerun is claimed. No compiling control was required.
+Preserve the five SignalR observations and every earlier failure/limit.
 
-1. Run the two original failing surface files unchanged first; all 20 cases
-   must pass after correction. Preserve their original expectations and real
-   transport coverage. The planner red/control evidence is retained, not a
-   final executor result.
-2. Add composition regressions for all three rail inspectors and both
-   local-commit/abandonment panels. Deferred and resolved unrelated account/model
-   observations and stable-run parent refresh must preserve open/selected
-   inspection and eligible local drafts, with exactly one expected instance,
-   no duplicate-key diagnostic and no added inspection read or command. Include
-   conditional sibling presence changes where the existing contracts permit.
-   Use a local console observer that preserves other diagnostics.
-3. Preserve run replacement, A-B-A, collapse/reopen and unmount boundaries:
-   relevant visit/draft ends, successor opens cold and stale callbacks/results
-   cannot act on it. Reuse sufficient existing tests; add only missing
-   composition cases. No command submission merely to test component identity.
-4. Final stable-source frontend filters, once:
-   `UsageEvidenceRail RunCockpitView RunCockpitSelectionOwnership RunEvidenceRefreshComposition LocalExecutionAdmissionSurfaces LocalExecutionReleaseInspectionSurfaces PlanningSequenceInspectionSurfaces AgentAttemptHistoryPanel LocalExecutionInspectionPanel PlanningSequenceInspectionPanel LocalCommitPanel AbandonRunPanel LocalCommitInspectionSurfaces layoutBoundary App.test.tsx App.queueInspection CockpitIdentity`.
-   Include every new test regardless of filename. Run lint, product build
-   (includes tsc), and the existing separate strict e2e TypeScript check over
-   current e2e/config inventory. No whole Vitest/backend suite or client
-   regeneration by default; retained evidence keeps unchanged-input scope.
-5. Extend the existing local-execution-queue journey at its settled current-run
-   inspection: an ordinary nonmutating account/model refresh or parent update
-   preserves selected ledger/step content without extra inspection GETs,
-   commands or invocations. Reuse existing request/durable oracles. Observe
-   duplicate-key console diagnostics from before navigation and require zero
-   throughout this journey; preserve other diagnostics and queue/history
-   assertions. Run only this journey once after stable binaries, announced and
-   automatically headed; trace/video/screenshots off, no Inspector/debug/UI,
-   PWDEBUG or manual Resume. Verify host provenance; incrementally build the
-   journey host serially if needed. Normal authentication and deterministic
-   executables stay. No redundant journey or general recovery/provider claim.
-6. Broaden only for changed consumers/dependencies, failures or unresolved
-   impact; source expansion requires planner resolution. Retain one concise
-   command/result/elapsed/source log and original failures. Check changed-doc
-   links/inbound fragments, full diff and sensitive data. No mutation campaign
-   or new validation framework. Update current-work as implementation facts;
-   challenge material flaws before dependent work. Return unstaged, uncommitted
-   and unpushed for independent GO/NO-GO; no commit/push authority exists.
+Planner dispositions of the executor's interpretations, within these limits:
 
-### Delivered baseline and preserved qualifications
+1. Accept the narrow InvalidOperationException catch around ReadReason only:
+   an undecodable lone-surrogate payload is Unavailable here, while database
+   and cancellation faults propagate. The shared consumer defect remains open
+   and outside this slice; no shared parser or authority change is granted.
+2. Accept TEXT-only abandonment time and raw bounded byte reading of the other
+   time columns, including their tested BLOB equivalents. This asserts no
+   general storage-class authentication for those other columns.
+3. Accept provider-writer time forms with supported offsets/default/ticks;
+   other parseable textual encodings can be Unavailable in this inspector.
+   The shared coherence policy and other consumers' admission stay unchanged.
+4. Accept readable registered-root identities/mode before NotRecorded, and
+   uppercase stored/lowercase wire forms. This applies to rows found by the
+   exact key lookup; no claim is made to discover every corrupted run key or
+   alternate association. Do not add a scan or case-insensitive lookup.
+5. Accept the additional architecture-test caller lists: the new reader uses
+   the unchanged parser/policy as selected, rather than bypassing their pin.
+6. Accept current runtime Unicode classification within the recorded version
+   limits; do not claim exhaustive cross-runtime Unicode-data equivalence.
+   Backend policy remains authority; the frontend can refuse an answer.
+7. Accept the browser's Running/with-workspace and newer NotRecorded scope;
+   Created/no-workspace and other refusal/race boundaries are proved below
+   the browser. No browser red control or host restart is claimed.
 
-LOCAL-COMMIT-INSPECT-01 is independently verified published at
-`a9e06ac634927b097d49f36a7064bd94f0cc46db`, tree
-`b38fe71009923bffff533b0382d0ec1a67bb4bba`, sole parent
-`e7bd118b65dba6c9fde2a3f07e1fda773bc25b08`, exactly 70 paths (53 added,
-17 modified), approved path-list SHA-256
-`ef71523254a774eac182d4d57d630713e371cd3867f155e733a5bd1fea19c49f`.
-Records: `logs/planner-review/local-commit-inspect-01/publication-verification.json`,
-`continuity-after-publication.json`, `review-02/approval.json` and
-`review-02/approved-paths.txt`. Full prior selection/recovery/review dispositions
-remain in this file at `a9e06ac` and current-work. Preparation-phase wording
-is not pending delivery and authorizes no repeat review, publication or closure.
+Correction validation: focused permanent RABI-R1 cases first, then the original
+dispatched frontend filters, lint and product build once on stable sources.
+Retain unchanged backend, format, client, strict-e2e and journey results with
+explicit input-scope reasoning; the journey predates the copy correction and
+must not be called a run of the corrected frontend. No browser rerun is needed
+for these copy cases while its existing assertions and inputs remain valid.
+Change only operation copy/tests and the implementation report; preserve this
+updated handoff. Broaden only for changed dependencies, failures or unresolved
+impact. RABI-V1 requires truthful retention/reporting, not a new historical
+result or validation campaign. Return for independent correction review.
 
-LCMI-R1 is resolved. Independent frontend 94/94 and backend 73/73, executor
-corrected frontend 1078, Application 269/API 139/Architecture 225, format,
-strict e2e 54-file and client reproducibility retain actual scopes. Client
-SHA-256: `c601a846c31d5d3440abfbc924ca111814498627cd3db08cc73c15afe62d880d`.
-The recovery headed journey predates the decoder correction; no corrected
-frontend browser or whole Application/API/Infrastructure/Domain/Vitest run is
-claimed. Its fingerprint covers named fields/counts, not all-row/file byte
-identity; page reload is not host restart.
+### Verified baseline and rationale
 
-The new three-key control establishes sensitivity for ten current focused
-failures only. It does not authenticate old runs or explain every past console
-occurrence. Preserve first-journey 404 and unproved stale-host cause,
-unauthenticated authoring session, supplementary comparison/exit-255 report
-with unestablished causes, duplicate-key/SignalR observations, all development
-and control failures, reviewer ENOENT suite-load failure and interrupted
-restricted Application attempt. Current on-disk DLL equality does not
-authenticate past loaded images. Earlier inspector/release/provider limits
-remain; no missing evidence is rebuilt. ADR-0069 verification history has no
-RunId; time or checkpoint coincidence establishes no run association.
+Planner independently verified COCKPIT-IDENTITY-01 published on main at
+`a3f394d6dfee770a378035631f63538471cc60c7`, tree
+`699af72af2d7b192c50e8a62db82ff3f30c1a6c9`, sole parent
+`a9e06ac634927b097d49f36a7064bd94f0cc46db`, exactly eight approved paths
+(six modified, two added). main, HEAD, local origin/main and fresh live main
+matched; divergence 0/0, index/working tree/untracked inventory clean before
+selection. Records: `logs/planner-review/cockpit-identity-01/publication-verification.json`,
+`continuity-after-publication.json` and `review-01/approval.json`.
+Do not repeat review, republish or create a closure commit. Preparation-phase
+publication wording in the committed checkpoints does not undo Git delivery.
 
-The outgoing chat's observed 68.6924% required this new planner chat; it is not
-this chat's usage. Current usage is unavailable; selection is no new push
-verification or continuity event. No competing next slice was dispatched.
+CONTINUE_THIS_CHAT: session identity matched CODEX_THREAD_ID. Observed context
+196963 / 475000 = 41.4659%, event 2026-10-28T22:31:13.798Z in
+`C:\Users\denis\.codex\sessions\2026\10\28\rollout-2026-10-28T21-57-11-01a18484-64ff-74c2-bb11-33559dc66c2b.jsonl`.
+This is the observed planner context after publication verification, not
+cumulative usage, account quota or the executor's capacity. No transition
+reason exists. Executor continuity is separate: this next slice starts a new
+executor chat after the prior publication.
+
+GetManualRunAbandonment combines a recorded reason with live mode/eligibility
+and project-wide blocker reads. AbandonRunPanel already renders the current
+run's persisted reason/time. ProjectRunHistoryDetail shows only lifecycle/stage
+and independent inspectors; recorded event headers deliberately omit payloads.
+A newer objective therefore hides the earlier Human closure reason from the
+historical product path. Importing the live reader violates that history boundary.
+
+One independent bounded read and its complete selected-history surface are the
+largest coherent outcome at this proof boundary. Created/no-workspace and
+Running/preserved-stage abandonments stay together. A second current-run panel
+would duplicate an existing capability, while broader summaries, replay and
+recovery introduce separate proofs/authority. Those are not selected.
+
+### Resolved boundary and implementation scope
+
+ADR-0071 adds exactly one protected bodyless/queryless GET
+`/api/runs/{runId}/abandonment-inspection` and a collapsed **Inspect recorded
+abandonment** region for every selected historical run, regardless of the
+list snapshot's lifecycle/receipt. NotRecorded, Unavailable and Recorded are
+independent recorded readings, never live eligibility or a new coherence
+verdict for intake/replay. Only Recorded discloses the admitted reason/time
+and supporting event identity/Int64 sequence, with the owning project.
+
+One no-tracking scalar statement proves the exact run/project and at most two
+exact run-key run.abandoned events. Bound values before materialization, retain
+absence/damage markers, and respect the TEXT-only abandonment time mapping.
+Reuse the unchanged shared defensive event reason parser and Domain coherence
+policy; do not fork, tighten or replace them. Supported full-tick instants
+remain supported, including policy-coherent default instants; ADR-0070's
+special exclusion is not a shared time policy. The 16 KiB payload cap is a
+recorded-inspection bound, not an authority change for other consumers.
+
+Allowed: operation-owned Application/API/frontend types and tests, generated
+client registration/regeneration, ProjectRunHistoryDetail and directly affected
+history expectations, abandon-run.journey.ts (minimal additive fact read only
+if its existing local readers are insufficient), and documentation updates to
+data-and-recovery's abandonment section, cockpit specification, security plan,
+engineering context and current-work. No shared fixture cache or harness change.
+The four planner inputs remain unedited in the review diff.
+
+No Domain/shared abandonment reader/policy, current status/command/panel,
+intake/replay, persistence mapping/schema, history paging/source discovery,
+shared lifetime/transport, dependency, worker or provider change is selected.
+If the proof needs such a change, stop dependent work and present evidence and
+a bounded alternative. All standing grants and restrictions below remain.
+
+### Proportional validation matrix
+
+New test classes/names contain RunAbandonmentInspection. Develop against focused
+new cases; after stable sources, run this final matrix once:
+
+- Domain: `FullyQualifiedName~RunAbandonmentTests`, retaining the shared rule.
+- Application: `FullyQualifiedName~RunAbandonmentInspection|FullyQualifiedName~AbandonmentReadModelTests|FullyQualifiedName~AbandonmentStorageClassTests|FullyQualifiedName~AbandonmentMalformedTimeTests|FullyQualifiedName~GetProjectRunHistoryQueryHandlerTests`.
+  Real migrated file-backed SQLite proves production-created closures, every
+  status/404 distinction, matching/duplicate/foreign/missing event facts,
+  unsupported/oversized storage and exact association, canonical Unicode/LF
+  reason and UTF-8 boundary, escaping within the event cap, full-tick equality,
+  supported default/offset instants and BLOB timestamp refusal. Capture one
+  bounded statement/query plan, forbidden-column and zero-write/external-call
+  evidence, later-run/workspace/recipe stability and reopen. Propagate database
+  faults; use minimal setup rather than full delivery lineage.
+- API: `FullyQualifiedName~RunAbandonmentInspection|FullyQualifiedName~AbandonManualRunEndpointTests|FullyQualifiedName~ProjectRunHistoryEndpointTests|FullyQualifiedName~RunEventHistoryEndpointTests|FullyQualifiedName~LaunchSessionAuthentication`.
+  Cover complete auth/verbs/body/query/pre-dispatch/error/wire/OpenAPI matrix,
+  protected operation inventory, representative recorded/nonrecorded/unavailable
+  answers, missing project/unknown run fixed 404, large exact Int64 string and
+  no mutation. Do not duplicate every pure-policy permutation here.
+- Whole Architecture; incremental builds/analyzers; changed-C# format and one
+  top-level type per matching file. Build/generate serially and prove additive
+  reproducible client output. No whole Application/API/Infrastructure suite by
+  default while shared producer/persistence/authentication inputs are unchanged.
+- Frontend filters: `AbandonmentInspection ProjectRunHistoryPanel ProjectRunHistoryAgentAttempts useProjectRunHistory PlanningSequenceInspectionSurfaces LocalCommitInspectionSurfaces LocalExecutionAdmissionSurfaces LocalExecutionReleaseInspectionSurfaces AbandonRunPanel useManualRunAbandonment useAbandonManualRun describeRunAbandonment layoutBoundary CockpitIdentity`.
+  Include every new test. Prove raw-wire whole-answer admission, exact identities,
+  Unicode/surrogate/byte and Int64 boundaries, inert multiline reason, canonical
+  full-tick UTC including default, actual ten-second abort, reload/close/selection/
+  project ABA, stale callbacks/completions and composition with/without receipt.
+  Update expected button lists only for this selected new toggle. Run lint and
+  product build (includes tsc), plus separate strict e2e checking over current
+  e2e/config inventory. No whole Vitest by default.
+- Extend/run only abandon-run.journey.ts once, announced and automatically
+  headed after binaries stabilize, normal authentication and deterministic
+  executables. After second intake settles, baseline all business POSTs,
+  invocations, named durable facts and repository/workspace/sealed evidence.
+  Inspect earlier exact recorded decision and newer NotRecorded from history,
+  await exact responses and assert rendered values, reload/close cold, A-B-A and
+  cold after page reload. No added command, invocation or named durable change.
+  Captures off; no Inspector/debug/UI/PWDEBUG/manual Resume or redundant run.
+- Changed-document links/inbound fragments, full diff and sensitive-data checks.
+  One concise command/outcome/elapsed/source log, original failures retained.
+  No mutation campaign or per-slice validation framework. Broaden for changed
+  consumers/dependencies, failures or unresolved impact, with planner resolution
+  before source expansion. Retained evidence keeps actual input scope.
+
+Challenge material flaws before dependent work. Return unstaged, uncommitted and
+unpushed for independent GO/NO-GO; update current-work as implementation facts,
+not approval/publication. Selection grants no commit or push.
+
+### Delivered evidence and preserved limits
+
+COCKPIT-IDENTITY-01's five key fixes are delivered. Independent frontend 31/31
+and strict e2e 54-file checks; executor frontend 1054, lint/build, component red
+control and one headed queue journey retain their scopes. The second collision
+is behavioral in its mocked composition harness; synthetic projection changes
+are not reachable lifecycle transitions or a reproduced real-user incident.
+Browser control sensitivity remains unproved; no extra journey is claimed.
+Explicit account/model observations were allowed while no Agent-stage invocation,
+command, claim or named durable change was added.
+
+Preserve the test-helper failure, aborted control, first CS2012 build failure
+with possible lock owners but unproved cause, journey 404/409/SignalR diagnostics
+and all original red outputs. Hash differences do not prove prior source mismatch;
+before-build equality is reported without an independently retained before-build
+hash record. Successful build/current equality supports the later journey, not
+historical process authentication. The executor's garbled PowerShell tree readback
+and subsequent clean reads are reported, not independently reconstructed; planner
+publication verification directly compared cat-file metadata and the GO identity.
+
+Full preceding selection/review and earlier local-commit inspector qualifications
+remain in this file at `a3f394d` and in current-work. No historical failure or
+missing evidence is resolved/rebuilt by selection. ADR-0069 verifications have
+no RunId; time/checkpoint coincidence cannot establish run attribution.
 
 ## Retained review and evidence limits
 
@@ -252,12 +377,12 @@ untouched; no historical result is reconstructed by this selection.
   hung submissions; retention beside disposal failure is unproven.
 - Increments 4/5/6 incomplete. Account/context, raw Git read, non-Windows limits:
   [current-work](current-work.md#open-risks). Production code and necessary tests
-  are selected only for COCKPIT-IDENTITY-01 under the existing cockpit
-  component-lifetime contracts; no new capability or authority is selected. ADR-0065/0066 retain their delivered release authority.
+  are selected only for RUN-ABANDON-INSPECT-01 under ADR-0071's historical
+  recorded-abandonment inspection contract; no mutation authority is selected. ADR-0065/0066 retain their delivered release authority.
   PLAN-COORD-01, AGENT-SUP-01, WORKSPACE-EXCL-01, GLOBAL-ADMIT-01,
   GLOBAL-LIMIT-01, LOCAL-COORD-01, LOCAL-INSPECT-01, LOCAL-QUEUE-01,
   LOCAL-QUEUE-INSPECT-01, LOCAL-QUEUE-OVERVIEW-01,
-  LOCAL-QUARANTINE-RELEASE-01, LOCAL-RELEASE-INSPECT-01, PLAN-INSPECT-01, PROJECT-VER-INSPECT-01 and LOCAL-COMMIT-INSPECT-01 are independently verified
+  LOCAL-QUARANTINE-RELEASE-01, LOCAL-RELEASE-INSPECT-01, PLAN-INSPECT-01, PROJECT-VER-INSPECT-01, LOCAL-COMMIT-INSPECT-01 and COCKPIT-IDENTITY-01 are independently verified
   published. Inspection grants no mutation, scheduling,
   executor lease, operation retry/resume, quarantine release, recovery, approval,
   commit or publication authority. ADR-0065/0066 alone own the separately owner-authorized

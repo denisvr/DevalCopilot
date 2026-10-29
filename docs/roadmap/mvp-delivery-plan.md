@@ -282,12 +282,18 @@ NeedsAttention when no completed receipt source is available. It exposes the com
 reads no current eligibility or physical Git state and leaves the stronger completed receipt proof/discovery unchanged. It changes
 no execution, ownership, recovery, approval, commit or publication authority and completes no increment.
 
-**Cockpit component identity correction (reviewed GO, publication pending).** COCKPIT-IDENTITY-01 repairs the identical sibling run keys of the three
+**Cockpit component identity correction (independently verified published).** COCKPIT-IDENTITY-01 repairs the identical sibling run keys of the three
 recorded inspectors in Usage & Evidence and of the local-commit/abandonment panels in the cockpit. A bounded planner control makes the
 ten reproduced current-run inspection failures pass without changing tests; original source is restored. This preserves existing
 run/visit lifetimes and authority, adds focused composition regressions and one affected headed journey, and completes no increment.
-Resolved scope and validation: [planner handoff](planner-handoff.md#current-action-cockpit-identity-01). This corrects existing contracts
-without adding a capability or reversing architecture.
+The complete review is preserved in planner-handoff.md at `a3f394d`; [current evidence limits](planner-handoff.md#delivered-evidence-and-preserved-limits)
+remain qualified. This corrects existing contracts without adding a capability or reversing architecture.
+
+**Recorded historical run-abandonment inspection (reviewed GO, publication pending).**
+[ADR-0071](../decisions/0071-inspect-recorded-run-abandonment-in-history.md) / RUN-ABANDON-INSPECT-01 delivers one bounded recorded read
+and an explicit historical region for a prior Human closure reason/time and its supporting event. It reuses the existing Domain
+coherence rule, leaves the current panel and every intake/replay/eligibility decision unchanged, and adds no execution or recovery
+authority. It contributes to evidence inspection without completing replay or any increment.
 
 **Agent supervision observations (partial).** ADR-0056 / AGENT-SUP-01 adds, for all seven existing Agent response contracts, a
 durable disclosure of what the host's own observer last reported for the current Agent attempt (phase, last report, absolute deadline,
