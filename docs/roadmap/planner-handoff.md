@@ -1,6 +1,104 @@
 # Planner/reviewer handoff
 
-## Current action: ABANDONMENT-PAYLOAD-01
+## Current action: LOCAL-DELIVERY-CHAIN-01
+
+### Review 2: GO for exact-content publication
+
+LDC-R1 and LDC-V1 are resolved. The journey ties the same full owned ref to
+the checked-out branch, baseline, resulting commit and wire receipt; the
+report limits its source and UI claims to observed facts. Codex additionally
+removed an unproved no-event claim in a test comment and corrected the record
+to call the branchName assertion a wire assertion. These edits change no
+executable assertion or browser input; run 3 retains its actual scope.
+
+The executor's corrected journey passed once with deterministic doubles. The
+prior failed assertion, failed host build and unexplained Vite/SignalR lines
+remain recorded. Browser console was not independently captured; on-disk DLL
+hash equality does not authenticate the exact images a past process loaded.
+This is a local integration proof, not real-provider qualification, remote
+publication, restart recovery or Increment 5 completion. Review 1 is historical.
+Publication is pending exact-content GO; no next slice is selected.
+
+### Review 1: NO-GO pending correction
+
+LDC-R1 (P2): the new journey compares all non-owned refs and checks one
+owned branch at the baseline before and one at the delivered commit after,
+but does not compare their exact names. A renamed/replaced owned branch could
+pass while the report says the same branch moved. Bind the complete ref name
+before and after, the actual worktree branch if observable, and the exact two
+OIDs; retain the non-owned-ref comparison and all earlier assertions. Keep
+this within the same isolated synthetic repository and journey.
+
+LDC-V1 (P3): the journey comment asserts that the commit panel does not
+re-read after project approval, but the run clicks Refresh without observing
+that alternative. State only what the journey does. Qualify the source
+repository claim to the snapshot's HEAD, status, candidate bytes and refs,
+including the intended owned-ref movement, rather than every source byte;
+the commit comment's unsigned/hook-free claim is not independently checked by
+these new assertions. Correct any corresponding current-work claims. The
+existing `data.checkpoints()` query actually reads all checkpoint rows for
+the workspace, so distinguish its assertion from the executor report's claim
+that only the first four are checked.
+
+Retain the failed build (lock cause unproved), the first failed journey and
+the corrected journey's 3/4 SignalR negotiation messages at their actual run
+scopes. One headed rerun is required after the assertion change; rerun strict
+e2e types and lint for the changed file, document links and hygiene. No
+product fix or wider journey is authorized. No GO or next slice is granted.
+
+Selected after critical-path assessment: prove one existing, separately
+Human-authorized path from coordinated planning through the coordinated local
+cycle, the ordinary complete Human checkpoint approval, and explicit local
+commit of the same final verified source. This is a validation slice for the
+Increment 5 local milestone; it adds no autonomous authority and does not
+complete an increment or prove real-provider reliability or recovery.
+
+The existing `local-execution-sequence.journey.ts` already exercises planning,
+both correction origins and three verification passes, stopping at
+ReadyForHumanApproval, and asserts no Human approval or commit. The separate
+`collaboration.journey.ts` proves Human approval and local commit after manual
+stage requests. The existing hosted cycle tests also stop at Agent approval.
+These do not establish that the coordinated cycle's exact final facts flow into
+the separate Human approval and commit in one run. Extend the former journey
+after all of its existing no-approval/no-commit assertions, preserving them at
+their original pre-action point. Require explicit UI approval of the complete
+last verification pass, then a distinct explicit local-commit request, and
+assert exact provenance, no premature side effect, no additional provider or
+verification execution, no remote, and unchanged source repository. Use only
+existing deterministic owned doubles and an isolated journey fixture. An
+unexpected product gap stops for planner review rather than authorizing a fix.
+
+Only the one journey and current-work are implementation scope, with minimal
+journey-local readers if required; no shared harness, production, fixture
+semantics, real provider, native/credential/profile experiment or real run.
+Validate strict e2e TypeScript, affected frontend lint as applicable and one
+announced headed run on stable binaries, no trace/video/screenshot/debug. Record
+actual results and limitations, preserve all failures and return unstaged for
+review. No publication or next-slice authority is granted.
+
+### Critical-path assessment and prior publication
+
+ABANDONMENT-PAYLOAD-01 was independently verified published at
+`cf7468012bc0b2472a2f323dc63ea7d749d6b6eb`, tree
+`647b49bf64687c32517945af17780d9aeedb9339`, sole parent
+`ed763e0680e8d9a682b8aaffbf18df53263bed99`, exactly eight approved paths.
+main, HEAD, local and fresh live origin/main matched; divergence 0/0 and
+index/worktree clean before this checkpoint. Verification and continuity:
+`logs/planner-review/abandonment-payload-01/publication-verification.json` and
+`continuity-after-publication.json`. Review 2 publication-pending wording below
+is historical. Do not republish or create a closure commit.
+
+CONTINUE_THIS_CHAT: the matching session's 2026-10-29T11:48:18.078Z
+token-count event reported 107091 / 475000 (22.5455%) current context.
+The owner has asked how much remains for the MVP. Prioritize a coherent slice
+that advances its critical path rather than assuming another inspector is the
+best next step. Increments 4/5/6 are incomplete and self-hosting is unproven;
+ADR-0060 explicitly confines the owner-authorized automatic local cycle and
+ADR-0050 remains Proposed with P9 unproven. The selected proof above does not
+expand provider, process, recovery or remote authority. All standing constraints
+below remain in force.
+
+## Previous action: ABANDONMENT-PAYLOAD-01
 
 ### Review 2: GO for exact-content publication
 

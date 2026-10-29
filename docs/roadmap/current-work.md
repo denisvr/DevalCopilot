@@ -6,7 +6,96 @@ was prepared ([recovery](development-workflow.md#recovery)). Git and code
 prevail; compare branch, `HEAD`, `origin/main` and staged/unstaged/untracked
 state first.
 
-## Active slice: ABANDONMENT-PAYLOAD-01 read an unreadable abandonment-event reason as no reason, never a fault (ADR-0031)
+## Active slice: LOCAL-DELIVERY-CHAIN-01 prove one separately Human-authorized local delivery chain in the local execution journey (ADR-0060)
+
+This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
+Reconcile publication with Git and the slice's independent publication-verification record, when available. This record alone grants no
+publication authority.
+
+**Delivery phase: return of correction 1 (Codex review 1 NO-GO: LDC-R1 P2 and LDC-V1 P3; see [Correction 1](#correction-1-codex-review-1-no-go-ldc-r1-p2-ldc-v1-p3)) to Codex, in the same executor chat; the complete diff (including the planner's Review 1 entry in the handoff) is unstaged, uncommitted and unpushed. No GO exists.** The first-return text below is kept as that return's record, with the statements Correction 1 found inaccurate corrected in place and named there.
+Baseline: `main`, `HEAD`, local `origin/main` and a live `git ls-remote` read of `origin/main` equalled `cf7468012bc0b2472a2f323dc63ea7d749d6b6eb`
+(ABANDONMENT-PAYLOAD-01, independently verified published per the handoff; neither repeated nor republished, and no closure commit was made). The index was
+empty, no file was untracked and exactly `planner-handoff.md` was modified, SHA-256 `4539185494e33ca8aa9b279e45dfd84c286cb0cade3332addca5ec925730ed2f` at the start and
+at the first return (not edited; Codex's Review 1 entry later changed it to `3aae78166acdccba05247c24d7ad6a04e70d953a613d4e31cac88ecae64ef134`, which the correction preflight confirmed and I did not edit). ADR-0050 stays Proposed, P9 unproven, Increments 4/5/6 incomplete; every standing restriction in the handoff stays. No production code,
+shared journey fixture or harness, provider-double semantics, contract, configuration, other journey, dependency, real provider, credential, profile or native experiment
+was touched, and no commit or push was made.
+
+### What exists
+
+- **One journey extended, nothing else.** [local-execution-sequence.journey.ts](../../src/frontend/DevalCopilot.Frontend/e2e/local-execution-sequence.journey.ts) keeps
+  every existing assertion at its original point (the boundary at `ReadyForHumanApproval`, the single arm POST, the twelve steps, the no-Human-review, no-commit and
+  no-remote checks, the reload and the recorded inspections) and continues the same run with a new section 10 after them. No shared helper was changed; the only new
+  declarations are three route patterns, a `readFileSync` import and local constants.
+- **10a, the complete Human approval.** After a reload gives a clean current cockpit, the Local commit panel offers no commit form and names the one missing fact
+  ("No human approval of this checkpoint was found."). The rendered "Approve all enabled checks" lists exactly `#1 Candidate total check · execution #5` and
+  `#2 Candidate lint check · execution #6`; one click is one `POST /api/projects/{id}/reviews` (HTTP 201). The stored Human review is one `Approved` fact on checkpoint 4 and its
+  fingerprint, with members exactly the two final-pass executions (Passed, exit 0, the checkpoint's fingerprint). It is distinct from the cycle's own FutureAgent Approved review of the
+  same members, and the cycle's earlier FutureAgent ChangesRequested review of checkpoint 3 and both Agent rows are unchanged. The approval created no attempt, message, provider
+  invocation or operation and left worktree `HEAD` at the baseline.
+- **10b, the separate local commit.** The journey clicks the page's read-only "Refresh evidence" control (see limits), then waits for the commit form, which is disabled without a message, and
+  one click of "Commit locally" is one `POST /api/runs/{id}/local-commit` (HTTP 200). The only two `/api/` POSTs after the reload are, in order, the approval and the commit.
+  The operation row is `Completed` on checkpoint 4 and binds the cycle's own records: its `CodeReviewAttemptId` and `ExecutionReportMessageId` equal the sequence's
+  `FinalReviewAttemptId` and `FinalReportMessageId`, the approval message is the cycle's one `ReviewApproval`, the Human review is the one recorded above, and its ordered
+  verification members equal the final two verification steps' operation ids (sequence 0 and 1) and their recipes.
+- **The commit and the source.** One new commit on the worktree's checked-out branch, parented on the baseline, touching only `src/Feature.cs`, with the operation marker and
+  the worktree content `return left + right;`; the worktree has no remote. Signing and hooks are not examined by this journey. The source repository's snapshot (`HEAD`, status, candidate bytes and refs) equals the earlier one except the intended
+  movement of the one tool-owned branch: the same complete ref name, at the baseline before the request and at the delivered commit after, and still the worktree's checked-out branch (corrected by LDC-R1, see Correction 1). The wire receipt (`Available`) and the rendered "Local delivery receipt" show the commit, parent, tree,
+  checkpoint 4, the cycle's last Agent review attempt, the Human review and exactly the two final executions in order (the four earlier executions are absent); the wire carries
+  none of the worktree path, source path, `dotnet` or `AGENTS.md`.
+- **No further work.** Attempts, executions, messages and all four checkpoint rows of the workspace (`data.checkpoints()` returns every row; corrected by LDC-V1) are identical to the pre-chain read, the sequence row, its twelve steps and its local events are
+  unchanged, the doubles' invocation log has the same entries (14 stage invocations, no `gh`), and there is no GitHub observation target, publication approval or GitHub/publication request.
+- **10c, durable read-back.** After a final page reload the Local commit panel shows the Completed operation with the same commit and no commit form, the receipt is rendered again, no `/api/`
+  POST was issued, and the database still holds one operation, one Human review, 8 attempts, 6 executions and the 14 stage invocations. This is a page reload only, not a host restart or recovery.
+
+### Evidence (logs under `logs/executor/local-delivery-chain-01/`, git-ignored; commands run from `src/frontend/DevalCopilot.Frontend` unless stated; wall-clock times)
+
+- **Strict e2e `tsc`** (`npx tsc --ignoreConfig --noEmit --strict --target es2023 --module esnext --moduleResolution bundler --skipLibCheck --noUnusedLocals --noUnusedParameters --verbatimModuleSyntax --allowImportingTsExtensions --erasableSyntaxOnly --types node e2e/*.ts e2e/journey/*.ts e2e/harness/*.ts playwright.config.ts playwright.journey.config.ts`):
+  exit 0, 7.5 s (`01`); rerun after the correction below: exit 0 (`11`).
+- **Lint:** `npm run lint` exit 0 with 9 existing warnings, all under `src/features/cockpit/hooks/` (not changed here; `02`); `npx oxlint e2e/local-execution-sequence.journey.ts` exit 0 with no output, before and after the correction (`03`).
+- **Journey host build.** First `dotnet build tests/DevalCopilot.Api.IntegrationTests/BrowserJourney/Host/BrowserJourneyHost.csproj --no-incremental` after `dotnet build-server shutdown`
+  (repository root): **failed, exit 1, 12.7 s**, `MSB4018 GenerateDepsFile ... IOException: The process cannot access the file '...\DevalCopilot.Application\bin\Debug\net10.0\DevalCopilot.Application.deps.json' because it is being used by another process` (`06`, complete).
+  The cause is unproven. After one more `dotnet build-server shutdown` (no dotnet process left), the same build with `-m:1`: **0 warnings, 0 errors, 12.3 s** (`08`). Before the rebuild the host's four `DevalCopilot.*.dll` hashes were
+  `f8d8380e…`, `c244ef7a…`, `13419c03…`, `9393ac1b…` (`04`); after it they are hash-equal to the fresh `src/backend/*/bin/Debug/net10.0` outputs: Domain `131ad822…`, Application `dcf07627…`, Infrastructure `49b307b4…`, Api `1af31303…`
+  (`09`, rechecked unchanged before run 2 in `12`). The frontend has no comparable provenance artifact.
+- **Journey run 1 (announced, headed, once):** `npx playwright test -c playwright.journey.config.ts e2e/local-execution-sequence.journey.ts --headed --trace off --workers 1`: **1 failed**, 34.7 s (43.4 s wall)
+  (`10-journey-run-1-FAILED-source-ref-assertion.txt`, complete). Everything up to and including the Human approval, the commit, the operation bindings and the worktree checks had passed. It failed at my new source-branch comparison
+  (`toEqual`, expected one extra line `refs/heads/devalcopilot/workspace/…/1 <baseline>`): `sourceBefore` is captured after workspace preparation, so it already lists the tool-owned branch, while the comparison treated only non-owned refs as equal.
+  That is a defect of my assertion, read from the diff and the received value, not a product failure. Corrected in this file only (non-owned refs compared with non-owned refs, the owned branch checked on its own at the baseline before and at the delivered commit after).
+- **Journey run 2 (announced, same command):** **1 passed, 37.1 s test (42.3 s wall)** (`13-journey-run-2.txt`) on the same unchanged host binaries. Not used: trace, video, screenshots, Inspector, debug/UI, `PWDEBUG`, manual Resume. The only console lines observed were the Vite server stream's
+  `Failed to start the connection: Error: The connection was stopped during negotiation.` (3 in run 1, 4 in run 2); I did not establish their cause or whether they relate to the page reloads, and I did not capture the browser console beyond that stream.
+- **Documents and hygiene** (run after the last edit of the journey; this bullet was added after them and adds no link): the reused, unchanged `check-links.ps1` of an earlier slice, in-process, over this record and the planner handoff:
+  58 links and fragments, 0 failures (`14`); `git diff --check` exit 0 (`15`); no carriage return in any added line; a case-insensitive scan of the added journey and record lines for secret, token, key, credential-header and e-mail patterns had one hit, the word "authorization" in the journey title (`16`, `17`), and no value of any kind.
+  This change adds no credential, secret or token handling.
+
+### Challenges, limits and risks for review
+
+- **What this proves.** In one isolated run over the real authenticated UI, API, mediator and SQLite with the existing deterministic doubles, the coordinated cycle's own final facts (checkpoint 4, its last Agent review, its report and its final ordered verification pass) flow into one separately requested Human approval and one separately requested local commit, with no premature side effect, no extra Agent or verification invocation, a source-repository snapshot (HEAD, status, candidate bytes and refs) unchanged except the intended tool-owned branch movement, and no remote in the worktree.
+- **What it does not prove.** Real-provider behavior or qualification, automatic approval, remote publication, crash or restart recovery (the reload is a page reload), or completion of Increment 5 or the MVP. The doubles decide both reviews statelessly.
+- **"Refresh evidence" before the commit.** After the Human approval the journey clicks the existing read-only "Refresh evidence" control and then waits for the commit form. It does not test whether the form would appear without that click, so nothing is claimed about it (the first return's statement that the panel does not re-read after an approval was an unobserved inference and is withdrawn by LDC-V1). No product change was made or authorized.
+- **Not pinned, deliberately (corrected by LDC-V1).** After the commit the journey does not assert the project event count (`events` is zeroed in the totals comparison) or the review panel's "Current checkpoint" wording, because I had no evidence for what the host does there. It does pin the checkpoint rows: `data.checkpoints()` returns every checkpoint row of the workspace and is compared whole with the pre-chain read (four rows), and the project totals' checkpoint count is compared too. The first return wrongly described this as "only the first four".
+- **Browser passes.** See the evidence list and Correction 1 for the three headed runs and what each covers.
+- **Not done:** the next slice, any product change, GitHub observation or publication, and any commit or push.
+
+### Correction 1 (Codex review 1 NO-GO: LDC-R1 P2, LDC-V1 P3)
+
+Findings **LDC-R1** and **LDC-V1** (identifiers kept; open until Codex's next review). Preflight: `main`; `HEAD`, local `origin/main` and a live `git ls-remote` read equalled `cf7468012bc0b2472a2f323dc63ea7d749d6b6eb`; index empty; nothing untracked; exactly this record, the
+handoff and the journey modified; `planner-handoff.md` SHA-256 `3aae78166acdccba05247c24d7ad6a04e70d953a613d4e31cac88ecae64ef134` (the planner's Review 1 entry, preserved, not edited). Same isolated synthetic fixture, same backend inputs.
+
+- **LDC-R1 (resolved in the journey).** Just before the commit request the journey now observes the source repository's refs afresh, requires exactly one tool-owned `refs/heads/devalcopilot/workspace/…` ref, requires it to equal the one in `sourceBefore`, takes its complete ref name and commit,
+  requires that commit to be the baseline, and requires the worktree's checked-out branch (`git symbolic-ref HEAD`) to be exactly that ref name. After the commit it requires the owned refs to be exactly `[<same ref name> <delivered commit>]`, the worktree's checked-out branch to still be that name, the total ref count to equal the earlier count,
+  and, as before, all non-owned refs to equal the earlier ones. The wire receipt's `branchName` is also required to equal that ref name without `refs/heads/`. A renamed or replaced owned branch can therefore no longer pass. The helper functions (`isOwnedBranch`, `refsOf`) moved up so both sides share them. All earlier pre-approval, approval, operation and receipt assertions are unchanged.
+- **LDC-V1 (resolved).** (a) The 10b comment now states only the observed action: the journey clicks Refresh evidence and then waits for the form; whether the form would appear without the click is untested. The same withdrawal is made in the limits above. (b) The source-repository comment and this record now claim only the compared snapshot (`HEAD`, status, candidate bytes and refs) with the intended owned-branch movement.
+  (c) The commit comment no longer says "unsigned and hook-free": the journey checks the new commit's parent, its operation marker, its single changed path and that the worktree has no remote, and says that signing and hooks are not examined. (d) The checkpoint statement is reconciled: `data.checkpoints()` is a whole-workspace read compared with the pre-chain read, so all four rows are pinned, not "the first four"; the event count and the review panel wording remain unpinned.
+- **Retained at their actual scopes (not rewritten, no cause inferred).** The first journey host build failure (`06`, `MSB4018 GenerateDepsFile` on `DevalCopilot.Application.deps.json`, "being used by another process") stays unexplained; the serial retry passed (`08`). Journey run 1 failed (`10-journey-run-1-FAILED-source-ref-assertion.txt`, 34.7 s) at my assertion on the first journey version. Run 2 passed on the first version's corrected assertion (`13`, 37.1 s test). Run 3, below, is the only run of the corrected-again file.
+  Vite-stream lines `Failed to start the connection: Error: The connection was stopped during negotiation.`: 3 in run 1, 4 in run 2 and 4 in run 3 (`23`); their cause is not established, the journey does not assert on them, and no browser console beyond that stream was captured in any run.
+- **Fresh after the assertion change:** strict e2e `tsc` (same command as above): exit 0 (`20`); `npx oxlint e2e/local-execution-sequence.journey.ts`: exit 0, no output (`21`); the four host `DevalCopilot.*.dll` files are still hash-equal to the `src/backend/*/bin/Debug/net10.0` outputs, same hashes as before (`22`); ports 5099 and 5173 were free.
+  **Journey run 3 (announced; headed; trace, video and screenshots off; no Inspector, debug/UI, `PWDEBUG` or manual Resume):** `npx playwright test -c playwright.journey.config.ts e2e/local-execution-sequence.journey.ts --headed --trace off --workers 1`: **1 passed, 37.9 s test (42.1 s wall)** (`23-journey-run-3-correction1.txt`).
+  No host rebuild was needed or done: no backend source or host input changed, and the journey file and this record are the only inputs that did.
+- **Documents and hygiene** (run before this bullet, which adds no link): the reused, unchanged `check-links.ps1`, in-process, over this record and the handoff: 59 links and fragments, 0 failures, the new Correction 1 anchor resolving (`24`); `git diff --check` exit 0 (`25`);
+  no carriage return in any added line; the case-insensitive pattern scan of the added lines had three hits, all words in this record or the journey title ("token", "secret", "authorization"), no value (`26`, `27`); the handoff's SHA-256 is still `3aae7816…f134`; `HEAD`, local and live `origin/main` still `cf74680…`, index empty.
+- **Not rerun:** the host build (inputs unchanged), the broader suites, and anything unrelated to the journey file. The frontend dev server has no provenance artifact, so the run proves the assertions against the frontend sources present, not a hash of them.
+
+## Previous slice (independently verified published as cf74680; historical record): ABANDONMENT-PAYLOAD-01 read an unreadable abandonment-event reason as no reason, never a fault (ADR-0031)
 
 This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
 Reconcile publication with Git and the slice's independent publication-verification record, when available. This record alone grants no
