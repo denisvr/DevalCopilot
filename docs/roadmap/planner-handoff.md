@@ -1,6 +1,178 @@
 # Planner/reviewer handoff
 
-## Current action: QUALIFICATION-SETUP-DIAGNOSIS-01 selected, return for review
+## Current action: QUALIFICATION-GIT-PREPARE-PROBE-01 selected, return for review
+
+### Review 2: GO for exact-content publication of the qualified evidence report
+
+QGP-R1, QGP-R2 and QGP-R3 are resolved as documentation findings by
+Correction 1. Independent review read the corrected report against the
+retained helpers, case results, build/test logs and test source; no command,
+root access, probe, build or test was repeated. Main, HEAD, local origin/main
+and fresh live main remain `28d5742`, with only the two checkpoint documents
+modified and empty index/untracked state.
+
+Accept publication of the qualified observations: the direct helper recorded
+short success and a long ref-directory failure; the successful build log and
+the two passing controlled rehearsals retain their actual compact-TEMP scope.
+The setup retry breached the stop gate; the helper did not implement the
+required streaming budget; the earlier helper errors and revisions were not
+separately retained; the version-probe output is lost; the build exit remains
+null. These remain disclosed deviations and evidence gaps, not requirements
+now satisfied or operations retrospectively authorized. No helper quotation
+equivalence, full adapter fidelity or gh-resolution assertion is accepted.
+
+The reported app-card result beginning `The user chose "Do it here"` is not
+independently authenticated as an owner instruction and is not a Codex
+continuity decision. Accept the record from the existing executor chat as
+limited evidence; this does not override the new-chat rule for later slices.
+The new results prove neither a shared historical cause nor a particular
+Git/Windows limit, real-provider qualification, native shutdown or MVP
+completion. All earlier failures and standing authority boundaries remain.
+
+No additional executor correction or runtime operation is required for this
+bounded report. Publication is pending exact-content GO for current-work.md
+and this planner record only; no repair, experiment, cleanup or next slice
+is selected.
+
+### Review 1: NO-GO pending documentation correction only
+
+Independent review confirmed main, HEAD, local origin/main and fresh live
+main at `28d5742`, with only the two checkpoint documents modified and empty
+index/untracked state. Retained direct-request results record short exit 0,
+long exit 255 with a ref-directory error, and no capture truncation. The build
+log says succeeded, with a null captured exit code; each selected rehearsal
+log records one pass and exit 0. Review opened no diagnostic root and repeated
+no probe, build, test or process operation. These useful new results do not
+prove the historical cause or a particular Git/Windows path-limit mechanism.
+
+- **QGP-R1 (P2), open: authority and resumption provenance.** The first
+  fixture setup failed, but a corrected helper retried setup in the same new
+  directories and then continued. The dispatch explicitly required stopping
+  after setup failure and prohibited retry/repair; not having spent a
+  worktree call does not remove that stop gate. Correct the blanket "no
+  retry" claim and preserve the resumption as a deviation, not permission or
+  precedent. The version helper also faulted after its single probe, losing
+  its output; distinguish that helper resumption from a repeated version
+  probe. This planner's visible dispatch requested a new Claude chat and
+  contains no "Do it here" decision. Attribute any such choice to the actual
+  actor and exact text already visible in the executor chat, if available;
+  otherwise retain it as an unverified executor report. Do not attribute it
+  to Codex or treat this review as retrospective authorization.
+- **QGP-R2 (P2), open: capture and failure-evidence fidelity.** lib.ps1 reads
+  both streams completely into memory and truncates their re-encoded text
+  afterwards. That is not the required streaming 4 KiB budget, even though
+  these retained outputs are small. Qualify the outcome/request paragraphs,
+  preserve this implementation deviation, and remove unproved equivalence to
+  ArgumentList or complete adapter fidelity. The first helper failure has
+  lost version output and no separately identified complete original error
+  or exact failing helper revision; commands.txt is a derivative summary.
+  Identify existing originals only if available; never reconstruct or rerun.
+  The null build exit is observed; "PowerShell quirk" is not an established
+  cause. Keep the successful build-log evidence without inventing exit 0.
+- **QGP-R3 (P2), open: composition assertions.** The tests' owned-target
+  checks explicitly cover Codex and Claude, not gh. FixtureInstaller installs
+  gh and prepends the fixture bin, but neither a separate recorded gh target
+  nor a gh-resolution assertion is in these two passing tests. Correct that
+  claim and distinguish intended composition/wiring from observed or asserted
+  target facts. Preserve the two ordinary test passes at their actual scope;
+  no extra native/provider check is requested.
+
+Correct current-work.md only in the same executor chat; preserve this review
+record and all original evidence/roots. No new live operation, source/helper
+repair, evidence reconstruction or cleanup is authorized. Documentation
+links/fragments, sensitive-data and diff checks only, then return unstaged,
+uncommitted and unpushed for review. No next slice is selected.
+
+### Verified publication and continuity
+
+QUALIFICATION-SETUP-DIAGNOSIS-01 is independently verified published at
+`28d5742f4983e3577e796e09040a471519b0fbf9`, tree
+`64099c1e93606a523f0f7b99e620d3091d616a65`, sole parent
+`fd924260c71812904c99befad102132fcb14c76e`, exactly the two checkpoint
+documents approved in its `review-01/approval.json`. Main, HEAD, local
+origin/main and independently queried live main matched; divergence 0/0,
+empty index, clean worktree and no untracked files before this selection
+record. Evidence: `logs/planner-review/qualification-setup-diagnosis-01/`
+`publication-verification.json` and `continuity-after-publication.json`.
+Publication-pending wording below is historical; no closure commit.
+
+CONTINUE_THIS_CHAT: session-matched event `2026-10-29T16:29:51.471Z`
+observed 254585 / 475000 (53.5968%) current context. Any selected new slice
+uses a new Claude executor chat. The owner-authorized package below is the
+only selected new execution scope.
+
+### Owner-authorized bounded diagnostic and composition package
+
+The diagnosis narrowed the recorded failure to worktree preparation but
+retained no Git exit/output. The planner's source-only calculation keeps path
+geometry open: nominal source ref-lock/reflog paths can reach 272 characters
+although the workspace directory is 205. This is not an observed Git path
+failure. A two-case native probe can produce the missing local Git facts;
+the same package can then establish current composition on a deliberately
+short new scratch root, if its prerequisite succeeds. Group these related
+checks as the largest coherent safe preparation outcome, with no product fix
+or real-provider claim.
+
+On 2026-10-29 the owner explicitly answered "Autorizar o pacote limitado"
+to this chat's separate bounded request. Select only:
+
+- One local Git diagnostic session in two newly owned fictitious repositories
+  under a fresh compact workspace-owned `logs/qgp-<nonce>/` root. Resolve Git
+  only through its current catalog candidates, with at most one version probe.
+  No existing fixture, repository or source worktree is read, reused,
+  repaired or cleaned. No explicit user-configuration inspection or change
+  is selected. Fixture setup uses fixed harmless files,
+  fictitious identity and benign local settings; hooks, signing and remote
+  protocols are disabled. No credential/authentication operation is allowed.
+- Construct one short layout with the relevant computed paths below 240
+  characters, and one long layout matching the earlier nominal source and
+  workspace directory lengths (193 and 205), hence the possible 272-character
+  ref paths. Compute and record geometry before execution, without accessing
+  historical roots. These are new controlled inputs, not reconstructed
+  historical evidence or an exact replay of the original environment.
+- In each case, once only, launch the fixed hardened `worktree add -b` request
+  from GitWorktreeAdapter with its exact two-variable child environment and
+  argument boundaries. Use the existing installed Git directly, no shell,
+  TTY, package install or new compiled helper. Bound setup commands at 60 s
+  and each worktree call at 30 s with the production 4 KiB stream/total
+  capture bounds. Retain exit, timing, truncation and original bounded
+  non-secret stdout/stderr; do not infer native success from a directory.
+  A long-case failure is diagnostic output, not permission to retry or fix.
+- Only if short-case preparation succeeds, build the existing API
+  integration-test project once without restore, explicitly setting the
+  UseSharedCompilation MSBuild property to false. Then list and run exactly
+  the two previously selected `ManualQualificationRehearsalTests.A_controlled_`
+  methods once each, serially, with a fresh compact TEMP/TMP under the new
+  owned root. The native-process-table method remains excluded. These tests
+  launch the production host on loopback with native deterministic doubles
+  and a scripted process table; ordinary catalog probes of Git/.NET/Node/
+  Docker, production discovery scratch and new per-attempt scratch with
+  existing guarded teardown are within this requested scope. Codex, Claude
+  and gh must resolve to newly installed doubles, never real providers.
+- Stop dependent work on an unexpected target/effect, setup failure, short
+  case failure, timeout or rehearsal failure. No blind rerun, source/test
+  repair, broader suite, cleanup, unrelated process action or further root
+  inspection. Preserve every new diagnostic root and original failure output.
+  The fixtures' own existing normal teardown remains as already designed.
+  Return exact facts and limits, including differences between a direct
+  request probe and production composition; results cannot retrospectively
+  explain either historical failure by themselves.
+
+Change only current-work.md as the report; scripts and original evidence stay
+in a new ignored evidence directory. No production, test, project, schema,
+dependency, client, ADR or playbook change is selected. No installation,
+credential or real-ledger access, provider invocation/probe, process-table
+experiment, profile/ACL/P9/GCM/GitHub operation, retained-root access or
+manual cleanup follows. The previous grants covered completed operations
+only; publication supplies no new native authority. The later owner answer
+authorizes only this package, not a subsequent experiment or repair.
+
+The offered alternative was to defer new native work and preserve the
+unresolved Git cause. The owner chose the limited package. Further source-only calculation cannot observe the missing exit
+or stderr. No other implementation is selected as a substitute for this
+dependency, and no commit or push is authorized.
+
+## Previous action: QUALIFICATION-SETUP-DIAGNOSIS-01
 
 ### Review 1: GO for exact-content publication of the qualified diagnosis
 
