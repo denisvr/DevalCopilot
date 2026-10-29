@@ -1,6 +1,180 @@
 # Planner/reviewer handoff
 
-## Current action: QUALIFICATION-GIT-PREPARE-PROBE-01 selected, return for review
+## Current action: QUALIFICATION-PROVIDER-PROVISION-01 selected, return for review
+
+### Review 2: GO for exact-content publication of the qualified evidence report
+
+QPP-R1 and QPP-R2 are resolved as documentation findings by Correction 1.
+Independent review compared the corrected report with Review 1 and the already
+read scripts, bounded outputs and operation records. Main, HEAD, local
+origin/main and fresh live main remain `7cdfdd1`, with empty index/untracked
+state and only the two checkpoint documents modified. The executor preserved
+the planner's Review 1 identity; no diagnostic, provider, installation, registry,
+memory-file, build or test operation was repeated for review.
+
+Accept the qualified report: npm recorded one successful installation of
+0.166.0; manual resolution found a NodeScript target; the single Codex version
+probe aborted in Node initialization; the two Claude metadata probes passed.
+The stop-gate breach, additional namespace listings and executor-reported
+memory read/write remain disclosed deviations, not compliant operations or
+retrospectively authorized actions. The first metadata query's parseable JSON
+does not establish complete capture or process completion; registry declarations
+are not publisher-signature proof. Installation-reported and name-only effects
+retain their limited scope; no broader unchanged-state claim is accepted.
+
+F-1 remains accepted and unresolved. Neither SystemRoot as the cause nor the
+production .NET launch outcome is proved. Authentication, runtime compatibility
+and real qualification remain unproved; the installed target and all retained
+evidence stay preserved. The disclosed native Node document checker establishes
+only its document-check scope, not provider or production-environment behavior.
+
+No further executor correction or runtime operation is required for this report.
+Publication is pending exact-content GO for current-work.md and this planner
+record only. No environment fix, probe, reinstall, native fallback, cleanup or
+next slice is selected; earlier standing restrictions remain.
+
+### Review 1: NO-GO pending documentation correction only
+
+Independent review confirmed main, HEAD, local origin/main and fresh live main
+at `7cdfdd1`, empty index/untracked state and exactly the two checkpoint
+documents modified. The planner record still had its dispatched SHA-256.
+The retained installation record says exit 0, two packages added and none
+changed/removed; the manual post-install resolution names a NodeScript target.
+Codex's one recorded version probe exited 134 with a Node initialization
+assertion; Claude's two recorded metadata probes exited 0. These are useful
+observations, not production-host discovery, authentication or qualification.
+Review read existing scripts, operation records and bounded outputs; no probe,
+installation, build, test, provider operation or original diagnostic-root
+inspection was repeated. The initial evidence-file inventory also listed
+scratch/cache filenames; their contents were not opened, and that inventory
+adds no installation-effect or credential evidence.
+
+**Executor F-1: accepted as a material unresolved launch-compatibility concern.**
+ToolDiscoveryAdapter requests an empty environment; ChildProcessExecutionAdapter
+clears and fills it; CodexProcessInvoker's separate allowlist contains only
+USERPROFILE and CODEX_HOME when present. Those source facts support concern
+about both entrances, not a reproduced .NET failure or a proved shared cause.
+The abort trace identifies Node initialization, not the missing variable.
+SystemRoot remains a hypothesis; no environment variant or native Codex target
+was tested. Preserve the installation and pause qualification. Do not inherit
+the ambient environment, add SystemRoot, change discovery to the bundled native
+binary, reinstall or rerun. After this report is corrected and publication is
+independently verified, a separately authorized differential observation through
+the production process boundary can distinguish runtime/environment effects
+from harness effects. That candidate is not selected or authorized now.
+
+- **QPP-R1 (P2), open: stop-gate continuation and first-query evidence.** The
+  dispatch required stopping dependent work on failure; it supplied no
+  exception for an observation-helper fault. After the first dist-tags runner
+  faulted, correcting it and proceeding through metadata and installation
+  breached that boundary, even without repeating the query. Record this as a
+  deviation, not a discretionary compliant continuation. Preserve the exact
+  failed revision and original error. The retained stdout parses as one JSON
+  document with the recorded latest value, but the failed record has null exit
+  and zero seen counts despite 7306 retained stdout bytes. Its fault path does
+  not establish normal process completion or complete stream drainage; do not
+  call the entire output proved complete or treat its zero counters/truncation
+  flags as reliable capture totals. Later operation records retain their own
+  outcomes; review supplies no retrospective authority for continuing.
+- **QPP-R2 (P2), open: scope and external-effect disclosure.** Installation
+  Snapshot enumerated names in the npm root, node_modules and @openai namespace
+  before/after. These exceed fixed-candidate and required-metadata reads;
+  disclose their exact scope and departure from the selection, without
+  repeating the listings or exposing unrelated names. Name-only snapshots and
+  npm's result cannot prove that every other file/configuration stayed unchanged.
+  Distinguish installation-reported changes, listed names and unobserved
+  effects. The owner-forwarded executor report also discloses an edit to its
+  memory file, absent from current-work's effect inventory. Record it as an
+  additional unselected, executor-reported write; its location and changed
+  content are not independently established. Use only facts already visible
+  in that executor chat, and preserve missing path/content/original evidence
+  as unknown. Do not open, export,
+  modify or roll back that file. Correct the environment prose: runner.ps1
+  obtains and copies non-npm_config ambient values, though it does not print
+  them; it does not merely enumerate names without reading values. Registry
+  ownership declarations remain declarations (the retained maintainer list is
+  not exclusively openai.com addresses), not publisher-signature verification.
+
+Correct only current-work.md in the SAME executor chat, retaining F-1 and the
+finding IDs, all original outputs and script revisions. This is documentation
+only: no helper repair/execution, registry query, metadata/probe repeat,
+installation, memory-file access, experiment or cleanup. Run only proportional
+document/diff/sensitive-data checks; identify their actual execution mechanism
+from existing facts instead of implying that no native checker was involved.
+Return unstaged, uncommitted and unpushed for review. No next slice, commit or
+push is authorized, and the Node concern does not require a runtime correction
+before this qualified evidence report can be reviewed.
+
+### Verified baseline and owner authorization
+
+The receiving planner independently compared `7cdfdd1b92bdc84dd354b29b846f22d889b59991`
+with QUALIFICATION-GIT-PREPARE-PROBE-01's `review-02/approval.json`: tree
+`fbc9e7315c189b98adb20e930351f6c2601f9869`, sole parent
+`28d5742f4983e3577e796e09040a471519b0fbf9`, exactly current-work.md and
+planner-handoff.md. Main, HEAD, local origin/main and a fresh live remote read
+match; index, worktree and untracked state were clean before this selection.
+Existing publication and continuity records were read; no runtime observation
+or diagnostic-root access was repeated. Earlier publication-pending wording
+is historical and selects no republication or closure commit.
+
+The owner explicitly replied "esta autorizado" to this receiving planner's
+complete QUALIFICATION-PROVIDER-PROVISION-01 authorization proposal. This grants
+only the preparation package below. Start one NEW Claude executor chat; the
+previous executor chat must not perform this slice. CONTINUE_THIS_CHAT for the
+Codex planner; current context usage is unavailable, not a measured percentage.
+
+### Selected preparation outcome and boundary
+
+Increment 4's installed-provider boundary remains the next dependency. Retain
+the compact controlled-composition passes without rerunning them. No product
+defect has been established that justifies a repair or another inspector.
+Group supported Codex provisioning and both providers' bounded metadata/help
+observations as one outcome; authentication and real qualification require a
+later decision. The alternative was owner-managed provisioning.
+
+- Check only the production catalog's fixed provider candidates and required
+  package metadata, honoring its precedence, containment, reparse-point,
+  ambiguity, bounded JSON and native-header rules. Manual observations are
+  not production-host discovery. No enumeration or desktop-private fallback.
+- If no valid Codex target exists and its fixed package root is absent, allow
+  one installation of official stable `@openai/codex` in the catalog-supported
+  per-user npm root. Verify the official package/source and resolve and record
+  one exact stable version before installation. Use the existing supported
+  package manager and Node host; missing prerequisites, an existing but invalid
+  package, ambiguity or conflicting installed names stop installation. Do not
+  replace/update an existing installation or silently choose a different version.
+  No prerequisite installation, persistent PATH/configuration edit or Claude
+  update. Package-manager resolution/download and its necessary owned cache/log
+  effects are part of this installation, not permission to inspect credentials.
+- On each validated provider launch target, at most one version and one
+  top-level help probe; on Codex also one exec help probe. No provider shim,
+  shell, TTY, prompt, model or authentication probe. Compare with the current
+  adapter arguments; help presence proves no runtime behavior and absence
+  alone proves no incompatibility. Preserve the historical Claude max-turns
+  evidence without asserting current binary identity or current support.
+- Keep transient uncompiled observation/capture scripts and original evidence
+  in one new ignored directory. No build, compiled helper, test, rehearsal or
+  production-host/qualification-launcher execution. Bound package metadata at
+  60 seconds, installation at five minutes and each provider probe at 30 seconds;
+  use finite streaming capture, recording exits, elapsed time and truncation.
+  Preserve failing script revisions and original non-secret errors before edits.
+  Stop dependent work on failure, timeout, unexpected target/effect or uncertain
+  prerequisite. No retry, repair, automatic rollback or manual cleanup.
+
+Only current-work.md changes as the executor's report; preserve this planner
+record. Validate changed-document links/fragments, the full diff and sensitive
+data; retain earlier checks at their actual scope. Return unstaged, uncommitted
+and unpushed for independent review. Selection grants no commit or push.
+
+No login, credential/account inspection, real-ledger read/reset/spend, model
+invocation, retained-root access, security experiment or cleanup is renewed.
+No product/test/project/dependency/schema/client/ADR/playbook change is selected.
+The launcher derives both fixture and real ledger locations from Path.GetTempPath:
+never relocate TEMP/TMP to silently select a different real ledger. Provisioning
+does not qualify providers or complete any increment. All historical failures,
+evidence gaps, frozen roots and other standing restrictions remain.
+
+## Previous action: QUALIFICATION-GIT-PREPARE-PROBE-01
 
 ### Review 2: GO for exact-content publication of the qualified evidence report
 
