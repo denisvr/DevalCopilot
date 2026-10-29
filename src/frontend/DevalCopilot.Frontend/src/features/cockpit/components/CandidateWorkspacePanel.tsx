@@ -16,7 +16,11 @@ import type { WorkspaceExecutionState } from '../workspaceExecution'
 
 interface CandidateWorkspacePanelProps {
   projectId: string
-  /** Told once per explicit Refresh evidence, so the project's run can read its verification-dependent status again. */
+  /**
+   * Told once per explicit Refresh evidence and once per accepted complete-set approval, so the project's run can read its
+   * verification-dependent status again. A hint only: it carries no data and no authority. The owner binds it to the run it serves,
+   * and the approval keeps the callback it was given when it began.
+   */
   onEvidenceRefreshRequested?: () => void
   /** The fixed reason a planning sequence withholds verification Run for this project's run (ADR-0055); null or absent withholds nothing. */
   runWithheldReason?: string | null
@@ -168,7 +172,12 @@ export function CandidateWorkspacePanel({
         configureWithheldReason={localExecutionWithheld}
       />
       <ProjectVerificationInspectionPanel key={`verification-history:${projectId}`} projectId={projectId} />
-      <CheckpointReviewPanel key={`reviews:${projectId}`} projectId={projectId} refreshGeneration={generation} />
+      <CheckpointReviewPanel
+        key={`reviews:${projectId}`}
+        projectId={projectId}
+        refreshGeneration={generation}
+        onApprovalAccepted={onEvidenceRefreshRequested}
+      />
 
       {!needsIdentityRecheck && workspace.state === 'Blocked' ? (
         <div className="dc-candidate-workspace-blocked">

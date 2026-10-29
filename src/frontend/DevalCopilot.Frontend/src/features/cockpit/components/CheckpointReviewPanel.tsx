@@ -1,3 +1,4 @@
+import { useCallback } from 'react'
 import { toApprovalSource } from '../hooks/checkpointApprovalBundle'
 import { useCheckpointApprovalEvidence } from '../hooks/useCheckpointApprovalEvidence'
 import { useProjectCheckpointReviews } from '../hooks/useProjectCheckpointReviews'
@@ -9,6 +10,9 @@ interface CheckpointReviewPanelProps {
   projectId: string
   // Advanced by the project's owner when the current checkpoint metadata must be read again.
   refreshGeneration?: number
+  // Told once after the server accepted a complete-set approval of the displayed bundle, so the project's run can read its
+  // local-commit status again. It carries no approval or eligibility; the owner binds it to the run it serves.
+  onApprovalAccepted?: () => void
 }
 
 // The reviewer's local choices belong to the current project's lifetime, and the chosen verification
@@ -60,13 +64,23 @@ function describeBundleState(approval: { loading: boolean; readFailed: boolean; 
   }
 }
 
-export function CheckpointReviewPanel({ projectId, refreshGeneration }: CheckpointReviewPanelProps) {
+export function CheckpointReviewPanel({ projectId, refreshGeneration, onApprovalAccepted }: CheckpointReviewPanelProps) {
   const { evidence, current: evidenceCurrent, loading: evidenceLoading } = useProjectGitEvidence(projectId, true, refreshGeneration)
   const { executions, current: executionsCurrent, loading: executionsLoading, readFailed: executionsFailed } = useProjectVerificationExecutions(projectId, refreshGeneration)
   const { reviews, error, saving, record, refresh: refreshReviews, current: reviewsCurrent, loading: reviewsLoading, readFailed: reviewsFailed } = useProjectCheckpointReviews(projectId, refreshGeneration)
   // The complete-set action is bound to every identity fact the evidence admitted; any missing or malformed one withholds it.
   const source = toApprovalSource(projectId, evidence)
-  const approval = useCheckpointApprovalEvidence(source, refreshGeneration, refreshReviews)
+  // An accepted approval first tells the owner to read the run's status again, then reads the review list. A throwing notification
+  // never prevents the review read, and neither changes the acceptance.
+  const onApproved = useCallback(() => {
+    try {
+      onApprovalAccepted?.()
+    } catch {
+      // The notification is a hint; the review list below is read regardless.
+    }
+    return refreshReviews()
+  }, [onApprovalAccepted, refreshReviews])
+  const approval = useCheckpointApprovalEvidence(source, refreshGeneration, onApproved)
   const lifetime = useOwnedLifetime(projectId)
   const [{ selection, actorKind }, commit] = useOwnedState(lifetime, createChoices)
   const selectedExecutionId = selection && selection.checkpointId === evidence?.checkpointId ? selection.executionId : null

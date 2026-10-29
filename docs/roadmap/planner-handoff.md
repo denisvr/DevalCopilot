@@ -1,6 +1,77 @@
 # Planner/reviewer handoff
 
-## Current action: LOCAL-DELIVERY-CHAIN-01
+## Current action: APPROVAL-STATUS-REFRESH-01
+
+### Review 1: GO for exact-content publication
+
+The accepted complete-set approval triggers the existing project/run-owned
+refresh connection, while the captured callback and existing lifetimes prevent
+an earlier run or replaced source/bundle from notifying its replacement. The
+host's fresh status retains authority; no automatic approval or commit is
+added. The shared generation also refreshes the other connected status readers;
+accept this existing read-only fan-out within this slice, without claiming a
+single local-commit GET or narrowing the connection. No separate follow-up slice
+is selected by this decision.
+
+Independent reviewer focused tests: 88/88 across hook, review and composition
+files. The first reviewer run failed to load two suites with ENOENT in its
+Vitest temporary client directory (42 tests passed in the third); a bounded
+excerpt is `src/frontend/DevalCopilot.Frontend/logs/planner-review/approval-status-refresh-01/review-01/reviewer-first-test-failure-excerpt.txt`.
+The retry using a workspace-owned TEMP/TMP passed. The cause of the first
+failure is not established, and the excerpt is not complete original process
+output. No independent browser run is claimed.
+
+Executor's 446-test selection, additional 28 and 43, lint/build, strict e2e
+types and one headed journey retain their reported scope. The control on the
+old sources demonstrates absence of this signal in the mocked composition,
+not a previously reproduced browser defect; the callback mutant checks run
+replacement. The journey observes at least one status GET after the approval
+POST, not an exact count or exclusive causation. Preserve the build retry
+warning, unexplained DLL hash changes, the four negotiation messages and
+browser-console capture limits. Current DLL equality does not authenticate a
+historical process. This does not prove real-provider behavior, restart
+recovery, publication, or MVP completion. Publication is pending exact-content
+GO; no next slice is selected.
+
+LOCAL-DELIVERY-CHAIN-01 was independently verified published at
+`b32a1671ee327bd059ae4c81bc9aca01ca5fd6fc`, tree
+`bb4625f85ec3b2c84c4008037d7dbbe81bced49f`, sole parent
+`cf7468012bc0b2472a2f323dc63ea7d749d6b6eb`, exactly three approved paths.
+Local main, origin/main and fresh live main matched; divergence 0/0 and clean
+index/worktree before selection. Evidence: `logs/planner-review/local-delivery-chain-01/`
+`publication-verification.json` and `continuity-after-publication.json`.
+CONTINUE_THIS_CHAT: session-matched event 2026-10-29T13:46:20.859Z reported
+196305 / 475000 (41.3274%) current context. Publication-pending wording below
+is historical; no closure commit. A new executor chat is required for this slice.
+
+Select APPROVAL-STATUS-REFRESH-01 to improve the existing local MVP path: after
+the selected project's current complete-set Human approval succeeds, request a
+fresh local-commit status through the existing project/run evidence-refresh
+connection, so the Human need not manually click Refresh evidence before the
+next explicit action. The existing journey used that click and did not prove
+what happened without it; do not present this selection as a reproduced bug.
+The new signal only triggers a host read, never declares eligibility or starts
+a commit. The server still decides; pending, failed, incoherent or withheld
+status never enables the command. Accepted approval remains accepted even if
+the follow-up fails; never retry a write. Preserve run/project/source/bundle
+lifetimes, including A-B-A and stale asynchronous completion. In particular a
+callback from an earlier run within the same project must not refresh a new run.
+
+Scope: the owning complete-set approval hook/panel and existing evidence-refresh
+connection/composition, directly affected tests, the single local execution
+journey (replace the now-redundant manual refresh in its chain) and relevant
+product spec/current-work. No backend/API/client, schema, external effects,
+other review actions, new authority, automatic approval/commit, shared harness
+or unrelated behavior. Stop if these boundaries cannot achieve the outcome.
+Prove the current composition red on original inputs, live successful status
+after an accepted approval without manual refresh, fail-closed errors, delayed
+old answers and project/run/bundle A-B-A/unmount, no writes other than the
+explicit approval and commit, and the entire existing local chain. Run focused
+frontend checks, relevant regression selection, lint/build and strict e2e
+types; one announced headed journey after stable sources. Retain earlier
+evidence at its actual scope. Return unstaged for independent review; no GO.
+
+## Previous action: LOCAL-DELIVERY-CHAIN-01
 
 ### Review 2: GO for exact-content publication
 

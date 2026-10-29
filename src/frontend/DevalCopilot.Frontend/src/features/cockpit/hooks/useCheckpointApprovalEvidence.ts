@@ -47,11 +47,12 @@ function createBundleFrame(): BundleFrame {
  * it, and an older overlapping read or a continuation of an ended lifetime changes nothing. The approval action belongs to a
  * narrower lifetime, the committed bundle's: replacing the members ends it, and returning to an earlier member set begins a new
  * one, so equal keys never revive an obsolete callback. A pending approval of a replaced bundle reports nothing, clears no newer
- * guard and refreshes nothing, yet the server's acceptance stays real. The bundle is `current` only when the newest accepted read
+ * guard and notifies nothing, yet the server's acceptance stays real. The bundle is `current` only when the newest accepted read
  * of the displayed generation succeeded, was consistent with the source and no read is in flight; a cached bundle stays visible but
  * is never offered while it is pending or its refresh failed. `approve` submits exactly the bundle of the render that committed
  * it, once: a handler retained from an earlier or an already accepted bundle starts no request. A decision the server accepted is
- * never reported as failed because a later refresh failed, and nothing is retried automatically. */
+ * never reported as failed because a later refresh failed, and nothing is retried automatically. `onApproved` is called once per
+ * accepted approval, bound when `approve` is created: it is a notification that carries no authority, and its failure is ignored. */
 export function useCheckpointApprovalEvidence(
   source: ApprovalBundleSource | null,
   refreshGeneration = 0,
@@ -69,7 +70,6 @@ export function useCheckpointApprovalEvidence(
   const fingerprintSha256 = source?.fingerprintSha256
 
   const generation = useRef(refreshGeneration)
-  const onApprovedRef = useRef(onApproved)
   // The bundle lifetime that has a request in flight, and the ones whose approval the server accepted (a retained handler of
   // either starts nothing). Both are keyed by lifetime object, so a replaced bundle's completion can never touch a newer one's.
   const approvingLifetime = useRef<OwnedLifetime | null>(null)
@@ -80,7 +80,6 @@ export function useCheckpointApprovalEvidence(
 
   useLayoutEffect(() => {
     generation.current = refreshGeneration
-    onApprovedRef.current = onApproved
     committed.current = { current }
   })
 
@@ -165,8 +164,9 @@ export function useCheckpointApprovalEvidence(
     }
 
     // The server accepted the decision. It stays real whatever follows, and this bundle is never submitted again from any handler.
-    // A replaced bundle or source neither reports nor refreshes, and a failure of the follow-up read is the review list's own
-    // concern: it never relabels this acceptance or retries it.
+    // A replaced bundle or source neither reports nor follows up, and a failure of a follow-up is that follow-up's own concern: it
+    // never relabels this acceptance or retries it. The follow-up is the callback this handler was created with, not the newest
+    // one, so a request that outlives the owner that issued it can never notify a replacement of that owner.
     acceptedLifetimes.current.add(bundleOwner)
     if (!isCurrent()) {
       return false
@@ -174,10 +174,10 @@ export function useCheckpointApprovalEvidence(
 
     commitApproval((previous) => ({ ...previous, accepted: true }))
     void Promise.resolve()
-      .then(() => (isCurrent() ? onApprovedRef.current?.() : undefined))
+      .then(() => (isCurrent() ? onApproved?.() : undefined))
       .catch(() => undefined)
     return true
-  }, [owner, bundleOwner, commitApproval, bundle])
+  }, [owner, bundleOwner, commitApproval, bundle, onApproved])
 
   return {
     bundle,

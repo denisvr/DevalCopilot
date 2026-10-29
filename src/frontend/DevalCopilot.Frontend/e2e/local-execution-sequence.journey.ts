@@ -517,6 +517,7 @@ test('the local execution cycle journey: one authorization, both correction orig
     (response) => response.request().method() === 'POST' && CHECKPOINT_REVIEW_PATH.test(new URL(response.url()).pathname),
     { timeout: 30_000 },
   )
+  const getsBeforeApproval = gets.length
   await approveAll.click()
   expect((await approved).status()).toBe(201)
   await expect(manual).toContainText('Recorded. The Human approval covers these runs.', { timeout: 30_000 })
@@ -548,11 +549,12 @@ test('the local execution cycle journey: one authorization, both correction orig
   expect(git('rev-parse', 'HEAD')).toBe(repository.baselineCommit)
   expect(posts.slice(postsBeforeChain).filter((path) => path.startsWith('/api/'))).toHaveLength(1)
 
-  // 10b. The separate explicit local commit. After the approval the journey clicks the page's read-only Refresh evidence control and then
-  // waits for the commit form; whether the form would appear without that click is not tested here.
-  await page.getByRole('button', { name: 'Refresh evidence' }).click()
+  // 10b. The separate explicit local commit. The journey does NOT click Refresh evidence (or any other control) after the approval: the
+  // accepted approval itself makes the page read the run's local-commit status again, and the commit form is waited for as that fresh host
+  // answer renders it. A status read is not a write, and the commit itself is still its own later click.
   const commitButton = localCommit.getByRole('button', { name: 'Commit locally' })
   await expect(commitButton).toBeVisible({ timeout: 30_000 })
+  expect(gets.slice(getsBeforeApproval).filter((path) => LOCAL_COMMIT_PATH.test(path)).length).toBeGreaterThanOrEqual(1)
   expect(data.localCommitOperationCount()).toBe(0)
   await expect(commitButton).toBeDisabled() // no message yet
   await localCommit.getByLabel('Commit message').fill('Deliver the verified local change')

@@ -1233,6 +1233,19 @@ refresh, and a retained handler of an earlier or an already accepted bundle star
 as failed because the follow-up review read failed and is never retried, and approving commits nothing: the explicit local commit below
 is a separate request.
 
+An accepted complete-set approval also tells the project's evidence-refresh connection (one generation per project and run
+lifetime, the same one the project's "Refresh evidence" action advances) to request a fresh read of the selected run's local-commit
+status, so the Human does not need a separate "Refresh evidence" click before the explicit local commit. The notification is made
+once per accepted approval, by the approval that began it, with the connection callback that approval was created with; it carries no
+approval, identity or eligibility, and it is not a write. A refused or failed approval, and one whose project, source or bundle was
+replaced or which was unmounted meanwhile (including A to B to A and a late completion), makes none. When only the run was replaced
+within the same project, the approval's callback still belongs to the earlier run's ended connection lifetime, so it does nothing
+and refreshes no replacement run. A failure of the follow-up
+read never relabels the accepted approval and never causes a second approval or a commit request. The notification also advances the connection's generation for the run's other
+status readers (code review, verification diagnosis, abandonment, execution capacity and workspace execution, and the local
+execution sequence), which read again through their existing GETs; the review list is read again as before. It does not re-read the
+project's checkpoint, execution or bundle evidence, which only the project's own "Refresh evidence" generation does.
+
 The project's explicit "Refresh evidence" action (one generation per click, owned by the project's lifetime) reads the current
 checkpoint, the verification executions and the review list again; the refresh itself issues no review, verification, capture or
 Agent request and does not remount the panel. A decided action needs **settled, successful** source evidence **and** execution
@@ -1258,7 +1271,10 @@ after the panel's read, or while the host observed Git, is refused rather than r
 For a selected `ManualAgent` run, the cockpit can show a **Local commit** panel after a settled, successful read proves the current
 checkpoint, current Passed verification membership, the latest applicable CodeReviewer approval and coherent Human Approved review
 evidence whose membership is exactly the same complete set (with several enabled recipes, the complete-set approval above). The panel is advisory: the protected request reads every authority fact again, and a pending or failed status read never
-authorizes submission. It accepts only a bounded human commit message; the host derives all paths, branch, parent and Git arguments.
+authorizes submission. After an accepted complete-set approval the panel's status is read again without a manual "Refresh evidence"
+(see above); the commit form appears only when that fresh read settles successfully with an eligible answer that names the whole
+approval identity and nothing withholds the request, and a pending, failed, ineligible, incoherent, withheld or stale (older than a
+newer) answer never offers it. It accepts only a bounded human commit message; the host derives all paths, branch, parent and Git arguments.
 
 The panel explains that execution is local only, unsigned and hook-free, that admission is irreversible for that run, and that a
 conversion of approved bytes is refused instead of normalized. Its draft, operation UUID, pending state, errors and callbacks belong

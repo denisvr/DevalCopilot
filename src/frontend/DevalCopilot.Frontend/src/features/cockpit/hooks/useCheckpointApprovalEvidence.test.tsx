@@ -642,6 +642,39 @@ describe('useCheckpointApprovalEvidence bundle lifetime', () => {
     expect(result.current.error).toBe('The source is no longer current or is busy. Use Refresh evidence before approving.')
   })
 
+  it('notifies the callback the approving handler was created with, never one supplied while the approval was pending', async () => {
+    const post = deferred<unknown>()
+    const { rerender, a, pending, onApproved } = await mountWithPendingApproval(post)
+    const newer = vi.fn()
+
+    rerender({ source: a, generation: 0, onApproved: newer })
+    await act(async () => {
+      post.resolve({ reviewId: 'accepted', decision: 'Approved' })
+      expect(await pending()).toBe(true)
+    })
+
+    await waitFor(() => expect(onApproved).toHaveBeenCalledTimes(1))
+    expect(newer).not.toHaveBeenCalled()
+  })
+
+  it('notifies the callback a retained handler was created with, never the current one', async () => {
+    const a = sourceOf('a')
+    const earlier = vi.fn()
+    const current = vi.fn()
+    install(() => Promise.resolve(bundleOf(a)))
+    const { result, rerender } = mount({ source: a, onApproved: earlier })
+    await waitFor(() => expect(result.current.current).toBe(true))
+    const retained = result.current.approve
+
+    rerender({ source: a, onApproved: current })
+    await act(async () => {
+      expect(await retained()).toBe(true)
+    })
+
+    await waitFor(() => expect(earlier).toHaveBeenCalledTimes(1))
+    expect(current).not.toHaveBeenCalled()
+  })
+
   it('does not submit the same accepted bundle again through a retained callback', async () => {
     const a = sourceOf('a')
     const onApproved = vi.fn()

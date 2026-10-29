@@ -303,6 +303,54 @@ describe('CheckpointReviewPanel complete-set approval', () => {
     expect(clients.recordCheckpointReview).toHaveBeenCalledTimes(1)
   })
 
+  it('tells the owner once after the accepted approval, then still reads the review list, and never for a refused approval', async () => {
+    const onApprovalAccepted = vi.fn()
+    const refused = install({ record: () => Promise.reject(problem('reviews.approval_requires_complete_verification_set')) })
+    const view = render(<CheckpointReviewPanel projectId="project-a" onApprovalAccepted={onApprovalAccepted} />)
+    await waitFor(() => expect(approveAll()).toBeEnabled())
+
+    fireEvent.click(approveAll())
+
+    await waitFor(() => expect(within(panel()).getByText(/The enabled checks changed since they were read/)).toBeInTheDocument())
+    await new Promise(resolve => setTimeout(resolve, 30))
+    expect(refused.recordCheckpointReview).toHaveBeenCalledTimes(1)
+    expect(onApprovalAccepted).not.toHaveBeenCalled()
+    view.unmount()
+
+    const accepted = install()
+    render(<CheckpointReviewPanel projectId="project-a" onApprovalAccepted={onApprovalAccepted} />)
+    await waitFor(() => expect(approveAll()).toBeEnabled())
+    const readsBefore = accepted.getProjectCheckpointReviews.mock.calls.length
+
+    fireEvent.click(approveAll())
+
+    await waitFor(() => expect(onApprovalAccepted).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(accepted.getProjectCheckpointReviews.mock.calls.length).toBeGreaterThan(readsBefore))
+    expect(accepted.recordCheckpointReview).toHaveBeenCalledTimes(1)
+    await new Promise(resolve => setTimeout(resolve, 30))
+    expect(onApprovalAccepted).toHaveBeenCalledTimes(1)
+    expect(accepted.recordCheckpointReview).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the accepted approval and the review read when the owner notification throws, with no failure label and no retry', async () => {
+    const onApprovalAccepted = vi.fn(() => {
+      throw new Error('notification failed')
+    })
+    const clients = install()
+    render(<CheckpointReviewPanel projectId="project-a" onApprovalAccepted={onApprovalAccepted} />)
+    await waitFor(() => expect(approveAll()).toBeEnabled())
+    const readsBefore = clients.getProjectCheckpointReviews.mock.calls.length
+
+    fireEvent.click(approveAll())
+
+    await waitFor(() => expect(screen.getByText('Recorded. The Human approval covers these runs.')).toBeInTheDocument())
+    await waitFor(() => expect(clients.getProjectCheckpointReviews.mock.calls.length).toBeGreaterThan(readsBefore))
+    expect(onApprovalAccepted).toHaveBeenCalledTimes(1)
+    expect(within(panel()).queryByText(/could not be recorded/)).toBeNull()
+    await new Promise(resolve => setTimeout(resolve, 30))
+    expect(clients.recordCheckpointReview).toHaveBeenCalledTimes(1)
+  })
+
   it('does not let an approval accepted for one project refresh, report on or block the replacement project', async () => {
     const gate = deferred<unknown>()
     const clients = install({ record: () => gate.promise })
