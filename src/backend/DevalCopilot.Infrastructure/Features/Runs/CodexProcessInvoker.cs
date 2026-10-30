@@ -4,6 +4,7 @@ using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.Runs;
+using DevalCopilot.Infrastructure.Features.Processes;
 
 namespace DevalCopilot.Infrastructure.Features.Runs;
 
@@ -69,8 +70,25 @@ internal static class CodexProcessInvoker
         internal static readonly Outcome Failed = new(false, false, false, null, null);
     }
 
+    /// <summary>The ambient reads the invocation's environment depends on, injectable so its control
+    /// flow is testable without touching real process variables or the real system directory.</summary>
+    internal readonly record struct EnvironmentInputs(
+        Func<string, string?> ReadVariable, WindowsNodeScriptEnvironment.Inputs NodeScript)
+    {
+        internal static EnvironmentInputs Current { get; } =
+            new(System.Environment.GetEnvironmentVariable, WindowsNodeScriptEnvironment.Inputs.Current);
+    }
+
+    internal static Task<Outcome> InvokeAsync(
+        IProcessExecutionAdapter processExecutionAdapter, IArtifactStore artifactStore, Request request, CancellationToken cancellationToken) =>
+        InvokeAsync(processExecutionAdapter, artifactStore, request, EnvironmentInputs.Current, cancellationToken);
+
     internal static async Task<Outcome> InvokeAsync(
-        IProcessExecutionAdapter processExecutionAdapter, IArtifactStore artifactStore, Request request, CancellationToken cancellationToken)
+        IProcessExecutionAdapter processExecutionAdapter,
+        IArtifactStore artifactStore,
+        Request request,
+        EnvironmentInputs environmentInputs,
+        CancellationToken cancellationToken)
     {
         if (!IsAcceptableLaunchComponent(request.LaunchExecutablePath)
             || (request.LaunchScriptPath is not null && !IsAcceptableLaunchComponent(request.LaunchScriptPath)))
@@ -98,6 +116,15 @@ internal static class CodexProcessInvoker
             // claimed attempt it was given actually enforced it. An effort-only request would
             // silently apply the CLI's own default model with an overridden effort — never
             // launched.
+            return Outcome.Failed;
+        }
+
+        var environment = BuildEnvironmentAllowlist(environmentInputs.ReadVariable);
+        if (!WindowsNodeScriptEnvironment.TryAdd(environment, request.LaunchScriptPath is not null, environmentInputs.NodeScript))
+        {
+            // The Windows prerequisite for a Node launch could not be derived: refused before the
+            // manifest is read, any scratch/schema/output artifact exists, or a process starts —
+            // never retried with the smaller map.
             return Outcome.Failed;
         }
 
@@ -184,7 +211,7 @@ internal static class CodexProcessInvoker
                 Arguments = arguments,
                 WorkingDirectory = request.WorkspacePath,
                 ApprovedRoot = request.WorkspacePath,
-                EnvironmentVariables = BuildEnvironmentAllowlist(),
+                EnvironmentVariables = environment,
                 Timeout = request.Timeout,
                 MaxBytesPerStream = request.MaxBytesPerStream,
                 MaxTotalCapturedBytes = request.MaxTotalCapturedBytes,
@@ -258,19 +285,20 @@ internal static class CodexProcessInvoker
     /// authentication — never PATH, a provider token, or an arbitrary environment entry.
     /// <c>CODEX_HOME</c> is forwarded only when this host process already has one set;
     /// <c>USERPROFILE</c> is always forwarded so Codex can locate its default configuration
-    /// directory when <c>CODEX_HOME</c> is not set.
+    /// directory when <c>CODEX_HOME</c> is not set. A Windows Node-hosted launch additionally gets
+    /// exactly <c>SystemRoot</c> from <see cref="WindowsNodeScriptEnvironment"/>.
     /// </summary>
-    private static Dictionary<string, string> BuildEnvironmentAllowlist()
+    private static Dictionary<string, string> BuildEnvironmentAllowlist(Func<string, string?> readVariable)
     {
         var environment = new Dictionary<string, string>();
 
-        var userProfile = System.Environment.GetEnvironmentVariable("USERPROFILE");
+        var userProfile = readVariable("USERPROFILE");
         if (!string.IsNullOrEmpty(userProfile))
         {
             environment["USERPROFILE"] = userProfile;
         }
 
-        var codexHome = System.Environment.GetEnvironmentVariable("CODEX_HOME");
+        var codexHome = readVariable("CODEX_HOME");
         if (!string.IsNullOrEmpty(codexHome))
         {
             environment["CODEX_HOME"] = codexHome;

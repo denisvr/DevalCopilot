@@ -1,6 +1,212 @@
 # Planner/reviewer handoff
 
-## Current action: QUALIFICATION-NODE-ENV-DIAGNOSIS-01 selected for one new Claude executor chat
+## Current action: NODE-SCRIPT-SYSTEMROOT-01 selected for one new Claude executor chat
+
+### Review 2: GO for exact-content publication of the bounded implementation
+
+NSS-R1 and NSS-R2 are resolved by Correction 1. Independent reconciliation
+confirmed main, HEAD, local origin/main and fresh live main still at
+`b40139e6e24ab9d65796c87459d8a020c76467fd`, empty index, nine tracked
+modifications and five expected new C# files. The executor preserved the
+planner's Review 1 hash. All three production implementation hashes match the
+original delivered inputs. Replacing the new OS-only annotation with its former
+name reproduces the original hashes of all seven affected test classes: only
+15 newly added annotations changed, and the new WindowsPlatformFactAttribute
+checks only the OS. Historical junction attributes and tests remain unchanged.
+
+Independent build passed with zero warnings/errors and the smallest affected
+matrix passed 82/82, zero skipped. Fresh executor correction evidence records
+85 affected and 141 focused tests, whitespace over 11 changed C# paths and clean
+document/diff/sensitive-data checks. Retain the 232 Architecture tests at their
+original unchanged-production-input scope; no Architecture build, NSwag
+generation or provider probe was repeated for correction or Review 2. Earlier
+compiler and unexplained reviewer-build failures remain preserved, not erased
+or assigned a speculative cause. Evidence is under
+`logs/planner-review/node-script-systemroot-01/review-02/`.
+
+The report now distinguishes B2's build-time OpenApiGeneration/client generation
+from production runtime and provider execution and records the lack of a
+generated-client Git diff at its actual scope. The executor's command-display
+challenge is addressed: the supported future-build switch is explicitly
+`-p:SkipNSwag=true`. No such future build ran. A small planner review edit
+attributes the reported `-p=true` display to the executor and leaves its origin
+unestablished, rather than silently changing execution history. It changes no
+test, production source or forwarding policy.
+
+Accept the implementation only for the selected Windows NodeScript request
+constructors and their closed refusal behavior. The four-role Windows wrapper
+bindings, fabricated-input policy tests, lexical/UNC behavior and evidence
+limits remain as reviewed. CodexAppServerSession and the native Node capability
+probe stay explicitly outside this fix; readiness, provider/production-host
+compatibility, authentication and qualification remain unproved. No scope
+extension, new probe, installation, permission change or cleanup is selected.
+
+Publication requires the separate exact-content GO covering all 14 approved
+paths, including these final review edits. The owner forwards that prompt to
+the same executor; the planner performs no automatic or desktop-UI dispatch.
+
+### Review 1: NO-GO for focused test and evidence-report correction
+
+Independent reconciliation confirmed main, HEAD, local origin/main and a fresh
+live main at `b40139e6e24ab9d65796c87459d8a020c76467fd`, empty index,
+nine tracked modifications and four expected untracked C# files. The planner
+selection retained its dispatched hash; all 12 executor input-hash entries
+matched. Review read all production/test changes, the contract/report diffs,
+original failed compiler output, final build/test evidence and the relevant
+excluded callers. The generic process executor and four Codex wrappers are
+unchanged. No provider probe or desktop-interface operation was performed.
+
+The production policy and its two caller integrations satisfy the selected
+forwarding/refusal behavior on inspection; no product-code correction is
+requested. Independent Infrastructure build attempt 1 exited 1 with zero
+reported errors and no diagnostic; its output remains preserved. A second
+build with normal verbosity in the approved full-access execution context
+passed with zero warnings/errors on unchanged source; the first cause remains
+unestablished. The smallest independent policy/caller matrix passed 82/82,
+zero skipped. Executor results remain scoped as 141 focused and 232 Architecture
+tests, with the original CS8631 failure preserved. Reviewer evidence is under
+`logs/planner-review/node-script-systemroot-01/review-01/`.
+
+- **NSS-R1 (P2), open: Windows facts incorrectly require NTFS junctions.**
+  New tests use WindowsOnlyFactAttribute, whose constructor runs a real
+  `cmd /c mklink /J` capability fixture and skips on a Windows host that cannot
+  create a junction. These new lexical-policy/request-construction facts do not
+  require that capability, so their coverage can disappear for an unrelated
+  filesystem permission. WindowsOnlyTheoryAttribute checks only the OS and is
+  not affected. Replace only this slice's newly added fact annotations with a
+  minimal OS-only WindowsPlatformFactAttribute in the test project. Preserve
+  the existing junction attribute and all historical physical-security tests.
+  Do not probe or alter permissions to prove this; the annotation's source and
+  an OS-only implementation establish the distinction.
+- **NSS-R2 (P2), open: Architecture build evidence is not compilation only.**
+  B2 explicitly records NSwag generation. The API's existing build-transitive
+  target invokes its generator, and config.nswag selects OpenApiGeneration.
+  Program.cs composes the API with that side-effect-free environment, excluding
+  DevalCopilot workers and durable startup recovery/migration. Disclose this
+  build-time API composition/client generation separately from production-runtime
+  launch and real-provider execution. The planner's supplied command and
+  "compiled, never launched" wording overlooked this existing target; do not
+  frame compliance with that command as an executor authority breach. The Git
+  diff shows no generated-client change, not proof of absence of every effect.
+  Use the existing SkipNSwag=true MSBuild switch on any necessary future
+  Architecture build in this slice; do not regenerate or repeat host composition.
+
+Executor challenges explicitly resolved: CodexAppServerSession's separate
+USERPROFILE/CODEX_HOME-only environment and the Node capability's native probe
+remain source-confirmed gaps outside the authorized two-caller policy. They
+are not waived, fixed, provider-tested or evidence of readiness; a later scope
+decision is required. The lexical repeated-separator refusal and UNC acceptance
+fit the selected lexical contract and add no filesystem access or fallback.
+The four wrapper tests' real system-directory binding is accepted as a narrow
+Windows integration dependency, separately disclosed from the fabricated-input
+policy/refusal tests; it proves no real-provider behavior.
+
+Correct tests and current-work.md in the SAME executor chat; clarify the provider
+contract's test-evidence wording only if needed. Keep the three production
+implementation files, all original evidence and this planner record unchanged.
+Rebuild the Infrastructure test project without restore, run the affected tests
+then the final 141-test-equivalent matrix, and rerun changed-file whitespace and
+document/diff/sensitive-data checks. Retain Architecture's 232 results when only
+test attributes/report text change; these edits do not invalidate the production
+assemblies that Architecture inspected. If an actual Architecture input changes,
+build with --no-restore -p:SkipNSwag=true before its relevant rerun. No broader
+suite, real probe, installation, root inspection or cleanup is authorized.
+Return unstaged, uncommitted and unpushed. No publication GO exists.
+
+### Verified baseline and explicit authority
+
+The owner authorized preparation of one bounded implementation slice and a
+complete prompt for the owner to forward to one NEW Claude executor chat.
+No desktop-interface operation or automatic message dispatch is authorized.
+Before selection, main, HEAD, local origin/main and fresh live origin/main
+equalled `b40139e6e24ab9d65796c87459d8a020c76467fd`, with clean index,
+worktree and untracked state. The preceding diagnosis is independently verified
+published against its GO: tree `328dff306fc88bd6434ed965c1e1dbce2890ff5f`,
+sole parent `6deae5bc3c9c85e8a4ee80e0cc9426d11443a141`, exactly the two
+checkpoint documents. Verification is retained in
+`logs/planner-review/qualification-node-env-diagnosis-01/publication-verification.json`.
+CONTINUE_THIS_CHAT; current context percentage is unavailable, not a measured
+value. The prior executor has finished; this slice uses a new executor chat.
+
+### Resolved implementation policy
+
+Select one coherent change to the two NodeScript request constructors, with
+one narrowly owned internal policy under Infrastructure/Features/Processes.
+Discovery and the four Codex invoker consumers must share this OS prerequisite;
+the generic process executor still launches exactly the caller-supplied map.
+This implements the owner's explicit forwarding decision, not a claim that
+the recorded observations prove provider or production-host compatibility.
+ADR-0002/0004's Infrastructure ownership and bounded provider contracts remain;
+no accepted architectural decision is reversed and no new public port is needed.
+
+- Only a Windows NodeScript request adds the single key SystemRoot. Discovery
+  recognizes ProviderLaunchTarget.NodeScript; Codex recognizes a non-null
+  LaunchScriptPath. Native requests and non-Windows requests keep their existing
+  environment semantics and never evaluate the system-directory reader.
+- Obtain the value from the parent of Environment.SystemDirectory (the managed
+  Windows GetSystemDirectoryW boundary), never an ambient SystemRoot/windir,
+  hardcoded installation path, repository setting, filesystem search or fallback.
+  Derive and validate lexically: nonblank fully qualified system-directory path,
+  no control/NUL or dot/dot-dot components, optional trailing separator removed;
+  require a fully qualified nonblank parent other than a filesystem root. Do not
+  assume a drive letter or installation-directory name, require a literal leaf
+  name, or inspect existence, contents, ACLs, links or metadata of that directory.
+- If required resolution or validation fails, do not dispatch a process, retry
+  or run with the smaller map. Discovery returns the existing
+  ExecutableInaccessible reason; Codex returns Outcome.Failed with no process
+  evidence. Resolve before creating invocation scratch/schema/output artifacts.
+  Expected OS/path failures are closed and non-echoing; cancellation propagation
+  stays intact. No value or exception detail enters logs, results or persistence.
+- Preserve Codex's existing nonempty USERPROFILE/CODEX_HOME inclusion and exact
+  values, including its null/empty distinction from whitespace. Add no PATH,
+  NODE_OPTIONS, token, proxy, temp, certificate or other ambient key. Public
+  contracts, CLI arguments, sandbox, timeouts, capture, stdin and provider claims
+  stay unchanged. Do not edit ChildProcessExecutionAdapter, Claude adapters,
+  model/account adapters, discovery resolution, fallback or native targets.
+- Use small internal input/delegate seams for deterministic OS, system-directory
+  and named-profile inputs and caller refusal tests, preserving public
+  constructors/DI and avoiding mutable global hooks, ambient-variable mutation
+  or a new Application port. Update the provider-runtime contract and relevant
+  comments; no qualification/playbook or historical-evidence rewrite.
+
+Authoritative API evidence: the .NET 10 Environment.SystemDirectory documentation
+and dotnet/runtime v10.0.0 Environment.Windows.cs confirm the managed getter uses
+GetSystemDirectoryW. The implementation adds no new P/Invoke or dependency.
+
+### Acceptance, validation and delivery boundary
+
+Use controlled fabricated paths, named profile inputs and existing process/
+artifact doubles. Prove Windows NodeScript success and exact keys; native and
+non-Windows no-op with an unevaluated failing reader; invalid/empty/relative/
+root/traversal/control-character and throwing-reader refusal with zero dispatch;
+unchanged caller maps on failure; exact profile inclusion without value leakage;
+and all four Codex roles' use of the shared policy (Planning, ImplementationReview,
+ChallengeResolution and VerificationDiagnosis). Tests prove requests and closed
+failure behavior, not real-provider operation. Preserve existing security gates.
+
+Build the Infrastructure integration-test and Architecture test projects with
+--no-restore, sequentially, using existing assets; these cover their production
+references, including the API compilation needed by Architecture. Run the final
+focused Infrastructure matrix once with --no-build --no-restore (the new policy
+and invoker-environment classes, ToolDiscoveryAdapterTests, the three existing
+Codex adapter classes and a new fourth-role adapter class), then Architecture.
+Check changed C# whitespace with dotnet format whitespace --verify-no-changes
+--no-restore --include, changed-document links/fragments and inbound fragments,
+the complete diff, sensitive data and unchanged dependencies/locks. Broaden only
+for a concrete affected boundary; missing prerequisites or a need for excluded
+operations returns to the planner rather than restoring/installing or probing.
+
+Only the two callers, the internal policy, their focused Infrastructure tests,
+provider contracts and executor current-work.md report are selected. Preserve
+this planner record. Keep concise new evidence and every failed check under a
+new ignored per-slice directory. Ordinary owned test-fixture lifecycle remains
+allowed; retained roots and prior evidence remain untouched. No real Node,
+Codex/Claude probe, production host or launcher, installation, authentication,
+account/ledger access, persistent environment change, retained-root inspection,
+standalone diagnostic/security experiment or cleanup is authorized. Return
+unstaged, uncommitted and unpushed; a separate exact-content GO is required.
+
+## Previous action: QUALIFICATION-NODE-ENV-DIAGNOSIS-01
 
 ### Review 2: GO for exact-content publication of the qualified evidence report
 

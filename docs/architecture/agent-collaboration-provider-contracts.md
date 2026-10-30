@@ -53,6 +53,47 @@ Codex Planning attempt only reuses the durable `HostCapabilitySnapshot` row's re
 capability discovery's own last successful probe, and only when that snapshot's reason code is
 still `None` — it is revalidated, never re-searched, by this narrower dispatch-time read.
 
+### Windows Node-hosted launch environment
+
+A controlled diagnostic through the production child-process adapter observed the fixed Node host
+abort at startup under an empty environment, and under the Codex allowlist shape with only
+`USERPROFILE`, and start successfully when `SystemRoot` was the only addition. A Node-hosted
+launch therefore carries one explicit OS prerequisite, while the child environment stays an
+explicit allowlist:
+
+- **Applicability.** The rule applies only when the host is Windows and the request is a
+  Node-hosted launch: a `ProviderLaunchTarget.NodeScript` in capability discovery, or a non-null
+  `LaunchScriptPath` in the shared Codex invocation. Native and non-Windows requests keep their
+  existing environment exactly and never evaluate the system-directory reader. The Codex
+  invocation serves Planning, ImplementationReview, ChallengeResolution and VerificationDiagnosis
+  through one shared rule; no role copies it.
+- **Value.** Exactly one entry, `SystemRoot`, is added: the parent directory of
+  `Environment.SystemDirectory`, the managed getter backed by `GetSystemDirectoryW`. The ambient
+  `SystemRoot` and `windir` variables, a hardcoded installation path, P/Invoke, a directory search
+  and repository or user configuration are never consulted or used as a fallback.
+- **Validation.** Lexical only, with no existence, content, metadata, reparse-point or ACL
+  inspection of this API-derived value. The system directory must be nonblank, fully qualified,
+  free of control and NUL characters and of dot or dot-dot components, with at most one trailing
+  directory separator removed. Its parent must be nonblank, fully qualified and not a filesystem
+  root. No drive, installation-directory name or system-directory leaf name is assumed.
+- **Refusal.** A Windows Node-hosted request whose value cannot be resolved or validated, including
+  a reader that throws an expected OS or path failure, is refused before any process dispatch and
+  before any invocation scratch, schema or output artifact exists. Discovery reports the existing
+  `ExecutableInaccessible` reason; the Codex invocation returns its existing closed failure with
+  no process evidence. There is no retry, fallback, or launch with the smaller map, and neither a
+  value nor exception detail leaves the policy. Cancellation still propagates.
+- **Unchanged.** The Codex invocation still forwards an existing nonempty `USERPROFILE` and
+  `CODEX_HOME` unchanged (null and empty are omitted, whitespace is neither trimmed nor rejected)
+  and nothing else. `PATH`, `NODE_OPTIONS`, tokens, proxy, certificate, temp and every other
+  ambient entry stay excluded, and no environment value is logged, persisted or returned.
+
+Evidence limits: the diagnostic was a single fixed-order run against a probe script, so it
+establishes that `SystemRoot` was sufficient in two contexts, not that it is minimal or the reason
+inside Node. The regression tests use fake process adapters and fabricated paths, except that the
+tests of the four Codex wrappers read the real system directory to compute their expected value;
+they prove request construction and refusal behavior only. Neither establishes provider or
+production-host compatibility, authentication or qualification.
+
 ## Claude Code critical-review CLI safety contract
 
 The installed `@anthropic-ai/claude-code` package (version `2.1.276` at the time this contract

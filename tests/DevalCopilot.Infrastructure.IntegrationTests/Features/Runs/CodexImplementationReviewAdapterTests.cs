@@ -5,6 +5,7 @@ using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.Runs;
 using DevalCopilot.Infrastructure.Features.Processes;
 using DevalCopilot.Infrastructure.Features.Runs;
+using DevalCopilot.Infrastructure.IntegrationTests.Features.EnvironmentReadiness;
 using Xunit;
 
 namespace DevalCopilot.Infrastructure.IntegrationTests.Features.Runs;
@@ -458,6 +459,30 @@ public sealed class CodexImplementationReviewAdapterTests : IDisposable
                 Assert.DoesNotContain(StderrMarker, value);
             }
         }
+    }
+
+    [WindowsPlatformFact]
+    public async Task A_windows_node_script_launch_adds_only_SystemRoot_derived_from_the_system_directory()
+    {
+        var runId = Guid.NewGuid();
+        var attemptId = Guid.NewGuid();
+        var manifest = await SeedSealedManifestAsync(runId, attemptId, "manifest content");
+        var nodeExecutablePath = CreateLaunchFile("fake-node-systemroot.exe");
+        var scriptPath = CreateLaunchFile("fake-codex-cli-systemroot.js");
+
+        var fake = new FakeProcessExecutionAdapter();
+        var adapter = new CodexImplementationReviewAdapter(fake, _artifactStore);
+        var request = new ImplementationReviewInvocationRequest(
+            runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
+            nodeExecutablePath, scriptPath, TimeSpan.FromSeconds(30), 65536, 131072);
+
+        var result = await adapter.InvokeAsync(request, CancellationToken.None);
+
+        Assert.Equal(ImplementationReviewInvocationOutcome.Exited, result.Outcome);
+        var expectedSystemRoot = Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(Environment.SystemDirectory));
+        Assert.Equal(expectedSystemRoot, fake.CapturedRequest!.EnvironmentVariables["SystemRoot"]);
+        Assert.DoesNotContain("PATH", fake.CapturedRequest.EnvironmentVariables.Keys, StringComparer.OrdinalIgnoreCase);
+        Assert.DoesNotContain("NODE_OPTIONS", fake.CapturedRequest.EnvironmentVariables.Keys, StringComparer.OrdinalIgnoreCase);
     }
 
     private string CreateLaunchFile(string fileName)

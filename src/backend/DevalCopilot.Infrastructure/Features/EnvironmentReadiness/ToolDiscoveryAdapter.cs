@@ -1,6 +1,7 @@
 using DevalCopilot.Application.Features.EnvironmentReadiness.Ports;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
+using DevalCopilot.Infrastructure.Features.Processes;
 
 namespace DevalCopilot.Infrastructure.Features.EnvironmentReadiness;
 
@@ -26,9 +27,36 @@ public sealed class ToolDiscoveryAdapter(IProcessExecutionAdapter processExecuti
             return ToolDiscoveryResult.Failed(resolution.FailureReason.Value);
         }
 
-        var launchTarget = resolution.Target!;
-        var scratchDirectory = HostScratchDirectory.EnsureExists();
-        var request = BuildProbeRequest(launchTarget, descriptor.ProbeArguments, scratchDirectory);
+        return await ProbeResolvedAsync(
+            resolution.Target!,
+            descriptor.ProbeArguments,
+            WindowsNodeScriptEnvironment.Inputs.Current,
+            HostScratchDirectory.EnsureExists,
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Probes an already-resolved launch target. Internal so the control flow after resolution —
+    /// including the refusal that must precede scratch-directory creation and process dispatch —
+    /// is testable with controlled OS inputs, without resolving anything from the real filesystem.
+    /// </summary>
+    internal async Task<ToolDiscoveryResult> ProbeResolvedAsync(
+        ProviderLaunchTarget launchTarget,
+        IReadOnlyList<string> probeArguments,
+        WindowsNodeScriptEnvironment.Inputs environmentInputs,
+        Func<string> ensureScratchDirectory,
+        CancellationToken cancellationToken)
+    {
+        var environment = new Dictionary<string, string>();
+        if (!WindowsNodeScriptEnvironment.TryAdd(environment, launchTarget is ProviderLaunchTarget.NodeScript, environmentInputs))
+        {
+            // The Windows prerequisite for a Node launch could not be derived: refused before any
+            // scratch directory or process exists, never retried with the smaller map.
+            return ToolDiscoveryResult.Failed(CapabilityProbeReason.ExecutableInaccessible);
+        }
+
+        var scratchDirectory = ensureScratchDirectory();
+        var request = BuildProbeRequest(launchTarget, probeArguments, scratchDirectory, environment);
 
         ProcessExecutionResult result;
         try
@@ -118,10 +146,14 @@ public sealed class ToolDiscoveryAdapter(IProcessExecutionAdapter processExecuti
     /// a direct executable carries no argument prefix, a Node script's entrypoint becomes the
     /// first <see cref="System.Diagnostics.ProcessStartInfo.ArgumentList"/> item ahead of the
     /// fixed probe arguments. Internal (rather than private) so this exact shape is directly,
-    /// deterministically testable without resolving anything from the real filesystem.
+    /// deterministically testable without resolving anything from the real filesystem. The
+    /// environment is exactly what the caller supplies (none by default).
     /// </summary>
     internal static ProcessExecutionRequest BuildProbeRequest(
-        ProviderLaunchTarget launchTarget, IReadOnlyList<string> probeArguments, string scratchDirectory)
+        ProviderLaunchTarget launchTarget,
+        IReadOnlyList<string> probeArguments,
+        string scratchDirectory,
+        IReadOnlyDictionary<string, string>? environment = null)
     {
         var (executablePath, argumentPrefix) = launchTarget switch
         {
@@ -139,7 +171,7 @@ public sealed class ToolDiscoveryAdapter(IProcessExecutionAdapter processExecuti
             Timeout = ProbeTimeout,
             MaxBytesPerStream = MaxCapturedBytes,
             MaxTotalCapturedBytes = MaxCapturedBytes,
-            EnvironmentVariables = new Dictionary<string, string>(),
+            EnvironmentVariables = environment ?? new Dictionary<string, string>(),
         };
     }
 

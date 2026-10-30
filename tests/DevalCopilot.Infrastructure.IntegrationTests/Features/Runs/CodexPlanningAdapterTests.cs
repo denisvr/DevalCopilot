@@ -884,6 +884,30 @@ public sealed class CodexPlanningAdapterTests : IDisposable
         }
     }
 
+    [WindowsPlatformFact]
+    public async Task A_windows_node_script_launch_adds_only_SystemRoot_derived_from_the_system_directory()
+    {
+        var runId = Guid.NewGuid();
+        var attemptId = Guid.NewGuid();
+        var manifest = await SeedSealedManifestAsync(runId, attemptId, "manifest content");
+        var nodeExecutablePath = CreateLaunchFile("fake-node-systemroot.exe");
+        var scriptPath = CreateLaunchFile("fake-codex-cli-systemroot.js");
+
+        var fake = new FakeProcessExecutionAdapter();
+        var adapter = new CodexPlanningAdapter(fake, _artifactStore);
+        var request = new CodexPlanningInvocationRequest(
+            runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
+            nodeExecutablePath, scriptPath, TimeSpan.FromSeconds(30), 65536, 131072);
+
+        var result = await adapter.InvokeAsync(request, CancellationToken.None);
+
+        Assert.Equal(CodexPlanningInvocationOutcome.Exited, result.Outcome);
+        var expectedSystemRoot = Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(Environment.SystemDirectory));
+        Assert.Equal(expectedSystemRoot, fake.CapturedRequest!.EnvironmentVariables["SystemRoot"]);
+        Assert.DoesNotContain("PATH", fake.CapturedRequest.EnvironmentVariables.Keys, StringComparer.OrdinalIgnoreCase);
+        Assert.DoesNotContain("NODE_OPTIONS", fake.CapturedRequest.EnvironmentVariables.Keys, StringComparer.OrdinalIgnoreCase);
+    }
+
     private string CreateLaunchFile(string fileName)
     {
         var path = Path.Combine(_workspacePath, fileName);

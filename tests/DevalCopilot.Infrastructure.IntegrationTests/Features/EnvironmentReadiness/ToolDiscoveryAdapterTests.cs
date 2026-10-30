@@ -216,4 +216,183 @@ public sealed class ToolDiscoveryAdapterTests : IDisposable
         Assert.Equal(@"C:\Program Files\nodejs\node.exe", request.ExecutablePath);
         Assert.Equal([@"C:\npm\node_modules\@openai\codex\bin\codex.js", "--version"], request.Arguments);
     }
+
+    [Fact]
+    public void BuildProbeRequest_carries_exactly_the_environment_the_caller_supplies()
+    {
+        var target = new ProviderLaunchTarget.DirectExecutable(@"C:\Program Files\Git\cmd\git.exe");
+        var environment = new Dictionary<string, string> { ["SystemRoot"] = @"C:\FabricatedOs" };
+
+        var request = ToolDiscoveryAdapter.BuildProbeRequest(target, ["--version"], @"C:\scratch", environment);
+
+        Assert.Same(environment, request.EnvironmentVariables);
+    }
+
+    // The Windows NodeScript environment rule is proven against ProbeResolvedAsync, the resolved-
+    // target core DiscoverAsync delegates to, with fabricated targets and injected OS inputs: target
+    // resolution is independent of it and already covered by the resolver tests above.
+
+    private const string FabricatedNode = @"C:\Fabricated\nodejs\node.exe";
+    private const string FabricatedScript = @"C:\Fabricated\npm\codex.js";
+    private const string SensitiveMarker = "SENSITIVE-DISCOVERY-MARKER-2d7a";
+
+    [WindowsPlatformFact]
+    public async Task A_windows_node_script_probe_carries_only_the_derived_SystemRoot()
+    {
+        var fake = new FakeProcessExecutionAdapter((_, _) => Task.FromResult(Exited(0, "codex-cli 0.34.0\n")));
+        var adapter = new ToolDiscoveryAdapter(fake);
+
+        var result = await adapter.ProbeResolvedAsync(
+            new ProviderLaunchTarget.NodeScript(FabricatedNode, FabricatedScript),
+            ["--version"],
+            new(true, () => @"C:\FabricatedOs\System32"),
+            () => @"C:\Fabricated\scratch",
+            CancellationToken.None);
+
+        Assert.Equal(CapabilityProbeReason.None, result.Reason);
+        Assert.Equal(CapabilityLaunchKind.NodeScript, result.LaunchKind);
+        var request = Assert.Single(fake.Requests);
+        var entry = Assert.Single(request.EnvironmentVariables);
+        Assert.Equal("SystemRoot", entry.Key);
+        Assert.Equal(@"C:\FabricatedOs", entry.Value);
+        Assert.Equal([FabricatedScript, "--version"], request.Arguments);
+        Assert.Equal(FabricatedNode, request.ExecutablePath);
+        Assert.Equal(@"C:\Fabricated\scratch", request.WorkingDirectory);
+        Assert.Equal(@"C:\Fabricated\scratch", request.ApprovedRoot);
+        Assert.DoesNotContain("FabricatedOs", $"{result.Version}{result.ResolvedExecutablePath}{result.ResolvedScriptPath}", StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task A_native_or_non_windows_probe_keeps_an_empty_map_and_never_evaluates_the_reader(bool isWindows, bool isNodeScript)
+    {
+        var fake = new FakeProcessExecutionAdapter((_, _) => Task.FromResult(Exited(0, "git version 2.43.0\n")));
+        var adapter = new ToolDiscoveryAdapter(fake);
+        var evaluations = 0;
+        ProviderLaunchTarget target = isNodeScript
+            ? new ProviderLaunchTarget.NodeScript(FabricatedNode, FabricatedScript)
+            : new ProviderLaunchTarget.DirectExecutable(@"C:\Fabricated\git.exe");
+
+        var result = await adapter.ProbeResolvedAsync(
+            target,
+            ["--version"],
+            new(isWindows, () =>
+            {
+                evaluations++;
+                throw new InvalidOperationException(SensitiveMarker);
+            }),
+            () => @"C:\Fabricated\scratch",
+            CancellationToken.None);
+
+        Assert.Equal(CapabilityProbeReason.None, result.Reason);
+        Assert.Equal(0, evaluations);
+        Assert.Empty(Assert.Single(fake.Requests).EnvironmentVariables);
+    }
+
+    [WindowsOnlyTheory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData(@"relative\System32")]
+    [InlineData(@"C:\")]
+    [InlineData(@"C:\Windows")]
+    [InlineData(@"C:\Windows\..\Windows\System32")]
+    [InlineData(@"C:\Wind|ows\System32")]
+    public async Task An_unusable_system_directory_refuses_a_windows_node_script_before_scratch_and_dispatch(string? systemDirectory)
+    {
+        var fake = new FakeProcessExecutionAdapter((_, _) => Task.FromResult(Exited(0, "codex-cli 0.34.0\n")));
+        var adapter = new ToolDiscoveryAdapter(fake);
+        var scratchCalls = 0;
+
+        var result = await adapter.ProbeResolvedAsync(
+            new ProviderLaunchTarget.NodeScript(FabricatedNode, FabricatedScript),
+            ["--version"],
+            new(true, () => systemDirectory),
+            () =>
+            {
+                scratchCalls++;
+                return @"C:\Fabricated\scratch";
+            },
+            CancellationToken.None);
+
+        AssertRefused(result, fake, scratchCalls);
+    }
+
+    [WindowsPlatformFact]
+    public async Task A_control_character_system_directory_refuses_a_windows_node_script()
+    {
+        var fake = new FakeProcessExecutionAdapter((_, _) => Task.FromResult(Exited(0, "codex-cli 0.34.0\n")));
+        var adapter = new ToolDiscoveryAdapter(fake);
+        var scratchCalls = 0;
+
+        var result = await adapter.ProbeResolvedAsync(
+            new ProviderLaunchTarget.NodeScript(FabricatedNode, FabricatedScript),
+            ["--version"],
+            new(true, () => @"C:\Win" + (char)0 + @"dows\System32"),
+            () =>
+            {
+                scratchCalls++;
+                return @"C:\Fabricated\scratch";
+            },
+            CancellationToken.None);
+
+        AssertRefused(result, fake, scratchCalls);
+    }
+
+    [WindowsPlatformFact]
+    public async Task A_throwing_reader_refuses_a_windows_node_script_without_leaking_its_failure()
+    {
+        var fake = new FakeProcessExecutionAdapter((_, _) => Task.FromResult(Exited(0, "codex-cli 0.34.0\n")));
+        var adapter = new ToolDiscoveryAdapter(fake);
+        var scratchCalls = 0;
+
+        var result = await adapter.ProbeResolvedAsync(
+            new ProviderLaunchTarget.NodeScript(FabricatedNode, FabricatedScript),
+            ["--version"],
+            new(true, () => throw new InvalidOperationException(SensitiveMarker)),
+            () =>
+            {
+                scratchCalls++;
+                return @"C:\Fabricated\scratch";
+            },
+            CancellationToken.None);
+
+        AssertRefused(result, fake, scratchCalls);
+        Assert.DoesNotContain(
+            SensitiveMarker, $"{result.Reason}{result.Version}{result.ResolvedExecutablePath}{result.ResolvedScriptPath}", StringComparison.Ordinal);
+    }
+
+    [WindowsPlatformFact]
+    public async Task A_cancelled_windows_node_script_probe_still_throws_operation_cancelled()
+    {
+        var fake = new FakeProcessExecutionAdapter((_, _) => Task.FromResult(new ProcessExecutionResult
+        {
+            Outcome = ProcessExecutionOutcome.Cancelled,
+            ExitCode = null,
+            StandardOutput = string.Empty,
+            StandardOutputTruncated = false,
+            StandardError = string.Empty,
+            StandardErrorTruncated = false,
+            Duration = TimeSpan.FromMilliseconds(5),
+        }));
+        var adapter = new ToolDiscoveryAdapter(fake);
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() => adapter.ProbeResolvedAsync(
+            new ProviderLaunchTarget.NodeScript(FabricatedNode, FabricatedScript),
+            ["--version"],
+            new(true, () => @"C:\FabricatedOs\System32"),
+            () => @"C:\Fabricated\scratch",
+            CancellationToken.None));
+    }
+
+    private static void AssertRefused(ToolDiscoveryResult result, FakeProcessExecutionAdapter fake, int scratchCalls)
+    {
+        Assert.Equal(CapabilityProbeReason.ExecutableInaccessible, result.Reason);
+        Assert.Null(result.Version);
+        Assert.Null(result.ResolvedExecutablePath);
+        Assert.Null(result.ResolvedScriptPath);
+        Assert.Empty(fake.Requests);
+        Assert.Equal(0, scratchCalls);
+    }
 }
