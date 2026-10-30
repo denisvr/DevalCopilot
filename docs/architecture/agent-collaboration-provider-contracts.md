@@ -61,12 +61,22 @@ abort at startup under an empty environment, and under the Codex allowlist shape
 launch therefore carries one explicit OS prerequisite, while the child environment stays an
 explicit allowlist:
 
-- **Applicability.** The rule applies only when the host is Windows and the request is a
-  Node-hosted launch: a `ProviderLaunchTarget.NodeScript` in capability discovery, or a non-null
-  `LaunchScriptPath` in the shared Codex invocation. Native and non-Windows requests keep their
-  existing environment exactly and never evaluate the system-directory reader. The Codex
-  invocation serves Planning, ImplementationReview, ChallengeResolution and VerificationDiagnosis
-  through one shared rule; no role copies it.
+- **Applicability.** The rule (the internal `WindowsNodeProcessEnvironment` policy) applies only
+  when the host is Windows and the request starts the Node runtime. There are four source entry
+  paths, all using the one policy:
+  - capability discovery of a `ProviderLaunchTarget.NodeScript`;
+  - the native probe of the explicit `Capability.Node`, decided from the requested capability
+    value and never from an executable's file name, extension or path, so another capability's
+    executable named `node.exe` does not receive it and every other native capability keeps its
+    empty environment;
+  - a non-null `LaunchScriptPath` in the shared Codex invocation, which serves Planning,
+    ImplementationReview, ChallengeResolution and VerificationDiagnosis;
+  - a non-null script path in the shared Codex App Server session, which serves the model-catalog,
+    account-allowance and account-usage-guard observations.
+
+  A direct native Codex launch, any other native request and every non-Windows request keep their
+  existing environment exactly and never evaluate the system-directory reader. No role or adapter
+  copies the rule.
 - **Value.** Exactly one entry, `SystemRoot`, is added: the parent directory of
   `Environment.SystemDirectory`, the managed getter backed by `GetSystemDirectoryW`. The ambient
   `SystemRoot` and `windir` variables, a hardcoded installation path, P/Invoke, a directory search
@@ -76,23 +86,38 @@ explicit allowlist:
   free of control and NUL characters and of dot or dot-dot components, with at most one trailing
   directory separator removed. Its parent must be nonblank, fully qualified and not a filesystem
   root. No drive, installation-directory name or system-directory leaf name is assumed.
-- **Refusal.** A Windows Node-hosted request whose value cannot be resolved or validated, including
-  a reader that throws an expected OS or path failure, is refused before any process dispatch and
-  before any invocation scratch, schema or output artifact exists. Discovery reports the existing
-  `ExecutableInaccessible` reason; the Codex invocation returns its existing closed failure with
-  no process evidence. There is no retry, fallback, or launch with the smaller map, and neither a
-  value nor exception detail leaves the policy. Cancellation still propagates.
-- **Unchanged.** The Codex invocation still forwards an existing nonempty `USERPROFILE` and
-  `CODEX_HOME` unchanged (null and empty are omitted, whitespace is neither trimmed nor rejected)
-  and nothing else. `PATH`, `NODE_OPTIONS`, tokens, proxy, certificate, temp and every other
+- **Refusal.** A Windows request that requires the Node runtime and whose value cannot be resolved
+  or validated, including a reader that throws an expected OS or path failure, is refused before
+  any process dispatch and before any scratch directory, schema or output artifact exists.
+  Discovery (the script and the native Node probe) reports the existing `ExecutableInaccessible`
+  reason; the Codex invocation returns its existing closed failure with no process evidence; the
+  App Server session returns the exact unknown result its caller supplied, creating no scratch
+  directory, starting no process and running neither the handshake nor the caller's exchange. In
+  the session the check follows the existing cancellation and launch-component revalidation and
+  precedes scratch creation. There is no retry, fallback, or launch with the smaller map, and
+  neither a value nor exception detail leaves the policy. Cancellation still propagates.
+- **Unchanged.** The Codex invocation and the App Server session still forward an existing
+  nonempty `USERPROFILE` and `CODEX_HOME` unchanged (null and empty are omitted, whitespace is
+  neither trimmed nor rejected) and nothing else, plus `SystemRoot` on a Windows script-hosted
+  launch; the native Node probe carries `SystemRoot` alone. The session's argument order
+  (script prefix when present, then `app-server` and `--stdio`), redirection, no-shell setting,
+  duplex JSON-RPC handshake and exchange, bounds, stderr draining, cancellation and owned-process
+  cleanup are unchanged. `PATH`, `NODE_OPTIONS`, tokens, proxy, certificate, temp and every other
   ambient entry stay excluded, and no environment value is logged, persisted or returned.
 
 Evidence limits: the diagnostic was a single fixed-order run against a probe script, so it
 establishes that `SystemRoot` was sufficient in two contexts, not that it is minimal or the reason
-inside Node. The regression tests use fake process adapters and fabricated paths, except that the
-tests of the four Codex wrappers read the real system directory to compute their expected value;
-they prove request construction and refusal behavior only. Neither establishes provider or
-production-host compatibility, authentication or qualification.
+inside Node. The native Node probe and the App Server script launch were added by source
+inference that they share the same exposure; neither was observed under the empty or the
+extended environment with a real runtime. The regression tests use fake process adapters,
+fabricated paths and capturing callbacks, except that the tests of the four Codex wrappers read
+the real system directory to compute their expected value, and the fixture-driven model-catalog
+and account-allowance adapter tests run the production binding, so on Windows their script-path
+cases pass the real derived value to the fixture child (a test double, never Node or Codex). The
+new App Server environment tests capture the prepared process start information and throw a
+handled start failure, so they launch no child. They prove request construction, refusal and
+fixture behavior only. None establishes provider or production-host compatibility,
+authentication or qualification.
 
 ## Claude Code critical-review CLI safety contract
 

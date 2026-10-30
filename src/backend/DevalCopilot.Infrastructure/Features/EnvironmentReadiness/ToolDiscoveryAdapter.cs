@@ -28,9 +28,10 @@ public sealed class ToolDiscoveryAdapter(IProcessExecutionAdapter processExecuti
         }
 
         return await ProbeResolvedAsync(
+            capability,
             resolution.Target!,
             descriptor.ProbeArguments,
-            WindowsNodeScriptEnvironment.Inputs.Current,
+            WindowsNodeProcessEnvironment.Inputs.Current,
             HostScratchDirectory.EnsureExists,
             cancellationToken);
     }
@@ -39,19 +40,24 @@ public sealed class ToolDiscoveryAdapter(IProcessExecutionAdapter processExecuti
     /// Probes an already-resolved launch target. Internal so the control flow after resolution —
     /// including the refusal that must precede scratch-directory creation and process dispatch —
     /// is testable with controlled OS inputs, without resolving anything from the real filesystem.
+    /// <paramref name="capability"/> is the authoritative requested capability from
+    /// <see cref="DiscoverAsync"/>: the Node runtime prerequisite follows the capability or a
+    /// NodeScript target, never an executable's file name, extension or path.
     /// </summary>
     internal async Task<ToolDiscoveryResult> ProbeResolvedAsync(
+        Capability capability,
         ProviderLaunchTarget launchTarget,
         IReadOnlyList<string> probeArguments,
-        WindowsNodeScriptEnvironment.Inputs environmentInputs,
+        WindowsNodeProcessEnvironment.Inputs environmentInputs,
         Func<string> ensureScratchDirectory,
         CancellationToken cancellationToken)
     {
         var environment = new Dictionary<string, string>();
-        if (!WindowsNodeScriptEnvironment.TryAdd(environment, launchTarget is ProviderLaunchTarget.NodeScript, environmentInputs))
+        var requiresNodeRuntime = launchTarget is ProviderLaunchTarget.NodeScript || capability == Capability.Node;
+        if (!WindowsNodeProcessEnvironment.TryAdd(environment, requiresNodeRuntime, environmentInputs))
         {
-            // The Windows prerequisite for a Node launch could not be derived: refused before any
-            // scratch directory or process exists, never retried with the smaller map.
+            // The Windows prerequisite for a Node runtime launch could not be derived: refused
+            // before any scratch directory or process exists, never retried with the smaller map.
             return ToolDiscoveryResult.Failed(CapabilityProbeReason.ExecutableInaccessible);
         }
 

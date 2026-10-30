@@ -1,6 +1,201 @@
 # Planner/reviewer handoff
 
-## Current action: NODE-SCRIPT-SYSTEMROOT-01 selected for one new Claude executor chat
+## Current action: NODE-RUNTIME-SYSTEMROOT-02 selected for one new Claude executor chat
+
+### Review 2: GO for exact-content publication of the bounded extension
+
+NRS-R1 and NRS-R2 are resolved by Correction 1. Independent reconciliation
+confirmed main, HEAD, local origin/main and fresh live main still at
+`8cfd13174e0b59b5976deb399736b64bec882de8`, empty index, nine tracked
+modifications/deletions and three expected new C# paths. The executor preserved
+the planner's Review 1 hash. All inputs except the two permitted report/record
+changes and the corrected test still match the delivery manifest. Reversing
+only the selected annotation reproduces the test file's original delivery
+hash, confirming its body and every assertion are unchanged.
+
+Independent Infrastructure build passed with zero warnings/errors and the
+affected session-environment class passed 34/34, zero skipped on Windows. The
+executor's fresh correction evidence records 117 affected and 248 focused
+tests, zero skipped, corrected-file whitespace and clean document/diff checks.
+Retain the 232 Architecture results at unchanged-production-input scope. No
+Architecture build, generator, mutant or real-provider probe was repeated for
+Correction 1 or Review 2. Evidence is under
+`logs/planner-review/node-runtime-systemroot-02/review-02/`.
+
+The mutant aggregates remain summary-only voluntary evidence. The report now
+separates the six-line log from executor-reported chat-only commands and guard
+verdict, missing full failure details/revisions/hash strings, limited test-run
+timings and post-hoc equality of saved copies. Review verified the on-disk
+summary and final source identities; it did not access the session transcript
+or scratchpad copies or independently re-observe historical guard execution.
+No acceptance claim depends on those mutants, and missing originals are not
+reconstructed. The original CS1503 failure and earlier evidence remain intact.
+
+Accept the extension at the declared construction/refusal and controlled-fixture
+boundaries: authoritative Capability.Node selection, the existing script paths
+and the shared App Server environment before scratch/start. The policy's lexical
+logic and existing profile semantics remain unchanged. DiscoverAsync's native
+Node resolution is source-inspected rather than exercised end to end; real Node,
+Codex/Claude, production-host compatibility, authentication and qualification
+remain unproved. No further runtime observation or scope extension is selected.
+
+Publication requires the separate exact-content GO for the 12 approved paths,
+including both old-name deletions and new-name additions for the policy and
+its tests. Use --no-renames when comparing the changed-path set. The owner
+forwards the prompt to the same executor; no automatic or UI dispatch occurs.
+
+### Review 1: NO-GO for one platform annotation and mutant-evidence qualification
+
+Independent reconciliation confirmed main, HEAD, local origin/main and fresh
+live main at `8cfd13174e0b59b5976deb399736b64bec882de8`, empty index,
+nine tracked changes (including the two old-name deletions) and three expected
+new C# paths. The planner selection retained its dispatched hash and all
+recorded final-input hashes matched. Comparing the renamed policy and its
+tests after the declared identifier substitutions and XML-comment removal
+confirms the old logic/cases are preserved. Review inspected the new session
+overload, discovery capability flow, full new test harness, contract/report
+changes and original/final check evidence. Independent Infrastructure build
+passed with zero warnings/errors; the smallest changed matrix passed 117/117,
+zero skipped on Windows. No real provider, OpenAPI generation, mutation or
+desktop-interface operation was repeated. Evidence is under
+`logs/planner-review/node-runtime-systemroot-02/review-01/`.
+
+The production changes satisfy the selected construction/refusal boundary on
+inspection: the exact caller capability reaches discovery's core, and the
+session's same process instance/start call, duplex exchange, capture and cleanup
+remain behind the added pre-scratch guard. The new session environment tests
+capture StartInfo and intentionally fail start without launching a child. The
+248 focused and 232 Architecture passes retain their actual executor scope;
+SkipNSwag was supplied and the final Architecture build log has no generation
+step. No product-code correction or real-runtime claim is accepted or required.
+
+- **NRS-R1 (P2), open: Windows-path scratch-failure test is unconditional.**
+  CodexAppServerSessionEnvironmentTests.cs:234 marks
+  A_scratch_failure_after_a_derived_SystemRoot_still_returns_unknown_without_starting
+  with Fact, but injects IsWindows=true and a C-drive system-directory literal.
+  On a non-Windows host the shared host-Path lexical check rejects that literal
+  before scratch, contradicting the asserted ScratchCalls=1. Mark this one
+  Windows-path case with the existing OS-only WindowsPlatformFact. Keep its
+  assertions; do not change production validation or require junctions. The
+  current Windows pass does not establish non-Windows execution of this case.
+- **NRS-R2 (P2), open: distinguish mutant summaries from original evidence.**
+  The sole on-disk mutant record, 04-sanity-mutants.log, contains headings, a
+  zero-error line and aggregate 22/10-failure summaries only. It contains no full
+  original failure output, exact commands/filters/timing, mutated revisions or
+  before/after guard hashes. The report must identify which originals actually
+  survive in the executor chat, which were retained elsewhere within existing
+  evidence, and which are unavailable. Do not imply the summary proves all
+  provenance/restoration assertions. Current final-file hashes and the reviewed
+  predicates are independently checked; historical guard execution is a
+  different claim. Preserve existing material, qualify summary-only evidence,
+  and do not reconstruct or rerun missing originals. These volunteered controls
+  are not required to establish the selected final tests and product diff.
+
+Correct only the test annotation and current-work.md in the SAME executor
+chat. Preserve every original log, the production files and this planner record.
+Use already-visible chat facts for evidence attribution. Rebuild Infrastructure
+tests without restore, run affected tests and the final focused matrix, then
+changed-file whitespace and document/diff/sensitive-data checks. Retain
+Architecture's 232 results at unchanged-production-input scope; do not repeat
+Architecture/NSwag, mutants or other experiments for this correction. No real
+runtime probe, root inspection, installation, cleanup or next slice is selected.
+Return unstaged, uncommitted and unpushed; no publication GO exists.
+
+### Verified baseline and owner authority
+
+The owner answered "sim" to the proposal to apply the same SystemRoot policy
+to CodexAppServerSession and the native Node capability probe, with controlled
+tests and no real-provider probes. Prepare one resolved prompt here for the
+owner to forward to a NEW Claude executor chat; no automatic message dispatch
+or desktop-interface operation. Main, HEAD, local origin/main and a fresh live
+origin/main equal `8cfd13174e0b59b5976deb399736b64bec882de8`, with clean
+index, worktree and untracked state before selection. Prior publication is
+independently verified against tree `5f63ef808cf6df82e2f6a94a656342286183e81a`,
+sole parent `b40139e6e24ab9d65796c87459d8a020c76467fd` and the 14 approved
+paths; record: `logs/planner-review/node-script-systemroot-01/publication-verification.json`.
+CONTINUE_THIS_CHAT; current context percentage is unavailable. The prior
+executor is finished; no competing slice is active.
+
+### Resolved scope and behavior
+
+One coherent increment closes the two recorded source gaps through the existing
+OS prerequisite policy. ADR-0002/0004's Infrastructure ownership and ADR-0025's
+bounded read-only App Server observation remain unchanged. This is an explicit
+extension of the previous slice's selected applicability, not new evidence of
+provider compatibility, authentication, readiness or qualification.
+
+- Rename the internal policy to WindowsNodeProcessEnvironment and its decision
+  input to requiresNodeRuntime, with mechanical reference/test renames. Reuse
+  the exact current OS reader, lexical derivation, unchanged-map failure and
+  cancellation rules; do not duplicate or redesign validation.
+- Discovery requires that policy on Windows for NodeScript targets OR the
+  explicit Capability.Node. Pass the authoritative capability into the resolved
+  probe core. A native executable's name, suffix, path or user-supplied flag
+  never decides whether it is Node. Native Node probing gets only SystemRoot;
+  other native capabilities remain empty. Non-Windows behavior stays unchanged.
+  A missing/invalid prerequisite returns ExecutableInaccessible before scratch
+  creation or process dispatch, as for the existing script case.
+- App Server requires the policy on Windows only when scriptPath is non-null.
+  Add SystemRoot to the existing nonempty USERPROFILE/CODEX_HOME-only map,
+  preserving values and inclusion semantics. Direct native Codex and non-Windows
+  calls keep their current maps and do not evaluate the OS reader. Resolve after
+  existing cancellation/launch-target guards and before HostScratchDirectory or
+  Process.Start. Refusal returns the exact supplied unknownResult, with no
+  scratch, process, handshake or exchange callback, no fallback or retry and no
+  values/exception details in output.
+- Add a small immutable internal-input overload to CodexAppServerSession for
+  controlled environment readers, scratch creation and the existing process-start
+  call. A start Action<Process> can default to the same process.Start() and let
+  tests capture StartInfo then throw a handled start failure without a child.
+  Preserve public adapter constructors and all real transport, handshake,
+  correlation, timeout, byte/line bounds, cleanup and cancellation semantics.
+  No new transport port, production mode, mutable hook or DI/configuration flag.
+- Change CodexProcessInvoker only for the shared policy rename; preserve all
+  four role behaviors. Do not alter ChildProcessExecutionAdapter, provider
+  discovery precedence, package/native validation, profile allowlists, RPCs,
+  authentication, account projection, durable gates or UI. The two App Server
+  consumers continue to share the same session without production wrapper edits.
+- Update the existing provider-runtime environment section in place (preserve
+  its anchor), relevant source comments and current-work.md. State the precise
+  native Node exception and App Server branch. Preserve prior evidence and the
+  distinction between source gaps closed and real-runtime observations absent.
+
+### Acceptance and proportional validation
+
+Extend the renamed policy tests and ToolDiscoveryAdapterTests; add
+CodexAppServerSessionEnvironmentTests with fabricated OS/profile inputs and a
+capturing non-launching start callback. Assert exact maps and named reads,
+native/non-Windows no-op, unchanged values, invalid/throwing reader refusal
+before scratch/start/exchange, cancellation and no detail leakage. Discovery
+tests must distinguish Capability.Node from a non-Node capability whose fake
+target happens to be named node.exe. Preserve all prior policy regressions.
+Use WindowsPlatformFact for new OS-only facts, not the junction-probing fact.
+
+The existing CodexModelCatalogAdapterTests and CodexAccountAllowanceAdapterTests
+run only ProcessExecutionFixture with canned scripts and disposable data; their
+real local test-double processes, owned descendant lifecycle and existing
+fixture cleanup are allowed. They perform no actual account/credential/network
+observation. No fixture change or new process probe is selected. Use these
+complete classes to retain duplex success, timeout/cancellation and cleanup
+coverage; test injected pre-start environment decisions without real providers.
+
+Build Infrastructure.IntegrationTests and Architecture.Tests sequentially with
+--no-restore -c Debug; the Architecture build MUST set the MSBuild property
+SkipNSwag=true to avoid API composition/client generation. Final Infrastructure
+matrix: renamed policy, new App Server environment tests, discovery, shared
+Codex invoker environment, four Codex role adapters and both App Server consumer
+classes. Run Architecture after its build. Verify changed C# whitespace only,
+document links/fragments/inbound fragments, full diff, sensitive data and
+unchanged dependency/project/lock files. Preserve every failure in concise new
+ignored evidence. Broaden only for an evidenced affected boundary; missing
+assets or a required excluded operation returns to the planner, not restore or
+installation. No real Node/Codex/Claude, production host, launcher, real account/
+credential/ledger access, persistent environment or permission change, retained
+root inspection, standalone experiment or cleanup is authorized. Preserve this
+planner record and return unstaged, uncommitted and unpushed; exact-content GO
+is separate.
+
+## Previous action: NODE-SCRIPT-SYSTEMROOT-01
 
 ### Review 2: GO for exact-content publication of the bounded implementation
 

@@ -3,19 +3,21 @@ using System.ComponentModel;
 namespace DevalCopilot.Infrastructure.Features.Processes;
 
 /// <summary>
-/// The one narrow, explicit environment rule for a Node-hosted provider launch on Windows: Node
-/// aborts at startup under an otherwise-empty environment on Windows, so a NodeScript request
+/// The one narrow, explicit environment rule for a Node runtime process launch on Windows: Node
+/// aborts at startup under an otherwise-empty environment on Windows, so a request that starts
+/// the Node runtime — a NodeScript launch, or the native probe of the explicit Node capability —
 /// must carry the OS prerequisite <c>SystemRoot</c>. Shared by every caller that builds such a
-/// request (capability discovery and the Codex invocation contract) so they cannot drift apart.
+/// request (capability discovery, the Codex invocation contract and the Codex App Server session)
+/// so they cannot drift apart.
 /// The value is derived only from the parent of the managed system directory
 /// (<c>Environment.SystemDirectory</c>, backed by <c>GetSystemDirectoryW</c>) — never read from
 /// the ambient <c>SystemRoot</c>/<c>windir</c> variables, hardcoded, searched for or taken from
 /// repository or user configuration — and validated only lexically. The rule never adds
 /// <c>PATH</c>, <c>NODE_OPTIONS</c>, a token, a proxy/certificate setting, a temp location or
-/// any other ambient entry; a native or non-Windows request is never touched and never evaluates
-/// the system-directory reader.
+/// any other ambient entry; a request that does not require the Node runtime, or a non-Windows
+/// request, is never touched and never evaluates the system-directory reader.
 /// </summary>
-internal static class WindowsNodeScriptEnvironment
+internal static class WindowsNodeProcessEnvironment
 {
     internal const string SystemRootVariable = "SystemRoot";
 
@@ -30,16 +32,16 @@ internal static class WindowsNodeScriptEnvironment
 
     /// <summary>
     /// Adds exactly <c>SystemRoot</c> to <paramref name="environment"/> when the request is a
-    /// Windows NodeScript launch and returns <see langword="true"/>; returns
-    /// <see langword="true"/> without evaluating the reader or touching the map for every other
-    /// request. Returns <see langword="false"/>, leaving the map unmodified, when a Windows
-    /// NodeScript value cannot be resolved or fails lexical validation — the caller must then
-    /// refuse before any process dispatch, with no retry or fallback to a smaller map. Never
-    /// carries a value or exception detail out.
+    /// Windows launch that <paramref name="requiresNodeRuntime"/> and returns
+    /// <see langword="true"/>; returns <see langword="true"/> without evaluating the reader or
+    /// touching the map for every other request. Returns <see langword="false"/>, leaving the map
+    /// unmodified, when a required Windows value cannot be resolved or fails lexical validation —
+    /// the caller must then refuse before any process dispatch, with no retry or fallback to a
+    /// smaller map. Never carries a value or exception detail out.
     /// </summary>
-    internal static bool TryAdd(IDictionary<string, string> environment, bool isNodeScript, Inputs inputs)
+    internal static bool TryAdd(IDictionary<string, string> environment, bool requiresNodeRuntime, Inputs inputs)
     {
-        if (!isNodeScript || !inputs.IsWindows)
+        if (!requiresNodeRuntime || !inputs.IsWindows)
         {
             return true;
         }

@@ -10,7 +10,8 @@ namespace DevalCopilot.Infrastructure.Features.EnvironmentReadiness;
 /// The shared, bounded local Codex App Server duplex JSON-RPC session lifecycle every read-only
 /// App Server observation adapter in this application reuses: launch-target revalidation,
 /// no-shell/no-PATH-search argument passing, the restricted <c>USERPROFILE</c>/<c>CODEX_HOME</c>-
-/// only environment allowlist, the explicit <c>--stdio</c> argument, the required
+/// only environment allowlist (plus the Windows <c>SystemRoot</c> prerequisite for a script-hosted
+/// launch), the explicit <c>--stdio</c> argument, the required
 /// <c>initialize</c>/<c>initialized</c> handshake, a finite timeout, bounded output capture,
 /// cancellation propagation, and process-tree cleanup. Narrowly extracted out of the original
 /// <c>CodexAccountAllowanceAdapter</c> so a second read-only App Server observation (the Codex
@@ -46,6 +47,44 @@ internal static class CodexAppServerSession
     /// resolves to <paramref name="unknownResult"/>; only the caller's own cancellation is
     /// rethrown, always after cleanup has been attempted.
     /// </summary>
+    internal static Task<T> RunAsync<T>(
+        string executablePath,
+        string? scriptPath,
+        TimeSpan invocationTimeout,
+        int maxTotalCapturedBytes,
+        int maxLineBytes,
+        T unknownResult,
+        Func<CodexAppServerChannel, CancellationToken, Task<T>> exchangeAfterHandshake,
+        CancellationToken cancellationToken) =>
+        RunAsync(
+            executablePath,
+            scriptPath,
+            invocationTimeout,
+            maxTotalCapturedBytes,
+            maxLineBytes,
+            unknownResult,
+            exchangeAfterHandshake,
+            LaunchInputs.Current,
+            cancellationToken);
+
+    /// <summary>The ambient reads and side effects the launch preparation depends on, injectable so
+    /// its control flow — environment construction, the refusal that must precede scratch creation
+    /// and process start — is testable with controlled inputs and no real process. The production
+    /// binding reads the real variables and system directory, creates the real host scratch
+    /// directory and starts the process.</summary>
+    internal readonly record struct LaunchInputs(
+        Func<string, string?> ReadVariable,
+        WindowsNodeProcessEnvironment.Inputs NodeRuntime,
+        Func<string> EnsureScratchDirectory,
+        Action<Process> StartProcess)
+    {
+        internal static LaunchInputs Current { get; } = new(
+            System.Environment.GetEnvironmentVariable,
+            WindowsNodeProcessEnvironment.Inputs.Current,
+            HostScratchDirectory.EnsureExists,
+            static process => process.Start());
+    }
+
     internal static async Task<T> RunAsync<T>(
         string executablePath,
         string? scriptPath,
@@ -54,6 +93,7 @@ internal static class CodexAppServerSession
         int maxLineBytes,
         T unknownResult,
         Func<CodexAppServerChannel, CancellationToken, Task<T>> exchangeAfterHandshake,
+        LaunchInputs launchInputs,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -63,10 +103,18 @@ internal static class CodexAppServerSession
             return unknownResult;
         }
 
+        var environment = BuildEnvironmentAllowlist(launchInputs.ReadVariable);
+        if (!WindowsNodeProcessEnvironment.TryAdd(environment, scriptPath is not null, launchInputs.NodeRuntime))
+        {
+            // The Windows prerequisite for a Node-hosted launch could not be derived: refused
+            // before any scratch directory or process exists, never retried with the smaller map.
+            return unknownResult;
+        }
+
         string workingDirectory;
         try
         {
-            workingDirectory = HostScratchDirectory.EnsureExists();
+            workingDirectory = launchInputs.EnsureScratchDirectory();
             if (AgentInvocationScratchDirectory.PathOrAnyAncestorHasReparsePoint(workingDirectory))
             {
                 return unknownResult;
@@ -97,7 +145,7 @@ internal static class CodexAppServerSession
         startInfo.ArgumentList.Add("--stdio");
 
         startInfo.EnvironmentVariables.Clear();
-        foreach (var (key, value) in BuildEnvironmentAllowlist())
+        foreach (var (key, value) in environment)
         {
             startInfo.EnvironmentVariables[key] = value;
         }
@@ -106,7 +154,7 @@ internal static class CodexAppServerSession
 
         try
         {
-            process.Start();
+            launchInputs.StartProcess(process);
         }
         catch (Exception exception) when (exception is IOException or InvalidOperationException or System.ComponentModel.Win32Exception)
         {
@@ -343,18 +391,20 @@ internal static class CodexAppServerSession
 
     /// <summary>Mirrors <c>CodexProcessInvoker</c>'s own environment allowlist exactly: only the
     /// non-secret OS/profile-location values required to locate existing local Codex
-    /// authentication — never PATH, a provider token, or an arbitrary environment entry.</summary>
-    private static Dictionary<string, string> BuildEnvironmentAllowlist()
+    /// authentication — never PATH, a provider token, or an arbitrary environment entry. A Windows
+    /// script-hosted launch additionally gets exactly <c>SystemRoot</c> from
+    /// <see cref="WindowsNodeProcessEnvironment"/>, added by the caller.</summary>
+    private static Dictionary<string, string> BuildEnvironmentAllowlist(Func<string, string?> readVariable)
     {
         var environment = new Dictionary<string, string>();
 
-        var userProfile = System.Environment.GetEnvironmentVariable("USERPROFILE");
+        var userProfile = readVariable("USERPROFILE");
         if (!string.IsNullOrEmpty(userProfile))
         {
             environment["USERPROFILE"] = userProfile;
         }
 
-        var codexHome = System.Environment.GetEnvironmentVariable("CODEX_HOME");
+        var codexHome = readVariable("CODEX_HOME");
         if (!string.IsNullOrEmpty(codexHome))
         {
             environment["CODEX_HOME"] = codexHome;

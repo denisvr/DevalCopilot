@@ -243,6 +243,7 @@ public sealed class ToolDiscoveryAdapterTests : IDisposable
         var adapter = new ToolDiscoveryAdapter(fake);
 
         var result = await adapter.ProbeResolvedAsync(
+            Capability.CodexCli,
             new ProviderLaunchTarget.NodeScript(FabricatedNode, FabricatedScript),
             ["--version"],
             new(true, () => @"C:\FabricatedOs\System32"),
@@ -275,9 +276,96 @@ public sealed class ToolDiscoveryAdapterTests : IDisposable
             : new ProviderLaunchTarget.DirectExecutable(@"C:\Fabricated\git.exe");
 
         var result = await adapter.ProbeResolvedAsync(
+            isNodeScript ? Capability.CodexCli : Capability.Git,
             target,
             ["--version"],
             new(isWindows, () =>
+            {
+                evaluations++;
+                throw new InvalidOperationException(SensitiveMarker);
+            }),
+            () => @"C:\Fabricated\scratch",
+            CancellationToken.None);
+
+        Assert.Equal(CapabilityProbeReason.None, result.Reason);
+        Assert.Equal(0, evaluations);
+        Assert.Empty(Assert.Single(fake.Requests).EnvironmentVariables);
+    }
+
+    [WindowsPlatformFact]
+    public async Task A_windows_native_node_capability_probe_carries_only_the_derived_SystemRoot()
+    {
+        var fake = new FakeProcessExecutionAdapter((_, _) => Task.FromResult(Exited(0, "v24.12.0\n")));
+        var adapter = new ToolDiscoveryAdapter(fake);
+
+        var result = await adapter.ProbeResolvedAsync(
+            Capability.Node,
+            new ProviderLaunchTarget.DirectExecutable(FabricatedNode),
+            ["--version"],
+            new(true, () => @"C:\FabricatedOs\System32"),
+            () => @"C:\Fabricated\scratch",
+            CancellationToken.None);
+
+        Assert.Equal(CapabilityProbeReason.None, result.Reason);
+        Assert.Equal(CapabilityLaunchKind.DirectExecutable, result.LaunchKind);
+        Assert.Equal("24.12.0", result.Version);
+        var request = Assert.Single(fake.Requests);
+        var entry = Assert.Single(request.EnvironmentVariables);
+        Assert.Equal("SystemRoot", entry.Key);
+        Assert.Equal(@"C:\FabricatedOs", entry.Value);
+        Assert.Equal(FabricatedNode, request.ExecutablePath);
+        Assert.Equal(["--version"], request.Arguments);
+        Assert.Equal(@"C:\Fabricated\scratch", request.WorkingDirectory);
+        Assert.Equal(@"C:\Fabricated\scratch", request.ApprovedRoot);
+        Assert.Equal(TimeSpan.FromSeconds(5), request.Timeout);
+        Assert.Equal(4 * 1024, request.MaxBytesPerStream);
+        Assert.Equal(4 * 1024, request.MaxTotalCapturedBytes);
+        Assert.DoesNotContain("FabricatedOs", $"{result.Version}{result.ResolvedExecutablePath}{result.ResolvedScriptPath}", StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(Capability.Git)]
+    [InlineData(Capability.CodexCli)]
+    [InlineData(Capability.ClaudeCli)]
+    [InlineData(Capability.GitHubCli)]
+    [InlineData(Capability.DotNetSdk)]
+    [InlineData(Capability.Docker)]
+    public async Task A_native_probe_of_another_capability_keeps_an_empty_map_even_for_an_executable_named_node(
+        Capability capability)
+    {
+        var fake = new FakeProcessExecutionAdapter((_, _) => Task.FromResult(Exited(0, "tool version 2.43.0\n")));
+        var adapter = new ToolDiscoveryAdapter(fake);
+        var evaluations = 0;
+
+        var result = await adapter.ProbeResolvedAsync(
+            capability,
+            new ProviderLaunchTarget.DirectExecutable(FabricatedNode),
+            ["--version"],
+            new(true, () =>
+            {
+                evaluations++;
+                throw new InvalidOperationException(SensitiveMarker);
+            }),
+            () => @"C:\Fabricated\scratch",
+            CancellationToken.None);
+
+        Assert.Equal(CapabilityProbeReason.None, result.Reason);
+        Assert.Equal(0, evaluations);
+        Assert.Empty(Assert.Single(fake.Requests).EnvironmentVariables);
+    }
+
+    [Fact]
+    public async Task A_non_windows_native_node_capability_probe_keeps_an_empty_map_and_never_evaluates_the_reader()
+    {
+        var fake = new FakeProcessExecutionAdapter((_, _) => Task.FromResult(Exited(0, "v24.12.0\n")));
+        var adapter = new ToolDiscoveryAdapter(fake);
+        var evaluations = 0;
+
+        var result = await adapter.ProbeResolvedAsync(
+            Capability.Node,
+            new ProviderLaunchTarget.DirectExecutable(FabricatedNode),
+            ["--version"],
+            new(false, () =>
             {
                 evaluations++;
                 throw new InvalidOperationException(SensitiveMarker);
@@ -299,6 +387,85 @@ public sealed class ToolDiscoveryAdapterTests : IDisposable
     [InlineData(@"C:\Windows")]
     [InlineData(@"C:\Windows\..\Windows\System32")]
     [InlineData(@"C:\Wind|ows\System32")]
+    public async Task An_unusable_system_directory_refuses_a_windows_native_node_probe_before_scratch_and_dispatch(
+        string? systemDirectory)
+    {
+        var fake = new FakeProcessExecutionAdapter((_, _) => Task.FromResult(Exited(0, "v24.12.0\n")));
+        var adapter = new ToolDiscoveryAdapter(fake);
+        var scratchCalls = 0;
+
+        var result = await adapter.ProbeResolvedAsync(
+            Capability.Node,
+            new ProviderLaunchTarget.DirectExecutable(FabricatedNode),
+            ["--version"],
+            new(true, () => systemDirectory),
+            () =>
+            {
+                scratchCalls++;
+                return @"C:\Fabricated\scratch";
+            },
+            CancellationToken.None);
+
+        AssertRefused(result, fake, scratchCalls);
+    }
+
+    [WindowsPlatformFact]
+    public async Task A_throwing_reader_refuses_a_windows_native_node_probe_without_leaking_its_failure()
+    {
+        var fake = new FakeProcessExecutionAdapter((_, _) => Task.FromResult(Exited(0, "v24.12.0\n")));
+        var adapter = new ToolDiscoveryAdapter(fake);
+        var scratchCalls = 0;
+
+        var result = await adapter.ProbeResolvedAsync(
+            Capability.Node,
+            new ProviderLaunchTarget.DirectExecutable(FabricatedNode),
+            ["--version"],
+            new(true, () => throw new InvalidOperationException(SensitiveMarker)),
+            () =>
+            {
+                scratchCalls++;
+                return @"C:\Fabricated\scratch";
+            },
+            CancellationToken.None);
+
+        AssertRefused(result, fake, scratchCalls);
+        Assert.DoesNotContain(
+            SensitiveMarker, $"{result.Reason}{result.Version}{result.ResolvedExecutablePath}{result.ResolvedScriptPath}", StringComparison.Ordinal);
+    }
+
+    [WindowsPlatformFact]
+    public async Task A_cancelled_windows_native_node_probe_still_throws_operation_cancelled()
+    {
+        var fake = new FakeProcessExecutionAdapter((_, _) => Task.FromResult(new ProcessExecutionResult
+        {
+            Outcome = ProcessExecutionOutcome.Cancelled,
+            ExitCode = null,
+            StandardOutput = string.Empty,
+            StandardOutputTruncated = false,
+            StandardError = string.Empty,
+            StandardErrorTruncated = false,
+            Duration = TimeSpan.FromMilliseconds(5),
+        }));
+        var adapter = new ToolDiscoveryAdapter(fake);
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() => adapter.ProbeResolvedAsync(
+            Capability.Node,
+            new ProviderLaunchTarget.DirectExecutable(FabricatedNode),
+            ["--version"],
+            new(true, () => @"C:\FabricatedOs\System32"),
+            () => @"C:\Fabricated\scratch",
+            CancellationToken.None));
+    }
+
+    [WindowsOnlyTheory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData(@"relative\System32")]
+    [InlineData(@"C:\")]
+    [InlineData(@"C:\Windows")]
+    [InlineData(@"C:\Windows\..\Windows\System32")]
+    [InlineData(@"C:\Wind|ows\System32")]
     public async Task An_unusable_system_directory_refuses_a_windows_node_script_before_scratch_and_dispatch(string? systemDirectory)
     {
         var fake = new FakeProcessExecutionAdapter((_, _) => Task.FromResult(Exited(0, "codex-cli 0.34.0\n")));
@@ -306,6 +473,7 @@ public sealed class ToolDiscoveryAdapterTests : IDisposable
         var scratchCalls = 0;
 
         var result = await adapter.ProbeResolvedAsync(
+            Capability.CodexCli,
             new ProviderLaunchTarget.NodeScript(FabricatedNode, FabricatedScript),
             ["--version"],
             new(true, () => systemDirectory),
@@ -327,6 +495,7 @@ public sealed class ToolDiscoveryAdapterTests : IDisposable
         var scratchCalls = 0;
 
         var result = await adapter.ProbeResolvedAsync(
+            Capability.CodexCli,
             new ProviderLaunchTarget.NodeScript(FabricatedNode, FabricatedScript),
             ["--version"],
             new(true, () => @"C:\Win" + (char)0 + @"dows\System32"),
@@ -348,6 +517,7 @@ public sealed class ToolDiscoveryAdapterTests : IDisposable
         var scratchCalls = 0;
 
         var result = await adapter.ProbeResolvedAsync(
+            Capability.CodexCli,
             new ProviderLaunchTarget.NodeScript(FabricatedNode, FabricatedScript),
             ["--version"],
             new(true, () => throw new InvalidOperationException(SensitiveMarker)),
@@ -379,6 +549,7 @@ public sealed class ToolDiscoveryAdapterTests : IDisposable
         var adapter = new ToolDiscoveryAdapter(fake);
 
         await Assert.ThrowsAsync<OperationCanceledException>(() => adapter.ProbeResolvedAsync(
+            Capability.CodexCli,
             new ProviderLaunchTarget.NodeScript(FabricatedNode, FabricatedScript),
             ["--version"],
             new(true, () => @"C:\FabricatedOs\System32"),
