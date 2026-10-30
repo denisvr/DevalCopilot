@@ -1,6 +1,150 @@
 # Planner/reviewer handoff
 
-## Current action: QUALIFICATION-PROVIDER-PROVISION-01 selected, return for review
+## Current action: QUALIFICATION-NODE-ENV-DIAGNOSIS-01 selected for one new Claude executor chat
+
+### Review 2: GO for exact-content publication of the qualified evidence report
+
+QNE-R1 and QNE-R2 are resolved as documentation findings by Correction 1.
+Independent review read the complete corrected report diff and fresh correction
+check output. Main, HEAD, local origin/main and a fresh live main still equal
+`6deae5bc3c9c85e8a4ee80e0cc9426d11443a141`, with empty index/untracked state
+and exactly the two checkpoint documents modified. The executor preserved the
+planner's Review 1 hash. All 45 retained manifest entries still match; the two
+new correction-check files bring the evidence directory from 48 to 50 files.
+The correction checker differs from the original only in its output path.
+Independent diff and targeted sensitive-data checks pass; the new report link
+exists, and retained link/fragment checks report no failures or affected inbound
+fragments. No runtime, environment-value read, build or compilation was repeated.
+
+Accept the qualified evidence report. A/C reproduce the Node startup abort
+through the production process adapter; B/D exit 0 with the fixed marker and
+their requested names when only SystemRoot is added. Only B/D report child key
+names. A/C names are unobserved, and absent versus empty CODEX_HOME is not
+distinguished. The packaging error, continuation, overwritten partial manifest,
+chat-only original command/error, partial surviving inventory and unavailable
+original bytes remain explicit limits, not waived preservation requirements.
+The extra earlier-output read remains disclosed, without retrospective authority.
+
+The executor's F-1 challenge is accepted at the controlled Node-only boundary;
+provider/production-host compatibility, authentication and qualification stay
+open. No fix, forwarding policy, additional probe, cleanup or next slice is
+selected. Publication is authorized only by the separate exact-content GO for
+current-work.md and this planner record. The owner will send that prompt; the
+planner does not operate the desktop interface or dispatch it through the UI.
+
+### Review 1: NO-GO pending documentation correction only
+
+Independent review reconciled main, HEAD, local origin/main and a fresh live
+origin/main at `6deae5bc3c9c85e8a4ee80e0cc9426d11443a141`, empty index and
+untracked state, and exactly the two checkpoint documents modified. The planner
+selection still had its dispatched SHA-256. Review read the complete report
+diff, helper, scripts, build/compiler output, runtime records, all eight sinks
+and the production capture sources. All 45 manifest entries match their current
+lengths and hashes; the directory currently has 48 files. All eight sinks equal
+the returned files and recorded text; A/C stderr differs only in process id.
+No build, compilation, Node execution or provider operation was repeated.
+
+Accept the controlled observations as evidence: A/C exited 134 with the known
+startup assertion, B/D exited 0 with the fixed marker and requested key names,
+with no recorded runtime timeout, truncation or compiled-helper/adapter fault.
+The direct production process-adapter boundary is exercised. The executor's
+challenge is accepted in this precise scope: F-1's Node-only abort is reproduced
+through .NET, and adding SystemRoot changed the observed result in both pairs.
+The provider/host compatibility concern remains open; this decides no forwarding
+policy, architectural fix, authentication, qualification or next runtime action.
+The single fixed order, allowlist replica, neutral cwd, null stdin, absent
+nonempty CODEX_HOME and existing redaction limits remain.
+
+- **QNE-R1 (P2), open: failure preservation and manifest scope.** The executor
+  chat's original `Verified sinks, hash evidence, check git state` output shows
+  Get-FileHash failed to read the manifest being written (`FileReadError`, file
+  used by another process), then continued and reported 46 lines. The subsequent
+  command regenerated that same path; the surviving manifest has 45 entries.
+  The report discloses regeneration but calls it a manifest of every file and
+  does not distinguish the original command/error surviving in chat from the
+  overwritten partial artifact. Record the exact surviving evidence and gaps,
+  including that this snapshot excludes itself and the later document-check
+  script/output. Qualify the blanket no-stop/no-failure wording as runtime-only.
+  The packaging error happened after all four cases; no later runtime operation
+  is shown. It does not invalidate those recorded observations or authorize
+  another run. Preservation requirements are not waived retrospectively.
+- **QNE-R2 (P2), open: observed names versus source inference.** The statement
+  that the child saw exactly the requested names overstates A/C: they emitted
+  no names before aborting. Attribute clearing/filling to the inspected adapter
+  source and exact observed key arrays only to B/D. The allowlist's omission of
+  CODEX_HOME establishes no nonempty value, not the distinction between absent
+  and empty. Use that precise limit without any new environment read. Keep the
+  successful results and the untested present-nonempty CODEX_HOME case distinct.
+
+Correct only current-work.md in the SAME executor chat, preserving finding IDs,
+the planner record and all existing evidence. Use only already visible chat
+facts and retained files; no recovery/reconstruction of missing originals,
+manifest regeneration, helper edit/execution, build, Node/provider probe,
+environment/location inspection or cleanup. Run proportional document/diff/
+sensitive-data checks, retaining runtime results at their actual scope, and
+return unstaged, uncommitted and unpushed. No publication GO is issued.
+
+### Reconciled baseline and authority
+
+The owner explicitly authorized this bounded diagnosis and its dispatch to one
+NEW Claude executor chat. Before selection, main, HEAD, local origin/main and
+a fresh live origin/main were `6deae5bc3c9c85e8a4ee80e0cc9426d11443a141`,
+with clean index, worktree and untracked state. The first restricted live-ref
+read failed with `getaddrinfo() thread failed to start`; the authorized network
+retry succeeded. No runtime observation was attempted by the planner.
+
+The prior publication matches its retained Review 2 approval: tree
+`0e65227da20f0105f9c87bb8d768a5659615b714`, sole parent
+`7cdfdd1b92bdc84dd354b29b846f22d889b59991`, exactly current-work.md and
+planner-handoff.md. Previous publication-pending wording is historical, not a
+request to republish. CONTINUE_THIS_CHAT for the planner; current context usage
+is unavailable, not a measured percentage. Use one new executor chat for this
+slice and its corrections; the prior executor chat receives no further work.
+
+### Selected observation and stop boundary
+
+F-1 remains accepted and unresolved. Source confirms that discovery requests
+an empty environment, CodexProcessInvoker forwards only nonempty USERPROFILE
+and CODEX_HOME, and ChildProcessExecutionAdapter clears and fills the child
+environment. These facts do not reproduce the .NET outcome or prove a cause.
+One differential observation is the largest coherent safe outcome; provider
+execution and any fix require separate authority.
+
+- Allow one Infrastructure build with --no-restore and one compilation of a
+  minimal scratch .NET 10 helper using the installed SDK, local framework
+  references and built product assemblies. No restore, download or dependency
+  change. Call the existing ChildProcessExecutionAdapter directly.
+- Revalidate only the fixed ProgramFiles/nodejs/node.exe host, version
+  24.12.0, 89,935,872 bytes, SHA-256
+  `2FFE3ACC0458FDDE999F50D11809BBE7C9B7EF204DCF17094E325D26ACE101D8`,
+  with no reparse point on its chain. Stop on drift or missing prerequisites.
+- Use one fixed inline script emitting a startup marker and environment names
+  only; no file reads, environment values or network calls. Run once per
+  distinct map, at most four: empty; empty plus SystemRoot; current invoker
+  allowlist; that allowlist plus SystemRoot. Read only the two allowlisted
+  ambient values, forward without recording them or inspecting their locations.
+  Derive SystemRoot from the Windows system-directory API, never inheritance.
+- Keep arguments, new neutral working directory and production streaming caps
+  identical: 30 seconds, 4096 bytes per stream and 4096 bytes combined. Record
+  request keys, actual outcomes, original bounded output, timing and truncation.
+  Exit 0 with the fixed marker or the known Node initialization abort are data.
+  Any helper/build fault, timeout, truncation or unexpected output, target or
+  effect stops remaining cases. No retry, repair or continuation after a fault.
+- Keep source, exact revisions and original evidence in one new ignored
+  directory; preserve all failures and earlier evidence. Only current-work.md
+  is the executor's tracked report; preserve this planner record. Run focused
+  changed-document link/fragment, diff and sensitive-data checks, without Node
+  checker executions outside the authorized cases or unrelated test suites.
+
+No Codex/Claude runtime invocation or probe, production host or qualification
+launcher, installation, credential/account/ledger access, persistent environment
+change, product/test/source-contract edit, retained-root inspection or cleanup
+is authorized. Results establish controlled runtime observations only, never
+Codex compatibility, authentication, qualification or permission to fix.
+Return unstaged, uncommitted and unpushed for independent review; publication
+requires a separate exact-content GO. All standing restrictions remain.
+
+## Previous action: QUALIFICATION-PROVIDER-PROVISION-01
 
 ### Review 2: GO for exact-content publication of the qualified evidence report
 
