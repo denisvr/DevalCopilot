@@ -4,11 +4,16 @@ This is the opt-in procedure for the one real-provider acceptance session the ow
 Planner Proposal, then one real Claude CriticalReviewer Acceptance **or** Challenge replying to that exact persisted Proposal,
 through the production host, adapters, parsers and result writers, in a new disposable repository and data root. A genuine
 Challenge is a valid result; nothing forces an Acceptance. The result is version-specific compatibility evidence, not provider
-obedience, general reliability, account capacity or increment completion. Two launches are recorded: the first, on 2026-10-09,
-ended `Blocked` / `TargetsNotReal` before any allowance was spent; the second, published on 2026-10-31, ended `Failed` (exit 5)
-at the CriticalReviewer invocation, spent both allowances and qualified nothing. A later, separately authorized reset-and-session
-sequence on 2026-10-31 stopped at its build step: no reset, no launch, so it is not a third launch and both allowances stay
-spent. See [the recorded outcomes](#recorded-outcome-of-the-only-launch) below. See [AGENTS.md](../../AGENTS.md) for the planner/executor
+obedience, general reliability, account capacity or increment completion. Three launches are recorded:
+
+- The first, on 2026-10-09, ended `Blocked` / `TargetsNotReal` before any allowance was spent.
+- The second, published on 2026-10-31, ended `Failed` (exit 5) at the CriticalReviewer invocation. It spent both allowances and
+  qualified nothing.
+- The third followed a reset of those allowances by a new owner decision; a 2026-10-31 sequence before it had stopped at its
+  build step, with no reset and no launch. The third ended `Failed` (exit 5) at the CriticalReviewer invocation again. It spent
+  both new allowances and qualified nothing.
+
+No further sequence is authorized. See [the recorded outcomes](#recorded-outcome-of-the-only-launch) below. See [AGENTS.md](../../AGENTS.md) for the planner/executor
 roles.
 
 ## Recorded outcome of the only launch
@@ -59,6 +64,27 @@ The planner's final review closed this physical sequence at its mandatory stop: 
 explicit owner decision, even though this one invoked no provider. Its execution record is the
 QUALIFICATION-REAL-SESSION-02 section of [current-work.md](current-work.md).
 
+**The prepared procedure and its one authorized sequence (2026-10-31).** QUALIFICATION-REAL-SESSION-03 prepared one corrected
+operator procedure as an ignored, one-use package. It resolves a single first `dotnet.exe` from PATH, records its inputs as
+hash-verified data and runs one ordered, deadline-bounded sequence with bounded output capture. The package was exercised offline,
+corrected after each review and accepted. The owner then explicitly authorized one physical sequence, which ran once:
+
+- The preflight, a local build with 0 warnings and 0 errors, and the source check passed.
+- The reset archived the two known old markers without overwriting anything, and the receipt was validated.
+- The unchanged launcher ran one session, and its whole sequence ended at elapsed 53.7 s.
+- The real Codex Planner attempt recorded one coherent `Proposal` (exit 0) with agreeing sealed evidence, and the source stayed
+  unchanged.
+- The real Claude CriticalReviewer attempt for that Proposal was dispatched. Its process exited 1 after 535 ms with
+  `ProviderInvocationFailed` and no message.
+- The launcher exited 5 (`Failed`, `ReviewerAttemptFailedProviderInvocationFailed`). Its child-process proof ended
+  `OriginUnresolved`, so the new root was preserved (`ShutdownUnproven`).
+- The sequence then stopped at its exit gate, without the ledger comparison.
+
+Both new allowances are spent, so the launcher again refuses with exit 3 while they exist. Nothing was retried, and providers are
+not qualified. The earlier `SystemRoot` repair did not make the reviewer invocation succeed. The cause of this failure was not observed,
+because the provider streams were not inspected. Its record is the QUALIFICATION-REAL-SESSION-03 section of
+[current-work.md](current-work.md).
+
 ## It is not a test
 
 The launcher is a separate executable, `ManualQualification` (source under
@@ -105,6 +131,10 @@ Remove-Item Env:\DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM
 
 Without the exact flag as the only argument and the exact phrase, it prints a refusal and exits 2 with no host, no provider, no
 directory and no ledger entry.
+
+This shows the opt-in shape, not current authority. Any further real sequence (reset, build and launch) follows only a separately
+reviewed procedure, a new explicit owner decision and a complete planner dispatch. The QUALIFICATION-REAL-SESSION-03 package used
+its single authorization; it cannot be rerun under that decision.
 
 ## What one session does
 

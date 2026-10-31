@@ -6,10 +6,412 @@ was prepared ([recovery](development-workflow.md#recovery)). Git and code
 prevail; compare branch, `HEAD`, `origin/main` and staged/unstaged/untracked
 state first.
 
-## Active slice: QUALIFICATION-REAL-SESSION-02 auditable reset of the two spent allowances and one newly authorized qualification session (stopped at the build gate; no reset, no launch, not qualified)
+## Active slice: QUALIFICATION-REAL-SESSION-03 corrected operator procedure and its one owner-authorized physical sequence (launcher exit 5 at the CriticalReviewer; not qualified)
 
 This document records the evidence delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
 This record alone grants no publication authority.
+
+**Delivery phase: fourth return to Codex, after the one owner-authorized physical sequence. Delivered unstaged, uncommitted and
+unpushed. Publication authority is recorded in planner-handoff.md and the external exact-content approval. Outcome: the
+sequence ran once and ended at its exit gate at elapsed 53.7 s.**
+- Witness, preflight, build, source check, reset and receipt validation all succeeded.
+- The unchanged launcher ran one session. The real Codex Planner recorded a coherent `Proposal`. The real Claude CriticalReviewer
+  invocation failed (process exit 1 after 535 ms, `ProviderInvocationFailed`, no message).
+- The launcher exited 5 (`Failed`, `ReviewerAttemptFailedProviderInvocationFailed`). Its child-process proof was
+  `OriginUnresolved`, so its new root was preserved.
+- Both new allowances are spent according to the safe summary. Nothing was retried, compensated or restored. Providers are not qualified.
+
+### Physical sequence (owner-authorized, run once; `logs/executor/qualification-real-session-03/`)
+
+**Preconditions (verified once before acting).**
+- `main`; `HEAD`, local `origin/main` and freshly queried live `origin/main` all `98b79d0…`; empty index; nothing untracked.
+- Exactly this file, the playbook and `planner-handoff.md` were modified. The planner record was `EB36201A…10F3` and this file was
+  `8E0718F6…4F8A`.
+- The owner-decision record `review-03/owner-decision-authorized.json` was `106052BE…84B2`, with reference
+  `owner-2026-10-31-session03-one-physical-sequence`. The envelope `invoke-authorized-session.ps1` was `62A2C4D1…112D`.
+- `execution/` and the three operator outputs were absent.
+
+I edited no document, script or record before the run.
+
+**Invocation.** The exact prompted command ran once from the repository root, in the background, through
+`invoke-recorded-host.ps1`, which loaded the runtime from its pinned data record. It ran from 2026-10-31T19:19:30Z to
+19:20:24.6Z. The envelope exited 85 after elapsed 54.152 s. Its operator outcome was:
+- `Exited`, exit code 85, drained, 147 stdout bytes, 0 stderr bytes;
+- no capture fault, no kill, and capture release observed;
+- no start, setup, kill or secondary error tokens.
+
+I monitored the operator's own `sequence-status.json` and `progress.log` at intervals under 60 s. I started nothing else and made
+no Describe, Verify, matrix, probe, login or configuration change.
+
+| Phase | Elapsed (s) | Result |
+| --- | --- | --- |
+| Witness `execution/execution-started.json` | 0.23–0.26 | created 19:19:31.05Z (CreateNew) |
+| Preflight child (cap 60) | 0.28–1.41 | exit 0, all gates `ok` (details below) |
+| Build (cap 120) | 1.44–17.44 | exit 0; `0 Warning(s)`, `0 Error(s)`; `--no-restore` |
+| Source check (Git status/HEAD, pinned hashes) | 17.44–17.55 | unchanged (`98b79d0…`, the three expected modified files) |
+| Reset child (cap 20) | 17.55–17.99 | exit 0; old session `8f99baae…`; 2 markers archived |
+| Receipt validation | 17.99–18.04 | stdout receipt, both archive receipts and both archived marker hashes agree; source names absent |
+| Launcher (deadline 1,860) | 18.05–53.70 | exit 5, stdout 4,291 bytes, stderr 0, drained, no capture fault |
+| Exit gate | 53.72 | stop `LauncherExitNonzero`; bounded report of captured output only |
+
+**Preflight details.**
+- The temp path had length 33, with no reparse point through the drive root.
+- All four installed pins were contained, unaliased and at their exact identities.
+- No competing direct `codex.exe` or `claude.exe` candidate was found across 27 directories.
+- `dotnet.exe` resolved to the first PATH match at entry 9, with 1 later match. `git.exe` resolved at entry 14, with 1 later match.
+- The ledger existed, unaliased. The session-02 and session-03 archives were absent, and both old marker files were present
+  (existence only).
+- The projected maximum path length was 208.
+
+**Archive receipt** (`execution/reset.stdout.txt`, SHA-256 `3CA212F6…37A4`). Both identities were validated before any move:
+Planner, 189 bytes, `B0181AB9…E4C1`; Reviewer, 190 bytes, `5A41667D…D43F`. The receipt validation re-read both archived markers
+with the session-03 parser and accepted them. This is the first real-format evidence for QRS3-P1; the marker text itself was not
+exported.
+
+**Safe summary** (launcher stdout, `execution/launch.stdout.txt`). The report records a 4,289-byte summary with SHA-256
+`2BF0D1B8…783A`, schema 2, session `a25de925203a4959ae63e3b9357d6122`.
+- **Targets:** Codex `0.166.0` (NodeScript), Claude Code `2.1.276` (DirectExecutable) and Git `2.53.0`, all verified installed.
+- **Allowances:** both consumed before their POST, both POSTs attempted, both dispatched, and execution observed for both.
+- **Planner (Codex):** completed, outcome `Proposed`, process exit 0 after 12,606 ms. One `Proposal` message, provenance
+  `ProviderObserved`. Sealed manifest agrees, with 4 of 4 artifacts agreeing with their hashes. Status and evidence routes agree.
+- **Reviewer (Claude Code, CriticalReview):** failed, outcome `ProviderInvocationFailed`, process exit 1 after 535 ms, 0
+  messages. Its recorded input is exactly that Proposal, and the sealed input names it. Sealed manifest agrees, 3 of 3 artifacts.
+  Evidence route comparison `NotAttempted`.
+- **Source:** 3 checks, proven and unchanged.
+- **Shutdown and cleanup:** host stopped; child processes not proven stopped (`OriginUnresolved`); owned root not removed
+  (`ShutdownUnproven`).
+
+**Allowances and ledger.** Both new allowances are consumed by session `a25de925…`, as the summary records. Their new marker files
+were not read; no new ledger read happened after the nonzero exit. The ledger-summary comparison was not performed, by design:
+the exit gate forbids it after a nonzero exit. The launcher would now refuse with exit 3. Any further session needs a new owner
+decision and a new reset.
+
+**Findings for Codex.**
+- **QRS3-X1 (material).** The CriticalReviewer invocation still fails: Claude Code exited 1 after 535 ms with no message.
+  Session 01 had the same exit code and failure classification after 129 ms, before the `SystemRoot` repair. The repair did
+  not produce a successful invocation in this session; matching classifications do not establish matching causes. The cause
+  was not observed: provider streams, Proposal, manifests, root and database were deliberately not inspected. A diagnosis
+  would need its own bounded authorization.
+- **QRS3-X2 (evidence gap).** The operator kept the built launcher's identity and output hashes in memory for its launch check,
+  but `sequence-status.json` persists only phase process facts. The built binary hash is therefore not in the retained
+  evidence. The build log records 0 warnings and 0 errors.
+- **QRS3-X3 (informational).** The preserved new root and the unproved child shutdown mirror session 01. Only the launcher
+  decided cleanup; nothing was inspected or removed.
+
+**Evidence classes.**
+- **Fresh (this sequence):**
+  - the preconditions;
+  - the one invocation, with the envelope and operator outputs (`operator.status.json` `F29FB552…794F`,
+    `operator.stdout.txt` `19B1F1AE…A5E7`, `operator.stderr.txt` empty);
+  - `execution/` phase outputs and `sequence-status.json` (`B8EC7E1C…0E0B`);
+  - the post-run document and Git checks.
+- **Retained:** the package's controlled (179), projection (12) and static results at their recorded scope; earlier sessions'
+  evidence.
+- **Not run:** a ledger comparison, any read of the new markers, provider streams, Proposal, manifests, root or database, any
+  retry, Describe, Verify or matrix, and any probe, login, install or cleanup.
+
+**Limits.**
+- Descendant stop is unproved, and the launcher's own proof is `OriginUnresolved`.
+- Pending-read and OS-timing limits remain as disclosed.
+- Capture was complete for every child (drained, no fault), but completeness proves only what each child wrote, not its
+  provider's internal state.
+
+### Preparation delivery history (before the physical sequence; preserved)
+
+**Delivery phase at the third return (historical).
+- Review 1 was a NO-GO, answered by [Correction 1](#correction-1-codex-review-1-no-go-qrs3-r1-to-qrs3-r4).
+- Review 2 accepted QRS3-R2, R3 and R4 and the lifetime part of R1. It found one residual R1 defect, answered by
+  [Correction 2](#correction-2-codex-review-2-no-go-remaining-qrs3-r1-persisted-error-evidence).
+
+Delivered unstaged, uncommitted and unpushed. No GO exists. Outcome: one corrected operator procedure is prepared, and its
+complete ordered flow is exercised with fabricated inputs and small synthetic PowerShell children. The final Correction 1 pass
+ran 179 controlled checks and all passed; it is retained, not replayed. Correction 2's final pure projection pass ran 12 checks
+and all passed. The first return's final pass had run 151, all passed. The package is `PendingOwnerDecision`. A real phase needs three things: independent Codex
+review, a new explicit owner decision, and a complete planner dispatch. Nothing ran Describe or Execute, `dotnet`, a provider
+or the launcher. Git ran in two places only:
+- the baseline, which included one live remote read;
+- the static checks, which ran local reads only.
+
+The controlled checks invoked no Git. Nothing was built and no helper was compiled. No real witness was created and no real reset
+was performed; the fixture traces create fabricated witness and archive files inside the fixture root. The original ledger,
+markers, archive, retained root and database were not accessed. The original allowances remain spent at their recorded scope;
+providers are not qualified.**
+
+Baseline (verified once before acting): `main`; `HEAD`, local `origin/main` and freshly queried live `origin/main` all
+`98b79d09745651a66d52660e70158f0d99ac6d9c`; empty index; nothing untracked. Exactly `planner-handoff.md` was modified, with SHA-256
+`04B950FA0EA94B3B7B0CC4B2B6CDA7AEB52D2577DDCF0A222E007103359BB6BB`; that is the planner's selection, which I did not edit. This file
+was `3963EE85B738955070B9D3FDD83C0950BDBB38C5B0C46BAFE87C75D10980A0D4`. Neither
+`logs/executor/qualification-real-session-03/` nor `logs/qph-t/` existed. The recorded test host was loaded as data from
+`redispatch-01.json` (SHA-256 `51C1B6BF…7FE6`). Its identity was verified before every use: 301,368 bytes, SHA-256
+`362A356C…D139`, PowerShell 7.6.5, .NET 10.0.11.
+
+### Package and proposed procedure (offline, PendingOwnerDecision)
+
+The package is the ignored directory `logs/executor/qualification-real-session-03/preparation/`. Its `README.md` describes the
+ordered core, deadlines, the proposed owner-decision record shape and the limits. The future `execution/` directory and its
+witness are absent. The earlier scripts, outputs and approval records are unchanged. Proposed source (SHA-256, bytes):
+
+| File | SHA-256 | Bytes |
+| --- | --- | --- |
+| `scripts/session03-core.ps1` | `C8311AADFDB6C3B79DB5A1AA966BCE4944E6CDAA1B971DB323719DAA68FD5FA1` | 59,385 |
+| `scripts/session03-run.ps1` | `5BE0F5A392803FF3F96CE7705577993B5B19C104C31D48833B8798E1B9589C6B` | 6,094 |
+| `scripts/session03-preflight.ps1` | `0C7CC4F69B6D2890E9CA96962F8CA4E1B4722A88589B4DD3C62BB5F868D4D35A` | 3,618 |
+| `scripts/session03-reset-child.ps1` | `55C85F782EE57F8E945BAAEE184EB5B5267400B329EBE05CCE731704F8CAC6B2` | 1,602 |
+| `records/session03-input.json` | `39B1AD39C153F112C109254F2AAA98CD685319E48F3F21BC74D5C47E8E0071FA` | 4,732 |
+| `checks/controlled-checks.ps1` | `0876520E44303A5F3ACFA65029F9BEE3E2A4CB71AFCE8C397537E982C6C69B82` | 70,603 |
+| `checks/static-checks.ps1` | `3BB5995E67A282A97B708816A0E7ABA3B6F8A55A983DDE7B210D3E2B532C0296` | 8,875 |
+| `checks/invoke-recorded-host.ps1` | `DB76FDB266A383EC0B48AD1AE0653471C10AC71058090F7A855A1A7429983EB5` | 1,544 |
+
+- **QRS2-E1 (shared resolution).** One resolver walks the PATH entries in order. It selects the first entry that holds
+  `dotnet.exe` and returns it as one scalar, fully qualified path. Before returning, it validates the match: canonical, a regular
+  file, not empty, and no reparse point through the drive root.
+  - No match refuses.
+  - An invalid first match refuses without trying later entries.
+  - Later and duplicate matches are only counted.
+  - Entries before the match must be unambiguous. A relative, quoted or whitespace-padded entry refuses rather than guessing
+    what a shell would do.
+
+  `Describe` and `Execute` share one plan function. That function also resolves `git.exe` the same way, so session-02's implicit
+  `git.exe` lookup is gone. Every child is started through `ProcessStartInfo.ArgumentList`, with no joined command string or
+  shell. The build arguments are preserved: `--no-restore -c Debug -p:SkipNSwag=true -p:UseSharedCompilation=false -m:1`.
+- **QRS2-E2 (records).** Executable paths and settings come from bounded, hash-verified JSON: the input record and the planner's
+  runtime record. Nothing is reconstructed from Markdown, `Invoke-Expression` or a command string. The default invocation prints a
+  fixed no-op line and exits 2. `Execute` also needs a future owner-decision record, named by path and SHA-256, whose package
+  hashes cover all four scripts and the input record. The fixture-ledger seam is internal: the reset child takes no ledger
+  argument and derives the original default ledger itself.
+- **QRS2-E3 (environment).** Children inherit the host-session environment unchanged; no variable is stripped or inspected. The
+  launcher confirmation is added only to that child's environment map, never to the runner's. Provider maps are untouched.
+- **Ordered core.** The phases run in this order:
+  1. witness;
+  2. preflight (60 s);
+  3. build (120 s);
+  4. source and time check (below elapsed 180 s);
+  5. reset (20 s);
+  6. receipt validation;
+  7. launcher (until elapsed 1,860 s; budget 1,920 s);
+  8. exit and stderr gate;
+  9. bounded summary and session validation;
+  10. exact comparison with the new ledger summary.
+
+  A stop means zero later operations. After a nonzero exit or any stderr, only a bounded report of the already-captured stdout and
+  stderr runs, with no ledger read. This closes both static risks the planner named in session-02's unreached post section. That
+  section read stdout before checking its size, and it gated a nonzero exit only after its ledger reads.
+
+### Findings and challenges for Codex (session-03 preparation)
+
+- **QRS3-P1 (material; latent in session-02's unreached reset).** The launcher writes `consumedAtUtc` with
+  `DateTimeOffset.ToString("O")` (`InvocationLedger.Consume`), which produces an explicit zero offset after a plus sign. Its
+  default JSON serializer writes that plus sign as a six-character Unicode escape: a backslash, the letter u, then 002B. Session-02's `reset-allowances.ps1` parses with `DateTime.TryParseExact(…, 'O', RoundtripKind)`, which yields
+  `Kind=Local` for that text, and its `Kind -ne Utc` test then refuses. Its planner self-test used `Z` stamps, so it passed.
+  Controlled check G2 re-evaluates that exact expression on fixture text in the launcher format: the expression refuses. The
+  session-03 parser accepts a zero offset written as `+00:00` or `Z` inside the recorded window. The real old markers were not
+  read, so their exact text is inferred from source, not observed.
+- **QRS3-P2 (material design risk; decision needed before any dispatch).** Output capture uses pipes, as `ArgumentList` requires.
+  Suppose a provider descendant inherits the launcher's stdout handle and outlives it. The drain then cannot finish, and an
+  otherwise normal exit stops as `OutputDrainIncomplete`. That stop is safe, but it loses the summary comparison. Session-02's
+  file redirection had no such dependency, but it joined arguments. The alternatives are:
+  - accept the risk;
+  - treat bounded partial capture as reportable only;
+  - add a native file-handle launch, which is not selected.
+- **QRS3-P3 (executor choices to review).**
+  - Bounds that the dispatch did not state: witness 5 s, source check 30 s, receipt 10 s, each post-run read 10 s, launcher
+    minimum window 60 s (carried over from session-02's runner), kill wait 5 s and drain wait 5 s.
+  - Each child gets a closed stdin and no window.
+  - Session-02's new-marker metadata read and post-run source check are omitted, because the selected order ends at the
+    comparison.
+  - The owner-decision record shape is the executor's proposal, not accepted architecture.
+- **Disclosed fault.** Attempt 01's harness created fixture directories named `<guid> <part>` directly under `logs/qph-t/`, outside
+  the GUID root but inside `logs/qph-t/`. They are preserved together with their three junctions, all of which target paths inside
+  `logs/qph-t/`. They were not cleaned up; removing them is the planner's call. See `evidence/failure-history.md`.
+
+### Controlled evidence (fabricated inputs; final matrix)
+
+`checks/controlled-checks.ps1` is self-contained, with no Pester, dependency or test project. Its final run wrote
+`evidence/final-controlled-checks.json`: 151 checks, all passed, and the fixture root was removed after its containment and
+no-reparse checks. The checks cover these areas:
+
+- **Resolver:** zero, one, multiple and duplicate matches; empty and ambiguous entries; directory, non-canonical, empty and
+  junction first matches.
+- **Plans:** `Describe` and `Execute` planning are equal; changed build settings are refused.
+- **Controller:** the complete trace; every phase under each of six fault modes (failed, timed out, malformed, throwing, late
+  success, leaked output), each with zero later callbacks; expired pre-reset, launcher-window and global budgets, including
+  start-up and intermediate time; nonzero exit and stderr gates; malformed data.
+- **Late exit:** a fabricated late exit 0 after the deadline, and bounded wait slices.
+- **Bounded reads:** exact, oversized, below-minimum, uncontained, non-canonical and alias reads; a summary at exactly 64 KiB
+  plus CRLF and one byte over; 17 malformed summaries; ledger comparisons that are exact, mismatched, absent, oversized or
+  reached through an alias; unvalidated sessions, which derive no path.
+- **Archive:** launcher-format markers; success with hash preservation and receipt validation; 10 refusals before any mutation;
+  failure after the first move without rollback; five receipt-validation refusals.
+- **Fixture traces:** seven traces through the same witness, archive, receipt, summary, comparison and report code as the
+  proposed real mode.
+- **Records and helpers:** owner-decision shapes, runtime and input-record identities, pins, direct candidates and geometry.
+
+**Actual versus fabricated.** A guard around the adapter admitted eight calls and recorded 0 violations. Five started real
+processes, all of the recorded host running fixed code:
+
+- four synthetic children: success with 10 literal arguments round-tripped exactly; exit 7 with its stderr; a timeout stopped by
+  its own `Kill(false)` and a bounded wait after a readiness handshake; an environment override visible only in the child;
+- the entry script's default invocation (exit 2, no live work).
+
+Three started no process: a deadline already reached, an existing output file refused before start, and a missing fixture
+executable (`StartFailed`). Every marker, summary, receipt and ledger was fabricated. The controller budgets used fake clocks; the
+native child checks used a real `Stopwatch`, or a readiness-driven clock that is real until the child signals readiness. Failure history: attempts 01 (113/151) and 02 (150/151) were harness
+or reason-token defects; attempts 03 and final passed. The details are in `evidence/failure-history.md`.
+
+### Evidence classes, limits and Git state (session-03 preparation)
+
+- **Fresh:** the baseline, runtime and record identities, the controlled checks, and the final static checks. The static checks
+  cover parser checks of every package script, the artifact-hash inventory, changed-document links and inbound anchors, CR
+  bytes, sensitive patterns, `git diff --check` and the Git scope. Their results are in `evidence/final-static-checks.txt` and the
+  executor report; this file holds no hash of itself.
+- **Retained, not rerun:** the .NET, API, Architecture and frontend evidence and every earlier slice's evidence, each at its
+  recorded scope.
+- **Not run:** `Describe`, `Execute`, preflight, build, reset or launcher; any real `dotnet`, Git, provider or PATH lookup;
+  installed-pin refresh; host readiness; rehearsal; native process-table query; real-ledger access.
+- **Limits:**
+  - Fake clocks and synthetic children prove control flow and bounds, not real OS preemption or real-session timing.
+  - The resolver's agreement with a real shell's choice is argued from PATH order, not observed.
+  - Two moves are not a transaction or proof against a hostile race.
+- **Git:** only `current-work.md` and the playbook's pending-authority framing changed, beside the planner's unchanged
+  `planner-handoff.md`. Package and fixtures are ignored. Everything is unstaged, uncommitted and unpushed.
+
+### Correction 1 (Codex Review 1 NO-GO: QRS3-R1 to QRS3-R4)
+
+Baseline (verified once before acting): `main`; `HEAD`, local `origin/main` and freshly queried live `origin/main` all
+`98b79d0…`; empty index; nothing untracked. Exactly this file, the playbook and `planner-handoff.md` were modified. The planner
+record was `E7E6CCAA89DD5EB46F950AA25F777387DA5E87413D611FD1E30A95884DE30193`, unchanged by me; this file was `7BE2112B…3EC9`. The
+real `execution/` directory was absent.
+
+Codex accepted the three executor proposals:
+- **QRS3-P1:** the DateTimeOffset parser, with both fixture forms.
+- **QRS3-P2:** managed pipes that fail closed. Partial capture keeps lengths, status and fault only.
+- **QRS3-P3:** the extra caps, closed stdin and no window, all charged to the clock. The owner-decision shape is identity data,
+  not permission.
+
+I agreed with all four findings after checking each against the code and raised no challenge. Dispositions:
+
+- **QRS3-R4 (fixed first).**
+  - **Admission.** The controlled checks now admit every fixture effect centrally before it happens. That covers directories,
+    files, deletions, junction links and targets, child scripts and child output paths. A path is admitted only if it is
+    canonical, fully qualified, strictly inside the per-run GUID root, and not reached through an existing reparse point below
+    the root.
+  - **Process guard.** It validates script and output paths canonically, not with a raw prefix test.
+  - **Teardown.** It runs a full discovery pass that never descends through a reparse point. It refuses the whole tree if any
+    link was not registered by this run, then removes registered links without traversing them.
+  - **Negatives.** Five checks (R4a–R4e) cover malformed parts, noncanonical, sibling-prefix, outside, relative and root targets,
+    outside link targets, writes through an in-root alias, four guard refusals before any start, and teardown's refusal of an
+    unowned link. The negatives use two sibling subdirectories inside the root.
+  - **Snapshot.** Z2 and the post-teardown comparison show that the 29 pre-existing names in `logs/qph-t/` are unchanged. The old
+    failed siblings and junctions were preserved and not opened.
+- **QRS3-R1.**
+  - **Setup failure.** Both output files are created inside one protected lifetime. In D8, failing to create the second file
+    releases the first (an exclusive open of it then succeeds) and starts nothing.
+  - **Post-start failure.** Every path after a successful start accounts for the retained child. In D9, an injected post-start
+    setup failure through an internal hook makes the adapter stop that `Process` object with `Kill(false)`. The exit is observed
+    through the same handle, and the pipes and files are released with a bounded wait for pending reads.
+  - **Recording.** Secondary errors and an unproved stop are recorded. No PID is discovered and no descendant exit is inferred.
+- **QRS3-R2.**
+  - **Pre-admission.** `Invoke-S03Phase` refuses an already expired phase without invoking it (`DeadlineReachedBeforeOperation`),
+    and completion at the deadline is expired.
+  - **Wait recheck.** `Complete-S03OwnedWait` rechecks the clock after `WaitForExit` returns true. A late or equal exit is a
+    timeout: its exit code is not adopted and the process is not killed.
+  - **Cases.** Helper level: E3–E6 (the reviewed shapes). Controller: C17, plus a new at-deadline mode for every phase. Stop and
+    drain waits stay bounded and charged to the clock.
+- **QRS3-R3.**
+  - **Capture.** `CopyToAsync` is replaced by a PowerShell pump that polls `ReadAsync` between 50 ms wait slices. It keeps at most
+    1,048,576 bytes per stream and 1,572,864 per child. The record now carries those limits and the poll interval, so its SHA-256
+    is now `F48D061C…2C3A`.
+  - **Overflow.** An overflow stops only the owned child and fails as `CaptureOverflow`, with the kept lengths and fault token
+    recorded as phase facts. D11–D13 (small fixture limits; stdout, stderr, aggregate) and D10 (exact limit) cover it. In H8, a
+    launcher overflow leads to no report, summary or ledger read.
+  - **Exact reads.** `Read-S03Bounded` now reads at most the opened length (an exact maximum) and updates its trace after each
+    chunk. F10 shows 8,192 bytes traced before an injected partial-read fault.
+  - **No helper.** No helper was compiled, so no compilation evidence exists.
+
+Final correction source (SHA-256, bytes); the unchanged files are marked:
+
+| File | SHA-256 | Bytes |
+| --- | --- | --- |
+| `scripts/session03-core.ps1` | `069FFB4B907B60927C87B64DA6F7DF6CD168A2AB549C14997F822EB999CE66A0` | 68,561 |
+| `scripts/session03-run.ps1` (unchanged) | `5BE0F5A392803FF3F96CE7705577993B5B19C104C31D48833B8798E1B9589C6B` | 6,094 |
+| `scripts/session03-preflight.ps1` (unchanged) | `0C7CC4F69B6D2890E9CA96962F8CA4E1B4722A88589B4DD3C62BB5F868D4D35A` | 3,618 |
+| `scripts/session03-reset-child.ps1` (unchanged) | `55C85F782EE57F8E945BAAEE184EB5B5267400B329EBE05CCE731704F8CAC6B2` | 1,602 |
+| `records/session03-input.json` | `F48D061CAA0A778A1C8B23A44C5CC61EC4766C2F85215C2264D607D49CF92C3A` | 4,829 |
+| `checks/controlled-checks.ps1` | `9D849B60DC44C22A9A886D6DA36443121F2F2DA2559AC524A32F499AE748257B` | 95,719 |
+| `checks/static-checks.ps1` | `374F972E63314DFC4DFB514EC4E64874415696E01716FC185DAF1987E191536D` | 9,753 |
+| `checks/invoke-recorded-host.ps1` (unchanged) | `DB76FDB266A383EC0B48AD1AE0653471C10AC71058090F7A855A1A7429983EB5` | 1,544 |
+
+Validation and evidence (all under `evidence/correction-01/`; exact commands in `commands.txt`):
+- **Controlled checks.** Correction attempt 01 and the final run each passed 179 of 179. The final run made 14 guarded process
+  calls and 4 deliberate guard refusals, and its fixture root was removed after non-traversing discovery.
+- **Final static checks.** They cover parsing, the exact package file set (no compiled helper), the hash inventory, links and
+  anchors, CR bytes, sensitive patterns, `git diff --check` and the Git scope. Their results are in `final-static-checks.txt` and
+  the executor report.
+- **Real processes:** only the verified recorded host and its synthetic children running fixed fixture code.
+- **Earlier results:** the four first-return result files and the failure history are preserved unchanged. Their 151 passes did
+  not cover the cases added here.
+
+Remaining limits:
+- A pending pipe read can outlive the bounded release wait; that is recorded, not resolved.
+- Descendant handle inheritance is not established either way.
+- The admission check is a harness control. The core is confined only by the fixture directories passed to it.
+- Fake clocks prove ordering and bounds, not OS preemption.
+
+### Correction 2 (Codex Review 2 NO-GO: remaining QRS3-R1 persisted error evidence)
+
+Baseline (verified once before acting): `main`; `HEAD`, local `origin/main` and freshly queried live `origin/main` all
+`98b79d0…`; empty index; nothing untracked. Exactly the three documents were modified. The planner record was
+`1747AB3DE1F77641F8D968827C01E01E4A399DCD384EE39785AF3F77C96256B2`, unchanged by me; this file was `C43978E3…07B`. The real
+`execution/` directory was absent.
+
+Review 2 accepted QRS3-R2, R3 and R4 and R1's lifetime part. These dispositions and identifiers are kept. I agreed with the
+residual finding and raised no challenge. **QRS3-R1 (persisted evidence):**
+- **Defect.** `Get-S03OutcomeSummary` dropped the adapter's closed error tokens. It now projects `StartError`, `SetupError` and
+  `KillError`. It also projects up to 16 `SecondaryErrors`, plus `SecondaryErrorsOmitted` for any beyond 16. `Invoke-S03Phase`
+  stores this projection on the phase entry, and the operator sink persists it unchanged.
+- **States.** A field the outcome does not carry stays null, and an empty secondary list stays an empty array.
+- **Closed values only.** Every projected value must be null, a boolean, an integer, or a closed token
+  (`^[A-Za-z0-9_.:-]{1,160}\z`). Anything else becomes `Unrecognized`: free text, a path, an exception, a nested object, or a
+  token with a trailing newline. No message, path or object graph is serialized.
+- **Unchanged.** No lifecycle, capture, deadline, admission or real-operation code changed.
+
+The new `checks/projection-checks.ps1` runs pure checks in memory, with no process, fixture directory or Git. Each fabricated
+outcome passes through `Invoke-S03Phase`, then the sink's exact `ConvertTo-Json` shape, then a JSON round trip. P12 confirms that
+`session03-run.ps1` still contains that shape. The cases:
+- **P1–P3:** a start failure, a setup failure, and a failed stop with `StoppedAfterKill=false`.
+- **P4:** the reviewed shape: setup and kill errors, two secondary tokens, an unproved stop and an unproved release.
+- **P5–P6:** more than 16 secondary errors, and a one-element list.
+- **P7–P9:** a no-error success; missing optional fields (the fixture shape used by H8); a pscustomobject outcome.
+- **P10:** non-token values are replaced and nothing leaks.
+- **P11:** a phase without process data gets no `Process` entry.
+
+Results under `evidence/correction-02/`:
+- **Attempt 01:** 11 of 12. P10 exposed a pipeline that silently dropped a null secondary entry; an index loop now replaces it.
+- **Attempt 02 and final:** 12 of 12.
+- **Final static checks:** parser, exact package file set (now including the projection checks; no compiled helper), hash
+  inventory, documents, CR bytes, sensitive patterns, `git diff --check` and Git scope. Their results are in
+  `final-static-checks.txt` and the executor report.
+
+The 179 controlled cases and the native-child evidence under `evidence/correction-01/` are retained at their actual scope and
+were not replayed. The projection only adds closed fields, and the fields that existing cases assert keep their values. All
+earlier results are preserved.
+
+Final source (SHA-256, bytes): `session03-core.ps1` `DF2A0B6146C578F95CED712586C44CD0E24EA391ED1E9DFB4A047E31884458F1` (70,164);
+`checks/projection-checks.ps1` (new) `3E77C40EA0C23F3A61D3D9762114912276FF5948B3EF02B1EF7E23737B04C62A` (13,162);
+`checks/static-checks.ps1` `02DD9B3CAC510AE342A8EF1AD75E8046EEF082D3FE49274FA8E39CA377A18DDD` (9,785). Unchanged since
+Correction 1: the run, preflight and reset-child scripts, `controlled-checks.ps1`, `invoke-recorded-host.ps1` and the input
+record (`F48D061C…2C3A`).
+
+Limits:
+- The persisted entry proves which closed tokens the adapter recorded, not their root cause.
+- A full real sink write happens only in `Execute`, which was not run. The checks reproduce its serialization expression in
+  memory.
+
+## Previous slice (published as 98b79d0; historical record): QUALIFICATION-REAL-SESSION-02 auditable reset of the two spent allowances and one newly authorized qualification session (stopped at the build gate; no reset, no launch, not qualified)
+
+This document records the evidence delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
+Reconcile publication with Git and the slice's independent publication-verification record, when available. This record alone grants no
+publication authority.
 
 **Delivery phase: first return to Codex after the corrected dispatch; evidence report unstaged, uncommitted and unpushed. No GO exists. Outcome: the one authorized physical sequence started and stopped at its build gate 1.9 s after the execution witness. Preflight passed. The reviewed `build-launcher.ps1 -Execute` exited 1 before starting any `dotnet` process. The reset was not executed and the launcher was not run. Only the permitted ledger existence/reparse metadata was checked; no marker contents were read or modified, no new summary or owned root was created, and no provider or database was accessed. The original allowances remain spent at their recorded scope. Providers are not qualified. Nothing was retried.**
 Baseline (verified once before acting): `main`; `HEAD`, local `origin/main` and freshly queried live `origin/main` all `4bdc95e852395c184aa0c8cb7e064982aca8a039`; empty index; nothing untracked; exactly `planner-handoff.md` modified, SHA-256 `B4E8F9AD4D22745133714C6F3A6D7C9115126834A493F9D831DB70FCC0F4DDF8` (the planner's, not edited by me); this file `E657E64D3429ED965DB461A426673D990C32588FD1B82F413570E992F2A78D29`; `logs/executor/qualification-real-session-02/` absent. The owner's 2026-10-31 reset-and-one-session decision is the one recorded by the planner in [planner-handoff.md](planner-handoff.md). Planner artifacts used were hash-verified: `reset-allowances.ps1` `1CCDDF44…D2D3`, `build-launcher.ps1` `27937C2D…ADC9`, `procedure-review.md` `97E97491…EE75`.

@@ -1,6 +1,571 @@
 # Planner/reviewer handoff
 
-## Current action: QUALIFICATION-REAL-SESSION-02 ended at the build gate; evidence-report publication GO only
+## Current action: QUALIFICATION-REAL-SESSION-03 evidence accepted; exact-content publication GO in the same Claude chat
+
+### Physical-sequence review and publication boundary
+
+The planner independently reviewed the saved operator outcome, sequence status,
+preflight/build/reset outputs and launcher safe summary, together with the
+delivered document diff and unchanged operational source. HEAD, local
+origin/main and a fresh live origin/main query all equal
+`98b79d09745651a66d52660e70158f0d99ac6d9c`; the real index is empty and only
+the three expected documents are modified. The delivered handoff still matched
+`EB36201A92A662EE76C710AD32E941B33A9614694748D8F006FB55EE7DA910F3`.
+All 10 reviewed package files still match their accepted length/hash inventory.
+
+The one physical sequence reached its prescribed stop. The preflight, local
+build, source check, two-marker archive and receipt validation passed. The
+launcher exited 5 after its real Reviewer failed; the exit gate then stopped
+the operator with exit 85 at elapsed 53.716 seconds. The outer observation was
+54.152 seconds, with complete output and no recorded adapter error. Launch
+phase Succeeded describes process observation/capture, not qualification.
+There was no ledger-summary comparison after the nonzero exit, as required.
+
+The schema-2 summary identifies session `a25de925203a4959ae63e3b9357d6122`.
+Its Codex Planner produced one coherent Proposal with agreeing sealed and
+route evidence. The Claude CriticalReviewer was bound to that Proposal but
+exited 1 after 535 ms with ProviderInvocationFailed and zero messages. Its
+evidence route comparison is NotAttempted, not a measured disagreement.
+Three source checks agree. Providers are not qualified. The summary reports
+both new allowances consumed; their files were not independently read.
+
+Executor findings are explicitly disposed as follows:
+
+- QRS3-X1 accepted as an unresolved invocation failure, with causal wording
+  narrowed. The SystemRoot repair did not yield success here. Matching exit
+  codes/classifications across sessions do not establish the same cause or
+  identify another missing environment value. No new repair is selected.
+- QRS3-X2 accepted as a retained-evidence gap. Static inspection confirms
+  the build computed launcher/output identities and launch compared the
+  launcher against its in-memory identity, but the phase projection did not
+  persist those identities. No historical binary hash can be supplied from
+  these records. Acceptance of this evidence report does not depend on that
+  missing hash; do not reconstruct it by hashing current build outputs.
+  Preserve the used package unchanged. Any future recording fix is separate
+  offline work, not a revision of this run's evidence.
+- QRS3-X3 accepted as an unresolved shutdown limitation. OriginUnresolved and
+  ShutdownUnproven preserve the new root; neither proves a remaining child
+  nor authorizes inspecting, adopting, stopping or cleaning it.
+
+The planner made only document precision/layout edits, retained original
+deliveries under review-04 and recorded independent document/identity checks
+there. No build, provider, launcher, ledger, retained root/database or provider
+stream was accessed during this review. A first planner inventory command
+had a PowerShell parse error before any read; its corrected read-only command
+verified all 10 files. The expanded document scan initially treated an external
+historical URL as a local path and failed; the corrected scan skips external
+URLs. The 179 controlled and 12 projection checks remain
+retained at their recorded scopes, without replay.
+
+GO covers publication of exactly current-work.md, this handoff and the manual
+provider qualification playbook, using the parent/tree identity in
+`logs/planner-review/qualification-real-session-03/review-04/publication-approval.json`
+and the complete publication prompt. Stage no other path. Use a normal
+fast-forward push of main and verify the live ref. Any content/tree, parent,
+path or remote mismatch stops publication; never silently recompute approval.
+No separate closure-document edit is needed.
+
+The one physical authorization is closed at this stop. No retry, reset,
+diagnostic, new marker/ledger read, root/database/provider-stream inspection,
+cleanup or further real session is authorized. A future bounded diagnosis
+requires a new explicit owner decision and reviewed dispatch. Publication
+does not renew the execution grant. Continue the same Claude chat only for
+this publication; select no next slice before independent push verification.
+
+The activation and earlier review notes below are historical and grant no
+further execution authority.
+
+### New owner authorization and exact execution binding
+
+The owner explicitly answered "Autorizar uma sequencia 03 limitada" (normalized
+ASCII rendering) to the bounded reset-and-session question after offline review.
+This is a new decision, separate from the grant closed at session 02's build
+stop. It authorizes one local build without downloads, the reviewed preflights,
+bounded reading/validation and non-overwriting archive of only the two known
+old markers in the original ledger, then one launcher session using installed
+authentication/quota. At most one Codex Planner and one Claude CriticalReviewer
+submission; Reviewer only after coherent persisted Proposal and unchanged
+sources. The 32-minute physical limit, capture limits, every failure stop,
+no retry and no compensation remain mandatory. Incomplete capture prevents
+summary comparison; descendant stop may remain unproved. Only the existing
+launcher decides cleanup of its new root with its existing checks.
+
+Login, installation, persistent configuration/permissions, credential inspection,
+old root/database access, old cleanup, product implementation and publication
+remain excluded. Preparation is accepted; this owner decision supplies the
+previously missing live authority. It does not retroactively authorize any old
+deviation or reuse the old consumed grant.
+
+The planner verified the 10-file reviewed package unchanged at activation.
+Main/HEAD/local origin/main and fresh live origin/main remain
+`98b79d09745651a66d52660e70158f0d99ac6d9c`; real index is empty, no untracked
+files, with only current-work.md, the playbook and this record modified. The
+future execution directory is absent. Do not change any reviewed package source
+or the PendingOwnerDecision input bytes before the physical sequence. The new
+owner-decision record is separate and binds those exact package bytes.
+
+The active data record is
+`logs/planner-review/qualification-real-session-03/review-03/owner-decision-authorized.json`,
+reference `owner-2026-10-31-session03-one-physical-sequence`. Its exact SHA-256
+and this file's final hash are in the complete execution prompt and external
+dispatch record, avoiding a self-referential document identity. The older
+owner-decision-draft.json stays unchanged and non-executable. Record/hash identity
+is not permission by itself: the owner's explicit reply above is the authority.
+
+A thin planner-reviewed envelope reuses the tested native adapter and existing
+operator entry, without an alternate build/reset/launcher mechanism:
+`logs/planner-review/qualification-real-session-03/review-03/invoke-authorized-session.ps1`,
+SHA-256 `62A2C4D19F12EF5FE6E3F05BE85D578E058DDF9E841EF182A7031ABB55A7112D`.
+It loads only hash-pinned core/input/runtime/decision data, verifies all approved
+package/document hashes, and requires no execution directory or prior dispatch
+outputs. Verify mode checks identity only and starts nothing. Execute invokes
+the unchanged operator entry once with typed arguments, retaining its own
+Process object. An outer deadline of elapsed 1,905 seconds leaves 15 seconds
+inside the 1,920-second budget for bounded own-process stop/drain/status capture;
+the reviewed operator retains its earlier launcher deadline at 1,860 seconds.
+No descendant is killed or inferred. OS-call preemption and pending-read limits
+remain as disclosed. Outer logs are operator.stdout.txt, operator.stderr.txt and
+operator.status.json beside preparation/, not a second witness or new ledger.
+
+Continue the SAME active Claude chat with one complete execution prompt. Do
+not rerun controlled/static matrices or run Describe. A failed identity or
+execution gate stops for report, never a revised attempt under this grant.
+After the one sequence stops, update the two executor-owned evidence documents,
+preserve this planner record and the package, run document/Git checks and return
+unstaged/uncommitted/unpushed. A separate exact-content publication GO is still
+required. No physical step is executed by the planner during activation.
+
+The pending-authority notes below are preserved history and are superseded
+only by this explicit new owner decision and exact execution binding.
+
+### Review round 3: preparation accepted, no live or publication GO
+
+All QRS3-R1/R2/R3/R4 findings are resolved and accepted for this prepared
+package. Correction 2 changes only the per-phase projection and its closed-value
+helper: start/setup/kill errors and up to 16 ordered secondary tokens survive
+the phase and sink-shaped JSON round trip, with an explicit omitted count and
+null-versus-empty preservation. Paths, free text, exceptions, object graphs and
+trailing-newline tokens are refused as Unrecognized. This is bounded operator
+evidence, not an error-root-cause diagnosis or a general secret scrubber.
+
+The planner independently ran the 12 pure projection cases through the existing
+pinned host: 12 passed, zero failed, no fixture or child process operation.
+Evidence is under
+`logs/planner-review/qualification-real-session-03/review-03/`.
+The diff against Correction 1 contains no lifecycle, capture, deadline,
+admission or real-operation change. The 179-pass controlled/native evidence
+remains retained at its recorded scope, rather than being replayed. The
+executor's first projection attempt (11/12 due to a dropped null) and static
+working-directory refusal remain recorded; neither is recast as a successful
+run. The final executor static checks report all eight scripts parsing, the
+10-file package inventory, document/Git checks and no failures.
+
+Accepted final operational source identities:
+
+- core: `DF2A0B6146C578F95CED712586C44CD0E24EA391ED1E9DFB4A047E31884458F1`;
+- input record: `F48D061CAA0A778A1C8B23A44C5CC61EC4766C2F85215C2264D607D49CF92C3A`;
+- run entry: `5BE0F5A392803FF3F96CE7705577993B5B19C104C31D48833B8798E1B9589C6B`;
+- preflight: `0C7CC4F69B6D2890E9CA96962F8CA4E1B4722A88589B4DD3C62BB5F868D4D35A`;
+- reset child: `55C85F782EE57F8E945BAAEE184EB5B5267400B329EBE05CCE731704F8CAC6B2`.
+
+The full 10-file source/hash/length inventory is package-reviewed.json in the
+review-03 directory. The input stays PendingOwnerDecision. No actual owner-
+decision record is created or accepted here. A deliberately non-executable
+owner-decision-draft.json may describe the exact proposed next scope; its
+RecordKind/Decision must remain draft/pending so Read-S03OwnerDecision refuses
+it. Its hashes establish identity only. Actual activation requires a new
+explicit owner answer and a complete same-Claude-chat dispatch, with refreshed
+baseline/status/document hashes and the already-reviewed package unchanged.
+
+**Preparation acceptance is not authorization for Describe/Execute, a reset,
+another physical sequence, a provider or publication.** The earlier live grant
+ended at session 02's mandatory build stop. A new decision must explicitly cover
+archiving the two known old markers in the original ledger and one session-03
+physical sequence, maximum one Planner and one CriticalReviewer submission,
+normal installed authentication/quota, unchanged Proposal/source gates, the
+reviewed deadlines/capture limits and fail-closed stop policy. No retry,
+compensation, old-root/database inspection or cleanup is implied.
+
+P1/P2/P3 decisions remain in force: zero-offset timestamp parsing is accepted;
+managed pipes fail closed on incomplete capture with no ledger comparison;
+conservative caps and closed stdin are accepted. Pending pipe reads can outlive
+bounded release observation, and fake clocks do not prove OS preemption or a
+real provider descendant's behavior. Preserve these limits in the owner request,
+execution report and any future acceptance decision. Old failed test fixtures
+remain preserved; no cleanup is selected.
+
+At this review the branch/HEAD/local origin/main remain
+`98b79d09745651a66d52660e70158f0d99ac6d9c`, real index empty, no untracked files,
+and only current-work.md, the playbook and this record modified. The executor
+had preserved this record at 1747AB3D...6256B2; its latest current-work.md is
+`8E0718F60A5A13BA08345A3411429632F27A25E7896059F8DACA2EACBDCB4F8A`.
+The planner changed no proposed package source. No build, actual command
+discovery, real phase, original-ledger/root/database access or cleanup occurred
+during this review. No publication GO exists. The active executor chat stays
+the same; do not open a competing slice or move the pending live phase.
+
+The review-round-2 NO-GO below is preserved history and is superseded only by
+the preparation acceptance and still-pending authority boundary above.
+
+### Review round 2: accepted correction and one residual finding
+
+The planner reviewed Correction 1's changed core, capture loop, deadline guards,
+fixture admission and non-traversing teardown, record changes, focused cases,
+179-pass result and static evidence. R2, R3 and R4 are resolved and accepted.
+The lifetime part of R1 is accepted: partial file setup is protected, post-start
+failure stops only the owned child and the adapter accounts for its I/O release.
+The disclosed possibility of a pending read outliving bounded release is a
+recorded limitation; it does not authorize summary acceptance or a ledger read.
+No new process, whole harness run, lookup, real phase or cleanup occurred during
+this review. The existing R1 evidence-projection requirement remains open.
+
+**NO-GO, same offline slice and Claude executor chat. QRS3-R1 is partially
+resolved, not renumbered.** Get-S03OutcomeSummary drops StartError, SetupError,
+KillError and SecondaryErrors from the adapter outcome. Invoke-S03Phase uses
+that projection, and the operator sink saves only the phase projections, stop,
+completion and report. Thus the adapter's secondary errors are not retained in
+sequence-status.json. The planner reproduced this entirely in memory using a
+failed fixture outcome: the adapter had setup/kill errors and two secondary
+tokens; all four error fields were absent after the exact sink-shaped JSON
+round trip. StoppedAfterKill=false survived, but the recorded causes did not.
+
+Complete R1 by carrying these existing closed error-token fields into the phase
+projection and its persisted JSON. Preserve null/empty states as well as errors;
+do not copy raw exception messages, paths, provider output or arbitrary object
+graphs. Add a focused pure regression that runs an outcome through
+Invoke-S03Phase and the same sink-shaped serialization, then verifies start,
+setup, kill and multiple secondary errors plus unproved-stop/release fields.
+Include no-error/missing-optional-field cases so existing fixture outcomes stay
+valid. No process lifetime, deadline, capture or fixture algorithm change is
+requested; raise a challenge first if one becomes necessary.
+
+Validation is deliberately narrowed: run the affected pure projection cases,
+then package parser/hash/static/document checks on final inputs. Retain the
+179 controlled cases and their native-child evidence at their actual scope;
+do not replay them solely for this reporting projection. If a lifecycle,
+capture, deadline or admission behavior changes, rerun the affected cases and
+explain the broadened scope before the final evidence claim. Preserve every
+prior result. New results go under preparation/evidence/correction-02/.
+
+Baseline remains main/HEAD/local origin/main at
+`98b79d09745651a66d52660e70158f0d99ac6d9c`, with empty index, no untracked files
+and exactly the three documents modified. The executor had preserved this file
+at E7E6CCAA...30193; delivered current-work.md is
+`C43978E35BD24ACE7B777B4FEF66C08A64501D7B4C5059B355E0BCA3B1E1507B`.
+Correction-1 core SHA-256 is
+`069FFB4B907B60927C87B64DA6F7DF6CD168A2AB549C14997F822EB999CE66A0`.
+Source/hash snapshots and the pure projection probe are retained under
+`logs/planner-review/qualification-real-session-03/review-02/`. The package was
+unchanged by the planner. The original failed fixtures remain untouched.
+
+The final executor result reports 179/179, 14 guarded calls with four deliberate
+refusals, guarded teardown and unchanged pre-existing sibling names. These are
+retained controlled results, not real readiness or authorization. P1/P2/P3
+decisions from review round 1 remain in force. The package stays
+PendingOwnerDecision. No actual owner-decision record, real Describe/Execute,
+dotnet/provider/launcher, ledger access/reset, old cleanup or publication is
+authorized. Return the focused correction unstaged/uncommitted/unpushed; do not
+seek owner authorization or select another slice.
+
+The round-1 record below is retained history: R2/R3/R4 are superseded only by
+the acceptance above, and R1 only by its stated partial disposition.
+
+### Review round 1: decisions on executor challenges
+
+The first-return package is not accepted for a real dispatch or publication.
+Continue this same preparation slice and Claude executor chat. The former live
+authorization remains closed; no Describe/Execute, real command discovery,
+ledger/root/database/archive access, reset, provider or launcher is selected.
+No cleanup of the preserved failed fixtures or sibling junctions is selected.
+
+- **QRS3-P1, accepted.** The planner's session-02 reset had a latent format
+  mismatch. InvocationLedger uses DateTimeOffset round-trip text; the prior
+  DateTime/Kind check refuses the explicit zero-offset representation while its
+  Z-only self-test passed. Session 02 never reached reset, so no real refusal or
+  marker contents are observed. Accept the proposed DateTimeOffset-based parser
+  with strict zero offset, seven fractional digits and the recorded UTC window,
+  accepting Z and +00:00 and rejecting nonzero offsets/out-of-window values.
+  Keep both launcher-serialized and Z fixtures. Explain the serializer's escaped
+  plus sign in words; the delivered report currently renders plus as plus.
+- **QRS3-P2, decision resolved: retain managed pipes and fail closed.** Typed
+  arguments do not inherently force pipes; pipes are the selected managed
+  redirection implementation. Do not add native file-handle launching or change
+  the real launcher. An incomplete drain remains a fixed failed outcome with no
+  summary acceptance or ledger read. Partial local capture may be retained with
+  lengths/hashes/status only, never treated as a complete successful summary.
+  Accept this availability tradeoff, subject to the resource/capture corrections
+  below. No claim about actual descendant handle inheritance is established.
+- **QRS3-P3, ordinary conservative choices accepted with limits.** Witness 5 s,
+  source 30 s, receipt/post reads 10 s, minimum launcher window 60 s, kill/drain
+  waits 5 s are accepted as additional caps, not independent uncharged budgets
+  or proof of OS-call preemption. Closed stdin/no window is appropriate for
+  these noninteractive children. Omission of extra post-run marker/source reads
+  follows the selected core; the report must distinguish the product pre-reset
+  source check from the launcher's fixture/worktree observations. Accept the
+  proposed owner-decision record as bounded identity data, never permission by
+  itself. No real owner-decision record may be created in this correction.
+
+### Open stable findings and required corrections
+
+- **QRS3-R1 [P2], native-adapter resource ownership.** stdout opens before the
+  outer try; if stderr creation fails, the first stream is not disposed. The
+  planner reproduced the sharing violation with an existing stderr destination
+  before any Process.Start. Also, exceptions after a successful Start currently
+  rely on Process.Dispose rather than explicit bounded owned-process/copy-task
+  handling. Initialize resources under one protected lifetime, release partial
+  acquisitions, and account for every started child on all error paths. Stop
+  only its retained Process object where needed, with a bounded wait; cancel/
+  close and boundedly observe owned capture tasks/streams. Record unproved stop
+  and secondary errors without inferring descendant exit. Test the second-file
+  failure and a post-start capture/setup failure through the same adapter; no
+  new process may be forgotten or guessed by PID.
+- **QRS3-R2 [P2], deadline observation and pre-admission.** A fake WaitForExit
+  that advances time beyond the deadline and returns true is accepted as exit 0
+  by Complete-S03OwnedWait. The existing late-exit test reaches timeout before
+  its fake exits, so it misses this case. Separately, Invoke-S03Phase invokes
+  its operation when the clock is already at the supplied deadline and accepts
+  completion exactly there. The planner reproduced both with in-memory fakes.
+  Refuse an expired phase before invoking it; recheck after a successful wait;
+  equality is expired. Late success remains timeout without adopting its exit
+  as success or killing an already-exited process. Keep stop/drain work bounded
+  and charged to the overall clock. Add the missing boundary cases at the
+  actual helpers and through the ordered core; do not rely only on a later
+  phase wrapper to repair a misleading native outcome.
+- **QRS3-R3 [P2], capture bounds versus later read bounds.** CopyToAsync currently
+  writes both streams without a capture limit. A bounded reader after completion
+  does not bound retained output or detect a capture fault promptly. Add common
+  reviewed limits of 1,048,576 captured bytes per stream and 1,572,864 total per
+  child, retaining the stricter existing summary/marker/receipt readers. Enforce
+  during capture; on overflow stop only the owned child and fail with a fixed
+  outcome, with no later phase or ledger read. Cover stdout, stderr and combined
+  limits with small fixture limits and an output-producing controlled child.
+  Read-S03Bounded also permits MaxBytes+1 despite MaxBytes being its declared
+  read maximum. Make that maximum exact; use the opened length/write-sharing
+  and bounded length checks instead of an extra-byte read. Update trace counts
+  after each successful read so an I/O failure cannot report zero after partial
+  reading. No oversized original read or live output occurred in this package.
+  A small in-process capture helper is allowed if necessary, with retained
+  source/hash and focused compilation evidence; no external compiler/tool,
+  dependency download, project or product build is permitted. Such executable
+  source must be hash-verified before loading/compilation and included in the
+  package-completeness checks; no unchecked helper is loaded at dot-source time.
+- **QRS3-R4 [P2], fixture admission before mutation.** The disclosed first run
+  created sibling directories outside its one GUID root. Fixing Path.Combine's
+  overload does not enforce the selected scope: New-Dir/Write-Bytes/Write-Text/
+  New-Junction and cleanup still need a central admission check before effects.
+  Keep a stable per-run owned root; reject rooted/escaping/noncanonical targets
+  and out-of-root junction targets before creation. Validate process script and
+  output paths canonically too, not by an unnormalized StartsWith check. Teardown
+  must not traverse reparse points while discovering them or delete an unowned
+  link from a global list. Add negative checks proving no outside entry is
+  created. Use two subdirectories inside the same GUID root for containment
+  negatives rather than creating another outside fixture. Preserve all old
+  failed siblings/junctions; only new owned correction fixtures may be cleaned.
+
+Correct the evidence account alongside these findings: native child checks use
+real Stopwatch or readiness-driven clocks; only the fabricated controller
+budgets are fake. Baseline Git included a live remote read, while the controlled
+core invoked no Git and the static checks used local Git. Say no real witness/
+reset, since the complete fixture trace creates fabricated witness/archive
+files. Do not replace the four prior result files or reclassify missing cases
+as already tested. Record this review and accepted P1/P2/P3 decisions explicitly.
+
+### Independent evidence and correction matrix
+
+Before review edits, main/HEAD/local origin/main are
+`98b79d09745651a66d52660e70158f0d99ac6d9c`, real index empty, nothing untracked,
+and only the three checkpoint/playbook files modified. The planner record still
+matched dispatched SHA-256 04B950FA...BB6BB; delivered current-work.md was
+`7BE2112BD7F3A7CE799DC16BA931CD1E98A42ACA15FAC73946A5E6DFA3B74EC9`.
+First-return source and document hashes are preserved at
+`logs/planner-review/qualification-real-session-03/review-01/`; package snapshot
+is under first-return/. Pure/own-file probes in review-probes.ps1 reproduced the
+three concrete R1/R2 failures without starting any process or accessing old
+data. Source review established the unbounded copy and missing fixture guards.
+
+The planner read the core, entry/child scripts, relevant controlled checks,
+final/attempt records and failure history. It did not rerun the known-unsafe
+whole harness, Describe/Execute, a child fixture, build, lookup, ledger access
+or cleanup. The 151-pass run is retained executor evidence for its actual cases,
+not acceptance of the uncovered contracts. The scope fault and target locations
+are executor-reported; no recursive inventory or cleanup was repeated.
+
+Correction order: fixture admission R4 first, then affected R1/R2/R3 regressions,
+then one complete controlled/static matrix on stable final inputs. If a local
+capture helper is compiled, classify that separately from no dotnet/product
+build. Preserve all unexpected failures and first-return evidence. Store new
+results under preparation/evidence/correction-01/; inventory new artifact hashes
+and update the report/playbook without changing this planner record. Return
+unstaged/uncommitted/unpushed for review. All real authority remains pending;
+do not ask the owner for it or select another slice.
+
+The initial selection below remains the governing scope except for these
+explicit correction decisions; it is not a real-execution authorization.
+
+### Verified baseline, continuity and authority
+
+QUALIFICATION-REAL-SESSION-02 is independently published and verified at
+`98b79d09745651a66d52660e70158f0d99ac6d9c`, tree
+`a19689b6e09d1d3b5b4d2f00610d4a3abd842992`, sole parent
+`4bdc95e852395c184aa0c8cb7e064982aca8a039`. All three approved modified paths
+and blobs match, fresh live origin/main matches, and Git was clean. Record:
+`logs/planner-review/qualification-real-session-02/publication-verification.json`.
+The executor reported a first commit quoting failure followed by a message-file
+commit, and native push exit 0 with wrapper exit 255. The original wrapper
+outputs were not recovered; final delivery is proved by Git/live identity,
+not that explanation. No history repair or broader publication is selected.
+
+CONTINUE_THIS_CHAT. Current context percentage is unavailable from exposed
+tools/owner report and is not estimated. No concrete transition reason was
+observed. The previous Claude slice is complete; start a NEW Claude executor
+chat for this preparation phase. No automatic messaging or UI is selected.
+
+The former real authorization ended at its mandatory build stop. This selection
+authorizes offline development and controlled fixtures only, not another real
+sequence. A later real phase in this new slice requires separate explicit owner
+authority and a new complete planner dispatch after the prepared package has
+been independently reviewed. No live grant, spendable allowance, provider
+qualification or future publication GO is implied.
+
+### Coherent outcome and architectural boundary
+
+Prepare and exercise one corrected operator procedure end to end, rather than
+patching only the failing lookup and discovering the next defect on a real run.
+This is one use-specific, ignored execution/evidence package, not new product
+code, a supported qualification framework, a test-project runner or a permanent
+dependency. No API, Domain, Application, Infrastructure, existing launcher,
+provider policy, schema, project, lock or generated-client change is selected.
+
+Use `logs/executor/qualification-real-session-03/preparation/` for the package
+and its exact commands, source and validation evidence. That session directory
+does not yet exist. Keep the real future `execution/` directory and witness
+absent. Controlled files live only in newly owned GUID children of `logs/qph-t/`
+(also absent before selection). Never read or modify the original ledger,
+markers, archive, retained root/database, or any earlier evidence artifact.
+The used session-02 scripts remain immutable reference evidence.
+
+Expected before preparation: main/HEAD/local origin/main/fresh live main all
+`98b79d09745651a66d52660e70158f0d99ac6d9c`, empty index, no untracked files,
+only this planner record modified by selection. Published current-work.md is
+SHA-256 `3963EE85B738955070B9D3FDD83C0950BDBB38C5B0C46BAFE87C75D10980A0D4`.
+The final planner-file hash is in the prompt. Stop on a material discrepancy.
+
+Load the existing PowerShell path as data from
+`logs/planner-review/qualification-real-session-02/redispatch-01.json`, SHA-256
+`51C1B6BF0F52166CF09586444EE6000E570B6A8C42BCAD7C900D54B13E7F1FE6`,
+property RuntimeExecutable. Verify that record and its recorded executable
+identity before using it only as a test host. The observed host is PowerShell
+7.6.5/.NET 10.0.11; executable length 301368 and SHA-256
+`362A356CE7F0940EC74F73A8FC2C990A2CC24A38A11C90BBD8ECA947110AD139`.
+Do not reconstruct its path from rendered text, install/search for a runtime,
+change PATH or profile values, or perform a real dotnet/provider lookup.
+
+### Resolved correction and controller contract
+
+The executor implements the following decisions, with ordinary internal code
+organization choices. Material disagreements pause dependent work and return
+for planner discussion; they do not authorize a different mechanism.
+
+1. **QRS2-E1:** one resolver shared by description and execution planning.
+   Select the first application match in PATH order explicitly, then validate
+   and return exactly one scalar, fully qualified regular dotnet.exe path.
+   No match refuses; an invalid first match refuses without falling through.
+   Duplicate/later matches cannot turn FilePath into Object[]. Use one shared
+   process specification for both modes and typed ArgumentList, not joined
+   shell strings. Preserve no-restore, Debug, SkipNSwag=true,
+   UseSharedCompilation=false and -m:1. Do not run actual lookup/build here.
+2. **QRS2-E2:** bounded, hash-verified input records carry executable paths and
+   structured settings. No absolute machine path or executable instruction is
+   reconstructed from Markdown, Invoke-Expression or a shell command string.
+   Public preparation records state PendingOwnerDecision. A default invocation
+   performs no live work; real execution additionally requires an explicit mode
+   and a future reviewed owner-decision reference. Records/hashes are data and
+   identity, not proof of permission. Test injection is internal and cannot
+   switch the real launcher judge or serve as runtime qualification evidence.
+3. **Full ordered core:** witness -> preflight -> build -> source/time check ->
+   reset -> receipt validation -> launcher -> exit/stderr gate -> bounded new
+   summary/session validation -> exact new ledger-summary comparison. A failed,
+   missing, ambiguous or timed-out step stops with zero subsequent actions and
+   no retry, fallback, restoration or rollback. No source/old-state probes after
+   a stop. Already-captured local stdout/stderr may be boundedly described for
+   reporting; new ledger reads are forbidden after nonzero exit or stderr.
+4. **Deadlines and identity:** preserve 32 minutes overall, launcher observation
+   until elapsed 31 minutes, preflight 60 s, build 120 s, reset 20 s and pre-reset
+   elapsed below 180 s. Charge process startup and intermediate work to the
+   clock, not just the wait loop. Keep the acquired owned Process handle; on
+   timeout stop only that object with Kill(false), followed by a bounded wait.
+   Late exit 0 never converts timeout to success. No tree kill, native process
+   table, PID discovery or descendant/termination inference. OS call preemption
+   and real-session bounds are not proved by a fake clock alone.
+5. **Reads and receipts:** no ReadAllBytes/ReadAllText followed by a size check
+   at a bounded-read boundary. Enforce limits on the opened stream and during
+   the read, strict UTF-8/JSON/depth/duplicate-field checks where relevant, and
+   the selected 64 KiB summary/4 KiB marker limits. Validate the new session
+   before deriving its exact contained summary path, reject aliases through
+   the actual drive root, and export no unvalidated/free-text payload. Existing
+   safe-summary semantics stay source-owned; do not reimplement StageVerifier.
+6. **Archive and process safety:** preserve both source identities before any
+   mutation, fixed marker names, new non-overwriting archive/receipts, explicit
+   contained moves, post-move hash checks, and stop on a partial failure with
+   no compensation. It is not a two-file transaction or hostile-race proof.
+   Real mode derives the original default ledger; only the private test seam
+   accepts a fixture ledger. Share the same archive/receipt core in fixtures
+   and proposed live mode; do not merely test a parallel simulation.
+7. **QRS2-E3:** do not strip host-session variables or inspect their values.
+   Provider maps and environment clearing are unchanged. Only the existing
+   test host and owned synthetic child fixtures may actually be launched here;
+   tests must trap any attempted dotnet/Codex/Claude/Git/launcher invocation.
+
+Two additional static risks identified during planning are part of this same
+package correction, not claims of executed deviations: session-02's unreached
+post section reads stdout in full before checking its size, and gates a nonzero
+launcher exit only after subsequent ledger reads. Both must be closed by the
+shared controller/reader tests. Review every remaining unreached phase for the
+same classes of assumption, rather than declaring readiness from argument output.
+
+### Controlled acceptance evidence and validation
+
+Use self-contained PowerShell checks for this one-use preparation artifact;
+do not add Pester, dependencies, a test project or an alternative project runner.
+Retain exact proposed source and test commands. Ordinary offline corrections
+and retests are allowed; preserve unexpected failures. No one-shot live witness
+or actual grant is consumed by fabricated cases.
+
+Cover at least: zero/one/multiple/duplicate command matches, invalid first match,
+description/execution selection equality and literal arguments with spaces and
+metacharacters; a successful complete fixture trace; failure/timeout/malformed
+receipt at every phase with zero later callbacks; expired pre-reset/global
+budget and late success after timeout; exact/oversized/malformed JSON reads
+with observed read bounds, bad session/path/alias and no pre-validation ledger
+read; successful archival hash preservation, refusal before any mutation and
+failure after the first move without rollback or launcher call. Use fabricated
+markers and summaries only, and assert no real-operation callback occurred.
+
+Also exercise the proposed native process adapter with small owned synthetic
+PowerShell children (success, nonzero exit and timeout), preserving real argument,
+exit and handle behavior. Use a readiness marker/handshake rather than timing
+guesses; keep each wait short and bounded. Children run only fixed fixture code
+under the new fixture root, never a provider or the real launcher. Stop and
+clean only those owned fixture handles/paths; verify resolved containment before
+any recursive cleanup. Controlled process evidence is not provider evidence.
+
+Final matrix once on stable input: all fabricated/core/file/process checks,
+PowerShell parser checks for every proposed script, artifact-hash inventory,
+changed-document links/inbound anchors, diff/CR/sensitive-data and exact Git scope.
+Retain .NET/Architecture/API/frontend evidence unchanged; no .NET build, real
+command discovery, installed-provider pin refresh, normal host readiness or
+rehearsal is part of this offline phase. Broaden only for a changed input or
+named unresolved concern, within this boundary; otherwise raise a challenge.
+
+Update current-work.md as an offline-preparation return and the playbook's
+preparation/pending-authority framing, preserving its dated outcomes/anchors.
+Preserve this planner record. Return source paths/hashes, test commands/outcomes,
+failure history, actual-vs-fabricated evidence, remaining limitations and Git
+state unstaged/uncommitted/unpushed. Do not self-approve the package, run real
+Describe/Execute, ask the owner for permission, publish or select another slice.
+The planner reviews this concrete package before seeking a new real decision.
+
+## Previous action: QUALIFICATION-REAL-SESSION-02 ended at the build gate; published evidence and historical review
 
 ### Final review: stopped sequence accepted, no runtime qualification or rerun authority
 
