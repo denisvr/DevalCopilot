@@ -1,227 +1,179 @@
 # Planner/reviewer handoff
 
-## Current action: QUALIFICATION-RUNTIME-METADATA-01 selected for one new Claude executor chat
+## Current action: QUALIFICATION-REAL-SESSION-01 selected for one new Claude executor chat
 
-### Review 2: GO for exact-content publication of the qualified evidence report
-
-QRM-R1, QRM-R2 and QRM-R3 are resolved by Correction 1. Main, HEAD, local
-origin/main and fresh live main remain
-`6e2f4b3f767ec678c3f3eb5cbe8ad730a3e49060`; the index is empty, only the
-two checkpoint documents are modified, and nothing is untracked. The executor
-preserved Review 1's planner-record hash. The corrected report accepts the
-recorded stop-boundary breach without recovering the missing wrapper output,
-labels the server explanation as a hypothesis, and retains the unknown exit
-code and unobserved effects of the forced stop. The unselected signature
-operation has unknown effects and supplies no acceptance evidence. Preparation
-is derivative where originals are unavailable; the native-child environment is
-source interpretation, never an observation. The helper's non-enforced read
-bound and narrower repeated-check scope are explicitly disclosed.
-
-The planner made four narrow wording edits to align remaining statements with
-those qualifications: the preparation read bound is unproved; child-environment
-inheritance is a reported source interpretation; no separate explicit server
-termination was performed, without claiming no descendant was terminated; and
-the not-run list describes explicit credential/account operations, not internal
-effects. These change no observation, source, helper or original evidence.
-
-Independent final review verifies the 36 original manifest entries and helper
-identities, checks the corrected report and new provenance/check notes, and
-runs document/link/fragment, diff and sensitive-data checks. Retain Review 1's
-four output/JSON comparisons and source/argument review at unchanged-input
-scope. No build, helper, provider, signature, installed-target inspection or
-server operation was repeated. Evidence and exact-content approval are under
-`logs/planner-review/qualification-runtime-metadata-01/review-02/`.
-
-Accept only the accurate, qualified evidence report. The four metadata results
-remain observations obtained after the reported stop boundary; acceptance is
-not retrospective authorization. Missing originals, the absent build exit code,
-signature/stop effects, actual invocation/host compatibility, authentication
-and qualification remain unproved. No next slice or runtime observation is
-selected. Publication requires the separate exact-content GO for only
-current-work.md and planner-handoff.md, with the expected parent and tree in
-the external approval record and owner-forwarded prompt. No closure diff.
-
-### Review 1: NO-GO pending evidence and authority correction in the same executor chat
+### Review 1: GO for exact-content publication of the failed-session evidence report
 
 Independent reconciliation confirms main, HEAD, local origin/main and fresh
-live main at `6e2f4b3f767ec678c3f3eb5cbe8ad730a3e49060`, empty index,
-only current-work.md and the planner selection modified, and no untracked
-files. The selection retained its dispatched SHA-256. Review read the complete
-helper, compile/run scripts, full report diff, original build/compile/runtime
-records, both help outputs and the production discovery/invoker source.
-All 36 listed manifest entries match length/hash; all four output pairs match
-their JSON records, with Exited/0, empty stderr, no truncation and the declared
-request limits/maps. Parsed versions are 24.12.0 and 0.166.0. The three copied
-product assemblies equal current build outputs. These are file comparisons,
-not a recovered build exit code or historical authentication of preparation.
-No build, helper, provider, signature or installed-target check was repeated.
-Review evidence: `logs/planner-review/qualification-runtime-metadata-01/review-01/`.
+live main at `16ca13eb4643a0d96128ea59eda43642b7f89a5a`, empty index,
+only current-work.md and this selection modified, and nothing untracked. The
+executor preserved the dispatched selection hash. Review inspected every saved
+preparation/build/launch script, command notes, original outputs/status, safe
+summary, post-run comparison and document checks, plus StageEvidenceReader,
+StageVerifier, SafeSummary, QualificationSession and ChildProcessWatch source.
+No provider, build, ledger query, process observation or retained-root read was
+repeated. Review evidence and the exact-content identity are under
+`logs/planner-review/qualification-real-session-01/review-01/`.
 
-The metadata observations and advertised-argument comparison survive at their
-recorded scope. The stricter empty-stderr gate is a reasonable conservative
-interpretation and changed no observed outcome. Correcting uncompiled helper
-source is ordinary preparation, not a failed compilation. Neither point needs
-a rerun. No production-code defect or argument change is selected.
+The saved preparation reports all pins passing; build exit 0 and launcher exit
+5 have process-handle status records. The summary reports the exact accepted
+Planner attempt Proposed with exit 0, the exact Reviewer attempt Failed with
+exit 1, the Proposal input/manifest linkage, unchanged source/workspace, both
+allowances consumed, host stopped, OriginUnresolved and root preservation.
+The first failure code remains ReviewerAttemptFailedProviderInvocationFailed;
+shutdown is separately unproved. No runtime cause is inferred from 129 ms.
+The consumed markers and preserved root are facts of the saved report, not a
+fresh inspection; the ledger-summary equality is the executor's saved check.
 
-- **QRM-R1 (P2), open: report the stop-gate breach and uncertain build cause.**
-  The executor reports a wrapper timeout, backgrounding and stopping without a captured
-  process exit code; compilation and four real observations followed. The
-  dispatch required remaining runtime to stop after a build/helper fault or
-  timeout. On that reported sequence, successful MSBuild text does not waive
-  the gate. If "timeout" misstates ordinary tool yielding, challenge this with
-  already-visible original output; do not infer it from later success. Replace blanket
-  "no stop gate fired" with the distinction between the four helper gates
-  passing and the earlier execution-boundary breach. The exact cause of the
-  hung wrapper and final build-server state were not independently observed;
-  attribute a build-server explanation as a hypothesis. Preserve the original
-  success text, missing exit code, approximate timing and subsequent sequence.
-- **QRM-R2 (P2), open: qualify the unselected signature operation and originals.**
-  Get-AuthenticodeSignature was outside scope. "Additional read-only observation"
-  asserts an effect boundary that was not established; exact OS/network effects
-  remain unknown. Separate the executor-reported signature result and static
-  launcher/preparation observations from contemporaneously saved originals.
-  Identify exact commands, original results and timing still visible in the
-  executor chat, derivative transcriptions, and unavailable material, especially
-  the build-wrapper timeout/background/stop sequence. Use already-visible chat
-  facts only; do not inspect session files or repeat anything. Do not call the
-  inferred native-child environment observed or imply no internal account/file
-  access was proved. No decision depends on the signature or missing originals.
-- **QRM-R3 (P2), open: report the helper's actual manifest-read/check scope.**
-  Program.cs:101-103 checks FileInfo.Length then calls File.ReadAllBytes: it
-  does not enforce the dispatched 64-KiB limit during that read if the file
-  changes between operations. This is a helper-boundary deviation, not an
-  observed oversized read or a production-resolver defect. IdentityProblem
-  repeats the main manifest's name/version check, but not its own reparse
-  attribute, bin/platform metadata or all initial preparation checks. Narrow
-  the claims that it repeated "the same checks" and all manifest identity
-  checks with saved records. Preserve its actual hash/reparse/version checks
-  and aggregate pass records without equating them to missing preparation
-  originals. Do not edit/recompile the helper or rerun metadata to repair history.
+- **QRS-R1 (P2), resolved by planner report edits:** distinguish no selected
+  message from a proved zero-message count, and false evidenceRouteAgrees from
+  route disagreement. StageEvidenceReader selects a message only for exactly
+  one timeline member and otherwise leaves evidenceAgrees false without calling
+  the route. SafeSummary omits MessageCount. This report therefore establishes
+  no valid unique reviewer reply, not a second API failure or the raw count.
+- **QRS-R2 (P2), resolved by planner report qualifications:** the reported
+  loss of MSBuild property names is attributed to the executor, with cause
+  unestablished; saved execution used the supported names. Authentication
+  mechanism/success is not independently established for each provider. The
+  preparation script's rooted/quote rules differ from production normalization,
+  and its drive-root separator trim leaves a drive-relative metadata token;
+  aggregate checks are not proof beyond that scope. The PowerShell/.NET temp
+  projection is not an observed launcher layout. A new owner decision alone
+  does not reset spent allowances. Wall time includes teardown. These are
+  evidence qualifications, not source fixes, new observations or new authority.
 
-Correct only current-work.md, preserve this review and all original evidence,
-and keep QRM-R1/R2/R3 in this executor chat. Add new clearly attributed evidence
-notes only from existing chat facts if needed; do not overwrite the original
-transcription, manifest, scripts, outputs or binaries. Run only PowerShell
-document/link/fragment, diff, sensitive-data and final Git checks, retaining
-new check output separately. No rebuild, runtime/signature retry, server
-inspection/termination, installation, credential/account/ledger or retained-root
-access, cleanup, next slice or publication is authorized. Return unstaged,
-uncommitted and unpushed; no GO exists. Eventual acceptance of an accurate
-evidence report would not retroactively authorize either deviation.
+Accept the accurate report of a Failed session, not provider qualification,
+authentication/account capacity, general compatibility or MVP completion.
+Claude's exit cause and the process of unresolved origin remain unknown. No
+root/ledger inspection, retry, reset, cleanup, implementation or next slice is
+selected. Only the existing two checkpoint documents may be published under
+the separate exact-content GO with expected parent/tree; no closure edit.
 
-### Authorization, baseline and carried delivery
+### Owner authorization and independently verified baseline
 
-The owner explicitly approved the bounded runtime diagnostic through this chat's
-approval question: "Autorizar este diagnóstico limitado". This resolves only the
-metadata-observation boundary below. The owner manually forwards one resolved prompt to a NEW Claude executor
-chat; no automatic messaging or desktop-interface operation occurs.
+The owner approved this chat's bounded proposal with "Autorizar uma sessão
+limitada": one existing manual-provider qualification session, at most one
+Codex Planner and one Claude CriticalReviewer attempt, existing authentication
+and possible quota use, one local build without downloads, normal host
+preflights, original ledger without reset/relocation, a new fictitious
+repository, and the launcher's process observation and guarded shutdown/cleanup
+of only its own new root. No automatic chat messaging or desktop operation.
+The owner forwards the resolved prompt to a NEW Claude executor chat.
 
 Before selection, main, HEAD, local origin/main and freshly queried live main
-all equalled `6e2f4b3f767ec678c3f3eb5cbe8ad730a3e49060`, with clean index,
-worktree and untracked state. The restricted live-ref read failed with
-`getaddrinfo() thread failed to start`; the network-enabled read succeeded.
-Independent comparison with the prior Review 2 approval confirms tree
-`07b61f1857b7ed3ad4981e3c9812cf922e1b347e`, sole parent
-`8cfd13174e0b59b5976deb399736b64bec882de8`, and exactly the 12 approved
-paths using --no-renames. Prior publication is complete; no republication or
-closure-document slice. Records:
-`logs/planner-review/node-runtime-systemroot-02/review-02/approval.json` and
-`logs/planner-review/node-runtime-systemroot-02/publication-verification.json`.
-CONTINUE_THIS_CHAT; current context percentage is unavailable, not inferred.
-The previous executor is finished; no other slice is dispatched.
+all equal `16ca13eb4643a0d96128ea59eda43642b7f89a5a`; index, worktree and
+untracked state were clean. Prior publication independently matches Review 2's
+GO: tree `d3a630b1425122aff9fa68740c5b5eaa2bdba094`, sole parent
+`6e2f4b3f767ec678c3f3eb5cbe8ad730a3e49060`, exactly current-work.md and
+planner-handoff.md under --no-renames. Record:
+`logs/planner-review/qualification-runtime-metadata-01/publication-verification.json`.
+No republication or closure-document slice. CONTINUE_THIS_CHAT: current context
+percentage is unavailable from exposed tools/owner report; no percentage is
+inferred. The prior executor is finished; no competing slice is dispatched.
 
-NODE-RUNTIME-SYSTEMROOT-02's full selection and reviews remain in this file at
-`6e2f4b3f767ec678c3f3eb5cbe8ad730a3e49060`. NRS-R1 and NRS-R2 are resolved;
-the prior 117 affected, 248 focused, 232 Architecture and independent 34-test
-results retain their recorded scope, not new results. Preserve the original
-compiler failures, summary-only mutants, unavailable originals and earlier
-packaging failure/overwritten partial-manifest limits. Do not recover them from
-session/profile locations. The four launch paths share the current
-[Windows Node policy](../architecture/agent-collaboration-provider-contracts.md#windows-node-hosted-launch-environment),
-but real discovery, provider/host compatibility, authentication and qualification
-are still unproved. Accepted [ADR-0002](../decisions/0002-use-tauri-react-and-dotnet.md)
-and [ADR-0004](../decisions/0004-use-a-structured-agent-collaboration-protocol.md)
-ownership is unchanged.
+QUALIFICATION-RUNTIME-METADATA-01's complete selection/reviews remain in this
+file at `16ca13eb4643a0d96128ea59eda43642b7f89a5a`. QRM-R1/R2/R3 are
+resolved as accurate evidence reporting, never retrospective authorization:
+the wrapper stop-boundary breach, unselected signature with unknown effects,
+unavailable preparation/wrapper originals, missing build exit code and helper
+read/check limitations remain disclosed. Four metadata observations passed on
+the recorded host, not authentication, invocation or qualification. Do not
+recover missing originals from session/profile files or repeat old operations.
+The source policy and earlier 117/248/232/34 tests retain their original scope.
 
-### Selected outcome and execution boundary
+### Selected outcome and unchanged execution contract
 
-The largest coherent safe outcome is one sequential metadata observation of the
-corrected discovery path and Codex's documented arguments. Model invocation,
-App Server, host composition and qualification require separate authority.
-This slice changes no production contract or implementation.
+The largest coherent authorized outcome is one session of the existing
+[manual qualification launcher](manual-provider-qualification-playbook.md),
+including its normal preparation, gates, two conditional submissions and final
+proof. Another metadata-only slice cannot establish this objective. This
+selects no product mechanism, ADR change or GitHub qualification; accepted
+ADR-0002/0004/0009 ownership and the
+[provider contract](../architecture/agent-collaboration-provider-contracts.md)
+are unchanged.
 
-- Revalidate only the fixed ProgramFiles/nodejs/node.exe (24.12.0,
-  89,935,872 bytes, SHA-256
-  `2FFE3ACC0458FDDE999F50D11809BBE7C9B7EF204DCF17094E325D26ACE101D8`)
-  and the catalog-supported npm @openai/codex package (0.166.0), its package.json
-  and bin/codex.js (9,154 bytes, SHA-256
-  `E14FC83739C13C1074B12BD1ACCE4010C893C7F6FBFC1593B4A31D74CABB57AF`).
-  Permit bounded reads of the required installed launcher source/platform
-  metadata to identify and hash only its statically selected Windows native
-  payload. That payload had no prior recorded hash: a new hash identifies it,
-  not prior equality or publisher provenance. Check containment and reparse
-  attributes on required chains. No root listing, general search, unrelated
-  package or private desktop-layout fallback. Stop on drift or ambiguity.
-- Permit one Infrastructure build --no-restore -c Debug and one compilation
-  of a minimal .NET 10 helper from installed framework references and those
-  built product assemblies. No restore/download/project/dependency changes.
-  Preserve exact helper source and assembly identities before runtime.
-- Call production ToolDiscoveryAdapter.DiscoverAsync for Capability.Node,
-  then Capability.CodexCli, once each. A narrow IProcessExecutionAdapter
-  delegate validates before delegating unchanged to production
-  ChildProcessExecutionAdapter and retains its returned bounded results. Do not
-  copy or replace discovery/resolution/environment logic, invoke a shell/shim, or start Program,
-  supervisors, the production host or the qualification launcher.
-- Before each delegation, require the pinned target/identity, exact argument
-  list, approved fixed scratch directory and exactly SystemRoot in the request
-  map, with its API-derived value checked in memory only. A different native
-  target resolved through PATH is a blocker, never an alternate executable to
-  run. Production resolution may read PATH and test its fixed candidate names;
-  do not print its contents or enumerate those directories. The fixed scratch
-  is LocalApplicationData/DevalCopilot/tool-discovery-scratch: its ordinary
-  EnsureExists creation/use is authorized, without listing/reading old content
-  or cleaning it. Check existing ancestors before discovery can create it,
-  then the final chain before delegation; a reparse point stops the sequence.
-- Keep discovery's actual five-second and 4096-byte per-stream/combined limits,
-  cwd, arguments, environment and stdin unchanged. Record both adapter result
-  and parsed discovery result. Require exit 0, no truncation, the expected
-  target and versions 24.12.0 and 0.166.0. Any failure ends the sequence.
-- Only after both discoveries succeed, execute the same resolved Codex target
-  with --help and then exec --help, once each, through the same production
-  process adapter. Reuse the captured Codex discovery request with only the
-  fixed help arguments and explicit 30-second, 64-KiB per-stream/128-KiB combined
-  limits changed. Keep its script prefix, cwd/root, map and stdin. Revalidate
-  identities before each call. These are at most four top-level commands;
-  the npm launcher may spawn its identified native child. Its descendant
-  environment/effects are not proved by the parent's request map.
-- No retry, repair, rebuild/recompile loop or remaining runtime operation after
-  a helper/build fault, refusal, nonzero exit, timeout, cancellation, truncation
-  or unexpected output/effect. Preserve failures and finish only the report and
-  non-runtime document/Git checks. Do not diagnose a blocker with extra commands.
+- Use the unchanged ManualQualificationProgram entry point and production
+  composition. No compiled helper, alternate environment factory, substituted
+  provider/judge, new mode, source edit or extra diagnostic. Revalidate only
+  the fixed Node, Codex script/native payload and Claude package executable
+  identities already recorded in current-work.md (length/hash and required
+  reparse chains, no signatures). Missing/drifted/ambiguous prerequisites stop
+  before launch. No standalone version/help/auth probe or directory listing;
+  the existing host/judge's own catalogue and fixture-name checks are allowed.
+- Locate the ledger only as InvocationLedger.CreateDefault does, under the
+  unchanged default Path.GetTempPath(). Permit exact allowance-file existence
+  checks (no listing/old-summary reads), the launcher's ordinary session-bound
+  consumption/read and its safe-summary write. A spent marker blocks; never
+  reset, delete, rewrite, relocate or replace allowances. Do not change TEMP,
+  TMP, provider homes, PATH or configuration to make the session pass. The
+  existing authorization string names the old code label; record the owner's
+  current approval separately, without claiming that label is this decision.
+- Project path geometry from existing layout and the unchanged default temp
+  path using string operations only; disclose the method/runtime used. Stop
+  before launch if any projected relevant root/workspace/ref-lock/reflog path
+  reaches 240 characters, cannot be determined, or a required path is an alias.
+  No new short-temp root or bypass ledger; a blocker returns to Codex.
+- Build once, directly capturing the real exit status:
+  dotnet build tests/DevalCopilot.Api.IntegrationTests/ManualQualification/Launcher/ManualQualification.csproj --no-restore -c Debug -p:SkipNSwag=true -p:UseSharedCompilation=false -m:1
+  API compilation is included; NSwag/client generation is excluded explicitly.
+  No solution/Architecture build, restore, installation or dependency change.
+  Tool yielding means wait on that SAME invocation; an actual fault, timeout
+  or interruption ends preparation. Success text without exit 0 is insufficient.
+- After passing preparation, invoke ManualQualification.exe once with exactly
+  --run-real-provider-session and the process-only opt-in
+  DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM=one-codex-planner-and-one-claude-critical-review.
+  Save/restore only that variable's prior presence/value without logging it.
+  Retain the host's own temporary ASPNETCORE_URLS lifecycle. Never start a second
+  launcher, restart the host, repeat a POST, repair/fallback/resume or submit
+  implementation, verification, approval, commit or publication work.
+- Normal production preflights may use the installed credentials, model/account
+  adapters, network and normal catalogue probes; no separate manual credential,
+  account or signature operation. The default fixture's initial Git commit and
+  worktree preparation belong only to the new owned fictitious scene. Existing
+  guards decide readiness and allowance consumption before each single POST.
+  The reviewer runs only after the exact accepted Planner attempt has a coherent
+  recorded Proposal and unchanged snapshots; at most two claimed attempts and
+  20 reserved invocation minutes. Provider-internal requests are not separately
+  capped as money/tokens. No model/effort/default or permission change.
+- Keep QualificationLimits.Production unchanged: readiness 90 s, setup 120 s,
+  POST 60 s, read 20 s, each stage 12 min with the existing 10-min role timeout,
+  and Overall 32 min for session work. FinishAsync then runs required bounded
+  teardown (host shutdown 60 s, child proof 10 s); 32 min is not a promised
+  wall-clock cap including teardown. Do not extend work or retry after the
+  deadline. Keep the launcher's proof/preserve rules unchanged; stop unknown
+  processes neither manually nor by adopting them. A real timeout/fault is a
+  report, never permission for more runtime work.
 
-### Evidence, delivery and remaining authority
+### Acceptance, evidence and delivery
 
-Keep one new ignored `logs/executor/qualification-runtime-metadata-01/` directory
-for source, original adapter-returned output (already redacted/capped, not raw
-child bytes) and one concise command/result/timing log.
-No framework or manifest campaign. The executor changes only current-work.md
-as the tracked report and preserves this selection record. Compare observed
-help with CodexProcessInvoker's source arguments: presence proves only advertised
-syntax; absence alone is not incompatibility. No argument fix is selected.
-Apply the [validation policy](validation-policy.md). Run changed-document
-links/fragments, affected inbound-fragment, diff and
-sensitive-data checks with PowerShell, without extra Node/checker executions.
-No test-suite replay, Architecture/API build or client generation is selected.
-Prior test results and observations remain retained, never a new qualification.
-Any newly needed boundary returns to Codex rather than broadening execution.
+One new ignored `logs/executor/qualification-real-session-01/` directory holds
+exact preparation/build/launch command source before execution, original output,
+real exit status and concise elapsed-time records. Preserve failures at once;
+no transcription substitutes for missing originals. Capture only the launcher's
+safe summary, not provider transcripts, account identities, credentials, the
+in-memory launch secret or ownership tokens. Do not inspect old ledger summaries
+or retained roots. Built-in reads/proofs and guarded cleanup of the NEW session
+root are allowed; its preservation gives no later inspection/cleanup authority.
 
-No Claude, App Server, login, model invocation, account/credential command or
-file inspection, installation, persistent environment/permission change,
-retained-root or ledger access, cleanup, product/test/ADR/dependency edit or
-publication is authorized. Do not forward USERPROFILE/CODEX_HOME or other
-ambient entries to these commands. This is a command boundary, not proof that
-CLI internals cannot access OS resources. Report effects only at observed scope.
-Return unstaged, uncommitted and unpushed for independent review; no GO exists.
+Require the summary to prove the exact accepted attempts, roles/contracts,
+Proposal/reply/input/manifest lineage, sealed evidence, unchanged source and
+workspace, allowance/submission/dispatch distinctions, and shutdown/cleanup
+classification under the playbook. A read-only check of only the exact summary
+file generated by this launch may compare it with stdout. Qualified, Blocked,
+Failed, unproven shutdown or summary refusal remain their actual outcomes; no
+later command repairs an inconclusive result. No account-capacity/MVP/GitHub
+completion claim follows from a qualified provider session.
+
+The executor changes only current-work.md as its tracked report; preserve this
+planner selection. Apply the [validation policy](validation-policy.md): retain
+unchanged offline/regression evidence, add no suite/rehearsal/mutant run, and
+finish with PowerShell document/link/inbound-fragment, diff, sensitive-data and
+Git checks. Broaden only by returning a bounded challenge to Codex. No login,
+installation, persistent setting/permission change, manual secret inspection,
+prior-root/ledger-history inspection, product/test/ADR/dependency/client edit,
+standalone cleanup, implementation or GitHub operation is authorized. Return
+unstaged, uncommitted and unpushed; commit/push require a separate exact-content
+GO. This session is one new observation, not a retry of prior delivery.
 
 ## Previous action: NODE-SCRIPT-SYSTEMROOT-01
 
