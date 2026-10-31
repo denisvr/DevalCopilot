@@ -389,15 +389,19 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
             Assert.False(environment.ContainsKey("PATH"));
             Assert.Equal(@"C:\fake-claude-config-dir-for-tests", environment["CLAUDE_CONFIG_DIR"]);
 
+            // On Windows the production inputs also add exactly the derived SystemRoot; its value is
+            // proven with fabricated inputs in ClaudeProcessEnvironmentTests, not read here.
+            var systemRootEntries = OperatingSystem.IsWindows() ? 1 : 0;
+            Assert.Equal(OperatingSystem.IsWindows(), environment.ContainsKey("SystemRoot"));
             var expectedUserProfile = Environment.GetEnvironmentVariable("USERPROFILE");
             if (!string.IsNullOrEmpty(expectedUserProfile))
             {
                 Assert.Equal(expectedUserProfile, environment["USERPROFILE"]);
-                Assert.Equal(2, environment.Count);
+                Assert.Equal(2 + systemRootEntries, environment.Count);
             }
             else
             {
-                Assert.Single(environment);
+                Assert.Equal(1 + systemRootEntries, environment.Count);
             }
 
             // The result is a closed record of enums/booleans/an optional session id string —

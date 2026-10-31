@@ -4,11 +4,16 @@ This is the opt-in procedure for the one real-provider acceptance session the ow
 Planner Proposal, then one real Claude CriticalReviewer Acceptance **or** Challenge replying to that exact persisted Proposal,
 through the production host, adapters, parsers and result writers, in a new disposable repository and data root. A genuine
 Challenge is a valid result; nothing forces an Acceptance. The result is version-specific compatibility evidence, not provider
-obedience, general reliability, account capacity or increment completion. The only launch made so far ended `Blocked` /
-`TargetsNotReal` before any allowance was spent; see [the recorded outcome](#recorded-outcome-of-the-only-launch) below. See
-[AGENTS.md](../../AGENTS.md) for the planner/executor roles.
+obedience, general reliability, account capacity or increment completion. Two launches are recorded: the first, on 2026-10-09,
+ended `Blocked` / `TargetsNotReal` before any allowance was spent; the second, published on 2026-10-31, ended `Failed` (exit 5)
+at the CriticalReviewer invocation, spent both allowances and qualified nothing. See
+[the recorded outcomes](#recorded-outcome-of-the-only-launch) below. See [AGENTS.md](../../AGENTS.md) for the planner/executor
+roles.
 
 ## Recorded outcome of the only launch
+
+This heading keeps its original name so existing links still resolve; it now records both launches. The first is the dated
+2026-10-09 outcome directly below, unchanged; the second follows it.
 
 The launcher has been run for real once, on 2026-10-09, with the opt-in. It ended `Blocked` with code `TargetsNotReal` (exit 4)
 before any allowance was spent, so no qualification took place. The historical record is the bullet "Actual real-session
@@ -24,6 +29,24 @@ activity was the host's own `--version` discovery probes. That is a dated observ
 machine: whether Codex is discoverable now has not been re-observed here. A later launch is a new run that needs the planner's
 or the owner's separate decision after the environment is prepared. This record changes none of the authority, allowance or
 no-retry boundaries below, and it is not provider qualification.
+
+**The failed session (published 2026-10-31).** A later, separately authorized single session through the unchanged launcher
+ended `Failed` with code `ReviewerAttemptFailedProviderInvocationFailed` (exit 5). The real Codex Planner attempt recorded a
+coherent `Proposal` (process exited 0) with agreeing sealed evidence and an unchanged source and worktree. The real Claude
+CriticalReviewer attempt for that exact Proposal was dispatched and its process exited 1 after 129 ms with outcome
+`ProviderInvocationFailed`; no valid reply was recorded. Both allowances are spent: the unchanged launcher refuses with exit 3
+while either marker exists, and no reset has been selected. The child-process proof ended `OriginUnresolved`, so the session's
+owned root was preserved (`ShutdownUnproven`). Nothing was retried. Providers are not qualified. Its execution record is the
+historical QUALIFICATION-REAL-SESSION-01 section of [current-work.md](current-work.md); its summary is schema 1 and is not
+rewritten (see [the safe summary](#the-safe-summary)).
+
+Afterwards the planner, under a bounded owner authorization, read only that Reviewer attempt's sealed streams: stdout was empty
+and a vocabulary-restricted projection of stderr reported that the `SystemRoot` environment variable was not set. The Claude print
+adapters now carry that Windows prerequisite and the summary moved to schema 2; see
+[Windows Claude print-mode launch environment](../architecture/agent-collaboration-provider-contracts.md#windows-claude-print-mode-launch-environment).
+That diagnosis names one observed missing prerequisite, not the CLI's internal cause or the absence of others, and the repair
+is proven only by controlled tests with fakes. Neither is a runtime requalification: no later real session is recorded, and one
+would need new owner authority and spendable allowances.
 
 ## It is not a test
 
@@ -149,6 +172,20 @@ recorded input and sealed manifest name that Proposal, sealed byte and hash agre
 **proven** and unchanged (an unobserved or unreadable repository is neither), the child-process proof with its reason, and the
 cleanup facts. It never carries a user or executable path, a provider session identifier, a credential, a manifest or any
 provider output.
+
+The current summary is `schemaVersion` 2. For each available stage it adds `attemptsInRun` and `dispatchedAttemptsInRun` (the
+run's attempt rows and those with a dispatch marker when the stage was read), `messageCount` and `evidenceRouteComparison`, and
+keeps every schema-1 field, including the derived `evidenceRouteAgrees` boolean. `messageCount` is `null` when the timeline was
+not enumerated (a still running attempt) and otherwise the actual number of messages the accepted attempt produced: 0, 1 or
+more. The public message-evidence route is compared only for exactly one produced message, so `evidenceRouteComparison` is
+`NotAttempted` without one and `Agrees` or `Disagrees` only after an actual comparison; `evidenceRouteAgrees` is true only for
+`Agrees`, so a false value alone never means a disagreement. An unavailable stage stays `null`. A stage state the reader cannot
+produce (an undefined comparison value, a negative count, or a performed comparison without exactly one known selected message)
+replaces the whole text with the same fixed refusal, now carrying `schemaVersion` 2. A stage still qualifies only with exactly one
+message of its own and an agreeing performed comparison; the closed failure codes and the first-failure order are unchanged.
+Summaries written under schema 1, including the failed session's, are historical and are not rewritten: in them a `false`
+`evidenceRouteAgrees` with no selected message did not distinguish an absent comparison from a disagreement, and the count was
+not reported. Schema 2 reports only what the host recorded; it adds no provider output, failure classification or diagnosis.
 
 | Exit | Meaning |
 | ---- | ------- |

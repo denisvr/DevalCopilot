@@ -26,7 +26,15 @@ public sealed class PostStageObservationTests : QualificationTestBase
 
     private static void FailPlanner(ScriptedEnvironment environment) =>
         environment.OnRead = (_, _) => QualificationReadings.Planner(environment.PlannerAttemptId, environment.ProposalMessageId)
-            with { Status = "Failed", Outcome = "InvalidStructuredOutput", MessageCount = 0, MessageId = null, MessageType = null };
+            with
+        {
+            Status = "Failed",
+            Outcome = "InvalidStructuredOutput",
+            MessageCount = 0,
+            MessageId = null,
+            MessageType = null,
+            EvidenceRouteComparison = EvidenceRouteComparisonStatus.NotAttempted,
+        };
 
     [Fact]
     public async Task A_failed_planner_that_changed_both_repositories_is_reported_with_its_first_failure_kept()
@@ -52,7 +60,14 @@ public sealed class PostStageObservationTests : QualificationTestBase
         environment.OnRead = (role, _) => role == AllowanceRole.Planner
             ? QualificationReadings.Planner(environment.PlannerAttemptId, environment.ProposalMessageId)
             : QualificationReadings.Reviewer(environment.ReviewerAttemptId, environment.ReplyMessageId, environment.ProposalMessageId)
-                with { Status = "Failed", Outcome = "ProviderInvocationFailed", MessageCount = 0, MessageId = null };
+                with
+            {
+                Status = "Failed",
+                Outcome = "ProviderInvocationFailed",
+                MessageCount = 0,
+                MessageId = null,
+                EvidenceRouteComparison = EvidenceRouteComparisonStatus.NotAttempted,
+            };
 
         var report = await RunAsync(environment);
 
@@ -93,7 +108,15 @@ public sealed class PostStageObservationTests : QualificationTestBase
     {
         var environment = Drifting(e => e.Count("stop") > 0);
         environment.OnRead = (_, _) => QualificationReadings.Planner(environment.PlannerAttemptId, environment.ProposalMessageId)
-            with { Status = "Running", Outcome = null, MessageCount = 0, MessageId = null, MessageType = null };
+            with
+        {
+            Status = "Running",
+            Outcome = null,
+            MessageCount = null,
+            MessageId = null,
+            MessageType = null,
+            EvidenceRouteComparison = EvidenceRouteComparisonStatus.NotAttempted,
+        };
 
         var report = await RunAsync(environment);
 

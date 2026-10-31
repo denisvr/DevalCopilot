@@ -94,11 +94,11 @@ public sealed class StageEvidenceReader(
         var inputs = await db.AttemptInputMessages.AsNoTracking()
             .Where(input => input.AttemptId == stored.Id).OrderBy(input => input.Sequence)
             .Select(input => input.CollaborationMessageId).ToListAsync(cancellationToken);
-        var evidenceAgrees = false;
+        var comparison = EvidenceRouteComparisonStatus.NotAttempted;
         if (message is not null)
         {
             var evidence = await api.GetMessageEvidenceAsync(runId, message.Id, cancellationToken);
-            evidenceAgrees = evidence.EvidenceStatus == "HasEvidence"
+            var evidenceAgrees = evidence.EvidenceStatus == "HasEvidence"
                 && evidence.AttemptId == stored.Id
                 && evidence.AgentProvider == provider.ToString()
                 && evidence.AgentRole == agentRole.ToString()
@@ -107,6 +107,7 @@ public sealed class StageEvidenceReader(
                 && process.Outcome == reading.ProcessOutcome
                 && process.ExitCode == reading.ExitCode
                 && evidence.InputMessages.Select(input => input.CollaborationMessageId).SequenceEqual(inputs);
+            comparison = evidenceAgrees ? EvidenceRouteComparisonStatus.Agrees : EvidenceRouteComparisonStatus.Disagrees;
         }
 
         var artifacts = await db.Artifacts.AsNoTracking()
@@ -126,7 +127,7 @@ public sealed class StageEvidenceReader(
             MessageAttemptId = message?.AttemptId,
             MessageActor = message is null ? null : $"{message.Actor.Provider}.{message.Actor.Role}",
             MessageProvenance = message?.Provenance,
-            EvidenceRouteAgrees = evidenceAgrees,
+            EvidenceRouteComparison = comparison,
             InputMessageIds = inputs,
             ManifestPresent = manifestIsTheAttemptsOwn,
             ManifestBytesAgree = manifestBytes is not null,

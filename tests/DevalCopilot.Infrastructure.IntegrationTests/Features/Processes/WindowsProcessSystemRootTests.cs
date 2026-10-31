@@ -6,12 +6,12 @@ using Xunit;
 namespace DevalCopilot.Infrastructure.IntegrationTests.Features.Processes;
 
 /// <summary>
-/// Exercises the one shared Windows NodeScript environment rule with fabricated system-directory
+/// Exercises the one shared Windows SystemRoot rule with fabricated system-directory
 /// inputs only: it never reads the real system directory, an ambient <c>SystemRoot</c>/<c>windir</c>,
 /// or any installed provider. Path-syntax cases are Windows-only because lexical full-qualification
 /// is the host's own path semantics; the applicability cases are host-independent.
 /// </summary>
-public sealed class WindowsNodeProcessEnvironmentTests
+public sealed class WindowsProcessSystemRootTests
 {
     private const string SensitiveMarker = "SENSITIVE-SYSTEM-DIRECTORY-MARKER-4c91";
 
@@ -26,7 +26,7 @@ public sealed class WindowsNodeProcessEnvironmentTests
     {
         var environment = new Dictionary<string, string>();
 
-        var added = WindowsNodeProcessEnvironment.TryAdd(environment, requiresNodeRuntime: true, new(true, () => systemDirectory));
+        var added = WindowsProcessSystemRoot.TryAdd(environment, requiresSystemRoot: true, new(true, () => systemDirectory));
 
         Assert.True(added);
         var entry = Assert.Single(environment);
@@ -39,8 +39,8 @@ public sealed class WindowsNodeProcessEnvironmentTests
     {
         var environment = new Dictionary<string, string> { ["USERPROFILE"] = @"C:\fabricated-profile", ["CODEX_HOME"] = "  " };
 
-        var added = WindowsNodeProcessEnvironment.TryAdd(
-            environment, requiresNodeRuntime: true, new(true, () => @"C:\Windows\System32"));
+        var added = WindowsProcessSystemRoot.TryAdd(
+            environment, requiresSystemRoot: true, new(true, () => @"C:\Windows\System32"));
 
         Assert.True(added);
         Assert.Equal(3, environment.Count);
@@ -53,14 +53,14 @@ public sealed class WindowsNodeProcessEnvironmentTests
     [InlineData(true, false)]
     [InlineData(false, true)]
     [InlineData(false, false)]
-    public void A_native_or_non_windows_request_keeps_its_map_and_never_evaluates_the_reader(bool isWindows, bool requiresNodeRuntime)
+    public void A_native_or_non_windows_request_keeps_its_map_and_never_evaluates_the_reader(bool isWindows, bool requiresSystemRoot)
     {
         var evaluations = 0;
         var environment = new Dictionary<string, string> { ["USERPROFILE"] = @"C:\fabricated-profile" };
 
-        var added = WindowsNodeProcessEnvironment.TryAdd(
+        var added = WindowsProcessSystemRoot.TryAdd(
             environment,
-            requiresNodeRuntime,
+            requiresSystemRoot,
             new(isWindows, () =>
             {
                 evaluations++;
@@ -116,7 +116,7 @@ public sealed class WindowsNodeProcessEnvironmentTests
     {
         var environment = new Dictionary<string, string>();
 
-        Assert.False(WindowsNodeProcessEnvironment.TryAdd(environment, requiresNodeRuntime: true, new(true, null)));
+        Assert.False(WindowsProcessSystemRoot.TryAdd(environment, requiresSystemRoot: true, new(true, null)));
         Assert.Empty(environment);
     }
 
@@ -142,8 +142,8 @@ public sealed class WindowsNodeProcessEnvironmentTests
         };
         var environment = new Dictionary<string, string> { ["USERPROFILE"] = @"C:\fabricated-profile" };
 
-        var added = WindowsNodeProcessEnvironment.TryAdd(
-            environment, requiresNodeRuntime: true, new(true, () => throw failure));
+        var added = WindowsProcessSystemRoot.TryAdd(
+            environment, requiresSystemRoot: true, new(true, () => throw failure));
 
         Assert.False(added);
         var entry = Assert.Single(environment);
@@ -153,15 +153,15 @@ public sealed class WindowsNodeProcessEnvironmentTests
     [Fact]
     public void Cancellation_from_the_reader_is_not_swallowed()
     {
-        Assert.Throws<OperationCanceledException>(() => WindowsNodeProcessEnvironment.TryAdd(
-            new Dictionary<string, string>(), requiresNodeRuntime: true, new(true, () => throw new OperationCanceledException())));
+        Assert.Throws<OperationCanceledException>(() => WindowsProcessSystemRoot.TryAdd(
+            new Dictionary<string, string>(), requiresSystemRoot: true, new(true, () => throw new OperationCanceledException())));
     }
 
     private static void AssertRefused(Func<string?> readSystemDirectory)
     {
         var environment = new Dictionary<string, string> { ["USERPROFILE"] = @"C:\fabricated-profile" };
 
-        var added = WindowsNodeProcessEnvironment.TryAdd(environment, requiresNodeRuntime: true, new(true, readSystemDirectory));
+        var added = WindowsProcessSystemRoot.TryAdd(environment, requiresSystemRoot: true, new(true, readSystemDirectory));
 
         Assert.False(added);
         var entry = Assert.Single(environment);

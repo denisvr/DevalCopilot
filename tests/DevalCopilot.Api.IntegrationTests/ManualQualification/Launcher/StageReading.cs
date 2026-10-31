@@ -40,7 +40,9 @@ public sealed record StageReading
 
     public Guid? ReviewedProposalMessageId { get; init; }
 
-    public int MessageCount { get; init; }
+    /// <summary>The number of produced messages the timeline actually listed for the attempt, or null when it was not enumerated
+    /// (no attempt, or a still running one). An unobserved count is never zero.</summary>
+    public int? MessageCount { get; init; }
 
     public Guid? MessageId { get; init; }
 
@@ -54,8 +56,13 @@ public sealed record StageReading
 
     public string? MessageProvenance { get; init; }
 
-    /// <summary>The public message-evidence route agrees with the stored attempt on provider, role, outcome and recorded inputs.</summary>
-    public bool EvidenceRouteAgrees { get; init; }
+    /// <summary>Whether the public message-evidence route was compared with the stored attempt on provider, role, outcome, process
+    /// and recorded inputs, and with what result.</summary>
+    public EvidenceRouteComparisonStatus EvidenceRouteComparison { get; init; }
+
+    /// <summary>The comparison was performed and agreed; derived, so it can never disagree with <see cref="EvidenceRouteComparison"/>.
+    /// False alone does not say whether a comparison disagreed or was never attempted.</summary>
+    public bool EvidenceRouteAgrees => EvidenceRouteComparison == EvidenceRouteComparisonStatus.Agrees;
 
     public IReadOnlyList<Guid> InputMessageIds { get; init; } = [];
 

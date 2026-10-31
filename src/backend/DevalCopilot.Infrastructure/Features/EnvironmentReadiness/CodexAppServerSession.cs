@@ -74,13 +74,13 @@ internal static class CodexAppServerSession
     /// directory and starts the process.</summary>
     internal readonly record struct LaunchInputs(
         Func<string, string?> ReadVariable,
-        WindowsNodeProcessEnvironment.Inputs NodeRuntime,
+        WindowsProcessSystemRoot.Inputs NodeRuntime,
         Func<string> EnsureScratchDirectory,
         Action<Process> StartProcess)
     {
         internal static LaunchInputs Current { get; } = new(
             System.Environment.GetEnvironmentVariable,
-            WindowsNodeProcessEnvironment.Inputs.Current,
+            WindowsProcessSystemRoot.Inputs.Current,
             HostScratchDirectory.EnsureExists,
             static process => process.Start());
     }
@@ -104,7 +104,7 @@ internal static class CodexAppServerSession
         }
 
         var environment = BuildEnvironmentAllowlist(launchInputs.ReadVariable);
-        if (!WindowsNodeProcessEnvironment.TryAdd(environment, scriptPath is not null, launchInputs.NodeRuntime))
+        if (!WindowsProcessSystemRoot.TryAdd(environment, scriptPath is not null, launchInputs.NodeRuntime))
         {
             // The Windows prerequisite for a Node-hosted launch could not be derived: refused
             // before any scratch directory or process exists, never retried with the smaller map.
@@ -393,7 +393,7 @@ internal static class CodexAppServerSession
     /// non-secret OS/profile-location values required to locate existing local Codex
     /// authentication — never PATH, a provider token, or an arbitrary environment entry. A Windows
     /// script-hosted launch additionally gets exactly <c>SystemRoot</c> from
-    /// <see cref="WindowsNodeProcessEnvironment"/>, added by the caller.</summary>
+    /// <see cref="WindowsProcessSystemRoot"/>, added by the caller.</summary>
     private static Dictionary<string, string> BuildEnvironmentAllowlist(Func<string, string?> readVariable)
     {
         var environment = new Dictionary<string, string>();

@@ -354,6 +354,34 @@ public sealed class ToolDiscoveryAdapterTests : IDisposable
         Assert.Empty(Assert.Single(fake.Requests).EnvironmentVariables);
     }
 
+    // The Claude --print adapters add SystemRoot through ClaudeProcessEnvironment; native Claude version
+    // discovery is a different launch contract and keeps its original empty map on Windows.
+    [Fact]
+    public async Task The_native_windows_claude_version_probe_keeps_an_empty_map_and_never_evaluates_the_reader()
+    {
+        var fake = new FakeProcessExecutionAdapter((_, _) => Task.FromResult(Exited(0, "2.1.0 (Claude Code)\n")));
+        var adapter = new ToolDiscoveryAdapter(fake);
+        var evaluations = 0;
+
+        var result = await adapter.ProbeResolvedAsync(
+            Capability.ClaudeCli,
+            new ProviderLaunchTarget.DirectExecutable(@"C:\Fabricated\claude\claude.exe"),
+            ["--version"],
+            new(true, () =>
+            {
+                evaluations++;
+                throw new InvalidOperationException(SensitiveMarker);
+            }),
+            () => @"C:\Fabricated\scratch",
+            CancellationToken.None);
+
+        Assert.Equal(CapabilityProbeReason.None, result.Reason);
+        Assert.Equal(0, evaluations);
+        var request = Assert.Single(fake.Requests);
+        Assert.Empty(request.EnvironmentVariables);
+        Assert.Equal(["--version"], request.Arguments);
+    }
+
     [Fact]
     public async Task A_non_windows_native_node_capability_probe_keeps_an_empty_map_and_never_evaluates_the_reader()
     {

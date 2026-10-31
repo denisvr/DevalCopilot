@@ -146,7 +146,15 @@ public sealed class QualificationSessionTests : QualificationTestBase
     {
         var environment = new ScriptedEnvironment();
         environment.OnRead = (_, _) => QualificationReadings.Planner(environment.PlannerAttemptId, environment.ProposalMessageId)
-            with { Status = "Running", Outcome = null, MessageCount = 0, MessageId = null, MessageType = null };
+            with
+        {
+            Status = "Running",
+            Outcome = null,
+            MessageCount = null,
+            MessageId = null,
+            MessageType = null,
+            EvidenceRouteComparison = EvidenceRouteComparisonStatus.NotAttempted,
+        };
 
         var report = await RunAsync(environment);
 
@@ -177,7 +185,15 @@ public sealed class QualificationSessionTests : QualificationTestBase
     {
         var environment = new ScriptedEnvironment();
         environment.OnRead = (_, _) => QualificationReadings.Planner(environment.PlannerAttemptId, environment.ProposalMessageId)
-            with { Status = status, Outcome = outcome, MessageCount = 0, MessageId = null, MessageType = null };
+            with
+        {
+            Status = status,
+            Outcome = outcome,
+            MessageCount = 0,
+            MessageId = null,
+            MessageType = null,
+            EvidenceRouteComparison = EvidenceRouteComparisonStatus.NotAttempted,
+        };
 
         var report = await RunAsync(environment);
 

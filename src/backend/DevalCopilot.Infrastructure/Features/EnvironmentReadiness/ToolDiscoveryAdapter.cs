@@ -31,7 +31,7 @@ public sealed class ToolDiscoveryAdapter(IProcessExecutionAdapter processExecuti
             capability,
             resolution.Target!,
             descriptor.ProbeArguments,
-            WindowsNodeProcessEnvironment.Inputs.Current,
+            WindowsProcessSystemRoot.Inputs.Current,
             HostScratchDirectory.EnsureExists,
             cancellationToken);
     }
@@ -48,13 +48,13 @@ public sealed class ToolDiscoveryAdapter(IProcessExecutionAdapter processExecuti
         Capability capability,
         ProviderLaunchTarget launchTarget,
         IReadOnlyList<string> probeArguments,
-        WindowsNodeProcessEnvironment.Inputs environmentInputs,
+        WindowsProcessSystemRoot.Inputs environmentInputs,
         Func<string> ensureScratchDirectory,
         CancellationToken cancellationToken)
     {
         var environment = new Dictionary<string, string>();
         var requiresNodeRuntime = launchTarget is ProviderLaunchTarget.NodeScript || capability == Capability.Node;
-        if (!WindowsNodeProcessEnvironment.TryAdd(environment, requiresNodeRuntime, environmentInputs))
+        if (!WindowsProcessSystemRoot.TryAdd(environment, requiresNodeRuntime, environmentInputs))
         {
             // The Windows prerequisite for a Node runtime launch could not be derived: refused
             // before any scratch directory or process exists, never retried with the smaller map.

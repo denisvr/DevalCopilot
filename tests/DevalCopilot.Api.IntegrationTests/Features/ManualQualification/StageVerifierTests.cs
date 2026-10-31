@@ -37,13 +37,23 @@ public sealed class StageVerifierTests
         { "status route disagrees", Planner with { StatusRouteAgrees = false }, "StatusRouteDisagrees" },
         { "no message", Planner with { MessageCount = 0, MessageId = null }, "MessageNotRecorded" },
         { "two messages", Planner with { MessageCount = 2 }, "MessageNotRecorded" },
+        { "message count never enumerated", Planner with { MessageCount = null }, "MessageNotRecorded" },
         { "message of another attempt", Planner with { MessageAttemptId = Other }, "MessageNotRecorded" },
         { "not a proposal message", Planner with { MessageType = "Challenge" }, "ProposalNotRecorded" },
         { "proposal replying to something", Planner with { InReplyToMessageId = Other }, "ProposalNotRecorded" },
         { "wrong author", Planner with { MessageActor = "Claude.Planner" }, "ProposalAuthorMismatch" },
         { "not provider observed", Planner with { MessageProvenance = "HostConstructed" }, "ProposalAuthorMismatch" },
         { "unexpected inputs", Planner with { InputMessageIds = [Other] }, "UnexpectedInputs" },
-        { "evidence route disagrees", Planner with { EvidenceRouteAgrees = false }, "EvidenceRouteDisagrees" },
+        {
+            "evidence route disagrees",
+            Planner with { EvidenceRouteComparison = EvidenceRouteComparisonStatus.Disagrees },
+            "EvidenceRouteDisagrees"
+        },
+        {
+            "evidence route never compared",
+            Planner with { EvidenceRouteComparison = EvidenceRouteComparisonStatus.NotAttempted },
+            "EvidenceRouteDisagrees"
+        },
         { "no manifest", Planner with { ManifestPresent = false }, "SealedInputMismatch" },
         { "manifest bytes differ", Planner with { ManifestBytesAgree = false }, "SealedInputMismatch" },
         { "manifest contract differs", Planner with { ManifestContractAgrees = false }, "SealedInputContent" },
@@ -83,7 +93,27 @@ public sealed class StageVerifierTests
         { "manifest names another proposal", Reviewer() with { ManifestProposalMessageId = Other }, "SealedProposalMismatch" },
         { "manifest names no proposal", Reviewer() with { ManifestProposalMessageId = null }, "SealedProposalMismatch" },
         { "manifest bytes differ", Reviewer() with { ManifestBytesAgree = false }, "SealedInputMismatch" },
-        { "evidence route disagrees", Reviewer() with { EvidenceRouteAgrees = false }, "EvidenceRouteDisagrees" },
+        {
+            "evidence route disagrees",
+            Reviewer() with { EvidenceRouteComparison = EvidenceRouteComparisonStatus.Disagrees },
+            "EvidenceRouteDisagrees"
+        },
+        {
+            "evidence route never compared",
+            Reviewer() with { EvidenceRouteComparison = EvidenceRouteComparisonStatus.NotAttempted },
+            "EvidenceRouteDisagrees"
+        },
+        {
+            "no reply observed",
+            Reviewer() with { MessageCount = 0, MessageId = null, EvidenceRouteComparison = EvidenceRouteComparisonStatus.NotAttempted },
+            "MessageNotRecorded"
+        },
+        {
+            "two replies",
+            Reviewer() with { MessageCount = 2, MessageId = null, EvidenceRouteComparison = EvidenceRouteComparisonStatus.NotAttempted },
+            "MessageNotRecorded"
+        },
+        { "message count never enumerated", Reviewer() with { MessageCount = null }, "MessageNotRecorded" },
     };
 
     [Theory]
@@ -101,6 +131,26 @@ public sealed class StageVerifierTests
 
         Assert.Equal("AttemptIdentityMismatch", StageVerifier.Verify(AllowanceRole.Planner, Planner, null, accepted));
         Assert.Equal("AttemptIdentityMismatch", StageVerifier.Verify(AllowanceRole.Reviewer, Reviewer(), Proposal, accepted));
+    }
+
+    [Theory]
+    [InlineData(EvidenceRouteComparisonStatus.NotAttempted, false)]
+    [InlineData(EvidenceRouteComparisonStatus.Agrees, true)]
+    [InlineData(EvidenceRouteComparisonStatus.Disagrees, false)]
+    public void The_legacy_agreement_flag_is_derived_from_the_comparison_state(EvidenceRouteComparisonStatus comparison, bool agrees)
+    {
+        Assert.Equal(agrees, (Planner with { EvidenceRouteComparison = comparison }).EvidenceRouteAgrees);
+        Assert.Equal(agrees, (Reviewer() with { EvidenceRouteComparison = comparison }).EvidenceRouteAgrees);
+    }
+
+    [Fact]
+    public void An_unread_reading_has_no_message_count_and_no_comparison()
+    {
+        var unread = new StageReading();
+
+        Assert.Null(unread.MessageCount);
+        Assert.Equal(EvidenceRouteComparisonStatus.NotAttempted, unread.EvidenceRouteComparison);
+        Assert.False(unread.EvidenceRouteAgrees);
     }
 
     [Fact]

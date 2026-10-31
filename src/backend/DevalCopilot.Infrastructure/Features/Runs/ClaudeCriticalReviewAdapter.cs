@@ -66,6 +66,19 @@ public sealed class ClaudeCriticalReviewAdapter(IProcessExecutionAdapter process
     private const int MaxContextManifestReadBytes = 32 * 1024;
     private const int MaxSessionIdLength = 256;
 
+    private readonly ClaudeProcessEnvironmentInputs _environmentInputs = ClaudeProcessEnvironmentInputs.Current;
+
+    /// <summary>Test seam: the same adapter with controlled environment inputs, so its real control
+    /// flow is exercised without reading a real process variable or the real system directory.</summary>
+    internal ClaudeCriticalReviewAdapter(
+        IProcessExecutionAdapter processExecutionAdapter,
+        IArtifactStore artifactStore,
+        ClaudeProcessEnvironmentInputs environmentInputs)
+        : this(processExecutionAdapter, artifactStore)
+    {
+        _environmentInputs = environmentInputs;
+    }
+
     public async Task<CriticalReviewInvocationResult> InvokeAsync(
         CriticalReviewInvocationRequest request, CancellationToken cancellationToken)
     {
@@ -74,6 +87,17 @@ public sealed class ClaudeCriticalReviewAdapter(IProcessExecutionAdapter process
             // Revalidation only — never a new search through PATH or a private install
             // location. A component that no longer exists or no longer has its accepted shape
             // fails this invocation closed before any process starts.
+            return Failed();
+        }
+
+        // A cancelled request stays cancelled: the environment refusal below never masks it as a failure.
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (!ClaudeProcessEnvironment.TryBuild(_environmentInputs, out var environment))
+        {
+            // The Windows prerequisite could not be derived: refused before the manifest is read,
+            // any sink is requested, any artifact is written or a process starts — never retried
+            // with the smaller map.
             return Failed();
         }
 
@@ -121,7 +145,7 @@ public sealed class ClaudeCriticalReviewAdapter(IProcessExecutionAdapter process
             Arguments = arguments,
             WorkingDirectory = request.WorkspacePath,
             ApprovedRoot = request.WorkspacePath,
-            EnvironmentVariables = BuildEnvironmentAllowlist(),
+            EnvironmentVariables = environment,
             Timeout = request.Timeout,
             MaxBytesPerStream = request.MaxBytesPerStream,
             MaxTotalCapturedBytes = request.MaxTotalCapturedBytes,
@@ -201,33 +225,6 @@ public sealed class ClaudeCriticalReviewAdapter(IProcessExecutionAdapter process
         Path.IsPathFullyQualified(path)
         && File.Exists(path)
         && !AgentInvocationScratchDirectory.PathOrAnyAncestorHasReparsePoint(path);
-
-    /// <summary>
-    /// Only non-secret OS/profile-location values required to locate existing local Claude Code
-    /// authentication — never PATH, a provider token, or an arbitrary environment entry.
-    /// <c>CLAUDE_CONFIG_DIR</c> is forwarded only when this host process already has one set;
-    /// <c>USERPROFILE</c> is always forwarded so Claude Code can locate its default configuration
-    /// directory when <c>CLAUDE_CONFIG_DIR</c> is not set. Mirrors
-    /// <c>CodexPlanningAdapter.BuildEnvironmentAllowlist</c> exactly.
-    /// </summary>
-    private static Dictionary<string, string> BuildEnvironmentAllowlist()
-    {
-        var environment = new Dictionary<string, string>();
-
-        var userProfile = System.Environment.GetEnvironmentVariable("USERPROFILE");
-        if (!string.IsNullOrEmpty(userProfile))
-        {
-            environment["USERPROFILE"] = userProfile;
-        }
-
-        var claudeConfigDir = System.Environment.GetEnvironmentVariable("CLAUDE_CONFIG_DIR");
-        if (!string.IsNullOrEmpty(claudeConfigDir))
-        {
-            environment["CLAUDE_CONFIG_DIR"] = claudeConfigDir;
-        }
-
-        return environment;
-    }
 
     /// <summary>
     /// Parses Claude's single <c>--print --output-format json</c> stdout envelope. Fails closed

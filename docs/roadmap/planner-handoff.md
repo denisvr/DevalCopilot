@@ -1,179 +1,327 @@
 # Planner/reviewer handoff
 
-## Current action: QUALIFICATION-REAL-SESSION-01 selected for one new Claude executor chat
+## Current action: CLAUDE-QUALIFICATION-REPAIR-01 accepted after Correction 1; exact-content publication GO
 
-### Review 1: GO for exact-content publication of the failed-session evidence report
+### Review round 2: accepted dispositions and publication boundary
 
-Independent reconciliation confirms main, HEAD, local origin/main and fresh
-live main at `16ca13eb4643a0d96128ea59eda43642b7f89a5a`, empty index,
-only current-work.md and this selection modified, and nothing untracked. The
-executor preserved the dispatched selection hash. Review inspected every saved
-preparation/build/launch script, command notes, original outputs/status, safe
-summary, post-run comparison and document checks, plus StageEvidenceReader,
-StageVerifier, SafeSummary, QualificationSession and ChildProcessWatch source.
-No provider, build, ledger query, process observation or retained-root read was
-repeated. Review evidence and the exact-content identity are under
-`logs/planner-review/qualification-real-session-01/review-01/`.
+**GO for the exact reviewed content only.** The executor in this same Claude
+chat may commit and normally fast-forward push main after matching the external
+approved tree, expected sole parent and explicit path set. Those identities
+are recorded outside the files they identify in
+`logs/planner-review/claude-qualification-repair-01/review-02/publication-approval.json`
+and the complete publication prompt. A mismatch stops publication; no broader
+staging, silent identity recomputation, force-push or history reconciliation.
+No further document edit or closure diff is requested. A material change returns
+for review. Publication is not verified until the planner checks the live result.
 
-The saved preparation reports all pins passing; build exit 0 and launcher exit
-5 have process-handle status records. The summary reports the exact accepted
-Planner attempt Proposed with exit 0, the exact Reviewer attempt Failed with
-exit 1, the Proposal input/manifest linkage, unchanged source/workspace, both
-allowances consumed, host stopped, OriginUnresolved and root preservation.
-The first failure code remains ReviewerAttemptFailedProviderInvocationFailed;
-shutdown is separately unproved. No runtime cause is inferred from 129 ms.
-The consumed markers and preserved root are facts of the saved report, not a
-fresh inspection; the ledger-summary equality is the executor's saved check.
+All three stable findings are resolved and accepted:
 
-- **QRS-R1 (P2), resolved by planner report edits:** distinguish no selected
-  message from a proved zero-message count, and false evidenceRouteAgrees from
-  route disagreement. StageEvidenceReader selects a message only for exactly
-  one timeline member and otherwise leaves evidenceAgrees false without calling
-  the route. SafeSummary omits MessageCount. This report therefore establishes
-  no valid unique reviewer reply, not a second API failure or the raw count.
-- **QRS-R2 (P2), resolved by planner report qualifications:** the reported
-  loss of MSBuild property names is attributed to the executor, with cause
-  unestablished; saved execution used the supported names. Authentication
-  mechanism/success is not independently established for each provider. The
-  preparation script's rooted/quote rules differ from production normalization,
-  and its drive-root separator trim leaves a drive-relative metadata token;
-  aggregate checks are not proof beyond that scope. The PowerShell/.NET temp
-  projection is not an observed launcher layout. A new owner decision alone
-  does not reset spent allowances. Wall time includes teardown. These are
-  evidence qualifications, not source fixes, new observations or new authority.
+- **CQR-R1:** the three adapters check the supplied token after successful target
+  validation and before any environment read. Permanent tests cover valid targets
+  with both would-refuse and valid OS inputs, all three roles, exact cancellation
+  and zero adapter environment/artifact/process interactions; the invalid-target
+  precedence is preserved. The helper forwards the token to every real adapter.
+- **CQR-R2:** the report withdraws the two false first-return claims and records
+  the controlled rehearsals' actual StageEvidenceReader composition and performed
+  agreement. The planner refined the final coverage wording: scripted cases do
+  not establish the corresponding reader branches, and no dedicated reader cases
+  were added; this is not proof that no poll ever read a running attempt. The
+  retained-evidence rationale now identifies unchanged assertion contracts rather
+  than incorrectly saying no dependent production source changed. The original
+  formatting failure and rerun remain recorded.
+- **CQR-R3:** the playbook's current framing includes the published failed second
+  session, both spent allowances, unproved shutdown and preserved root, and no
+  qualification. It keeps the dated first outcome and all headings/anchors and
+  distinguishes the bounded diagnosis and controlled repair from requalification.
 
-Accept the accurate report of a Failed session, not provider qualification,
-authentication/account capacity, general compatibility or MVP completion.
-Claude's exit cause and the process of unresolved origin remain unknown. No
-root/ledger inspection, retry, reset, cleanup, implementation or next slice is
-selected. Only the existing two checkpoint documents may be published under
-the separate exact-content GO with expected parent/tree; no closure edit.
+The correction changed only the three adapters, their existing environment test
+file and the two permitted documents; all other delivered hashes matched round 1
+apart from this planner-owned record. Before planner wording edits, this file
+still matched 966C2D61...71B4E and current-work.md was
+`3B9040FE5C8A2930E7BFECA34778BF0D7434EE83FB120016A24340520CF8BA59`.
+The executor-return hashes and report copy are preserved under review-02.
 
-### Owner authorization and independently verified baseline
+Fresh independent round-2 evidence: Infrastructure build --no-restore, exit 0,
+then all 29 ClaudeProcessEnvironmentTests passed with scoped logs/cqr-t TEMP/TMP.
+The original review probe was not rerun. The planner read the correction commands
+and TRX records: 29 affected tests, 482 in the 16-class Infrastructure scope and
+both named controlled rehearsals, all passing; builds and whitespace check exit 0.
+The earlier independent 315 API tests and executor's 232 Architecture tests are
+retained at their recorded scope, with the controlled compositions rerun after
+the cancellation change. No new provider, native process-table, launcher, login,
+ledger, original root/database-copy or cleanup observation occurred.
 
-The owner approved this chat's bounded proposal with "Autorizar uma sessão
-limitada": one existing manual-provider qualification session, at most one
-Codex Planner and one Claude CriticalReviewer attempt, existing authentication
-and possible quota use, one local build without downloads, normal host
-preflights, original ledger without reset/relocation, a new fictitious
-repository, and the launcher's process observation and guarded shutdown/cleanup
-of only its own new root. No automatic chat messaging or desktop operation.
-The owner forwards the resolved prompt to a NEW Claude executor chat.
+Main, HEAD, local origin/main and fresh live origin/main remain
+`426f221760a5c7ea46e37208bbf1adcb62e99dae`; the real index is empty. The pending
+publication covers 31 explicit path changes including the two rename pairs as
+deletion/addition, four documentation files and the already-reviewed code/tests.
+Approval identity and final document/Git checks are external review-02 records.
+Nothing has been committed or pushed by the planner. No next slice is selected.
+The original allowances remain spent at their last authorized observation;
+providers are not qualified. Publication grants no real execution, reset or
+retained-root authority.
 
-Before selection, main, HEAD, local origin/main and freshly queried live main
-all equal `16ca13eb4643a0d96128ea59eda43642b7f89a5a`; index, worktree and
-untracked state were clean. Prior publication independently matches Review 2's
-GO: tree `d3a630b1425122aff9fa68740c5b5eaa2bdba094`, sole parent
-`6e2f4b3f767ec678c3f3eb5cbe8ad730a3e49060`, exactly current-work.md and
-planner-handoff.md under --no-renames. Record:
-`logs/planner-review/qualification-runtime-metadata-01/publication-verification.json`.
-No republication or closure-document slice. CONTINUE_THIS_CHAT: current context
-percentage is unavailable from exposed tools/owner report; no percentage is
-inferred. The prior executor is finished; no competing slice is dispatched.
+The round-1 NO-GO below is preserved history, superseded only by this acceptance
+and the exact-content publication boundary above.
 
-QUALIFICATION-RUNTIME-METADATA-01's complete selection/reviews remain in this
-file at `16ca13eb4643a0d96128ea59eda43642b7f89a5a`. QRM-R1/R2/R3 are
-resolved as accurate evidence reporting, never retrospective authorization:
-the wrapper stop-boundary breach, unselected signature with unknown effects,
-unavailable preparation/wrapper originals, missing build exit code and helper
-read/check limitations remain disclosed. Four metadata observations passed on
-the recorded host, not authentication, invocation or qualification. Do not
-recover missing originals from session/profile files or repeat old operations.
-The source policy and earlier 117/248/232/34 tests retain their original scope.
+### Review round 1: decision, evidence and stable findings
 
-### Selected outcome and unchanged execution contract
+The planner independently reviewed the delivered diff, the original iteration and
+final/rerun records, and the actual controlled-composition wiring. Main, HEAD,
+local origin/main and a fresh live origin/main still equal
+`426f221760a5c7ea46e37208bbf1adcb62e99dae`. The index is empty. Delivery had
+25 tracked changes (including this planner record) and six new source/test files;
+their paths and hashes were recorded before review changes in
+`logs/planner-review/claude-qualification-repair-01/review-01/delivery-files.json`.
+The delivered current-work.md SHA-256 was
+`8A10080BB066248070C493490C1D322DF8C7E8C80E62BAFC426B2659BC3CA163`.
+This file matched the dispatched planner hash before this review edit.
 
-The largest coherent authorized outcome is one session of the existing
-[manual qualification launcher](manual-provider-qualification-playbook.md),
-including its normal preparation, gates, two conditional submissions and final
-proof. Another metadata-only slice cannot establish this objective. This
-selects no product mechanism, ADR change or GitHub qualification; accepted
-ADR-0002/0004/0009 ownership and the
-[provider contract](../architecture/agent-collaboration-provider-contracts.md)
-are unchanged.
+**NO-GO.** Keep this same slice and executor chat. No commit, push, next slice,
+real provider, launcher, ledger/reset, retained-root or database-copy access is
+authorized. Neither provider is qualified; the original allowances remain spent
+at their last authorized observation. The following three findings are open:
 
-- Use the unchanged ManualQualificationProgram entry point and production
-  composition. No compiled helper, alternate environment factory, substituted
-  provider/judge, new mode, source edit or extra diagnostic. Revalidate only
-  the fixed Node, Codex script/native payload and Claude package executable
-  identities already recorded in current-work.md (length/hash and required
-  reparse chains, no signatures). Missing/drifted/ambiguous prerequisites stop
-  before launch. No standalone version/help/auth probe or directory listing;
-  the existing host/judge's own catalogue and fixture-name checks are allowed.
-- Locate the ledger only as InvocationLedger.CreateDefault does, under the
-  unchanged default Path.GetTempPath(). Permit exact allowance-file existence
-  checks (no listing/old-summary reads), the launcher's ordinary session-bound
-  consumption/read and its safe-summary write. A spent marker blocks; never
-  reset, delete, rewrite, relocate or replace allowances. Do not change TEMP,
-  TMP, provider homes, PATH or configuration to make the session pass. The
-  existing authorization string names the old code label; record the owner's
-  current approval separately, without claiming that label is this decision.
-- Project path geometry from existing layout and the unchanged default temp
-  path using string operations only; disclose the method/runtime used. Stop
-  before launch if any projected relevant root/workspace/ref-lock/reflog path
-  reaches 240 characters, cannot be determined, or a required path is an alias.
-  No new short-temp root or bypass ledger; a blocker returns to Codex.
-- Build once, directly capturing the real exit status:
-  dotnet build tests/DevalCopilot.Api.IntegrationTests/ManualQualification/Launcher/ManualQualification.csproj --no-restore -c Debug -p:SkipNSwag=true -p:UseSharedCompilation=false -m:1
-  API compilation is included; NSwag/client generation is excluded explicitly.
-  No solution/Architecture build, restore, installation or dependency change.
-  Tool yielding means wait on that SAME invocation; an actual fault, timeout
-  or interruption ends preparation. Success text without exit 0 is insufficient.
-- After passing preparation, invoke ManualQualification.exe once with exactly
-  --run-real-provider-session and the process-only opt-in
-  DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM=one-codex-planner-and-one-claude-critical-review.
-  Save/restore only that variable's prior presence/value without logging it.
-  Retain the host's own temporary ASPNETCORE_URLS lifecycle. Never start a second
-  launcher, restart the host, repeat a POST, repair/fallback/resume or submit
-  implementation, verification, approval, commit or publication work.
-- Normal production preflights may use the installed credentials, model/account
-  adapters, network and normal catalogue probes; no separate manual credential,
-  account or signature operation. The default fixture's initial Git commit and
-  worktree preparation belong only to the new owned fictitious scene. Existing
-  guards decide readiness and allowance consumption before each single POST.
-  The reviewer runs only after the exact accepted Planner attempt has a coherent
-  recorded Proposal and unchanged snapshots; at most two claimed attempts and
-  20 reserved invocation minutes. Provider-internal requests are not separately
-  capped as money/tokens. No model/effort/default or permission change.
-- Keep QualificationLimits.Production unchanged: readiness 90 s, setup 120 s,
-  POST 60 s, read 20 s, each stage 12 min with the existing 10-min role timeout,
-  and Overall 32 min for session work. FinishAsync then runs required bounded
-  teardown (host shutdown 60 s, child proof 10 s); 32 min is not a promised
-  wall-clock cap including teardown. Do not extend work or retry after the
-  deadline. Keep the launcher's proof/preserve rules unchanged; stop unknown
-  processes neither manually nor by adopting them. A real timeout/fault is a
-  report, never permission for more runtime work.
+- **CQR-R1 [P2], cancellation is masked by the new early refusal.** All three
+  Claude print adapters call the builder after target validation without checking
+  the supplied cancellation token. For a valid target, an already-cancelled token
+  and an unavailable system directory, each returns ordinary Failed after two
+  profile-variable reads and one system-directory read. None throws cancellation.
+  The planner reproduced all three cases with a non-launching fake, fabricated
+  inputs and no manifest access: probe.trx has three expected assertion failures.
+  Reader-thrown or process-thrown OperationCanceledException tests exercise a
+  different condition. The executor is right that the previous adapters had no
+  explicit early check, but the added early return now bypasses the existing
+  cancellable manifest read. Add ThrowIfCancellationRequested after successful
+  target revalidation and before building the environment in all three adapters;
+  keep invalid-target precedence. Add permanent pre-cancelled valid-target cases
+  in ClaudeProcessEnvironmentTests, with zero profile/OS reads, manifest/sink or
+  process interactions. Include a would-refuse OS input and preserve the existing
+  exception-propagation and invalid-target tests.
+- **CQR-R2 [P2], the delivered coverage account is false.** current-work.md says
+  StageEvidenceReader has no executing test and needs a new hosted fixture.
+  ProductionQualificationEnvironment.RegisterAndPrepareAsync constructs that
+  reader and ReadStageAsync calls it. Both existing controlled rehearsals use
+  this composition and qualify through the owned doubles, exercising completed
+  unique-message readings and their performed agreement. Both passed independently
+  again. Correct the account using that wiring and the named TRX cases. Do not
+  claim the reading-level scripted zero/multiple-message/disagreement cases
+  execute those branches of the database/API reader, and do not add a fixture
+  solely to repair this mistaken coverage claim. Correct the pre-cancellation
+  claim alongside CQR-R1. Preserve the actual failed formatting pass and rerun.
+- **CQR-R3 [P2], the current playbook contradicts the published execution state.**
+  Its opening and dated outcome still imply the Blocked 2026-10-09 launch was the
+  only run and allowances are unspent. This is a planner scope decision: update
+  that same playbook's current framing using the already-published 2026-10-31
+  failed session, preserving the dated first outcome and existing anchors. Record
+  the failed Reviewer invocation, spent allowances, preserved root with unproved
+  shutdown and no qualification; distinguish the bounded missing-SystemRoot
+  diagnosis and controlled repair from a successful runtime requalification.
+  No fresh observation or new execution authority is needed or granted.
 
-### Acceptance, evidence and delivery
+Independent verification: verify-delivery.ps1 rebuilt Infrastructure and API
+with --no-restore (API SkipNSwag=true), then passed the selected 16 Infrastructure
+classes (479) and the ManualQualification API filter excluding the native
+process-table case (315), including both controlled rehearsals. The shared policy
+body exactly equals HEAD's old body after the two selected identifier substitutions.
+StageVerifier production support remains unchanged. Architecture's 232 passing
+tests are retained executor evidence, not a fresh planner run. git diff --check
+passed. Review evidence is under the review-01 directory above.
 
-One new ignored `logs/executor/qualification-real-session-01/` directory holds
-exact preparation/build/launch command source before execution, original output,
-real exit status and concise elapsed-time records. Preserve failures at once;
-no transcription substitutes for missing originals. Capture only the launcher's
-safe summary, not provider transcripts, account identities, credentials, the
-in-memory launch secret or ownership tokens. Do not inspect old ledger summaries
-or retained roots. Built-in reads/proofs and guarded cleanup of the NEW session
-root are allowed; its preservation gives no later inspection/cleanup authority.
+Review-probe provenance: the first restricted-context build exited 1 with no
+compiler diagnostic. An original-context probe build then found missing imports
+in the planner's new test source; these were corrected before its successful
+build and three failing regression cases. All outputs remain saved. Only the
+review-created test source was removed from the test project after verifying its
+hash against the retained copy. All delivered file hashes were unchanged, and
+the subsequent clean rebuild excluded that probe. Its fake launches nothing;
+its new test files and directories remain only in ignored review/test storage.
+No original qualification data was accessed or cleaned.
 
-Require the summary to prove the exact accepted attempts, roles/contracts,
-Proposal/reply/input/manifest lineage, sealed evidence, unchanged source and
-workspace, allowance/submission/dispatch distinctions, and shutdown/cleanup
-classification under the playbook. A read-only check of only the exact summary
-file generated by this launch may compare it with stdout. Qualified, Blocked,
-Failed, unproven shutdown or summary refusal remain their actual outcomes; no
-later command repairs an inconclusive result. No account-capacity/MVP/GitHub
-completion claim follows from a qualified provider session.
+Correction validation: affected cancellation tests first, then final Infrastructure
+16-class scope and both controlled rehearsals after the final source build;
+retain the other passing API and Architecture results at their actual scope
+unless a further change invalidates them. Verify changed-C# whitespace, links,
+inbound fragments, diff hygiene and unchanged protected/generated files. Report
+fresh, retained and not-run evidence distinctly. Return unstaged and uncommitted
+for planner review. This decision grants no publication authority.
 
-The executor changes only current-work.md as its tracked report; preserve this
-planner selection. Apply the [validation policy](validation-policy.md): retain
-unchanged offline/regression evidence, add no suite/rehearsal/mutant run, and
-finish with PowerShell document/link/inbound-fragment, diff, sensitive-data and
-Git checks. Broaden only by returning a bounded challenge to Codex. No login,
-installation, persistent setting/permission change, manual secret inspection,
-prior-root/ledger-history inspection, product/test/ADR/dependency/client edit,
-standalone cleanup, implementation or GitHub operation is authorized. Return
-unstaged, uncommitted and unpushed; commit/push require a separate exact-content
-GO. This session is one new observation, not a retry of prior delivery.
+### Original implementation selection (retained; only the correction above is pending)
+
+### Baseline, authority and bounded diagnosis
+
+The owner requested a larger next slice after QUALIFICATION-REAL-SESSION-01's
+publication, then explicitly approved "Autorizar investigação limitada" for
+only that preserved session's known Reviewer evidence. The planner performed
+that investigation itself before choosing the correction. No executor was
+asked to decide the architecture or broaden authority. The owner forwards one
+resolved prompt to a NEW Claude executor chat; no automatic messaging or UI.
+
+Before selection, main, HEAD, local origin/main and fresh live main all equal
+`426f221760a5c7ea46e37208bbf1adcb62e99dae`, with clean index, worktree and
+untracked state. Independent publication verification matched tree
+`59a4889e4593c123f6edd00e5a4743ed1f7ab49e`, sole parent
+`16ca13eb4643a0d96128ea59eda43642b7f89a5a`, and exactly the two approved
+checkpoint documents under --no-renames; record:
+`logs/planner-review/qualification-real-session-01/publication-verification.json`.
+No republication or closure-document slice. CONTINUE_THIS_CHAT; current context
+percentage is unavailable from exposed tools/owner report, not estimated.
+The preceding executor is finished; no competing slice exists.
+
+The original analysis profile had a different temp path (92 versus the recorded
+33 characters). Its first bounded scan found no candidate and read no retained
+contents. Evidence is preserved. In the original authorized execution context,
+a bounded nonrecursive metadata scan selected one creation-window candidate
+among 16 prefix entries. A bounded working copy of its database (no WAL present)
+was opened readOnly/query_only, selecting only the exact two accepted attempts
+and the Reviewer's stdout/stderr metadata. Both stages and their run binding
+matched the saved summary. The source database byte hash was stable before and
+after; this is not an atomic or historical snapshot proof. Only Reviewer stdout
+(0 bytes) and stderr (115 bytes) were read, fully bounded and checked against
+recorded sealed lengths/SHA-256. A further projection of the SAME verified
+stderr reconfirmed the unique execution-window selection without another
+database query and redacted all vocabulary outside known technical words/flags; no raw
+stream, Proposal, manifest, credential, account identity or root path was
+exported. No provider, ledger or cleanup operation ran.
+
+The normalized observed diagnostic is: **SystemRoot environment variable is not
+set.** The three production Claude --print adapters omit it by source inspection.
+This establishes the reported prerequisite failure, not the CLI's internal
+reason, sufficiency of the proposed fix, authentication or qualification.
+Sanitized evidence and the planner decision:
+`logs/planner-review/claude-qualification-repair-01/planner-decision.txt` and
+`investigation-02/vocabulary-projection.json` under that same directory. The
+executor may read those sanitized records, NOT the working database copy or
+original preserved root; the investigation authority is not renewed.
+
+The failed session's full selection/review remains in this file at
+`426f221760a5c7ea46e37208bbf1adcb62e99dae`. Preserve all QRM/QRS findings,
+missing-original, scope, authentication and shutdown limits. Both original
+allowances were spent at the last authorized observation. No reset or new real
+session is selected; OriginUnresolved remains unproved and requires preservation.
+
+### Largest coherent outcome and architecture decision
+
+Deliver one code/test/documentation increment that corrects the reported Windows
+prerequisite across the whole Claude print family and makes the qualification
+summary describe its evidence without false absence/disagreement claims.
+These changes share the failed collaboration boundary and can be reviewed
+with one controlled matrix. Splitting them into evidence-only deliveries would
+leave the same boundary incomplete. Real requalification remains separate
+because allowances are spent and no new runtime authorization exists.
+
+This preserves ADR-0002/0004/0009 and the
+[provider contracts](../architecture/agent-collaboration-provider-contracts.md):
+Infrastructure owns provider invocation; manual support owns its safe summary.
+No role, effect, authorization, topology or provider-response protocol changes.
+
+1. Rename the one internal WindowsNodeProcessEnvironment policy and tests to
+   WindowsProcessSystemRoot, with decision input requiresSystemRoot. Preserve
+   the exact system-directory derivation, lexical validation, expected-exception,
+   unchanged-map refusal and cancellation logic. Mechanically update existing
+   discovery, Codex invoker/session and test references; keep their applicability
+   and maps identical, including native Capability.Node versus other native
+   probes, NodeScript calls, direct native Codex and non-Windows behavior.
+   Native Claude --version discovery is unchanged: it already passed without
+   this entry. Do not infer applicability from executable names or extensions.
+2. Add one ClaudeProcessEnvironment builder and an immutable internal inputs
+   record in its own file. The three Claude --print adapters intentionally share
+   this environment responsibility, not their role/schema/parser/argument code.
+   Forward only existing nonempty USERPROFILE and CLAUDE_CONFIG_DIR unchanged
+   (null/empty omitted, whitespace preserved), plus API-derived SystemRoot on
+   Windows through the shared policy. Non-Windows keeps the former map and never
+   evaluates the OS reader. No ambient SystemRoot/windir, PATH, temp/proxy/token/
+   certificate entry, fallback, hardcoded OS path or configuration switch.
+3. Keep public constructors/ports unchanged. Add small internal immutable-input
+   overloads so all three actual adapter paths can be tested. After existing
+   target validation and cancellation, apply the prerequisite before the
+   adapter's sealed-manifest read, sink-path request, artifact write or process
+   dispatch. Required-value refusal returns that role's existing Failed result
+   with no process evidence and zero such interactions. Cancellation propagates.
+   Preserve every CLI safety flag, schema, model/effort/turn guard, guidance and
+   plan-authorization check, parser, timeout/capture/stdin and post-process fact.
+   ChildProcessExecutionAdapter is unchanged. No generic provider invoker.
+4. In manual qualification support, add EvidenceRouteComparisonStatus with
+   NotAttempted, Agrees and Disagrees; StageReading stores that state and derives
+   the existing EvidenceRouteAgrees boolean. CompleteAsync leaves NotAttempted
+   when no unique message is selected and sets Agrees/Disagrees only after an
+   actual comparison. Make MessageCount nullable: absent before enumeration,
+   actual 0/1/multiple after it. Never turn an unobserved count into zero.
+5. SafeSummary schema 2 emits the stage's attemptsInRun, dispatchedAttemptsInRun,
+   nullable messageCount and closed evidenceRouteComparison, retaining existing
+   booleans. Keep unavailable stage readings null. Reject invalid comparison
+   enum/negative count inputs and a performed-comparison state without one
+   known selected message through the fixed safe-summary refusal, not free
+   text. Old schema-1 evidence is never rewritten. Successful stages still need
+   one exact message and a performed agreeing evidence comparison; preserve
+   StageVerifier's existing refusal/first-failure ordering and closed codes.
+   No new endpoint, database column, provider output, path or account field.
+
+### Acceptance and proportional validation
+
+Prove exact profile maps/reads and SystemRoot applicability for all three real
+adapter control flows using fabricated inputs and non-launching fakes; include
+Windows Claude print success, unchanged non-Windows/profile semantics and
+unchanged native-discovery/direct-native-Codex maps, null/empty/whitespace
+profiles, invalid/throwing OS reader, cancellation, no value leakage and refusal
+before manifest/sink/process interactions. Preserve all renamed policy cases.
+Use WindowsPlatformFact for new Windows-path cases, never a junction-probing
+attribute. Characterize the unchanged native Claude discovery map explicitly.
+
+Cover real 0/1/multiple and unobserved message counts, three comparison states,
+legacy boolean consistency, invalid-state refusal, unchanged first-failure and
+qualified-stage checks, safe-summary secret/path refusal and schema version.
+Add the failed-reviewer session regression at the existing scripted-session
+boundary. Retain complete and unresolved-origin controlled real-composition
+rehearsals; no new ProviderFixture feature or native process-table experiment.
+
+Use one NEW compact test-only temp directory `logs/cqr-t` (57 characters in
+this checkout; absent at selection) for controlled child test processes only,
+saving/restoring process TEMP/TMP. Do not run the real launcher there. Test
+ledgers/fixtures are independently owned; original ledger/root data is never
+read, reset or relocated. Existing controlled fixture cleanup is allowed only
+for newly created test roots under their existing guards. No standalone cleanup.
+
+Build Infrastructure.IntegrationTests, Api.IntegrationTests and Architecture.Tests
+sequentially, --no-restore -c Debug, with -p:SkipNSwag=true for API/Architecture
+composition to exclude NSwag/client generation. Use normal incremental builds,
+real captured exit codes, then --no-build --no-restore tests. Focus during
+iteration; final matrix once on stable input:
+- Infrastructure: renamed SystemRoot policy; new Claude environment tests; all
+  three Claude adapters; ClaudeMutationTurnLimitAdapterTests and
+  ClaudeModelContextLimitsAdapterTests; ToolDiscoveryAdapterTests;
+  CodexProcessInvokerEnvironmentTests; CodexAppServerSessionEnvironmentTests;
+  four Codex role-adapter classes; CodexModelCatalogAdapterTests and
+  CodexAccountAllowanceAdapterTests. Existing canned local ProcessExecutionFixture
+  children are allowed, never actual Node/Codex/Claude or account access.
+- API: all Features.ManualQualification tests EXCEPT
+  The_native_process_table_ends_in_exactly_one_of_the_two_safe_outcomes_of_the_accepted_policy.
+  This includes the two controlled rehearsals; native observation is excluded.
+- Full Architecture tests; changed-C# whitespace; changed-document links and
+  affected inbound fragments; complete diff, sensitive-data and unchanged
+  project/dependency/lock/generated-client checks. No unrelated API/frontend
+  suites or original experiment repetition. Broaden for an evidenced affected
+  dependency by returning a bounded challenge, not silent scope expansion.
+
+### Delivery and continuing restrictions
+
+Update the provider contract in place (preserve existing anchors and Node
+semantics), the manual qualification playbook for schema 2 and its limits, and
+current-work.md. Preserve this planner record and all existing evidence. Record
+the source-based extension to Implementer/ReviewCorrection as inference, not
+real-runtime observation; no qualification is established by controlled tests.
+Keep new concise logs in `logs/executor/claude-qualification-repair-01/` and
+retain original failures and exact filters/source revisions/timing.
+
+No actual provider/helper diagnostic rerun, new model invocation, login,
+credential/account inspection or access to the original ledger, preserved root
+or diagnostic database copy, reset, cleanup,
+installation, persistent environment/permission change, CLI flag relaxation,
+state-machine/scheduler/child-proof change, Application/Domain/API wire or
+persistence change, dependency or frontend edit is selected. No generic failure
+classifier or raw output is added to SafeSummary. The planner's diagnostic
+reader is not a product dependency or executor tool. Return unstaged,
+uncommitted and unpushed; publication requires a separate exact-content GO.
 
 ## Previous action: NODE-SCRIPT-SYSTEMROOT-01
 

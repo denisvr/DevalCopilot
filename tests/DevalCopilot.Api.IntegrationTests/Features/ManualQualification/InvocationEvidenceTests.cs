@@ -34,6 +34,7 @@ public sealed class InvocationEvidenceTests : QualificationTestBase
             ExitCode = null,
             DurationMilliseconds = null,
             MessageCount = 0,
+            EvidenceRouteComparison = EvidenceRouteComparisonStatus.NotAttempted,
             MessageId = null,
             MessageType = null,
         }));
@@ -54,7 +55,8 @@ public sealed class InvocationEvidenceTests : QualificationTestBase
             Outcome = null,
             ProcessOutcome = null,
             ExitCode = null,
-            MessageCount = 0,
+            MessageCount = null,
+            EvidenceRouteComparison = EvidenceRouteComparisonStatus.NotAttempted,
             MessageId = null,
             MessageType = null,
         }));
@@ -78,6 +80,7 @@ public sealed class InvocationEvidenceTests : QualificationTestBase
             ProcessOutcome = outcome,
             ExitCode = exitCode,
             MessageCount = 0,
+            EvidenceRouteComparison = EvidenceRouteComparisonStatus.NotAttempted,
             MessageId = null,
             MessageType = null,
         }));
@@ -136,6 +139,7 @@ public sealed class InvocationEvidenceTests : QualificationTestBase
             ProcessOutcome = null,
             ExitCode = null,
             MessageCount = 0,
+            EvidenceRouteComparison = EvidenceRouteComparisonStatus.NotAttempted,
             MessageId = null,
             MessageType = null,
         }));
@@ -171,6 +175,7 @@ public sealed class InvocationEvidenceTests : QualificationTestBase
             ProcessOutcome = null,
             ExitCode = null,
             MessageCount = 0,
+            EvidenceRouteComparison = EvidenceRouteComparisonStatus.NotAttempted,
             MessageId = null,
             MessageType = null,
         });

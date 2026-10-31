@@ -60,7 +60,8 @@ public sealed class ClaudeReviewCorrectionAdapterTests : IDisposable
         Assert.DoesNotContain("--max-turns", request.Arguments);
         Assert.Equal(manifest.Text, Encoding.UTF8.GetString(request.StandardInput!));
         Assert.DoesNotContain("PATH", request.EnvironmentVariables.Keys, StringComparer.OrdinalIgnoreCase);
-        Assert.All(request.EnvironmentVariables.Keys, key => Assert.Contains(key, new[] { "USERPROFILE", "CLAUDE_CONFIG_DIR" }));
+        Assert.All(request.EnvironmentVariables.Keys, key => Assert.Contains(key, new[] { "USERPROFILE", "CLAUDE_CONFIG_DIR", "SystemRoot" }));
+        Assert.Equal(OperatingSystem.IsWindows(), request.EnvironmentVariables.ContainsKey("SystemRoot"));
     }
 
     [Fact]

@@ -16,12 +16,35 @@ public sealed class ClaudeReviewCorrectionAdapter(IProcessExecutionAdapter proce
     private const int MaxManifestBytes = 32 * 1024;
     private const int MaxSessionIdLength = 256;
 
+    private readonly ClaudeProcessEnvironmentInputs _environmentInputs = ClaudeProcessEnvironmentInputs.Current;
+
+    /// <summary>Test seam: the same adapter with controlled environment inputs, so its real control
+    /// flow is exercised without reading a real process variable or the real system directory.</summary>
+    internal ClaudeReviewCorrectionAdapter(
+        IProcessExecutionAdapter processExecutionAdapter,
+        IArtifactStore artifactStore,
+        ClaudeProcessEnvironmentInputs environmentInputs)
+        : this(processExecutionAdapter, artifactStore)
+    {
+        _environmentInputs = environmentInputs;
+    }
+
     public async Task<ReviewCorrectionInvocationResult> InvokeAsync(
         ReviewCorrectionInvocationRequest request, CancellationToken cancellationToken)
     {
         if (!Path.IsPathFullyQualified(request.LaunchExecutablePath)
             || !File.Exists(request.LaunchExecutablePath)
             || AgentInvocationScratchDirectory.PathOrAnyAncestorHasReparsePoint(request.LaunchExecutablePath))
+        {
+            return Failed();
+        }
+
+        // Mirrors ClaudeCriticalReviewAdapter: a cancelled request is never masked as an environment refusal.
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // Mirrors ClaudeCriticalReviewAdapter: refused before the manifest is read, any sink is
+        // requested, any artifact is written or a process starts — never retried with the smaller map.
+        if (!ClaudeProcessEnvironment.TryBuild(_environmentInputs, out var environment))
         {
             return Failed();
         }
@@ -74,7 +97,7 @@ public sealed class ClaudeReviewCorrectionAdapter(IProcessExecutionAdapter proce
                 Arguments = arguments,
                 WorkingDirectory = request.WorkspacePath,
                 ApprovedRoot = request.WorkspacePath,
-                EnvironmentVariables = BuildEnvironmentAllowlist(),
+                EnvironmentVariables = environment,
                 Timeout = request.Timeout,
                 MaxBytesPerStream = request.MaxBytesPerStream,
                 MaxTotalCapturedBytes = request.MaxTotalCapturedBytes,
@@ -186,24 +209,6 @@ public sealed class ClaudeReviewCorrectionAdapter(IProcessExecutionAdapter proce
         {
             return false;
         }
-    }
-
-    private static Dictionary<string, string> BuildEnvironmentAllowlist()
-    {
-        var environment = new Dictionary<string, string>();
-        var userProfile = System.Environment.GetEnvironmentVariable("USERPROFILE");
-        if (!string.IsNullOrEmpty(userProfile))
-        {
-            environment["USERPROFILE"] = userProfile;
-        }
-
-        var claudeConfigDir = System.Environment.GetEnvironmentVariable("CLAUDE_CONFIG_DIR");
-        if (!string.IsNullOrEmpty(claudeConfigDir))
-        {
-            environment["CLAUDE_CONFIG_DIR"] = claudeConfigDir;
-        }
-
-        return environment;
     }
 
     /// <summary><paramref name="processEvidence"/> is null only when no process result exists;

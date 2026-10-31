@@ -73,10 +73,10 @@ internal static class CodexProcessInvoker
     /// <summary>The ambient reads the invocation's environment depends on, injectable so its control
     /// flow is testable without touching real process variables or the real system directory.</summary>
     internal readonly record struct EnvironmentInputs(
-        Func<string, string?> ReadVariable, WindowsNodeProcessEnvironment.Inputs NodeScript)
+        Func<string, string?> ReadVariable, WindowsProcessSystemRoot.Inputs NodeScript)
     {
         internal static EnvironmentInputs Current { get; } =
-            new(System.Environment.GetEnvironmentVariable, WindowsNodeProcessEnvironment.Inputs.Current);
+            new(System.Environment.GetEnvironmentVariable, WindowsProcessSystemRoot.Inputs.Current);
     }
 
     internal static Task<Outcome> InvokeAsync(
@@ -120,7 +120,7 @@ internal static class CodexProcessInvoker
         }
 
         var environment = BuildEnvironmentAllowlist(environmentInputs.ReadVariable);
-        if (!WindowsNodeProcessEnvironment.TryAdd(environment, request.LaunchScriptPath is not null, environmentInputs.NodeScript))
+        if (!WindowsProcessSystemRoot.TryAdd(environment, request.LaunchScriptPath is not null, environmentInputs.NodeScript))
         {
             // The Windows prerequisite for a Node launch could not be derived: refused before the
             // manifest is read, any scratch/schema/output artifact exists, or a process starts —
@@ -286,7 +286,7 @@ internal static class CodexProcessInvoker
     /// <c>CODEX_HOME</c> is forwarded only when this host process already has one set;
     /// <c>USERPROFILE</c> is always forwarded so Codex can locate its default configuration
     /// directory when <c>CODEX_HOME</c> is not set. A Windows Node-hosted launch additionally gets
-    /// exactly <c>SystemRoot</c> from <see cref="WindowsNodeProcessEnvironment"/>.
+    /// exactly <c>SystemRoot</c> from <see cref="WindowsProcessSystemRoot"/>.
     /// </summary>
     private static Dictionary<string, string> BuildEnvironmentAllowlist(Func<string, string?> readVariable)
     {

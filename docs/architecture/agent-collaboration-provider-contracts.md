@@ -61,9 +61,9 @@ abort at startup under an empty environment, and under the Codex allowlist shape
 launch therefore carries one explicit OS prerequisite, while the child environment stays an
 explicit allowlist:
 
-- **Applicability.** The rule (the internal `WindowsNodeProcessEnvironment` policy) applies only
-  when the host is Windows and the request starts the Node runtime. There are four source entry
-  paths, all using the one policy:
+- **Applicability.** The rule (the internal `WindowsProcessSystemRoot` policy, whose caller passes
+  `requiresSystemRoot`) applies to Node only when the host is Windows and the request starts the
+  Node runtime. There are four Node source entry paths, all using the one policy:
   - capability discovery of a `ProviderLaunchTarget.NodeScript`;
   - the native probe of the explicit `Capability.Node`, decided from the requested capability
     value and never from an executable's file name, extension or path, so another capability's
@@ -74,9 +74,11 @@ explicit allowlist:
   - a non-null script path in the shared Codex App Server session, which serves the model-catalog,
     account-allowance and account-usage-guard observations.
 
-  A direct native Codex launch, any other native request and every non-Windows request keep their
-  existing environment exactly and never evaluate the system-directory reader. No role or adapter
-  copies the rule.
+  A direct native Codex launch, any other native request (including native Claude version
+  discovery) and every non-Windows request keep their existing environment exactly and never
+  evaluate the system-directory reader. No role or adapter copies the rule; the Claude print-mode
+  invocations use the same policy through their own builder
+  ([below](#windows-claude-print-mode-launch-environment)).
 - **Value.** Exactly one entry, `SystemRoot`, is added: the parent directory of
   `Environment.SystemDirectory`, the managed getter backed by `GetSystemDirectoryW`. The ambient
   `SystemRoot` and `windir` variables, a hardcoded installation path, P/Invoke, a directory search
@@ -118,6 +120,43 @@ new App Server environment tests capture the prepared process start information 
 handled start failure, so they launch no child. They prove request construction, refusal and
 fixture behavior only. None establishes provider or production-host compatibility,
 authentication or qualification.
+
+### Windows Claude print-mode launch environment
+
+The one failed real qualification session's Claude CriticalReviewer exited 1 with no stdout; a
+planner-performed, owner-authorized bounded projection of its sealed 115-byte stderr reported that
+the `SystemRoot` environment variable is not set. The production child-process adapter clears
+inherited variables, and every Claude `--print` adapter forwarded only the two profile entries, so
+the three print-mode invocations carry the same Windows prerequisite:
+
+- **Applicability.** `ClaudeCriticalReviewAdapter`, `ClaudeImplementationAdapter` and
+  `ClaudeReviewCorrectionAdapter` share one internal `ClaudeProcessEnvironment` builder with an
+  immutable inputs record; they share nothing else of their role, schema, argument or parser
+  contracts. On Windows every print invocation requires `SystemRoot` through
+  `WindowsProcessSystemRoot`, with the same value derivation, lexical validation and expected
+  failures as above. Applicability follows the print-mode contract, never an executable's name or
+  extension. Native Claude `--version` discovery, which already succeeded without the entry, is
+  unchanged and keeps its empty map.
+- **Map.** An existing nonempty `USERPROFILE` and `CLAUDE_CONFIG_DIR` are forwarded unchanged (null
+  and empty are omitted, whitespace is neither trimmed nor rejected), plus `SystemRoot` on Windows,
+  and nothing else. Only those two variables are read. A non-Windows invocation keeps the former
+  two-entry map and never evaluates the system-directory reader.
+- **Refusal.** After the existing launch-target revalidation, a Windows invocation whose value
+  cannot be resolved or validated returns that role's existing closed `Failed` result with no
+  process evidence, before the sealed context manifest is read, any output sink path is requested,
+  any artifact is written or a process starts. There is no retry or launch with the smaller map,
+  no value or exception detail leaves the builder, and cancellation still propagates.
+- **Unchanged.** Every CLI safety flag, schema, model/effort/turn guard, direct-guidance and
+  plan-authorization agreement check, envelope parser, stdin, timeout, capture limit and
+  post-process fact below is unchanged, as is the child-process adapter. `PATH`, temp, proxy,
+  token and certificate entries stay excluded.
+
+Evidence limits: the diagnostic was observed only for the CriticalReviewer print invocation. The
+extension to the Implementer and ReviewCorrection print invocations is source-based inference from
+their shared print contract, not a real-runtime observation. Controlled tests use fabricated
+profile values and system directories with non-launching process fakes; they establish map
+construction, refusal ordering and unchanged arguments, not that `SystemRoot` alone suffices, that
+no other prerequisite is missing, authentication, a valid provider reply or qualification.
 
 ## Claude Code critical-review CLI safety contract
 

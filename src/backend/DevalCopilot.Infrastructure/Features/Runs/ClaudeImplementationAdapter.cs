@@ -63,6 +63,19 @@ public sealed class ClaudeImplementationAdapter(IProcessExecutionAdapter process
     private const int MaxContextManifestReadBytes = 32 * 1024;
     private const int MaxSessionIdLength = 256;
 
+    private readonly ClaudeProcessEnvironmentInputs _environmentInputs = ClaudeProcessEnvironmentInputs.Current;
+
+    /// <summary>Test seam: the same adapter with controlled environment inputs, so its real control
+    /// flow is exercised without reading a real process variable or the real system directory.</summary>
+    internal ClaudeImplementationAdapter(
+        IProcessExecutionAdapter processExecutionAdapter,
+        IArtifactStore artifactStore,
+        ClaudeProcessEnvironmentInputs environmentInputs)
+        : this(processExecutionAdapter, artifactStore)
+    {
+        _environmentInputs = environmentInputs;
+    }
+
     public async Task<ImplementationInvocationResult> InvokeAsync(
         ImplementationInvocationRequest request, CancellationToken cancellationToken)
     {
@@ -71,6 +84,16 @@ public sealed class ClaudeImplementationAdapter(IProcessExecutionAdapter process
             // Revalidation only — never a new search through PATH or a private install
             // location. A component that no longer exists or no longer has its accepted shape
             // fails this invocation closed before any process starts.
+            return Failed();
+        }
+
+        // Mirrors ClaudeCriticalReviewAdapter: a cancelled request is never masked as an environment refusal.
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (!ClaudeProcessEnvironment.TryBuild(_environmentInputs, out var environment))
+        {
+            // Mirrors ClaudeCriticalReviewAdapter: refused before the manifest is read, any sink is
+            // requested, any artifact is written or a process starts — never retried with the smaller map.
             return Failed();
         }
 
@@ -135,7 +158,7 @@ public sealed class ClaudeImplementationAdapter(IProcessExecutionAdapter process
             Arguments = arguments,
             WorkingDirectory = request.WorkspacePath,
             ApprovedRoot = request.WorkspacePath,
-            EnvironmentVariables = BuildEnvironmentAllowlist(),
+            EnvironmentVariables = environment,
             Timeout = request.Timeout,
             MaxBytesPerStream = request.MaxBytesPerStream,
             MaxTotalCapturedBytes = request.MaxTotalCapturedBytes,
@@ -207,27 +230,6 @@ public sealed class ClaudeImplementationAdapter(IProcessExecutionAdapter process
         Path.IsPathFullyQualified(path)
         && File.Exists(path)
         && !AgentInvocationScratchDirectory.PathOrAnyAncestorHasReparsePoint(path);
-
-    /// <summary>Mirrors <c>ClaudeCriticalReviewAdapter.BuildEnvironmentAllowlist</c>
-    /// exactly.</summary>
-    private static Dictionary<string, string> BuildEnvironmentAllowlist()
-    {
-        var environment = new Dictionary<string, string>();
-
-        var userProfile = System.Environment.GetEnvironmentVariable("USERPROFILE");
-        if (!string.IsNullOrEmpty(userProfile))
-        {
-            environment["USERPROFILE"] = userProfile;
-        }
-
-        var claudeConfigDir = System.Environment.GetEnvironmentVariable("CLAUDE_CONFIG_DIR");
-        if (!string.IsNullOrEmpty(claudeConfigDir))
-        {
-            environment["CLAUDE_CONFIG_DIR"] = claudeConfigDir;
-        }
-
-        return environment;
-    }
 
     /// <summary>Mirrors <c>ClaudeCriticalReviewAdapter.TryParseEnvelope</c> exactly — its own
     /// copy, not a shared helper, per this slice's explicit instruction not to reuse the

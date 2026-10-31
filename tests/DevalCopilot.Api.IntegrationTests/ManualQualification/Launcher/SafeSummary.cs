@@ -8,20 +8,45 @@ namespace DevalCopilot.Api.IntegrationTests.ManualQualification;
 /// The only text a session prints or keeps. It is composed field by field from closed names, numbers, flags, plain version tokens
 /// and opaque identities, so a path, a credential, a provider output, a manifest or an account identity has no way in. As a last
 /// guard the finished text is refused, and replaced by a fixed minimal verdict, if it carries a drive path or any forbidden value.
+/// Schema 2 adds each available stage's run attempt counts, its nullable produced-message count and its closed evidence-route
+/// comparison state; a stage reading that could not have been observed (an undefined state, a negative count, or a performed
+/// comparison without one known selected message) is refused the same way. Schema 1 summaries are historical and never rewritten.
 /// </summary>
 public static partial class SafeSummary
 {
-    public const int SchemaVersion = 1;
+    public const int SchemaVersion = 2;
 
     public static string Render(QualificationReport report, IReadOnlyList<string> forbiddenFragments)
     {
         var text = Compose(report);
-        var unsafeText = DrivePath().IsMatch(text)
+        var unsafeText = !IsObservable(report.Planner) || !IsObservable(report.Reviewer)
+            || DrivePath().IsMatch(text)
             || forbiddenFragments.Any(fragment =>
                 !string.IsNullOrEmpty(fragment) && text.Contains(fragment, StringComparison.OrdinalIgnoreCase));
         return unsafeText
             ? $"{{\"schemaVersion\":{SchemaVersion},\"result\":\"Failed\",\"code\":\"SummaryRefused\"}}"
             : text;
+    }
+
+    /// <summary>An unavailable reading is written as null and needs no check; an available one must carry only states the reader
+    /// can produce.</summary>
+    private static bool IsObservable(StageReading? reading)
+    {
+        if (reading is null || !reading.AttemptFound)
+        {
+            return true;
+        }
+
+        if (!Enum.IsDefined(reading.EvidenceRouteComparison)
+            || reading.AttemptsInRun < 0
+            || reading.DispatchedAttemptsInRun < 0
+            || reading.MessageCount < 0)
+        {
+            return false;
+        }
+
+        return reading.EvidenceRouteComparison == EvidenceRouteComparisonStatus.NotAttempted
+            || (reading.MessageCount == 1 && reading.MessageId is not null);
     }
 
     private static string Compose(QualificationReport report)
@@ -129,6 +154,8 @@ public static partial class SafeSummary
         var matches = acceptedAttemptId is not null && reading.AttemptId == acceptedAttemptId;
         writer.WriteBoolean("attemptIdMatchesAccepted", matches);
         writer.WriteNumber("attemptNumber", reading.AttemptNumber);
+        writer.WriteNumber("attemptsInRun", reading.AttemptsInRun);
+        writer.WriteNumber("dispatchedAttemptsInRun", reading.DispatchedAttemptsInRun);
         writer.WriteString("provider", Token(reading.Provider));
         writer.WriteString("role", Token(reading.Role));
         writer.WriteString("contract", Token(reading.Contract));
@@ -140,6 +167,7 @@ public static partial class SafeSummary
         WriteNullable(writer, "exitCode", reading.ExitCode);
         WriteNullable(writer, "durationMilliseconds", reading.DurationMilliseconds);
         writer.WriteEndObject();
+        WriteNullable(writer, "messageCount", reading.MessageCount);
         writer.WriteStartObject("message");
         WriteNullable(writer, "id", reading.MessageId);
         WriteNullable(writer, "type", reading.MessageType);
@@ -168,6 +196,7 @@ public static partial class SafeSummary
         writer.WriteEndObject();
         writer.WriteBoolean("statusRouteAgrees", reading.StatusRouteAgrees);
         writer.WriteBoolean("evidenceRouteAgrees", reading.EvidenceRouteAgrees);
+        writer.WriteString("evidenceRouteComparison", reading.EvidenceRouteComparison.ToString());
         writer.WriteEndObject();
     }
 
