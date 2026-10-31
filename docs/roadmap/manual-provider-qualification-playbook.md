@@ -6,8 +6,9 @@ through the production host, adapters, parsers and result writers, in a new disp
 Challenge is a valid result; nothing forces an Acceptance. The result is version-specific compatibility evidence, not provider
 obedience, general reliability, account capacity or increment completion. Two launches are recorded: the first, on 2026-10-09,
 ended `Blocked` / `TargetsNotReal` before any allowance was spent; the second, published on 2026-10-31, ended `Failed` (exit 5)
-at the CriticalReviewer invocation, spent both allowances and qualified nothing. See
-[the recorded outcomes](#recorded-outcome-of-the-only-launch) below. See [AGENTS.md](../../AGENTS.md) for the planner/executor
+at the CriticalReviewer invocation, spent both allowances and qualified nothing. A later, separately authorized reset-and-session
+sequence on 2026-10-31 stopped at its build step: no reset, no launch, so it is not a third launch and both allowances stay
+spent. See [the recorded outcomes](#recorded-outcome-of-the-only-launch) below. See [AGENTS.md](../../AGENTS.md) for the planner/executor
 roles.
 
 ## Recorded outcome of the only launch
@@ -47,6 +48,16 @@ adapters now carry that Windows prerequisite and the summary moved to schema 2; 
 That diagnosis names one observed missing prerequisite, not the CLI's internal cause or the absence of others, and the repair
 is proven only by controlled tests with fakes. Neither is a runtime requalification: no later real session is recorded, and one
 would need new owner authority and spendable allowances.
+
+**The stopped reset-and-session sequence (2026-10-31, after the repair).** The owner authorized an auditable archive of the two
+spent markers inside the original ledger, followed by one new session. The single physical sequence passed its preflight, then
+stopped 1.9 s after its start, when the planner-prepared build step failed before starting any build (more than one `dotnet.exe`
+resolved in the executor's context). The reset never ran and the launcher was not started. Only ledger existence/reparse metadata
+was checked; marker contents were not read or changed, no new summary or root was created, and no provider was invoked.
+Both original allowances remain spent at their recorded scope, and providers are not qualified. Nothing was retried.
+The planner's final review closed this physical sequence at its mandatory stop: another physical sequence requires a new
+explicit owner decision, even though this one invoked no provider. Its execution record is the
+QUALIFICATION-REAL-SESSION-02 section of [current-work.md](current-work.md).
 
 ## It is not a test
 

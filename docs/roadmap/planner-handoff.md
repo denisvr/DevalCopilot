@@ -1,6 +1,305 @@
 # Planner/reviewer handoff
 
-## Current action: CLAUDE-QUALIFICATION-REPAIR-01 accepted after Correction 1; exact-content publication GO
+## Current action: QUALIFICATION-REAL-SESSION-02 ended at the build gate; evidence-report publication GO only
+
+### Final review: stopped sequence accepted, no runtime qualification or rerun authority
+
+The planner accepts the executor's mandatory stop. The single physical sequence
+passed preflight and ended at elapsed 1.9 seconds when the planner-owned build
+script failed parameter binding before starting dotnet. The planner owns that
+defect: it assumed Get-Command.Source was scalar, and ShowArguments bypassed
+the resolution. No reset, launcher or provider phase ran. No build, test or
+provider qualification is established. The prior session's original allowances
+remain spent at their recorded scope; no new consumption is inferred here.
+
+**The existing physical-sequence authorization is closed at that stop.** No
+resume, replacement witness, reset, repaired build, diagnostic probe or launch
+may proceed under it. Another physical sequence requires a new explicit owner
+decision even though this one called no provider. This decision interprets the
+already-dispatched no-retry boundary; it does not spend or reset ledger entries.
+
+**GO covers only publication of the reviewed evidence report.** The same Claude
+executor chat may commit/push the exact three-document tree after verifying the
+external approval record and prompt. Expected sole parent is
+`4bdc95e852395c184aa0c8cb7e064982aca8a039`. The expected tree and explicit paths
+are recorded outside the identified files in
+`logs/planner-review/qualification-real-session-02/review-01/publication-approval.json`.
+A mismatch stops publication; no broader staging, silent recomputation,
+force-push or reconciliation. No further document or closure diff is requested.
+Publication remains pending independent live-remote verification.
+
+### Executor findings and planner dispositions
+
+- **QRS2-E1, accepted; unresolved blocker for any future physical sequence.**
+  Original stderr identifies an Object[] rejected by Start-Process.FilePath.
+  The unchanged pinned build source obtains that value from Get-Command.Source.
+  The error and source establish the pre-start failure; the planner did not
+  perform another command lookup or identify distinct dotnet installations.
+  Future correction must be offline first: preserve this used script, make
+  command selection explicitly return one validated absolute application path,
+  and use the same resolution in description and execution modes. An explicit
+  first PATH-match policy is the preferred bounded correction, with fabricated
+  zero/one/multiple/duplicate-match and invalid-first-match cases before any
+  renewed real execution. Also review the remaining unexecuted wrapper phases;
+  a successful argument description alone is insufficient. No such correction
+  or further physical work is claimed by this evidence delivery.
+- **QRS2-E2, accepted as an executor-reported delivery defect.** The delivered
+  path reportedly lacked a separator; transport cause and original received
+  bytes were not independently recovered. The executor correctly used the
+  already-pinned runtime records without searching or installing. Future
+  prompts should load executable values from a hash-pinned data record rather
+  than depend on a repeatedly rendered absolute path. No additional runtime
+  lookup or path probe was run during final review.
+- **QRS2-E3, source assessment accepted, no runtime conclusion.** The reported
+  host environment variable names are not values and were not re-read by the
+  planner. ChildProcessExecutionAdapter clears inherited entries and adds only
+  the request map; ClaudeProcessEnvironment supplies only its two profile
+  entries and Windows SystemRoot; CodexAppServerSession also clears and rebuilds
+  its map. This supports exclusion of those host-session names from these
+  provider launch contracts. No provider was started to observe its environment,
+  and the launcher itself would inherit the host environment. No stripping,
+  credential inspection or additional experiment is selected.
+
+### Independently reviewed evidence and editorial precision
+
+The planner read original build stderr/status, sequence-status.json,
+progress.log, preflight output/source and the executed runner source. Saved
+runner and preflight hashes match their recorded identities. Preflight exited
+0, the build wrapper exited 1 without timeout, and the sequence stopped with
+runner code 40. Build-process stdout/stderr files do not exist; reset/launch
+phases are absent from the saved phase record. The code path supports the
+reported no-start outcome. Timeout stopping and later phases were not exercised
+or validated by this short sequence. No command or physical phase was rerun.
+
+The original delivered report and playbook are preserved under review-01.
+The planner clarified their wording before approval: ledger existence/reparse
+metadata was read, marker bytes were not; preflight existence does not freshly
+bind marker contents to the old session; path transport is reported rather than
+attributed; and the no-retry decision is now explicit. These are report edits,
+not new observations. The old scripts and outputs remain unchanged.
+
+Fresh review validation is document/Git consistency only. Earlier controlled
+and regression tests remain retained at their actual scope. No build, test,
+runtime/SDK lookup, environment-value read, ledger/root/database access, reset,
+provider, cleanup or publication was performed by the planner in this review.
+Main/HEAD/local origin/main are still the expected parent, index empty, with
+only current-work.md, the playbook and this planner record modified. No next
+slice is dispatched. The next implementation concern is offline preparation
+of a corrected, fully exercised procedure; a new real sequence is separately
+gated by owner authority.
+
+The selections and execution instructions below are preserved historical
+records of this stopped sequence, not authority to execute them again.
+
+### Pre-execution block and corrected dispatch
+
+The executor stopped before the exclusive witness, evidence directory, build,
+reset or launcher: PowerShell 7 was absent from PATH and its checked fixed
+installation locations. That stop was correct. Its search outputs are
+executor-reported; the planner did not reconstruct or recover missing originals.
+No real attempt is reported or authorized as having occurred. The original
+allowances remain spent at their last authorized observation; no actual ledger
+or archive state was re-read by the planner.
+
+**QRS2-B1, accepted and resolved at planning.** The initial prompt required
+PowerShell 7/.NET 10 without giving the path used by the planner. It is an
+existing Codex-local bundled runtime, outside the executor's checked locations:
+`C:\Users\denis\.cache\codex-runtimes\codex-primary-runtime\dependencies\native\powershell\pwsh.exe`.
+The planner verified this exact executable in the original user context:
+301,368 bytes, SHA-256
+`362A356CE7F0940EC74F73A8FC2C990A2CC24A38A11C90BBD8ECA947110AD139`,
+PowerShell 7.6.5, .NET 10.0.11, original profile temp length 33 and matching
+profile location, no reparse points on the executable or ancestors through the
+actual drive root. Original metadata output:
+`logs/planner-review/qualification-real-session-02/runtime-location-original-context.json`.
+Use this absolute executable with -NoLogo -NoProfile -NonInteractive; do not
+install, copy it, add it to PATH or weaken the reset script's runtime guard.
+If missing or mismatched in the executor context, stop without another search.
+
+**QRS2-B2, confirmed and mitigated.** The intended build properties are
+SkipNSwag=true and UseSharedCompilation=false. The executor again reported
+garbled prompt flags; their transport cause is unobserved. The planner prepared
+`logs/planner-review/qualification-real-session-02/build-launcher.ps1`, SHA-256
+`27937C2DA09B4CBBA05B877983957C227C03D7FEB3ABDD8ACCEDA7B4DAC8ADC9`.
+It constructs property flags from separate names/values, preserving --no-restore,
+Debug and -m:1. Its final -ShowArguments dry run in the original context verified
+the actual flags and runtime/temp without a build, provider or ledger access;
+output is saved as `build-arguments-original-context.json`. The earlier argument
+description is retained separately. Execute mode was reviewed but never run by
+the planner: hidden child, fixed paths, no evidence overwrite, acquired process
+handle, 110-second own-process wait plus at most five seconds after Kill(false)
+on timeout, real exit capture; the outer 120-second build cap still applies.
+
+The corrected complete prompt supersedes the initial actionable dispatch.
+Continue in the SAME session-02 executor chat. This is a prerequisite correction,
+not a second real session or permission to retry a physical-stage failure. The
+owner's existing reset-and-one-session authorization remains the boundary. No
+new owner permission is needed for using this existing verified runtime.
+
+### Verified publication and new owner authority
+
+CLAUDE-QUALIFICATION-REPAIR-01 is independently verified at
+`4bdc95e852395c184aa0c8cb7e064982aca8a039`: tree
+`d280e8f1af29ab288f4666b57ebd2cc6a94b5aa9`, sole parent
+`426f221760a5c7ea46e37208bbf1adcb62e99dae`, exactly the 31 approved paths
+under --no-renames, fresh live origin/main equal, and clean Git state. Record:
+`logs/planner-review/claude-qualification-repair-01/publication-verification.json`.
+CQR-R1/R2/R3 are resolved. This publishes the controlled repair, not real
+qualification. No closure-document publication is selected.
+
+The owner explicitly answered "Autorizar reset auditavel e uma sessao limitada"
+(normalized ASCII rendering) to the question authorizing preparation/review,
+bounded reading and validation of the known old session's two spent markers,
+a new non-overwriting archive in the original ledger, then one new real
+qualification session. It includes one local build without downloads, normal
+host preflights, installed authentication and possible quota use. At most one
+Codex Planner and one Claude CriticalReviewer submission; the latter only after
+a coherent Proposal and unchanged sources. The physical sequence has a global
+32-minute limit. Any failed gate stops, without repeat or compensation. Login,
+installation, persistent configuration/permissions, credential inspection,
+old root/database access, old cleanup, product implementation and publication
+remain excluded. The old grant is still spent: this is a separate new decision.
+
+CONTINUE_THIS_CHAT. Current chat context percentage is unavailable from exposed
+tools/owner report and is not estimated. No concrete reason for a planner
+transition was observed. The preceding repair slice is finished; session 02's
+Claude chat already exists and is stopped at the corrected prerequisite. The
+owner forwards one complete replacement prompt to that SAME executor chat;
+no automatic chat messaging or UI is selected.
+
+### Selected bounded outcome and preflight
+
+Deliver one auditable archive/reset followed by one physical qualification
+session and its evidence report. This is the largest coherent outcome under
+the new grant: splitting at reset would leave spendable marker names without
+the intended session, while a second launch or runtime repair exceeds authority.
+No production, test, launcher, schema, dependency, configuration or generated
+client change is selected. Runtime uncertainty is reported, never repaired.
+
+Before this selection, main, HEAD, local origin/main and fresh live main all
+equal `4bdc95e852395c184aa0c8cb7e064982aca8a039`, with clean index/worktree
+and nothing untracked. Selection changes only this planner record. Published
+current-work.md SHA-256 is
+`E657E64D3429ED965DB461A426673D990C32588FD1B82F413570E992F2A78D29`.
+The final dispatched hash of this file is supplied in the executor prompt.
+`logs/executor/qualification-real-session-02/` does not yet exist. The executor
+verifies these facts once and stops on discrepancy; no reset/clean/reconcile.
+
+### Prepared reset and independent procedure review
+
+Planner-owned ignored artifacts:
+
+- `logs/planner-review/qualification-real-session-02/reset-allowances.ps1`,
+  SHA-256 `1CCDDF442E71F71A7993BEB4E9E8C698A570F15FEEF8CB12A864247EAE56D2D3`.
+- `logs/planner-review/qualification-real-session-02/procedure-review.md`,
+  SHA-256 `97E97491E344D3ACA5A9AADAB3D3BA62B0AD56A116D8B3AE6802D30F3157EE75`.
+- `logs/planner-review/qualification-real-session-02/build-launcher.ps1`,
+  SHA-256 `27937C2DA09B4CBBA05B877983957C227C03D7FEB3ABDD8ACCEDA7B4DAC8ADC9`.
+- `reset-selftest.log` beside them: five fabricated cases passed once. Success
+  preserves both archived hashes; wrong session, oversize, existing archive
+  and wrong role refuse while preserving both source hashes. No actual ledger,
+  retained root/database or provider was accessed. Do not rerun SelfTest.
+
+The planner reviewed the code and procedure, rather than delegating the reset
+decision or its boundaries to the executor. Execute mode requires PowerShell 7
+on .NET 10, the previously observed original profile temp (33 characters), and
+the original default ledger. There is no caller-selected real ledger argument.
+Both old markers must identify session `8f99baaebbfb4d3a9d773f6707299f08`,
+the exact Planner/Reviewer roles, historical authorization label and known
+2026-10-31 10:44:33Z..10:45:12Z window. Strict bounded JSON reads are at most
+4096 bytes per opened stream, with four unique string members and bounded depth.
+The reparse walk preserves the actual drive root. It never enumerates the ledger.
+
+Both identities validate before any mutation. The fixed new archive is
+`archive-8f99baaebbfb4d3a9d773f6707299f08-for-qualification-real-session-02`
+inside that same ledger. Existing archive/destination refuses. CreateNew audit
+receipts are flushed; the two explicit fully resolved non-overwriting file
+moves recheck originals and verify archived lengths/hashes. No old summary or
+other ledger entry is read or changed. This is not a two-file transaction or
+hostile-filesystem-race proof. Any partial failure stops without rollback,
+restoration, another reset or a launch. Preserve the resulting state for review.
+
+### Execution order, deadlines and stop rules
+
+First verify the exact bundled runtime and all reviewed script hashes. Invoke
+build-launcher.ps1 -ShowArguments once as a read-only prerequisite check through
+that runtime; require 7.6.5/.NET 10.0.11, original temp length 33/matching profile,
+and the confirmed named properties. Then use the reviewed reset and build scripts
+unmodified, with -Execute once each at their selected phase. The executor may
+write ignored wrappers/logging implementing the resolved procedure; no alternate
+reset/build command or launcher entry point.
+
+1. One exclusive execution witness and one new evidence directory. Start an
+   outer monotonic clock before real preparation. Preflight cap 60 seconds:
+   original .NET 10 temp, four fixed installed pins from the published selection,
+   root-preserving no-reparse/containment checks, exact direct candidates on
+   production-normalized/deduplicated fully-qualified PATH plus npm fallback,
+   and projected path geometry below 240. Do not strip PATH quotes, list paths
+   or scan directories recursively. No signature or additional CLI probe.
+2. One existing-launcher build through build-launcher.ps1 -Execute, with the
+   explicitly confirmed SkipNSwag=true and UseSharedCompilation=false, no restore,
+   Debug and -m:1, outer cap 120 seconds. Capture the real process handle's exit
+   and output; no Start-Process -Wait or descendant wait. No restore/client
+   generation. Record new launcher/assembly hashes.
+3. Require unchanged sources and elapsed time below three minutes before reset.
+   Execute the exact pinned script once, cap 20 seconds; require successful
+   completion and receipts. Any failure/timeout stops before launcher execution.
+4. One existing ManualQualification.exe --run-real-provider-session. Opt-in is
+   process-local only; retain/restore prior state without logging its value if
+   a dedicated runner sets it. No TEMP/TMP/PATH/profile override or ledger move.
+   The production launcher alone controls both submissions, normal host
+   observations, new fixture, source checks, child proof and guarded cleanup.
+5. Outer launcher deadline at elapsed 31 minutes, with one minute for stopping
+   and status capture, within 32 minutes total physical execution. Polls and
+   tool waits are at most 60 seconds. Timeout stops only the exact owned child
+   process handle (Kill(false)), never its descendants or another process;
+   use a short bounded wait. Apply own-handle-only timeout treatment to earlier
+   child phases. If these bounds cannot be enforced, stop before reset. A
+   timeout/yield is not a successful exit or shutdown proof. Provider descendants
+   and internal requests may remain unproved; preserve state and report.
+6. On normal completion, retain original stdout/stderr and actual exit/timing.
+   Read only the new schema-2 safe summary, bounded at 64 KiB. Validate its new
+   session token before the exact corresponding new ledger-summary comparison;
+   no listing or old summary read. Any unexpected output/nonzero exit ends the
+   execution sequence; saved-output and Git reporting remain allowed. No
+   provider-output, Proposal, manifest, root or database diagnostic follows.
+
+The source's production Overall timer is 32 minutes around RunStagesAsync, with
+FinishAsync and disposal afterward. It is not by itself the global owner bound.
+The external deadline is necessary; no source changes, reduced production limits,
+substitute judge or new hosted API entry point are allowed to work around it.
+The launcher still writes its historical authorization label; record this new
+owner decision separately without claiming that label identifies it.
+
+### Acceptance evidence, documents and publication boundary
+
+The executor changes current-work.md for the report and the playbook's current
+outcome framing so a third launch is not hidden behind a stale two-launch claim;
+preserve its dated outcomes and anchors. Preserve this planner record and all
+prior QRM/QRS/CQR findings/limits. Keep one concise command/time
+log plus original build/reset/launcher outputs. Report the archive hashes,
+phase outcomes, whether each new allowance was actually consumed, schema-2
+counts/comparison states and accepted/observed attempt identity, Proposal/reply
+binding, sealed/source agreement and shutdown/cleanup separately. A null count
+or NotAttempted never proves disagreement or zero messages. Report what the
+launcher says, without treating executor confidence as planner acceptance.
+
+One successful build is the only build selected. No test suite, controlled
+rehearsal, native process-table experiment, extra runtime diagnostic, signature,
+version/help/model/account command or second launcher/submission is selected.
+Prior offline and regression results are retained at their recorded scope.
+No manual cleanup of any root or archive, allowance restoration, credential
+inspection, login, installation, environment/permissions persistence, product
+implementation, GitHub, commit or push. Internal CLI effects remain unobserved.
+
+After physical execution stops, check links/fragments and inbound anchors,
+diff hygiene, sensitive added text and exact Git scope with PowerShell. Return
+unstaged/uncommitted/unpushed, with fresh/retained/not-run evidence and actual
+allowance state; do not assume both spent if a stop preceded a submission.
+A separate exact-content planner GO is required for publication. No further
+slice is selected by the executor.
+
+## Previous action: CLAUDE-QUALIFICATION-REPAIR-01 accepted and independently published; historical review
 
 ### Review round 2: accepted dispositions and publication boundary
 

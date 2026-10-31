@@ -6,10 +6,73 @@ was prepared ([recovery](development-workflow.md#recovery)). Git and code
 prevail; compare branch, `HEAD`, `origin/main` and staged/unstaged/untracked
 state first.
 
-## Active slice: CLAUDE-QUALIFICATION-REPAIR-01 carry the Windows SystemRoot prerequisite across the Claude print family and make the qualification summary truthful (controlled tests only, not provider qualification)
+## Active slice: QUALIFICATION-REAL-SESSION-02 auditable reset of the two spent allowances and one newly authorized qualification session (stopped at the build gate; no reset, no launch, not qualified)
 
 This document records the evidence delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
 This record alone grants no publication authority.
+
+**Delivery phase: first return to Codex after the corrected dispatch; evidence report unstaged, uncommitted and unpushed. No GO exists. Outcome: the one authorized physical sequence started and stopped at its build gate 1.9 s after the execution witness. Preflight passed. The reviewed `build-launcher.ps1 -Execute` exited 1 before starting any `dotnet` process. The reset was not executed and the launcher was not run. Only the permitted ledger existence/reparse metadata was checked; no marker contents were read or modified, no new summary or owned root was created, and no provider or database was accessed. The original allowances remain spent at their recorded scope. Providers are not qualified. Nothing was retried.**
+Baseline (verified once before acting): `main`; `HEAD`, local `origin/main` and freshly queried live `origin/main` all `4bdc95e852395c184aa0c8cb7e064982aca8a039`; empty index; nothing untracked; exactly `planner-handoff.md` modified, SHA-256 `B4E8F9AD4D22745133714C6F3A6D7C9115126834A493F9D831DB70FCC0F4DDF8` (the planner's, not edited by me); this file `E657E64D3429ED965DB461A426673D990C32588FD1B82F413570E992F2A78D29`; `logs/executor/qualification-real-session-02/` absent. The owner's 2026-10-31 reset-and-one-session decision is the one recorded by the planner in [planner-handoff.md](planner-handoff.md). Planner artifacts used were hash-verified: `reset-allowances.ps1` `1CCDDF44…D2D3`, `build-launcher.ps1` `27937C2D…ADC9`, `procedure-review.md` `97E97491…EE75`.
+
+### Prerequisite block and corrected runtime (before any physical step)
+
+- **Initial dispatch (superseded).** Stopped before the witness. No PowerShell 7 was found: `where.exe pwsh` returned nothing, and none of the fixed locations checked had `pwsh.exe` (Program Files `PowerShell\7` and `7-preview`, WindowsApps, WinGet Links, scoop shims, `.dotnet\tools`, `C:\tools\pwsh`). Only Windows PowerShell 5.1.26100 was available, which the reset script's runtime guard refuses. No search was recursive and nothing was created.
+- **Corrected runtime.** The executor-reported delivered prompt path lacked one backslash (`denis.cache`) and does not exist. The transport cause was not observed. The planner's pinned records (`runtime-location-original-context.json`, `redispatch-01.json`, `procedure-review.md`) name the bundled `…\.cache\codex-runtimes\codex-primary-runtime\dependencies\native\powershell\pwsh.exe`, which I used by absolute path without searching. Identity: 301,368 bytes; SHA-256 `362A356CE7F0940EC74F73A8FC2C990A2CC24A38A11C90BBD8ECA947110AD139`; zero reparse points on the file and its ancestors through `C:\` (10 steps).
+- **`build-launcher.ps1 -ShowArguments`, once (exit 0).** PowerShell 7.6.5, .NET 10.0.11, temp length 33, original profile temp matches. Properties `SkipNSwag=true` and `UseSharedCompilation=false`. Arguments: `build <ManualQualification.csproj> --no-restore -c Debug -p:SkipNSwag=true -p:UseSharedCompilation=false -m:1`. This mode does not resolve `dotnet`.
+
+### Physical sequence (once; `logs/executor/qualification-real-session-02/`)
+
+My ignored runner `scripts/run.ps1` (SHA-256 `14D7D217…5086`) ran once from the repository root under the pinned runtime, started by the tool in the background. Its preflight child, `scripts/01-preflight.ps1` (`3580C338…8296`), is also kept. The runner kept one monotonic clock. It started every child with `Start-Process -PassThru`, retained the child's handle, waited in bounded slices of at most 30 s with heartbeats, and on a timeout would stop only that child via `Kill($false)`. No timeout occurred. Original outputs and times are in `progress.log`, `sequence-status.json` and the per-child `*.stdout.txt`/`*.stderr.txt` files. `00-commands-and-prerequisites.txt` records the commands and prerequisites.
+
+| Phase | Clock (s) | Result |
+|---|---|---|
+| Witness `execution-started.json` (CreateNew) | 0.1 | created 2026-10-31T15:36:15.74Z; runner identity rechecked |
+| Source check (`git status --porcelain=v1 --branch`, `rev-parse HEAD`, five pinned hashes) | 0.2 | unchanged |
+| Preflight (cap 60 s) | 0.2–1.5 | **PASS**, exit 0, 1,290 ms (details below) |
+| `build-launcher.ps1 -Execute` (outer cap 120 s) | 1.5–1.9 | **exit 1**, 371 ms; build status `exitCode` null, `timedOut` false; no `build.stdout.txt`/`build.stderr.txt` created |
+| Reset, launcher, post-run reads | — | **not reached** (runner stop code 40) |
+
+**Preflight details:**
+- **Temp.** .NET 10 temp is 33 characters, fully qualified and long form. It equals the profile temp, with zero reparse points through the drive root (6 steps).
+- **Pins.** All four fixed pins exist, are contained under their package root, have zero reparse points through the drive root, and match their exact lengths and SHA-256 values.
+- **Direct candidates.** The production `HostExecutableResolver` normalization was applied without stripping quotes: 28 raw entries, including the npm fallback; 0 rejected; 27 unique. It found 0 direct `codex.exe` and 0 direct `claude.exe` candidates, and no candidate path reaches 240 characters.
+- **Ledger.** The directory exists with zero reparse points. The reset archive is absent. Both old `planner.allowance` and `reviewer.allowance` exist; only existence was tested, without reading them.
+- **Geometry.** The maximum projected length is 208, below 240.
+
+**Build failure (original stderr, `build-runner.stderr.txt`).** At `build-launcher.ps1` line 46, `Start-Process` reported `Cannot convert 'System.Object[]' to the type 'System.String' required by parameter 'FilePath'`. The value came from line 38, `(Get-Command -Name dotnet.exe -CommandType Application -ErrorAction Stop).Source`. The error establishes that more than one `dotnet.exe` application was resolvable in this executor's process context. No further diagnostic was run to identify them; doing so would require listing PATH matches, which the slice excludes. The script's `-ShowArguments` dry run does not execute line 38, so the prerequisite check could not detect this.
+
+### Allowance, ledger and launcher state
+
+- **Allowances.** The reset script was never executed. The preflight existence tests, completed about 0.4 s before the stop, found both marker filenames present and the archive absent. Their association with old session `8f99baaebbfb4d3a9d773f6707299f08` is retained evidence; their bytes and identities were not re-read. No later ledger observation is claimed. No new marker or summary was written; the launcher never ran. The unchanged launcher would refuse (exit 3) while either marker exists.
+- **Build outputs.** No build ran, so no new launcher or assembly hashes exist. The existing `bin/` was not hashed or used.
+- **Owner grant.** The executor stopped and requested a planner decision. Codex's final review applies the existing no-retry boundary: this physical sequence ended at its mandatory build stop and may not resume or repeat under that grant, even though no provider allowance was consumed by this sequence. Another physical sequence requires a new explicit owner decision. This is distinct from the original ledger markers, which were already spent. Nothing was retried.
+
+### Findings for Codex
+
+- **QRS2-E1 (material, blocks any rerun).** `build-launcher.ps1` line 38 assumes exactly one `dotnet.exe` resolves. In this context `Get-Command` returned several, and the script failed before any build. Possible corrections: pin an absolute `dotnet.exe` with a verified identity, or take the first PATH match explicitly with `Select-Object -First 1`, which mirrors shell resolution. Either changes a reviewed script and needs planner review. The `-ShowArguments` prerequisite should also exercise the same resolution.
+- **QRS2-E2 (informational).** The executor reported a missing backslash in the delivered runtime path, following the earlier malformed build properties. The transport cause remains unobserved. The pinned records supplied the verified value.
+- **QRS2-E3 (informational).** This executor runs inside the Claude desktop agent host, whose process environment carries host-session `CLAUDE_CODE_*`, `CLAUDECODE` and `ANTHROPIC_BASE_URL` variables (names observed only, values not read). Source inspection shows provider children receive cleared, allowlisted environments (`ChildProcessExecutionAdapter`, `ClaudeProcessEnvironment`, `CodexAppServerSession`), so these should not reach providers. The launcher process itself would inherit them. This was not exercised, because no launch occurred.
+
+### Evidence classes and validation
+
+- **Fresh:**
+  - the baseline and hash checks;
+  - the runtime identity check;
+  - `-ShowArguments`;
+  - the preflight;
+  - the failed build step and its original output.
+- **Retained, not rerun:** prior controlled and regression evidence and the published QUALIFICATION-REAL-SESSION-01 facts, each at its recorded scope.
+- **Not run:**
+  - the reset, the launcher and the post-run summary reads;
+  - any build, test suite, rehearsal, native process-table case, provider, model, account, help or signature probe;
+  - login, installation, credential inspection, old root or database access, cleanup, environment or permission change, product edit, GitHub operation, commit or push.
+- **Document and Git checks:** results are recorded in the executor report and in `doc-checks.txt`. This file holds no hash of itself.
+
+## Previous slice (published as 4bdc95e; historical record): CLAUDE-QUALIFICATION-REPAIR-01 carry the Windows SystemRoot prerequisite across the Claude print family and make the qualification summary truthful (controlled tests only, not provider qualification)
+
+This document records the evidence delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
+Reconcile publication with Git and the slice's independent publication-verification record, when available. This record alone grants no
+publication authority.
 
 **Delivery phase: second return to Codex, after Correction 1 for the Review 1 NO-GO (CQR-R1, CQR-R2, CQR-R3; see [Correction 1](#correction-1-codex-review-1-no-go-cqr-r1-cqr-r2-cqr-r3)); unstaged, uncommitted and unpushed. No GO exists. Outcome: implemented as selected; the first final matrix passed after one whitespace-only test-layout fix and a rerun of the steps it invalidated; the correction's validation is recorded in its own section. No real provider, helper diagnostic, launcher, login, original ledger/root/database-copy access, reset or cleanup was performed. Both original allowances remain spent as last observed; providers are not qualified.**
 Baseline (verified once before editing): `main`; `HEAD`, local `origin/main` and freshly queried live `origin/main` all `426f221760a5c7ea46e37208bbf1adcb62e99dae`; empty index; nothing untracked; exactly `planner-handoff.md` modified, SHA-256 `80D6DCBD69D9FBDF69F2D08CAFE1871E862116354CC5A0166E22F01DFEF87634` (the planner's selection, unchanged by me and rechecked at the end); neither `logs/executor/claude-qualification-repair-01/` nor `logs/cqr-t` existed. I read only the two permitted sanitized planner records.
