@@ -1,6 +1,80 @@
 # Planner/reviewer handoff
 
-## Current action: QUALIFICATION-REAL-SESSION-03 evidence accepted; exact-content publication GO in the same Claude chat
+## Current action: CLAUDE-QUALIFICATION-DIAGNOSIS-02 evidence accepted; publication only, authentication action pending
+
+The session-03 report is published and independently verified at
+`85b75f9356ab30c3a2d3fd4f597ba2bac1841799`: live origin/main, local HEAD/ref,
+approved tree `eb9e5aee0037371d68a9cc159c542a7ce8b83dd4`, sole parent,
+three modified paths and all approved blobs/file hashes match. Git was clean.
+The external verification record is
+`logs/planner-review/qualification-real-session-03/publication-verification.json`.
+The publication-phase notes below are historical, not an outstanding push.
+
+CONTINUE_THIS_CHAT: current chat-context percentage is unavailable from the
+exposed tools; account quota is not context usage. No observed threshold or
+concrete transition reason is established. No executor is active.
+
+The owner explicitly authorized the planner's bounded diagnosis of only the
+session-03 Reviewer. The prepared boundary is
+`logs/planner-review/claude-qualification-diagnosis-02/proposed-boundary.md`,
+SHA-256 `AD8EEA06127F4C9C1AF46D3E6D600327F5241A4067812429A119B3BD6B969949`.
+It allows one limited temp-name/time scan, one selected-root database/WAL copy
+and metadata query, two known Reviewer stream reads with caps/hash checks,
+and one source-stability recheck. It allows local reader preparation and
+fabricated checks, not a provider, launcher, ledger/reset, old root/copy,
+credential inspection, cleanup, product implementation or publication.
+
+The reader reuses the unchanged reviewed session-03 capture/lifetime adapter
+with a local StartInfo factory that clears the environment and supplies only
+SystemRoot. The installed pinned Node runs a copied-database query with
+fixed attempt IDs and parameterized predicates, never the CLI providers.
+Twelve PowerShell checks and 13 in-memory SQLite metadata cases passed.
+The first controlled attempt failed because its array of fabricated selection
+cases flattened; corrected before any protected read. The result history and
+exclusive fixture folders are retained. The final inspected reader/query
+identities are in owner-decision.json and inspection/started.json. The owner
+record's ProtectedReadsStarted=false describes its preparation phase only;
+the started/result records establish the later completed inspection.
+
+The one protected inspection completed in 0.278 seconds. The nonrecursive
+search examined 17 matching names/times and selected one window candidate.
+The copied-database query bound the known two attempts and only the two
+Reviewer artifacts; no WAL was present, and source bytes remained stable
+across the initial read and final recheck. No atomic snapshot is claimed.
+The owned query child exited 0, drained, with no recorded adapter error.
+
+Verified Reviewer stderr was empty. Verified stdout was 1,174 bytes, and its
+closed diagnostic projection emitted AuthenticationText, with no option or
+environment-variable name. This is a new observation, not a repeat of the
+old SystemRoot diagnostic. It does not identify the exact phrase or prove
+account state, credential validity or a single root cause. The streams were
+each read once and raw text was not exported. No further protected read is
+selected to refine the category, and no product/environment/CLI repair can
+be justified from this category alone.
+
+The planner accepts the bounded diagnosis and its limits. Providers remain
+unqualified; existing allowance/shutdown facts retain their published scope.
+The next dependency is authentication readiness, which requires a separate
+owner-controlled action or new bounded authority. No login, account command,
+model call, reset, new session, cleanup or implementation is authorized or
+selected here. The completed diagnosis grant permits no retry or expansion.
+
+GO covers only publication of this diagnosis report in current-work.md, the
+manual provider qualification playbook and this handoff. The exact parent/tree
+and approved content are in
+`logs/planner-review/claude-qualification-diagnosis-02/publication-approval.json`.
+Use one NEW Claude executor chat for this new slice's publication-only prompt;
+the planner performed the diagnosis, and no competing executor is active.
+The executor makes no content edits, stages only those three paths, verifies
+the approved tree/sole parent/changed set, pushes main normally and verifies
+the live remote. Any mismatch or failed push stops without silent approval
+recomputation, force or history reconciliation. No closure-document change
+or additional execution accompanies publication. Preserve all ignored
+diagnostic sources, working copy, controlled failures and results.
+
+The previous publication GO below is historical. Neither publication grants
+diagnostic or execution authority. The new explicit owner decision above
+authorized only the completed bounded inspection, not an authentication action.
 
 ### Physical-sequence review and publication boundary
 

@@ -85,6 +85,14 @@ not qualified. The earlier `SystemRoot` repair did not make the reviewer invocat
 because the provider streams were not inspected. Its record is the QUALIFICATION-REAL-SESSION-03 section of
 [current-work.md](current-work.md).
 
+**Separately authorized post-session diagnosis (2026-10-31).** A bounded planner inspection of only the known session-03
+Reviewer's sealed streams verified empty stderr and 1,174 stdout bytes. Its closed projection reported authentication-related
+text; raw output was not exported. The copied-database metadata bound the two known attempts, and source database bytes stayed
+stable across the reads; no WAL was present. This does not prove account state or a specific authentication cause. No login,
+provider call, ledger/reset or cleanup was performed. Providers remain unqualified. Any authentication action or further real
+session needs its own authority; the completed inspection grants none. See the CLAUDE-QUALIFICATION-DIAGNOSIS-02 record in
+[current-work.md](current-work.md).
+
 ## It is not a test
 
 The launcher is a separate executable, `ManualQualification` (source under

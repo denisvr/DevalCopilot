@@ -6,7 +6,64 @@ was prepared ([recovery](development-workflow.md#recovery)). Git and code
 prevail; compare branch, `HEAD`, `origin/main` and staged/unstaged/untracked
 state first.
 
-## Active slice: QUALIFICATION-REAL-SESSION-03 corrected operator procedure and its one owner-authorized physical sequence (launcher exit 5 at the CriticalReviewer; not qualified)
+## Active slice: CLAUDE-QUALIFICATION-DIAGNOSIS-02 bounded planner investigation (authentication-related text observed; no repair or requalification)
+
+This document records execution facts. Consult [planner-handoff.md](planner-handoff.md) for the planner decision and exact-content
+publication boundary. This record alone grants no publication authority.
+
+**Delivery phase:** the Codex planner completed the owner's separately authorized investigation. No Claude executor performed
+this diagnosis. Its report is prepared for review/publication; no product code was changed. The published baseline is
+`85b75f9356ab30c3a2d3fd4f597ba2bac1841799`, independently verified against its exact-content GO and live origin/main. Its tree,
+sole parent, three changed paths and all approved blobs/file hashes matched; Git was clean before this new work.
+
+### Authorized method and observations
+
+The owner explicitly authorized the limited diagnosis of the session-03 Reviewer. The prepared boundary, decision record,
+reader/query sources, controlled evidence and one-shot inspection records are under the ignored directory
+`logs/planner-review/claude-qualification-diagnosis-02/`. The decision covered local reader preparation/validation without
+downloads, a single bounded root selection, a bounded database/WAL working copy, known-attempt metadata and only the two
+Reviewer's sealed streams. It did not renew runtime qualification or ledger access.
+
+- The reader ran through the existing identity-verified PowerShell 7.6.5 host. Its installed Node executable matched the
+  previously pinned length and hash; Node ran the local SQLite reader, not a provider CLI. No build or installation occurred.
+- The unchanged session-03 capture/lifetime adapter was reused with a local StartInfo factory that clears the child environment
+  and supplies only SystemRoot. Query arguments were typed; its stdin was closed. The query cap was 30 seconds, with bounded
+  capture; the inspection had a five-minute observation budget with stop/release reserve. OS-call preemption is not guaranteed.
+- One nonrecursive temp search examined 17 matching-prefix directory names/creation times. Exactly one fell in the recorded
+  UTC execution window. Only that root's database and the exact bound Reviewer streams were opened; no old root was entered.
+- The database copy was bounded to 64 MiB, with a 16 MiB allowance for an existing WAL. No WAL was present. SQLite opened only
+  the copy and selected metadata for the two known attempts, requiring the same run and recorded role/status/exit facts.
+  No Proposal, message bodies, manifest or account data was queried.
+- The source database's byte hash remained equal across its initial read and final recheck; WAL presence stayed unchanged.
+  This is not an atomic snapshot claim. The query exited 0 with complete capture (18 stdout bytes, zero stderr bytes) and
+  no recorded start/setup/kill/secondary error.
+- Session `a25de925203a4959ae63e3b9357d6122` was bound by its two known accepted attempt IDs. The Reviewer stream metadata
+  required complete, non-truncated capture, contained fixed paths, declared lengths and SHA-256 identities.
+- **Reviewer stderr:** 0 bytes, hash verified.
+- **Reviewer stdout:** 1,174 bytes, hash verified. The closed diagnostic projection reported `AuthenticationText`; it emitted
+  no option or environment-variable name. No raw stream text, account identity, credential, Proposal or manifest was exported.
+- The protected inspection completed once in 0.278 seconds. No retry, additional stream read, provider call, ledger/reset,
+  login, old database-copy access, configuration change, cleanup or Git publication occurred during the investigation.
+
+### Validation and limits
+
+Twelve PowerShell admission/bounds/projection/factory checks and 13 in-memory SQLite metadata cases passed. The first controlled
+attempt failed at SelectionRefusalTest because its nested fabricated case arrays flattened; it started no query child and
+made no protected read. The fixture construction was corrected before the successful controlled run. Both fixture folders and
+the failure account remain preserved. No full test suite, build or previous qualification matrix was replayed.
+
+The diagnostic category establishes that the verified stdout contained one of the reader's fixed authentication-related
+phrases. It does not identify which phrase, establish account state, validate credentials, prove a single root cause or show
+what action would make this invocation succeed. No protected stream is reread to refine that category under this decision.
+No new environment or CLI change is inferred. Providers remain unqualified, both session-03 allowances remain spent according
+to the published summary, and the unresolved shutdown/root-preservation facts remain unchanged.
+
+**Next boundary:** authentication readiness requires a separate owner-controlled action or new explicitly bounded authority.
+No login, account command, provider probe, reset, new session or implementation is selected by this record. The completed
+diagnosis grants none of them. The saved evidence-report publication for session 03 remains a completed delivery, not a
+pending commit.
+
+## Published history: QUALIFICATION-REAL-SESSION-03 corrected operator procedure and its one owner-authorized physical sequence (launcher exit 5 at the CriticalReviewer; not qualified)
 
 This document records the evidence delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
 This record alone grants no publication authority.
