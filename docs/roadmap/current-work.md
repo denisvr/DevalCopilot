@@ -6,7 +6,78 @@ was prepared ([recovery](development-workflow.md#recovery)). Git and code
 prevail; compare branch, `HEAD`, `origin/main` and staged/unstaged/untracked
 state first.
 
-## Active slice: CLAUDE-QUALIFICATION-DIAGNOSIS-02 bounded planner investigation (authentication-related text observed; no repair or requalification)
+## Active slice: CLAUDE-AUTHENTICATION-STATUS-01 one owner-authorized `claude auth status` observation (ReportedLoggedOut; no repair or requalification)
+
+This document records execution facts. Consult [planner-handoff.md](planner-handoff.md) for the planner decision and publication
+boundary. This record alone grants no publication authority.
+
+**Delivery phase:** a new Claude executor chat ran the planner-accepted package's single physical entry once and returns
+these document updates unstaged, uncommitted and unpushed. The published baseline is
+`585680e90f9b23f6284199943f72063dea0f9231`. No product code, package source or planner-handoff.md byte was changed.
+
+### Pre-run verification (fresh, once, before the entry)
+
+- Branch `main`; `HEAD`, local `origin/main` and a freshly queried live `origin/main` were all
+  `585680e90f9b23f6284199943f72063dea0f9231`. The index was empty and nothing was untracked; only planner-handoff.md was
+  modified, with SHA-256 `A4E108C86F7113E2E3E744900AEE9B8CB470F1F8B4525329E2A665FF03DE55F1`.
+- In the ignored package directory `logs/planner-review/claude-authentication-status-01/`, package.json
+  (`60479DB78488E7117F58E30F98F848D40B3761AB2D86F180F1F513C0D195335A`) and owner-decision.json
+  (`76156B021A30F315178B846C4A304C6C03BBE8C4C68AD796D2DB75B467538884`) matched. All seven listed sources matched their
+  manifest byte length and SHA-256.
+- operator-started.json and operator-status.json were absent, and `logs/executor/claude-authentication-status-01/` did not
+  exist. The superseded Review-01 identities were not used.
+
+### Physical sequence (run once; fresh)
+
+The prompt's dispatch block ran once from the repository root through the recorded PowerShell 7 host wrapper. That host ran
+invoke-authorized-status.ps1 with `-Mode Execute` and the two pinned hashes. The entry wrote operator-started.json exclusively
+before starting the helper. The helper (run.ps1) re-verified the package, decision and handoff. It also verified the original
+profile temp, a new scratch directory and the pinned native Claude identity (235,169,440 bytes, SHA-256
+`A863895D829A246D97C1B881FAE85593AAB97B5B7EA5436AD964798F5F48A022`). Then it started exactly one native child with the typed
+arguments `auth`, `status`.
+
+- **Projected result (helper result.json):** `Status` `Observed`, driver exit 0. Authentication `State` `ReportedLoggedOut`,
+  `AuthMethod` `none`, `Reason` null.
+- **Native child:** exited 1, without timeout or kill request. Output drained; capture release observed; 221 stdout bytes and
+  0 stderr bytes retained in memory. No start/setup/kill/secondary error or capture fault. The total helper elapsed time was
+  1.084 s, including preflight and compilation; the exact native-process duration was not persisted.
+- **Submitted environment keys (names only):** `SystemRoot`, `USERPROFILE`. `CLAUDE_CONFIG_DIR` was not submitted, so the
+  production builder did not find a nonempty value in this helper context. Values were not persisted or displayed.
+- **Helper host (outer operator-status.json):** `HelperObserved`, driver exit 0. Helper process exit 0, without timeout or kill
+  request; output drained and release observed; 1,127 stdout bytes and 0 stderr bytes captured in memory, not displayed or
+  written. No errors. Outer elapsed 1.615 s.
+- **Dispatch (executor-reported):** `DISPATCH_EXIT=0`, `DISPATCH_ELAPSED_MS=1973`. These values are not in the four safe records;
+  no separate saved dispatch output is cited here. The helper/outer records are inside their deadlines, and the reported
+  dispatch time is inside the 45-second physical budget. No kill or timeout occurred; normal output drain completed.
+- `DescendantsStoppedProven` is false at both levels: descendant shutdown is not claimed. No descendant was adopted or stopped
+  manually.
+- The ignored evidence directory holds only started.json and result.json; no stopped.json was written. Raw output was not
+  persisted (`RawOutputPersisted` false at both levels). The scratch directory's contents were not inspected.
+
+Exit 1 with a logged-out report is the documented logged-out outcome of the command, so it is a completed observation and not a
+physical failure. Nothing was retried, repaired or compensated. No login, logout, setup-token, model, print, version, help or
+discovery command was requested. There was no manual account-file inspection, installation or agent-requested configuration or
+permission change. No ledger or retained root was accessed or cleaned. The CLI's internal effects remain unobserved.
+
+### Evidence classes and limits
+
+- **Fresh:** the pre-run Git/package verification, the single physical sequence and its four safe records (operator-started,
+  operator-status, started, result).
+- **Retained, not rerun:** the 71-check controlled pass and all preparation failures and limits recorded in the package README
+  and preparation-history.json. The controlled matrix was not replayed.
+- This observes the current helper context only. That context is the Claude executor host's environment, reduced by the
+  production policy to two submitted keys. It does not reproduce the historic qualification child environment, establish
+  environment equivalence with session 03, or validate a credential or quota. It does not qualify any provider.
+- The command's internal use of installed authentication/configuration is unobserved, so absence of CLI side effects is not
+  established. Only the closed projection is reported; other JSON fields, including any account or path data, were not
+  projected. Whether a different environment would report another state is not tested here.
+- Providers remain unqualified, and both session-03 allowances remain spent according to the published summary. The
+  session-03 shutdown and root-preservation facts are unchanged.
+
+**Next boundary:** no further execution is selected. Any authentication change, further status call or real session needs a
+new explicit owner decision and complete planner dispatch. This observation grants none of them.
+
+## Previous slice (published as 585680e; historical record): CLAUDE-QUALIFICATION-DIAGNOSIS-02 bounded planner investigation (authentication-related text observed; no repair or requalification)
 
 This document records execution facts. Consult [planner-handoff.md](planner-handoff.md) for the planner decision and exact-content
 publication boundary. This record alone grants no publication authority.

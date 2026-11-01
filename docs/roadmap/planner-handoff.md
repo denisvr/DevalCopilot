@@ -1,6 +1,149 @@
 # Planner/reviewer handoff
 
-## Current action: CLAUDE-QUALIFICATION-DIAGNOSIS-02 evidence accepted; publication only, authentication action pending
+## Current action: CLAUDE-AUTHENTICATION-STATUS-01 evidence accepted; exact-content publication GO in the same Claude chat
+
+### Delivery review (2026-11-01)
+
+The planner independently reviewed the four safe records, the unchanged
+seven-file package inventory and delivered document diff. Main/HEAD/local
+origin/main and fresh live origin/main remain
+`585680e90f9b23f6284199943f72063dea0f9231`. The real index is empty, nothing
+is untracked and only current-work.md, the playbook and this handoff are
+modified. The delivered handoff matched its dispatched A4E108C8...55F1 hash.
+Package and owner-decision records retain their dispatched identities.
+
+The sole observation is accepted. Native auth status exited 1 and its closed
+projection reports ReportedLoggedOut, method none, with no interpretation
+refusal. This is the selected command's valid logged-out observation, not a
+failed physical sequence and not an instruction to repair authentication.
+Both native and helper captures drained/released with no recorded errors,
+timeouts or kill requests. Submitted keys were SystemRoot and USERPROFILE;
+absence of CLAUDE_CONFIG_DIR means only that this builder found no nonempty
+value in this helper context. The native child's own environment was not read.
+
+The records establish total helper elapsed 1.084 seconds and outer elapsed
+1.615 seconds. They do not retain exact native duration. Dispatch exit 0 and
+elapsed 1,973 ms are executor-reported; no separate saved dispatch output is
+cited among the four safe records. The planner narrowed the duration and
+provenance wording rather than inventing missing timing evidence. The dated
+playbook entry remains 2026-10-31, matching the execution records' UTC date;
+2026-11-01 is this review's date. Original delivered documents are preserved
+under delivery-review-01.
+
+The planner also clarified that excluded account/configuration operations
+refer to agent-requested actions, not proof that the CLI had no internal
+effects. Further authentication/state commands or a real session require a
+new explicit owner decision and complete planner dispatch, not planner-only
+permission. Descendant shutdown, credential/quota validity, historical
+environment equivalence and session-03 cause remain unproved. Providers
+remain unqualified. No source change or new repair is selected.
+
+CAS-R1 and CAS-R2 remain resolved by the prepared source as previously
+recorded. The 71 controlled checks remain retained at their recorded scope;
+none was replayed. Review used safe repo records only: no runtime command,
+credential/account inspection, scratch/retained-root/database/stream read,
+ledger operation or cleanup. Independent document/Git checks and review
+evidence are in delivery-review-01. The used package remains unchanged.
+
+GO covers exactly these three reviewed documents, with the parent/tree and
+approved content in
+`logs/planner-review/claude-authentication-status-01/delivery-review-01/publication-approval.json`
+and the complete same-Claude-chat publication prompt. Make no content edits;
+stage no other path. Verify the tree, sole parent and changed set, push main
+normally to origin/main and verify the live ref. A mismatch or failed push
+stops publication without silent approval recomputation, force or history
+reconciliation. No closure-document diff is needed. The observation grant is
+completed; publication grants no new CLI call, login/reset, cleanup or session.
+Independent push verification precedes any next selection.
+
+### Activation record (historical; the one observation is completed)
+
+The diagnosis report is independently verified as published at
+`585680e90f9b23f6284199943f72063dea0f9231`, live origin/main and local refs
+matching. Its approved tree, sole parent, three paths and approved blobs/file
+hashes all match. Git was clean before this new selection. The verification
+record is
+`logs/planner-review/claude-qualification-diagnosis-02/publication-verification.json`.
+Earlier publication-phase notes below are historical, not another pending push.
+
+CONTINUE_THIS_CHAT: no current chat-context percentage is exposed. Unknown
+usage is not a measured value below 60%; no observed threshold or concrete
+transition reason is established. No executor is active. Use one NEW Claude
+executor chat for this distinct slice, with the complete bounded prompt.
+
+The owner explicitly authorized a small local helper, offline review/checks
+and one `claude auth status` in the executor context under the production
+environment policy, with a 30-second process cap, 45-second observation
+budget, bounded memory-only capture and closed state/method projection.
+No login/logout, model, installation, persistent change, ledger/reset,
+retained root/database/stream, cleanup, product implementation or publication
+is included. The CLI may use installed authentication/configuration internally;
+its effects are not proven absent. The new decision supplies the authority;
+the prior diagnosis grant is completed and does not supply it.
+
+The prepared boundary and accepted package are under
+`logs/planner-review/claude-authentication-status-01/`.
+package.json, owner-decision.json and the complete execution prompt bind exact
+source/handoff bytes without self-referential hashes in this document.
+The helper compiles the three unchanged production policy sources and a public
+bridge in memory using the pinned existing PowerShell/.NET host. Current
+profile inputs are read by the production builder, not reimplemented or
+expanded. The native Claude pin is the installed session-03 identity; verify
+it afresh before the single call. No discovery/version/help fallback.
+
+The planner accepts the prepared helper after 71 focused checks, zero failures,
+with nine synthetic attempts and zero real Claude calls. Its memory adapter
+adapts the accepted owned-process lifecycle/capture code; retained bytes are
+bounded, raw arrays are never serialized, and process errors/refusal states
+cannot become an authentication result. Submitted environment keys are
+tested directly. The synthetic PowerShell host adds its own observed keys;
+the native CLI child's environment is not observed. No secure erasure,
+descendant-stop or OS-preemption guarantee is made.
+
+Preparation failures and limits are preserved in preparation-history.json
+and README.md. The first 43-check attempt kept no native outcome and used
+uncontained dummy profile values; their internal effects remain unobserved,
+with no outside inspection or cleanup selected. Later fixtures use contained
+values and save safe process outcomes. Two 53-check failures assumed an exact
+post-start synthetic key set; corrected by separately checking submitted keys.
+The 61- and 67-pass results are retained; the latter added refusal cases
+for release/start/setup/kill/secondary errors. Final static review also found
+CAS-R1 (an absent/relative ApplicationData could yield a relative target) and
+CAS-R2 (the outer durable witness was missing before helper start). Both were
+corrected before dispatch: the target resolver now refuses non-absolute bases,
+and operator-started.json is created exclusively before any helper process.
+Four target-resolution checks raise the focused pass to 71. Review-01 package,
+decision and changed-source snapshots remain preserved and non-dispatched;
+intermediate sources from the earlier failed tests are unavailable.
+Acceptance relies on the final reviewed source and checks,
+not reconstructed failures or an absence-of-effects claim.
+
+Execute is unused. The entries refuse by default; their guards and source parse
+were checked, while no real Execute path was run. A new fixed scratch in the
+original temp and new exclusive evidence directory must both be absent.
+Preflight/compilation are charged to elapsed 30 seconds before the native
+observation deadline, leaving the remaining 15 seconds for bounded owned
+stop/drain/reporting. The sole physical entry is invoke-authorized-status.ps1:
+it owns the recorded runtime helper process under an outer elapsed-33-second
+deadline, reserving the remaining budget inside 45 for its own stop/drain.
+The helper host inherits its parent unchanged; the native CLI map is cleared
+only by the inner helper's production builder. The outer capture is also
+memory-only and never emitted; operator-status.json keeps only safe facts.
+Stopping the helper may leave its descendants unproved; never adopt them.
+No retry after any physical failure, even before witness
+or CLI start. Do not replay matrices or alter the package to work around a
+failure. Only the helper owns/stops its exact child.
+
+ReportedLoggedIn/ReportedLoggedOut are current-host CLI observations, not
+historical map reconstruction, credential/quota validity or qualification.
+The CLI's exit 1 with consistent logged-out JSON is a valid observation;
+it authorizes no repair. Indeterminate/any physical failure ends for report.
+After the one call, the executor updates current-work.md and the playbook,
+preserves this record and package, runs document/Git checks and returns
+unstaged/uncommitted/unpushed. A separate exact-content GO is required.
+No authentication repair or subsequent real session is selected automatically.
+
+### Published diagnosis record (authority completed)
 
 The session-03 report is published and independently verified at
 `85b75f9356ab30c3a2d3fd4f597ba2bac1841799`: live origin/main, local HEAD/ref,

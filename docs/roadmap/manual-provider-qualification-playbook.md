@@ -93,6 +93,17 @@ provider call, ledger/reset or cleanup was performed. Providers remain unqualifi
 session needs its own authority; the completed inspection grants none. See the CLAUDE-QUALIFICATION-DIAGNOSIS-02 record in
 [current-work.md](current-work.md).
 
+**One authorized authentication-status observation (2026-10-31).** Under a new owner decision, a Claude executor ran one
+planner-accepted, one-use helper once. It verified the pinned native Claude identity and started `claude auth status` with the
+child environment cleared and only the production policy's entries supplied (key names `SystemRoot` and `USERPROFILE`). The CLI
+exited 1 with 0 stderr bytes. Total helper elapsed time was 1.084 s, including preflight/compilation; exact native duration was
+not retained. The closed projection was `ReportedLoggedOut` with method `none`. Output stayed
+in bounded memory and was neither displayed nor persisted. Nothing was retried, and no login or other account command, model call
+or configuration change followed. This is fresh evidence about the current executor-hosted helper context only. It does not
+reproduce the session-03 child environment, prove a credential or quota state, or explain the session-03 failure. Providers remain
+unqualified, and any authentication action or further real session needs its own authority. See the
+CLAUDE-AUTHENTICATION-STATUS-01 record in [current-work.md](current-work.md).
+
 ## It is not a test
 
 The launcher is a separate executable, `ManualQualification` (source under
