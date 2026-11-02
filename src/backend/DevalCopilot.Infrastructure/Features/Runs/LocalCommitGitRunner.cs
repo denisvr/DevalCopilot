@@ -7,6 +7,10 @@ internal enum LocalCommitGitOutcome
     Exited,
     TimedOut,
     LaunchFailed,
+
+    /// <summary>ADR-0072: the process exited but its output or input never demonstrably completed. For a mutation the effect is
+    /// as uncertain as after a timeout; it is never read as success.</summary>
+    IoIncomplete,
 }
 
 internal sealed record LocalCommitGitResult(LocalCommitGitOutcome Outcome, int ExitCode, string Output, bool Truncated)
@@ -127,6 +131,8 @@ internal sealed class LocalCommitGitRunner(IProcessExecutionAdapter processExecu
             {
                 ProcessExecutionOutcome.Cancelled => throw new OperationCanceledException(cancellationToken),
                 ProcessExecutionOutcome.TimedOut => new LocalCommitGitResult(LocalCommitGitOutcome.TimedOut, 0, string.Empty, false),
+                _ when !result.IoCompletion.IsComplete =>
+                    new LocalCommitGitResult(LocalCommitGitOutcome.IoIncomplete, -1, string.Empty, false),
                 _ => new LocalCommitGitResult(
                     LocalCommitGitOutcome.Exited,
                     result.ExitCode!.Value,

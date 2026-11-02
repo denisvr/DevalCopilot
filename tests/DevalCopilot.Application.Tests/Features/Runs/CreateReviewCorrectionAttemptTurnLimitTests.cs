@@ -19,7 +19,7 @@ public sealed partial class CreateReviewCorrectionAttemptCommandHandlerTests
         Assert.Equal(attemptsBefore, await verify.Attempts.CountAsync(a => a.RunId == seed.Run.Id));
         Assert.Empty(await verify.Attempts
             .Where(a => a.RunId == seed.Run.Id && a.AgentResponseContract == AgentResponseContract.ReviewCorrection
-                && a.AgentAdapterContractVersion == "claude-review-correction-v2")
+                && a.AgentAdapterContractVersion == "claude-review-correction-v3")
             .ToListAsync());
         Assert.Empty(await verify.Artifacts.Where(a => a.RunId == seed.Run.Id).ToListAsync());
         Assert.Empty(await verify.AttemptInputMessages.Where(m => verify.Attempts.All(a => a.Id != m.AttemptId)).ToListAsync());
@@ -31,7 +31,7 @@ public sealed partial class CreateReviewCorrectionAttemptCommandHandlerTests
     [InlineData(1)]
     [InlineData(37)]
     [InlineData(100)]
-    public async Task Claim_snapshots_the_runs_turn_limit_under_the_v2_contract_immutably(int? limit)
+    public async Task Claim_snapshots_the_runs_turn_limit_under_the_current_contract_immutably(int? limit)
     {
         await using var seedContext = _fixture.CreateContext();
         var seed = await SeedAsync(seedContext);
@@ -46,7 +46,7 @@ public sealed partial class CreateReviewCorrectionAttemptCommandHandlerTests
         var created = Assert.IsType<CreateReviewCorrectionAttemptCommandResult.AttemptCreated>(result.Value);
         Assert.Equal(limit, await ClaudeMutationTurnLimitTestSupport.ReadAttemptLimitAsync(_fixture, created.AttemptId));
         Assert.Equal(
-            "claude-review-correction-v2",
+            "claude-review-correction-v3",
             await ClaudeMutationTurnLimitTestSupport.ReadAttemptContractVersionAsync(_fixture, created.AttemptId));
 
         await ClaudeMutationTurnLimitTestSupport.SetLimitAsync(_fixture, seed.Run.Id, limit == 50 ? 51 : 50);

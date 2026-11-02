@@ -265,6 +265,12 @@ public sealed class LocalExecutionRestartRecoveryTests : IAsyncLifetime
             return Task.FromResult<SealedVerificationOutputFile?>(null);
         }
 
+        public bool HasSealedFile(Guid verificationExecutionId, VerificationOutputPurpose purpose)
+        {
+            Touched.Add($"has-sealed:{verificationExecutionId}");
+            return false;
+        }
+
         public Task<SealedVerificationOutputFile?> DescribeSealedFileAsync(
             Guid verificationExecutionId, VerificationOutputPurpose purpose, CancellationToken cancellationToken)
         {

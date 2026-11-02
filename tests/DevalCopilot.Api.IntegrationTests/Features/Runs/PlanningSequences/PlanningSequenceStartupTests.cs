@@ -1,3 +1,4 @@
+using DevalCopilot.Api.IntegrationTests.Startup;
 using DevalCopilot.Api.HostedServices;
 using DevalCopilot.Application.Features.Runs.Commands.ClaimPlanningSequenceStep;
 using DevalCopilot.Application.Features.Runs.Commands.ObservePlanningSequence;
@@ -121,7 +122,7 @@ public sealed class PlanningSequenceStartupTests
     [Fact]
     public void The_startup_interruption_follows_the_artifact_and_attempt_reconciliation_and_precedes_the_coordinator_starting()
     {
-        var program = File.ReadAllText(FindProgram());
+        var program = StartupCompositionSource.Read();
 
         var attemptRecovery = program.IndexOf("AgentAttemptOutputRecovery.RunAsync", StringComparison.Ordinal);
         var agentReconcile = program.IndexOf("new ReconcileInterruptedAgentAttemptsCommand()", StringComparison.Ordinal);
@@ -134,22 +135,5 @@ public sealed class PlanningSequenceStartupTests
         Assert.True(implementationReconcile < interrupt, "sequences are interrupted after every attempt reconciliation");
         Assert.True(interrupt < hostStart, "sequences are interrupted before any hosted worker starts");
         Assert.Contains("builder.Services.AddHostedService<PlanningSequenceCoordinator>()", program, StringComparison.Ordinal);
-    }
-
-    private static string FindProgram()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            var candidate = Path.Combine(directory.FullName, "src", "backend", "DevalCopilot.Api", "Program.cs");
-            if (File.Exists(candidate))
-            {
-                return candidate;
-            }
-
-            directory = directory.Parent;
-        }
-
-        throw new FileNotFoundException("Program.cs was not found above the test binaries.");
     }
 }

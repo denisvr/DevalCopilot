@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Domain.Features.Runs;
 using Xunit;
 
@@ -32,7 +33,7 @@ public sealed class AgentProcessExecutionEvidenceTests
     [Fact]
     public void Create_accepts_a_zero_duration()
     {
-        var evidence = AgentProcessExecutionEvidence.Create(ProcessOutcome.Exited, 0, TimeSpan.Zero);
+        var evidence = AgentProcessExecutionEvidence.Create(ProcessOutcome.Exited, 0, TimeSpan.Zero, ProcessIoCompletion.CompleteWithInput);
 
         Assert.Equal(TimeSpan.Zero, evidence.Duration);
     }
@@ -442,7 +443,7 @@ public sealed class AgentProcessExecutionEvidenceTests
             new ProcessExecutionIntent(@"C:\tools\build.exe", [], @"C:\repos\sample", @"C:\repos", TimeSpan.FromMinutes(1), 1024, 2048),
             BaseTime);
         process.MarkProcessDispatched(BaseTime);
-        process.CompleteProcess(ProcessOutcome.Exited, 0, BaseTime.AddSeconds(1));
+        process.CompleteProcess(ProcessOutcome.Exited, 0, BaseTime.AddSeconds(1), ProcessIoCompletion.CompleteWithoutInput);
 
         Assert.Null(simulated.GetAgentProcessExecutionEvidence());
         Assert.Null(process.GetAgentProcessExecutionEvidence());

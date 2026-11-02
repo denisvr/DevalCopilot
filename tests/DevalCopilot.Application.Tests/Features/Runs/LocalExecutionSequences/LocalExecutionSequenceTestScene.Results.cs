@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Projects.Commands.MarkVerificationExecutionDispatched;
@@ -293,6 +294,7 @@ internal sealed partial class LocalExecutionSequenceTestScene
                 ProcessDuration = kind is ScriptedResultKind.VerificationTimedOutTerminated or ScriptedResultKind.VerificationCancelledTerminated
                     ? TimeSpan.FromMilliseconds(5000)
                     : null,
+                IoCompletion = outcome == VerificationExecutionOutcome.Failed ? null : ProcessIoCompletion.CompleteWithoutInput,
             },
             CancellationToken.None));
         Assert.True(result.IsSuccess, result.IsFailure ? result.Errors[0].Code : null);

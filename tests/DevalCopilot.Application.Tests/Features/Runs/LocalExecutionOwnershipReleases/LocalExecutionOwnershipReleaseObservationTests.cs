@@ -1,4 +1,5 @@
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
 using DevalCopilot.Application.Features.Runs.Ports;
@@ -255,6 +256,7 @@ public sealed class LocalExecutionOwnershipReleaseObservationTests : IAsyncLifet
         Assert.NotNull(AgentProcessEvidenceRecording.Validate(observed, AgentOutcome.Implemented, true, out _));
         var fromResult = AgentProcessEvidence.FromProcessExecutionResult(new ProcessExecutionResult
         {
+            IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
             Outcome = ProcessExecutionOutcome.Cancelled,
             ExitCode = null,
             StandardOutput = string.Empty,

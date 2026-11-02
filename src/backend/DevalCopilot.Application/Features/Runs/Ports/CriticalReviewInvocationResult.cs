@@ -1,3 +1,5 @@
+using DevalCopilot.Domain.Features.Runs;
+
 namespace DevalCopilot.Application.Features.Runs.Ports;
 
 /// <summary>
@@ -12,4 +14,5 @@ public sealed record CriticalReviewInvocationResult(
     string? ProviderSessionId,
     AgentProcessEvidence? ProcessEvidence = null,
     AgentTokenUsage? TokenUsage = null,
-    AgentModelContextLimits? ModelContextLimits = null);
+    AgentModelContextLimits? ModelContextLimits = null,
+    AgentInvocationDiagnostic? Diagnostic = null);

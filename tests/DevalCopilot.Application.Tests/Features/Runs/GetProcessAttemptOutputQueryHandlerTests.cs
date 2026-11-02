@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Runs.Queries.GetProcessAttemptOutput;
 using DevalCopilot.Domain.Features.Projects;
@@ -96,7 +97,7 @@ public sealed class GetProcessAttemptOutputQueryHandlerTests : IAsyncLifetime
         var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "done", Now);
         run.Claim(Now);
         var attempt = Attempt.ClaimProcess(Guid.NewGuid(), run.Id, 1, CreateIntent(), Now);
-        attempt.CompleteProcess(ProcessOutcome.Exited, 0, Now);
+        attempt.CompleteProcess(ProcessOutcome.Exited, 0, Now, ProcessIoCompletion.CompleteWithoutInput);
         run.Complete(Now);
         var artifact = Artifact.Record(
             Guid.NewGuid(), run.Id, attempt.Id, ArtifactPurpose.ProcessStandardOutput, "text/plain; charset=utf-8",
@@ -128,7 +129,7 @@ public sealed class GetProcessAttemptOutputQueryHandlerTests : IAsyncLifetime
         var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "done", Now);
         run.Claim(Now);
         var attempt = Attempt.ClaimProcess(Guid.NewGuid(), run.Id, 1, CreateIntent(), Now);
-        attempt.CompleteProcess(ProcessOutcome.Exited, 0, Now);
+        attempt.CompleteProcess(ProcessOutcome.Exited, 0, Now, ProcessIoCompletion.CompleteWithoutInput);
         run.Complete(Now);
         var artifact = Artifact.Record(
             Guid.NewGuid(), run.Id, attempt.Id, ArtifactPurpose.ProcessStandardOutput, "text/plain; charset=utf-8",

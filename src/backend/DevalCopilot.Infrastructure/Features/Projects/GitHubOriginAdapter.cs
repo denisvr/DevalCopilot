@@ -156,6 +156,7 @@ public sealed class GitHubOriginAdapter : IGitHubOriginObserver
             && result.ExitCode.HasValue
             && !result.StandardOutputTruncated
             && !result.StandardErrorTruncated
+            && result.IoCompletion.IsComplete
                 ? result
                 : null;
     }

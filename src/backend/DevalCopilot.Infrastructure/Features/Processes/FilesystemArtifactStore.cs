@@ -98,6 +98,9 @@ public sealed class FilesystemArtifactStore : IArtifactStore, IVerificationOutpu
         }
     }
 
+    public bool HasSealedFile(Guid verificationExecutionId, VerificationOutputPurpose purpose) =>
+        File.Exists(Path.Combine(_root, VerificationRelativeDirectory(verificationExecutionId), $"{VerificationFileStem(purpose)}.sealed"));
+
     public async Task<SealedVerificationOutputFile?> DescribeSealedFileAsync(
         Guid verificationExecutionId,
         VerificationOutputPurpose purpose,

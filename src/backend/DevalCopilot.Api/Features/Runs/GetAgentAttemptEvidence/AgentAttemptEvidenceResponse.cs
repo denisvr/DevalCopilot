@@ -37,4 +37,5 @@ public sealed record AgentAttemptEvidenceResponse(
     DirectHumanGuidanceResponse? DirectGuidance = null,
     AgentModelContextLimitsResponse? ModelContextLimits = null,
     CodexAccountUsageStopResponse? AccountUsageStop = null,
-    CodexAccountUsageDecisionResponse? AccountUsageDecision = null);
+    CodexAccountUsageDecisionResponse? AccountUsageDecision = null,
+    AgentInvocationDiagnosticResponse? InvocationDiagnostic = null);

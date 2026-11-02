@@ -1,4 +1,5 @@
 using Devalente.Shared.Cqrs;
+using DevalCopilot.Domain.Features.Processes;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Projects.Ports;
@@ -167,7 +168,8 @@ public sealed class ClaudeCriticalReviewSupervisor(
             // terminal, safe, closed outcome — never left hanging, never silently skipped.
             await observation.EnterRecordingResultAsync();
             await RecordResultAsync(attempt, processSucceeded: false, standardOutputTruncated: false,
-                standardErrorTruncated: false, providerSessionId: null, processEvidence: null, tokenUsage: null, modelLimits: null, CancellationToken.None);
+                standardErrorTruncated: false, providerSessionId: null, processEvidence: null, tokenUsage: null, modelLimits: null, CancellationToken.None,
+                AgentInvocationDiagnostic.InvocationUnavailable);
             return;
         }
 
@@ -188,7 +190,8 @@ public sealed class ClaudeCriticalReviewSupervisor(
                     attempt.MaxBytesPerStream,
                     attempt.MaxTotalCapturedBytes,
                     attempt.RequestedClaudeModel,
-                    attempt.RequestedClaudeEffort),
+                    attempt.RequestedClaudeEffort,
+                    attempt.AdapterContractVersion),
                 stoppingToken);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
@@ -196,14 +199,17 @@ public sealed class ClaudeCriticalReviewSupervisor(
             logger.LogError("claude_critical_review_invocation_failed AttemptId={AttemptId}", attempt.AttemptId);
             await observation.EnterRecordingResultAsync();
             await RecordResultAsync(attempt, processSucceeded: false, standardOutputTruncated: false,
-                standardErrorTruncated: false, providerSessionId: null, processEvidence: null, tokenUsage: null, modelLimits: null, CancellationToken.None);
+                standardErrorTruncated: false, providerSessionId: null, processEvidence: null, tokenUsage: null, modelLimits: null, CancellationToken.None,
+                AgentInvocationDiagnostic.InvocationUnavailable);
             return;
         }
 
         // An Exited classification is trusted only when the host-measured evidence independently
         // confirms a clean exit; contradictory or missing evidence never becomes a success.
+        // ADR-0072: and only with complete I/O and no diagnostic.
         var processSucceeded = invocationResult.Outcome == CriticalReviewInvocationOutcome.Exited
-            && invocationResult.ProcessEvidence is { IsCleanExit: true };
+            && invocationResult.ProcessEvidence is { IsCleanExit: true, IoCompletion.IsComplete: true }
+            && invocationResult.Diagnostic is null;
         await observation.EnterRecordingResultAsync();
         await RecordResultAsync(
             attempt,
@@ -214,7 +220,8 @@ public sealed class ClaudeCriticalReviewSupervisor(
             invocationResult.ProcessEvidence,
             invocationResult.TokenUsage,
             invocationResult.ModelContextLimits,
-            CancellationToken.None);
+            CancellationToken.None,
+            processSucceeded ? null : invocationResult.Diagnostic ?? AgentInvocationDiagnostic.InvalidEnvelope);
     }
 
     private async Task RecordResultAsync(
@@ -226,7 +233,8 @@ public sealed class ClaudeCriticalReviewSupervisor(
         AgentProcessEvidence? processEvidence,
         AgentTokenUsage? tokenUsage,
         AgentModelContextLimits? modelLimits,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        AgentInvocationDiagnostic? diagnostic = null)
     {
         // Freshly recaptured after the (read-only) invocation, regardless of its process-level
         // outcome: a changed fingerprint always wins inside CompleteAgent's own override, so an
@@ -244,7 +252,7 @@ public sealed class ClaudeCriticalReviewSupervisor(
             logger.LogError("claude_critical_review_completion_evidence_failed AttemptId={AttemptId}", attempt.AttemptId);
         }
 
-        var sealedArtifacts = await SealArtifactsAsync(attempt, standardOutputTruncated, standardErrorTruncated);
+        var sealedArtifacts = await SealArtifactsAsync(attempt, standardOutputTruncated, standardErrorTruncated, processEvidence?.IoCompletion);
 
         ValidatedCriticalReview? review = null;
         AgentOutcome effectiveOutcome;
@@ -288,7 +296,8 @@ public sealed class ClaudeCriticalReviewSupervisor(
                     attempt.RunId, attempt.AttemptId, effectiveOutcome, completionFingerprint, sealedArtifacts, review, providerSessionId,
                     processEvidence,
                     tokenUsage,
-                    modelLimits),
+                    modelLimits,
+                    effectiveOutcome == AgentOutcome.ProviderInvocationFailed ? diagnostic : null),
                 recordingTimeoutSource.Token);
         }
         catch (Exception)
@@ -315,7 +324,7 @@ public sealed class ClaudeCriticalReviewSupervisor(
     }
 
     private async Task<IReadOnlyList<SealedCriticalReviewArtifact>> SealArtifactsAsync(
-        EligibleClaudeCriticalReviewAttempt attempt, bool standardOutputTruncated, bool standardErrorTruncated)
+        EligibleClaudeCriticalReviewAttempt attempt, bool standardOutputTruncated, bool standardErrorTruncated, ProcessIoCompletion? ioCompletion)
     {
         var results = new List<SealedCriticalReviewArtifact>();
         foreach (var (purpose, truncated) in new[]
@@ -325,6 +334,12 @@ public sealed class ClaudeCriticalReviewSupervisor(
                      (ArtifactPurpose.AgentFinalResponse, false),
                  })
         {
+            if (!CapturedOutputSealing.MaySealAgentArtifact(purpose, ioCompletion))
+            {
+                // ADR-0072: the captured stream's writer was not proved closed; its partial file is neither sealed nor deleted.
+                continue;
+            }
+
             var sealedFile = await artifactStore.SealAsync(attempt.RunId, attempt.AttemptId, purpose, CancellationToken.None);
             if (sealedFile is not null)
             {

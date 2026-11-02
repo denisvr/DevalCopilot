@@ -46,7 +46,7 @@ public sealed partial class CreateImplementationAttemptCommandHandlerTests
         var attemptId = result.Value.AttemptId;
         var expected = DirectSentinelGuidance.Replace("Reuse", "Reuse\n", StringComparison.Ordinal);
         Assert.Equal(expected, await ReadStoredDirectGuidanceAsync(attemptId));
-        Assert.Equal("claude-implementation-v2", await ClaudeMutationTurnLimitTestSupport.ReadAttemptContractVersionAsync(_fixture, attemptId));
+        Assert.Equal("claude-implementation-v3", await ClaudeMutationTurnLimitTestSupport.ReadAttemptContractVersionAsync(_fixture, attemptId));
 
         var manifest = await ReadSealedManifestAsync(store, runId, attemptId);
         Assert.True(DirectHumanGuidanceManifest.Agrees(manifest, expected));

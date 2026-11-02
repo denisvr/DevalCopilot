@@ -82,7 +82,7 @@ public sealed partial class ImplementationSupervisorHostedTests
     public async Task The_limits_are_recorded_even_when_the_business_output_is_not_a_valid_report()
     {
         var recorded = await RunRealAdapterImplementationAsync(ClaudeEnvelopeProcessDouble.Envelope(
-            "this is not the report contract", ClaudeEnvelopeProcessDouble.TwoModelUsage));
+            """{"not":"the report contract"}""", ClaudeEnvelopeProcessDouble.TwoModelUsage));
 
         Assert.Equal(AttemptStatus.Failed, recorded.Status);
         Assert.Equal(AgentOutcome.InvalidStructuredOutput, recorded.Outcome);

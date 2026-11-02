@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using System.Text.Json;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
@@ -303,7 +304,7 @@ internal sealed class RepairTestScene
     {
         var execution = VerificationExecution.Claim(Guid.NewGuid(), Project.Id, executionNumber, Workspace, checkpoint, command, Now);
         execution.MarkDispatched(Now);
-        execution.Complete(VerificationExecutionOutcome.Exited, 0, checkpoint.FingerprintSha256, Now);
+        execution.Complete(VerificationExecutionOutcome.Exited, 0, checkpoint.FingerprintSha256, Now, ProcessIoCompletion.CompleteWithoutInput);
         Db.VerificationExecutions.Add(execution);
         return execution;
     }

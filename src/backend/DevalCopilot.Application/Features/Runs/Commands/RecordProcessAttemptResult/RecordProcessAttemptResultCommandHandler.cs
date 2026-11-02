@@ -2,6 +2,7 @@ using System.Text.Json;
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
 
@@ -45,7 +46,7 @@ public sealed class RecordProcessAttemptResultCommandHandler(IDevalCopilotDbCont
 
         if (command.Outcome is { } outcome)
         {
-            attempt.CompleteProcess(outcome, command.ExitCode, nowUtc);
+            attempt.CompleteProcess(outcome, command.ExitCode, nowUtc, command.IoCompletion);
         }
         else
         {
@@ -65,7 +66,8 @@ public sealed class RecordProcessAttemptResultCommandHandler(IDevalCopilotDbCont
         {
             foreach (var sealedArtifact in command.SealedArtifacts)
             {
-                RecordArtifact(command.RunId, command.AttemptId, sealedArtifact, ArtifactCaptureOutcome.Captured, nowUtc);
+                RecordArtifact(
+                    command.RunId, command.AttemptId, sealedArtifact, ArtifactCaptureOutcome.Captured, nowUtc, command.IoCompletion);
             }
         }
         else
@@ -93,7 +95,12 @@ public sealed class RecordProcessAttemptResultCommandHandler(IDevalCopilotDbCont
     }
 
     private void RecordArtifact(
-        Guid runId, Guid attemptId, SealedOutputArtifact sealedArtifact, ArtifactCaptureOutcome captureOutcome, DateTimeOffset nowUtc)
+        Guid runId,
+        Guid attemptId,
+        SealedOutputArtifact sealedArtifact,
+        ArtifactCaptureOutcome captureOutcome,
+        DateTimeOffset nowUtc,
+        ProcessIoCompletion? ioCompletion)
     {
         var artifact = Artifact.Record(
             Guid.NewGuid(),
@@ -108,7 +115,13 @@ public sealed class RecordProcessAttemptResultCommandHandler(IDevalCopilotDbCont
             captureOutcome,
             ArtifactSensitivity.RedactedBestEffort,
             ArtifactRetentionPolicy.RetainUntilRunDeleted,
-            nowUtc);
+            nowUtc,
+            sealedArtifact.Purpose switch
+            {
+                ArtifactPurpose.ProcessStandardOutput => ioCompletion?.StandardOutput,
+                ArtifactPurpose.ProcessStandardError => ioCompletion?.StandardError,
+                _ => null,
+            });
         dbContext.Artifacts.Add(artifact);
 
         var payload = JsonSerializer.Serialize(new

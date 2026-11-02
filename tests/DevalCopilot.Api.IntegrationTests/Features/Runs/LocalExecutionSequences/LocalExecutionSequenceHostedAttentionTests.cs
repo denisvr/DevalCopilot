@@ -62,7 +62,7 @@ public sealed class LocalExecutionSequenceHostedAttentionTests
     {
         await using var harness = new LocalExecutionSequenceHostedHarness();
         var lineage = await harness.SeedLineageAsync();
-        harness.Process.ClaudeAnswers.Enqueue("this is not an implementation report");
+        harness.Process.ClaudeAnswers.Enqueue("""{"not":"an implementation report"}""");
         var armed = await harness.ArmAsync(lineage);
 
         await harness.StartHostsAsync();

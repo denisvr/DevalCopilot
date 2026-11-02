@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.Runs;
@@ -63,7 +64,7 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         var adapter = new ClaudeCriticalReviewAdapter(fake, _artifactStore);
         var request = new CriticalReviewInvocationRequest(
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
-            executablePath, TimeSpan.FromSeconds(30), 65536, 131072);
+            executablePath, TimeSpan.FromSeconds(30), 65536, 131072, AdapterContractVersion: ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion);
 
         var result = await adapter.InvokeAsync(request, CancellationToken.None);
 
@@ -72,7 +73,8 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         var arguments = fake.CapturedRequest!.Arguments.ToArray();
 
         var expectedSchemaJson = JsonSerializer.Serialize(ClaudeCriticalReviewOutputSchema.BuildSchemaDocument());
-        Assert.Equal(25, arguments.Length);
+        // ADR-0072: the prompt-suggestion flag and its value are no longer passed.
+        Assert.Equal(23, arguments.Length);
         Assert.Equal("--print", arguments[0]);
         Assert.Equal("--input-format", arguments[1]);
         Assert.Equal("text", arguments[2]);
@@ -92,18 +94,17 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         // the adapter actually passes.
         Assert.Equal("--permission-prompts", arguments[11]);
         Assert.Equal("none", arguments[12]);
-        Assert.Equal("--prompt-suggestions", arguments[13]);
-        Assert.Equal("false", arguments[14]);
-        Assert.Equal("--tools", arguments[15]);
-        Assert.Equal(string.Empty, arguments[16]);
-        Assert.Equal("--strict-mcp-config", arguments[17]);
-        Assert.Equal("--permission-mode", arguments[18]);
-        Assert.Equal("plan", arguments[19]);
-        Assert.Equal("--no-session-persistence", arguments[20]);
-        Assert.Equal("--session-id", arguments[21]);
-        Assert.True(Guid.TryParse(arguments[22], out _));
-        Assert.Equal("--max-turns", arguments[23]);
-        Assert.Equal("1", arguments[24]);
+        Assert.Equal("--tools", arguments[13]);
+        Assert.Equal(string.Empty, arguments[14]);
+        Assert.Equal("--strict-mcp-config", arguments[15]);
+        Assert.Equal("--permission-mode", arguments[16]);
+        Assert.Equal("plan", arguments[17]);
+        Assert.Equal("--no-session-persistence", arguments[18]);
+        Assert.Equal("--session-id", arguments[19]);
+        Assert.True(Guid.TryParse(arguments[20], out _));
+        Assert.Equal("--max-turns", arguments[21]);
+        Assert.Equal("1", arguments[22]);
+        Assert.DoesNotContain("--prompt-suggestions", arguments);
 
         Assert.Equal(executablePath, fake.CapturedRequest.ExecutablePath);
         Assert.Equal(_workspacePath, fake.CapturedRequest.WorkingDirectory);
@@ -129,7 +130,7 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         var adapter = new ClaudeCriticalReviewAdapter(fake, _artifactStore);
         var request = new CriticalReviewInvocationRequest(
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
-            executablePath, TimeSpan.FromSeconds(30), 65536, 131072);
+            executablePath, TimeSpan.FromSeconds(30), 65536, 131072, AdapterContractVersion: ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion);
 
         await adapter.InvokeAsync(request, CancellationToken.None);
 
@@ -199,15 +200,15 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         var adapter = new ClaudeCriticalReviewAdapter(firstFake, _artifactStore);
         var request = new CriticalReviewInvocationRequest(
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
-            executablePath, TimeSpan.FromSeconds(30), 65536, 131072);
+            executablePath, TimeSpan.FromSeconds(30), 65536, 131072, AdapterContractVersion: ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion);
 
         await adapter.InvokeAsync(request, CancellationToken.None);
-        var firstSessionIdArgument = firstFake.CapturedRequest!.Arguments[22];
+        var firstSessionIdArgument = firstFake.CapturedRequest!.Arguments[20];
 
         var secondFake = new FakeProcessExecutionAdapter();
         var secondAdapter = new ClaudeCriticalReviewAdapter(secondFake, _artifactStore);
         await secondAdapter.InvokeAsync(request, CancellationToken.None);
-        var secondSessionIdArgument = secondFake.CapturedRequest!.Arguments[22];
+        var secondSessionIdArgument = secondFake.CapturedRequest!.Arguments[20];
 
         Assert.NotEqual(firstSessionIdArgument, secondSessionIdArgument);
     }
@@ -225,7 +226,7 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         var adapter = new ClaudeCriticalReviewAdapter(fake, _artifactStore);
         var request = new CriticalReviewInvocationRequest(
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
-            executablePath, TimeSpan.FromSeconds(30), 65536, 131072);
+            executablePath, TimeSpan.FromSeconds(30), 65536, 131072, AdapterContractVersion: ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion);
 
         await adapter.InvokeAsync(request, CancellationToken.None);
 
@@ -247,7 +248,7 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         var adapter = new ClaudeCriticalReviewAdapter(fake, _artifactStore);
         var request = new CriticalReviewInvocationRequest(
             runId, attemptId, _workspacePath, "../../outside-the-artifact-root.txt", 10, "sha256:" + new string('0', 64),
-            executablePath, TimeSpan.FromSeconds(30), 65536, 131072);
+            executablePath, TimeSpan.FromSeconds(30), 65536, 131072, AdapterContractVersion: ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion);
 
         var result = await adapter.InvokeAsync(request, CancellationToken.None);
 
@@ -268,7 +269,7 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         var adapter = new ClaudeCriticalReviewAdapter(fake, _artifactStore);
         var request = new CriticalReviewInvocationRequest(
             runId, attemptId, _workspacePath, outsideFile, 10, "sha256:" + new string('0', 64),
-            executablePath, TimeSpan.FromSeconds(30), 65536, 131072);
+            executablePath, TimeSpan.FromSeconds(30), 65536, 131072, AdapterContractVersion: ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion);
 
         var result = await adapter.InvokeAsync(request, CancellationToken.None);
 
@@ -306,7 +307,7 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
             var adapter = new ClaudeCriticalReviewAdapter(fake, _artifactStore);
             var request = new CriticalReviewInvocationRequest(
                 runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
-                executablePath, TimeSpan.FromSeconds(30), 65536, 131072);
+                executablePath, TimeSpan.FromSeconds(30), 65536, 131072, AdapterContractVersion: ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion);
 
             var result = await adapter.InvokeAsync(request, CancellationToken.None);
 
@@ -336,7 +337,7 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         var adapter = new ClaudeCriticalReviewAdapter(fake, _artifactStore);
         var request = new CriticalReviewInvocationRequest(
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
-            missingExecutablePath, TimeSpan.FromSeconds(30), 65536, 131072);
+            missingExecutablePath, TimeSpan.FromSeconds(30), 65536, 131072, AdapterContractVersion: ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion);
 
         var result = await adapter.InvokeAsync(request, CancellationToken.None);
 
@@ -355,7 +356,7 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         var adapter = new ClaudeCriticalReviewAdapter(fake, _artifactStore);
         var request = new CriticalReviewInvocationRequest(
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
-            "claude.exe", TimeSpan.FromSeconds(30), 65536, 131072);
+            "claude.exe", TimeSpan.FromSeconds(30), 65536, 131072, AdapterContractVersion: ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion);
 
         var result = await adapter.InvokeAsync(request, CancellationToken.None);
 
@@ -379,7 +380,7 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
             var adapter = new ClaudeCriticalReviewAdapter(fake, _artifactStore);
             var request = new CriticalReviewInvocationRequest(
                 runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
-                executablePath, TimeSpan.FromSeconds(30), 65536, 131072);
+                executablePath, TimeSpan.FromSeconds(30), 65536, 131072, AdapterContractVersion: ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion);
 
             var result = await adapter.InvokeAsync(request, CancellationToken.None);
 
@@ -426,6 +427,7 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         {
             OnExecute = _ => new ProcessExecutionResult
             {
+                IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                 Outcome = ProcessExecutionOutcome.Exited,
                 ExitCode = 1,
                 StandardOutput = string.Empty,
@@ -438,7 +440,7 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         var adapter = new ClaudeCriticalReviewAdapter(fake, _artifactStore);
         var request = new CriticalReviewInvocationRequest(
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
-            executablePath, TimeSpan.FromSeconds(30), 65536, 131072);
+            executablePath, TimeSpan.FromSeconds(30), 65536, 131072, AdapterContractVersion: ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion);
 
         var result = await adapter.InvokeAsync(request, CancellationToken.None);
 
@@ -461,7 +463,7 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         var adapter = new ClaudeCriticalReviewAdapter(fake, _artifactStore);
         var request = new CriticalReviewInvocationRequest(
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
-            executablePath, TimeSpan.FromSeconds(30), 65536, 131072);
+            executablePath, TimeSpan.FromSeconds(30), 65536, 131072, AdapterContractVersion: ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion);
 
         var result = await adapter.InvokeAsync(request, CancellationToken.None);
 
@@ -481,31 +483,29 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         var adapter = new ClaudeCriticalReviewAdapter(fake, _artifactStore);
         var request = new CriticalReviewInvocationRequest(
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
-            executablePath, TimeSpan.FromSeconds(30), 65536, 131072);
+            executablePath, TimeSpan.FromSeconds(30), 65536, 131072, AdapterContractVersion: ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion);
 
         await Assert.ThrowsAsync<OperationCanceledException>(() => adapter.InvokeAsync(request, CancellationToken.None));
     }
 
     [Fact]
-    public async Task A_result_field_carried_as_a_json_string_is_extracted_and_sealed_as_the_final_response_artifact()
+    public async Task A_response_carried_only_as_narrative_or_string_text_is_refused_and_nothing_is_sealed()
     {
         var runId = Guid.NewGuid();
         var attemptId = Guid.NewGuid();
         var manifest = await SeedSealedManifestAsync(runId, attemptId, "manifest content");
         var executablePath = CreateLaunchFile("fake-claude-string-result.exe");
 
+        // ADR-0072: the narrative result is never read, and a string structured output is not an object.
         const string FinalResponseJson = """{"decision":"accept","summary":"looks fine","rationale":"nothing material"}""";
-        var envelope = JsonSerializer.Serialize(new
-        {
-            is_error = false,
-            result = FinalResponseJson,
-            session_id = "session-string-result",
-        });
+        var envelope = ClaudeDocumentedEnvelope.Text(ClaudeDocumentedEnvelope.Success(
+            System.Text.Json.Nodes.JsonValue.Create(FinalResponseJson), narrative: FinalResponseJson));
 
         var fake = new FakeProcessExecutionAdapter
         {
             OnExecute = _ => new ProcessExecutionResult
             {
+                IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                 Outcome = ProcessExecutionOutcome.Exited,
                 ExitCode = 0,
                 StandardOutput = envelope,
@@ -518,34 +518,34 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         var adapter = new ClaudeCriticalReviewAdapter(fake, _artifactStore);
         var request = new CriticalReviewInvocationRequest(
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
-            executablePath, TimeSpan.FromSeconds(30), 65536, 131072);
+            executablePath, TimeSpan.FromSeconds(30), 65536, 131072, AdapterContractVersion: ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion);
 
         var result = await adapter.InvokeAsync(request, CancellationToken.None);
 
-        Assert.Equal(CriticalReviewInvocationOutcome.Exited, result.Outcome);
-        Assert.Equal("session-string-result", result.ProviderSessionId);
-        var resultPath = _artifactStore.GetPartialPath(runId, attemptId, ArtifactPurpose.AgentFinalResponse);
-        Assert.True(File.Exists(resultPath));
-        var writtenText = await File.ReadAllTextAsync(resultPath);
-        Assert.Equal(FinalResponseJson, writtenText);
+        Assert.Equal(CriticalReviewInvocationOutcome.Failed, result.Outcome);
+        Assert.Equal(AgentInvocationDiagnostic.InvalidStructuredOutput, result.Diagnostic);
+        Assert.Null(result.ProviderSessionId);
+        Assert.False(File.Exists(_artifactStore.GetPartialPath(runId, attemptId, ArtifactPurpose.AgentFinalResponse)));
     }
 
     [Fact]
-    public async Task A_result_field_carried_as_a_raw_json_object_is_re_serialized_faithfully_not_garbled()
+    public async Task A_structured_output_object_is_re_serialized_faithfully_not_garbled()
     {
         var runId = Guid.NewGuid();
         var attemptId = Guid.NewGuid();
         var manifest = await SeedSealedManifestAsync(runId, attemptId, "manifest content");
         var executablePath = CreateLaunchFile("fake-claude-object-result.exe");
 
-        const string EnvelopeJson = """
-            {"is_error":false,"result":{"decision":"accept","summary":"looks fine","rationale":"nothing material"},"session_id":"session-object-result"}
-            """;
+        var envelopeNode = ClaudeDocumentedEnvelope.Success(System.Text.Json.Nodes.JsonNode.Parse(
+            """{"decision":"accept","summary":"looks fine","rationale":"nothing material"}"""));
+        envelopeNode["session_id"] = "session-object-result";
+        var EnvelopeJson = ClaudeDocumentedEnvelope.Text(envelopeNode);
 
         var fake = new FakeProcessExecutionAdapter
         {
             OnExecute = _ => new ProcessExecutionResult
             {
+                IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                 Outcome = ProcessExecutionOutcome.Exited,
                 ExitCode = 0,
                 StandardOutput = EnvelopeJson,
@@ -558,7 +558,7 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         var adapter = new ClaudeCriticalReviewAdapter(fake, _artifactStore);
         var request = new CriticalReviewInvocationRequest(
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
-            executablePath, TimeSpan.FromSeconds(30), 65536, 131072);
+            executablePath, TimeSpan.FromSeconds(30), 65536, 131072, AdapterContractVersion: ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion);
 
         var result = await adapter.InvokeAsync(request, CancellationToken.None);
 
@@ -596,6 +596,7 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         {
             OnExecute = _ => new ProcessExecutionResult
             {
+                IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                 Outcome = ProcessExecutionOutcome.Exited,
                 ExitCode = 0,
                 StandardOutput = envelope,
@@ -608,7 +609,7 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         var adapter = new ClaudeCriticalReviewAdapter(fake, _artifactStore);
         var request = new CriticalReviewInvocationRequest(
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
-            executablePath, TimeSpan.FromSeconds(30), 65536, 131072);
+            executablePath, TimeSpan.FromSeconds(30), 65536, 131072, AdapterContractVersion: ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion);
 
         var result = await adapter.InvokeAsync(request, CancellationToken.None);
 
@@ -630,6 +631,7 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         {
             OnExecute = _ => new ProcessExecutionResult
             {
+                IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                 Outcome = ProcessExecutionOutcome.Exited,
                 ExitCode = 0,
                 StandardOutput = "this is not json at all { [ garbled",
@@ -642,7 +644,7 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         var adapter = new ClaudeCriticalReviewAdapter(fake, _artifactStore);
         var request = new CriticalReviewInvocationRequest(
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
-            executablePath, TimeSpan.FromSeconds(30), 65536, 131072);
+            executablePath, TimeSpan.FromSeconds(30), 65536, 131072, AdapterContractVersion: ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion);
 
         var result = await adapter.InvokeAsync(request, CancellationToken.None);
 
@@ -662,6 +664,7 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         {
             OnExecute = _ => new ProcessExecutionResult
             {
+                IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                 Outcome = ProcessExecutionOutcome.Exited,
                 ExitCode = 0,
                 StandardOutput = """["not", "an", "object"]""",
@@ -674,7 +677,7 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         var adapter = new ClaudeCriticalReviewAdapter(fake, _artifactStore);
         var request = new CriticalReviewInvocationRequest(
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
-            executablePath, TimeSpan.FromSeconds(30), 65536, 131072);
+            executablePath, TimeSpan.FromSeconds(30), 65536, 131072, AdapterContractVersion: ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion);
 
         var result = await adapter.InvokeAsync(request, CancellationToken.None);
 
@@ -696,6 +699,7 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         {
             OnExecute = _ => new ProcessExecutionResult
             {
+                IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                 Outcome = ProcessExecutionOutcome.Exited,
                 ExitCode = 0,
                 StandardOutput = envelope,
@@ -708,7 +712,7 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         var adapter = new ClaudeCriticalReviewAdapter(fake, _artifactStore);
         var request = new CriticalReviewInvocationRequest(
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
-            executablePath, TimeSpan.FromSeconds(30), 65536, 131072);
+            executablePath, TimeSpan.FromSeconds(30), 65536, 131072, AdapterContractVersion: ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion);
 
         var result = await adapter.InvokeAsync(request, CancellationToken.None);
 
@@ -731,6 +735,7 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         {
             OnExecute = _ => new ProcessExecutionResult
             {
+                IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                 Outcome = ProcessExecutionOutcome.Exited,
                 ExitCode = 0,
                 StandardOutput = envelope,
@@ -743,7 +748,7 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         var adapter = new ClaudeCriticalReviewAdapter(fake, _artifactStore);
         var request = new CriticalReviewInvocationRequest(
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
-            executablePath, TimeSpan.FromSeconds(30), 65536, 131072);
+            executablePath, TimeSpan.FromSeconds(30), 65536, 131072, AdapterContractVersion: ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion);
 
         var result = await adapter.InvokeAsync(request, CancellationToken.None);
 
@@ -769,6 +774,7 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         {
             OnExecute = _ => new ProcessExecutionResult
             {
+                IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                 Outcome = ProcessExecutionOutcome.Exited,
                 ExitCode = 0,
                 StandardOutput = envelope,
@@ -781,7 +787,7 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         var adapter = new ClaudeCriticalReviewAdapter(fake, _artifactStore);
         var request = new CriticalReviewInvocationRequest(
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
-            executablePath, TimeSpan.FromSeconds(30), 65536, 131072);
+            executablePath, TimeSpan.FromSeconds(30), 65536, 131072, AdapterContractVersion: ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion);
 
         var result = await adapter.InvokeAsync(request, CancellationToken.None);
 
@@ -808,6 +814,7 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         {
             OnExecute = _ => new ProcessExecutionResult
             {
+                IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                 Outcome = ProcessExecutionOutcome.Exited,
                 ExitCode = 0,
                 StandardOutput = envelope,
@@ -820,7 +827,7 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         var adapter = new ClaudeCriticalReviewAdapter(fake, _artifactStore);
         var request = new CriticalReviewInvocationRequest(
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
-            executablePath, TimeSpan.FromSeconds(30), 65536, 131072);
+            executablePath, TimeSpan.FromSeconds(30), 65536, 131072, AdapterContractVersion: ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion);
 
         var result = await adapter.InvokeAsync(request, CancellationToken.None);
 
@@ -842,12 +849,13 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         var executablePath = CreateLaunchFile("fake-claude-overlong-session-id.exe");
 
         var overlongSessionId = new string('a', 257);
-        var envelope = JsonSerializer.Serialize(new { is_error = false, result = "{}", session_id = overlongSessionId });
+        var envelope = ClaudeDocumentedEnvelope.SuccessText("{}", overlongSessionId);
 
         var fake = new FakeProcessExecutionAdapter
         {
             OnExecute = _ => new ProcessExecutionResult
             {
+                IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                 Outcome = ProcessExecutionOutcome.Exited,
                 ExitCode = 0,
                 StandardOutput = envelope,
@@ -860,7 +868,7 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         var adapter = new ClaudeCriticalReviewAdapter(fake, _artifactStore);
         var request = new CriticalReviewInvocationRequest(
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
-            executablePath, TimeSpan.FromSeconds(30), 65536, 131072);
+            executablePath, TimeSpan.FromSeconds(30), 65536, 131072, AdapterContractVersion: ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion);
 
         var result = await adapter.InvokeAsync(request, CancellationToken.None);
 
@@ -876,12 +884,13 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         var manifest = await SeedSealedManifestAsync(runId, attemptId, "manifest content");
         var executablePath = CreateLaunchFile("fake-claude-null-session-id.exe");
 
-        var envelope = JsonSerializer.Serialize(new { is_error = false, result = "{}", session_id = (string?)null });
+        var envelope = ClaudeDocumentedEnvelope.SuccessText("{}", (string?)null);
 
         var fake = new FakeProcessExecutionAdapter
         {
             OnExecute = _ => new ProcessExecutionResult
             {
+                IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                 Outcome = ProcessExecutionOutcome.Exited,
                 ExitCode = 0,
                 StandardOutput = envelope,
@@ -894,7 +903,7 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         var adapter = new ClaudeCriticalReviewAdapter(fake, _artifactStore);
         var request = new CriticalReviewInvocationRequest(
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
-            executablePath, TimeSpan.FromSeconds(30), 65536, 131072);
+            executablePath, TimeSpan.FromSeconds(30), 65536, 131072, AdapterContractVersion: ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion);
 
         var result = await adapter.InvokeAsync(request, CancellationToken.None);
 
@@ -923,14 +932,17 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
             num_turns = 1,
             total_cost_usd = 0.0041,
             duration_ms = 1523,
-            result = """{"decision":"accept","summary":"looks fine","rationale":"nothing material"}""",
+            result = "Done.",
             session_id = "session-extra-metadata",
+            some_future_field = new { nested = true },
+            structured_output = new { decision = "accept", summary = "looks fine", rationale = "nothing material" },
         });
 
         var fake = new FakeProcessExecutionAdapter
         {
             OnExecute = _ => new ProcessExecutionResult
             {
+                IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                 Outcome = ProcessExecutionOutcome.Exited,
                 ExitCode = 0,
                 StandardOutput = envelope,
@@ -943,7 +955,7 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         var adapter = new ClaudeCriticalReviewAdapter(fake, _artifactStore);
         var request = new CriticalReviewInvocationRequest(
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
-            executablePath, TimeSpan.FromSeconds(30), 65536, 131072);
+            executablePath, TimeSpan.FromSeconds(30), 65536, 131072, AdapterContractVersion: ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion);
 
         var result = await adapter.InvokeAsync(request, CancellationToken.None);
 
@@ -973,7 +985,7 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         var request = new CriticalReviewInvocationRequest(
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
             CreateLaunchFile($"fake-claude-model-{Guid.NewGuid():N}.exe"), TimeSpan.FromSeconds(30), 65536, 131072,
-            requestedClaudeModel, requestedClaudeEffort);
+            requestedClaudeModel, requestedClaudeEffort, AdapterContractVersion: ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion);
 
         var result = await new ClaudeCriticalReviewAdapter(fake, _artifactStore).InvokeAsync(request, CancellationToken.None);
 
@@ -1019,7 +1031,7 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         var fake = new FakeProcessExecutionAdapter();
         var request = new CriticalReviewInvocationRequest(
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
-            CreateLaunchFile("fake-claude-bad-model.exe"), TimeSpan.FromSeconds(30), 65536, 131072, malformed);
+            CreateLaunchFile("fake-claude-bad-model.exe"), TimeSpan.FromSeconds(30), 65536, 131072, malformed, AdapterContractVersion: ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion);
 
         var result = await new ClaudeCriticalReviewAdapter(fake, _artifactStore).InvokeAsync(request, CancellationToken.None);
 
@@ -1067,7 +1079,7 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         var fake = new FakeProcessExecutionAdapter();
         var request = new CriticalReviewInvocationRequest(
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
-            CreateLaunchFile("fake-claude-bad-pair.exe"), TimeSpan.FromSeconds(30), 65536, 131072, model, effort);
+            CreateLaunchFile("fake-claude-bad-pair.exe"), TimeSpan.FromSeconds(30), 65536, 131072, model, effort, AdapterContractVersion: ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion);
 
         var result = await new ClaudeCriticalReviewAdapter(fake, _artifactStore).InvokeAsync(request, CancellationToken.None);
 
@@ -1155,9 +1167,10 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
 
             var result = OnExecute?.Invoke(request) ?? new ProcessExecutionResult
             {
+                IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                 Outcome = ProcessExecutionOutcome.Exited,
                 ExitCode = 0,
-                StandardOutput = JsonSerializer.Serialize(new { is_error = false, result = "{}", session_id = (string?)null }),
+                StandardOutput = ClaudeDocumentedEnvelope.SuccessText("{}", (string?)null),
                 StandardOutputTruncated = false,
                 StandardError = string.Empty,
                 StandardErrorTruncated = false,

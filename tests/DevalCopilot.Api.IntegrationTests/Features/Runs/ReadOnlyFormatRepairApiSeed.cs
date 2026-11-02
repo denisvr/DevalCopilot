@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using System.Text.Json;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
@@ -169,7 +170,7 @@ public static class ReadOnlyFormatRepairApiSeed
                 {
                     var execution = VerificationExecution.Claim(Guid.NewGuid(), project.Id, index + 1, workspace, result, commands[index], now);
                     execution.MarkDispatched(now);
-                    execution.Complete(VerificationExecutionOutcome.Exited, 0, result.FingerprintSha256, now);
+                    execution.Complete(VerificationExecutionOutcome.Exited, 0, result.FingerprintSha256, now, ProcessIoCompletion.CompleteWithoutInput);
                     dbContext.VerificationExecutions.Add(execution);
                     executions.Add(execution);
                 }
@@ -246,5 +247,5 @@ public static class ReadOnlyFormatRepairApiSeed
     }
 
     private static AgentProcessExecutionEvidence CleanExit() =>
-        AgentProcessExecutionEvidence.Create(ProcessOutcome.Exited, 0, TimeSpan.FromSeconds(1));
+        AgentProcessExecutionEvidence.Create(ProcessOutcome.Exited, 0, TimeSpan.FromSeconds(1), ProcessIoCompletion.CompleteWithInput);
 }

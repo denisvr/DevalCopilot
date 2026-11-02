@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -220,7 +221,7 @@ public sealed class RequestCodexPlanningRepairAttemptEndpointTests : IDisposable
         source.MarkAgentDispatched(now);
         source.CompleteAgent(
             AgentOutcome.InvalidStructuredOutput, Fingerprint, now,
-            AgentProcessExecutionEvidence.Create(ProcessOutcome.Exited, 0, TimeSpan.FromSeconds(1)));
+            AgentProcessExecutionEvidence.Create(ProcessOutcome.Exited, 0, TimeSpan.FromSeconds(1), ProcessIoCompletion.CompleteWithInput));
 
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);

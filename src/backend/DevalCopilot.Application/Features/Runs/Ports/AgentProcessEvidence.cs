@@ -1,4 +1,5 @@
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Domain.Features.Processes;
 
 namespace DevalCopilot.Application.Features.Runs.Ports;
 
@@ -22,9 +23,17 @@ public sealed record AgentProcessEvidence(ProcessExecutionOutcome Outcome, int? 
     /// pass, review or approval; the Domain process-evidence invariants do not consume it.</summary>
     public ProcessTerminationObservation? Termination { get; init; }
 
+    /// <summary>ADR-0072: the adapter's I/O completion facts, forwarded unchanged from the process result. A semantic success, and
+    /// every other clean-exit-required outcome, also requires these to be complete; null means not established.</summary>
+    public ProcessIoCompletion? IoCompletion { get; init; }
+
     public static AgentProcessEvidence FromProcessExecutionResult(ProcessExecutionResult result)
     {
         ArgumentNullException.ThrowIfNull(result);
-        return new AgentProcessEvidence(result.Outcome, result.ExitCode, result.Duration) { Termination = result.Termination };
+        return new AgentProcessEvidence(result.Outcome, result.ExitCode, result.Duration)
+        {
+            Termination = result.Termination,
+            IoCompletion = result.IoCompletion,
+        };
     }
 }

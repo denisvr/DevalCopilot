@@ -13,6 +13,7 @@ public sealed class ArtifactConfiguration : IEntityTypeConfiguration<Artifact>
 
         builder.Property(artifact => artifact.Purpose).HasConversion<string>().HasMaxLength(32).IsRequired();
         builder.Property(artifact => artifact.CaptureOutcome).HasConversion<string>().HasMaxLength(32).IsRequired();
+        builder.Property(artifact => artifact.CaptureCompletion).HasConversion<string>().HasMaxLength(32);
         builder.Property(artifact => artifact.Sensitivity).HasConversion<string>().HasMaxLength(32).IsRequired();
         builder.Property(artifact => artifact.RetentionPolicy).HasConversion<string>().HasMaxLength(32).IsRequired();
         builder.Property(artifact => artifact.MediaType).HasMaxLength(128).IsRequired();

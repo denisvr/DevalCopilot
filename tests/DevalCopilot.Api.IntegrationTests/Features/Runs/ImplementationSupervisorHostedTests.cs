@@ -549,11 +549,11 @@ public sealed partial class ImplementationSupervisorHostedTests : IDisposable
 
         Assert.Equal(1, adapter.InvocationCount);
         Assert.Equal(12, adapter.LastRequest!.RequestedMaxTurns);
-        Assert.Equal(ClaudeMutationAdapterContract.ImplementationV2, adapter.LastRequest.AdapterContractVersion);
+        Assert.Equal(ClaudeMutationAdapterContract.CurrentImplementation, adapter.LastRequest.AdapterContractVersion);
     }
 
     [Fact]
-    public async Task A_run_without_a_turn_limit_dispatches_none_under_the_v2_contract()
+    public async Task A_run_without_a_turn_limit_dispatches_none_under_the_current_contract()
     {
         var evidenceReader = new SequencedGitWorkspaceEvidenceReader(call =>
             call <= 4
@@ -566,7 +566,7 @@ public sealed partial class ImplementationSupervisorHostedTests : IDisposable
         await RunSupervisorToTerminalAsync(provider, attemptId);
 
         Assert.Null(adapter.LastRequest!.RequestedMaxTurns);
-        Assert.Equal(ClaudeMutationAdapterContract.ImplementationV2, adapter.LastRequest.AdapterContractVersion);
+        Assert.Equal(ClaudeMutationAdapterContract.CurrentImplementation, adapter.LastRequest.AdapterContractVersion);
     }
 
     [Fact]

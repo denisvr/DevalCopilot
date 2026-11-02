@@ -19,7 +19,8 @@ public sealed record RecordReviewCorrectionResultCommand(
     string? ProviderSessionId,
     AgentProcessEvidence? ProcessEvidence = null,
     AgentTokenUsage? TokenUsage = null,
-    AgentModelContextLimits? ModelContextLimits = null) : ICommand<Result<RecordReviewCorrectionResultCommandResult>>
+    AgentModelContextLimits? ModelContextLimits = null,
+    AgentInvocationDiagnostic? InvocationDiagnostic = null) : ICommand<Result<RecordReviewCorrectionResultCommandResult>>
 {
     /// <summary>ADR-0065: the opaque in-memory ticket the original host received from the committed dispatch marker of a linked local
     /// execution operation. It is public to the host supervisors only to be carried unchanged; it cannot be minted outside the

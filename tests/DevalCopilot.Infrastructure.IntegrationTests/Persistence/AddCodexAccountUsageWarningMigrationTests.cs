@@ -309,7 +309,21 @@ public sealed class AddCodexAccountUsageWarningMigrationTests : IAsyncLifetime
         var runColumnsAfter = (await ReadColumnsAsync("runs")).Select(column => column.Name).ToArray();
         Assert.Equal(["AbandonedAtUtc", "AbandonmentReason", "CodexAccountUsageWarningPercent"], runColumnsBefore.Except(runColumnsAfter).Order());
         Assert.Empty(runColumnsAfter.Except(runColumnsBefore));
-        Assert.Equal(attemptColumnsBefore, (await ReadColumnsAsync("attempts")).Select(column => column.Name).ToArray());
+        // The database is at the latest migration, so the later ADR-0072 attempt columns are dropped on the way down too.
+        var attemptColumnsAfter = (await ReadColumnsAsync("attempts")).Select(column => column.Name).ToArray();
+        Assert.Equal(
+            [
+                "AgentInvocationDiagnostic",
+                "AgentInvocationDiagnosticVersion",
+                "AgentStandardErrorCompletion",
+                "AgentStandardInputDelivery",
+                "AgentStandardOutputCompletion",
+                "ProcessStandardErrorCompletion",
+                "ProcessStandardInputDelivery",
+                "ProcessStandardOutputCompletion",
+            ],
+            attemptColumnsBefore.Except(attemptColumnsAfter).Order());
+        Assert.Empty(attemptColumnsAfter.Except(attemptColumnsBefore));
 
         await using var probe = new SqliteConnection($"Data Source={_databasePath}");
         await probe.OpenAsync();

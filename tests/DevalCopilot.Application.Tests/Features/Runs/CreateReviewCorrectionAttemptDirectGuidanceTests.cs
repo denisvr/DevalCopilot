@@ -82,7 +82,7 @@ public sealed partial class CreateReviewCorrectionAttemptCommandHandlerTests
 
         await using var verify = _fixture.CreateContext();
         var attempt = await verify.Attempts.AsNoTracking().SingleAsync(a => a.Id == created.AttemptId);
-        Assert.Equal("claude-review-correction-v2", attempt.AgentAdapterContractVersion);
+        Assert.Equal("claude-review-correction-v3", attempt.AgentAdapterContractVersion);
         Assert.Equal(DirectHumanGuidanceEvidence.Provided, attempt.GetDirectHumanGuidanceEvidence());
         var inputs = await verify.AttemptInputMessages.Where(m => m.AttemptId == created.AttemptId).OrderBy(m => m.Sequence).ToListAsync();
         Assert.Equal([seed.ExecutionReport.Id, .. seed.Findings.Select(f => f.Id)], inputs.Select(m => m.CollaborationMessageId));

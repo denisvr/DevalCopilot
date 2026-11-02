@@ -1,3 +1,5 @@
+using DevalCopilot.Domain.Features.Processes;
+
 namespace DevalCopilot.Domain.Features.Projects;
 
 /// <summary>
@@ -19,7 +21,8 @@ public sealed class VerificationOutputArtifact
         long byteLength,
         bool? truncated,
         VerificationOutputCaptureOutcome captureOutcome,
-        DateTimeOffset createdAtUtc)
+        DateTimeOffset createdAtUtc,
+        OutputCaptureCompletion? captureCompletion = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(relativeStoragePath);
         ArgumentException.ThrowIfNullOrWhiteSpace(contentHash);
@@ -38,6 +41,13 @@ public sealed class VerificationOutputArtifact
             throw new ArgumentException("Recovered output must leave truncation unknown.", nameof(truncated));
         }
 
+        // ADR-0072: only a same-host capture records how its stream ended; a recovered import never observed it.
+        if (captureCompletion is { } completion
+            && (captureOutcome != VerificationOutputCaptureOutcome.CapturedWithKnownTruncation || !Enum.IsDefined(completion)))
+        {
+            throw new ArgumentException("Only a same-host capture may record a defined capture completion.", nameof(captureCompletion));
+        }
+
         return new VerificationOutputArtifact
         {
             Id = id,
@@ -49,6 +59,7 @@ public sealed class VerificationOutputArtifact
             Truncated = truncated,
             CaptureOutcome = captureOutcome,
             CreatedAtUtc = createdAtUtc,
+            CaptureCompletion = captureCompletion,
         };
     }
 
@@ -57,6 +68,11 @@ public sealed class VerificationOutputArtifact
     public Guid VerificationExecutionId { get; private set; }
 
     public VerificationOutputPurpose Purpose { get; private set; }
+
+    /// <summary>ADR-0072: how the captured stream ended, separately from truncation; anything other than
+    /// <see cref="OutputCaptureCompletion.Complete"/> classifies this output as incomplete. <see langword="null"/> means not recorded
+    /// (every earlier output and every recovered import); it is never read as complete.</summary>
+    public OutputCaptureCompletion? CaptureCompletion { get; private set; }
 
     public string RelativeStoragePath { get; private set; } = string.Empty;
 

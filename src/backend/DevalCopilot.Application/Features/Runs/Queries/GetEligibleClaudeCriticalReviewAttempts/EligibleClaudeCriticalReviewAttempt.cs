@@ -19,4 +19,5 @@ public sealed record EligibleClaudeCriticalReviewAttempt(
     int MaxTotalCapturedBytes,
     Guid InputCollaborationMessageId,
     string? RequestedClaudeModel = null,
-    string? RequestedClaudeEffort = null);
+    string? RequestedClaudeEffort = null,
+    string? AdapterContractVersion = null);

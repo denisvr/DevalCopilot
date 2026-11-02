@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Application.Features.Runs.Commands.RecordCodeReviewInputAlreadyCodeReviewed;
 using DevalCopilot.Domain.Features.Runs;
@@ -46,7 +47,7 @@ public sealed class RecordCodeReviewInputAlreadyCodeReviewedCommandHandlerTests(
                 Guid.NewGuid(), projectId, index + 1, $"Command {index + 1}", @"C:\dotnet.exe", ["test"], 300, true, Now);
             var execution = VerificationExecution.Claim(Guid.NewGuid(), projectId, index + 1, workspace, checkpoint, command, Now);
             execution.MarkDispatched(Now);
-            execution.Complete(VerificationExecutionOutcome.Exited, 0, checkpoint.FingerprintSha256, Now);
+            execution.Complete(VerificationExecutionOutcome.Exited, 0, checkpoint.FingerprintSha256, Now, ProcessIoCompletion.CompleteWithoutInput);
             commands.Add(command);
             executions.Add(execution);
         }

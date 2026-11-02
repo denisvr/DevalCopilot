@@ -68,6 +68,9 @@ public static class JourneyHost
                 services.RemoveAll<IVerificationOutputArtifactStore>();
                 services.AddSingleton<IArtifactStore>(artifacts);
                 services.AddSingleton<IVerificationOutputArtifactStore>(artifacts);
+                services.RemoveAll<IVerificationEnvironmentProvider>();
+                services.AddSingleton<IVerificationEnvironmentProvider>(
+                    new WindowsVerificationEnvironmentProvider(Path.Combine(root.Artifacts, "verification-environments")));
             });
         });
         factory.UseKestrel(api.Port);

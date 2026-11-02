@@ -1,3 +1,5 @@
+using DevalCopilot.Domain.Features.Processes;
+
 namespace DevalCopilot.Domain.Features.Runs;
 
 /// <summary>
@@ -12,11 +14,12 @@ namespace DevalCopilot.Domain.Features.Runs;
 /// </summary>
 public sealed record AgentProcessExecutionEvidence
 {
-    private AgentProcessExecutionEvidence(ProcessOutcome outcome, int? exitCode, TimeSpan duration)
+    private AgentProcessExecutionEvidence(ProcessOutcome outcome, int? exitCode, TimeSpan duration, ProcessIoCompletion? ioCompletion)
     {
         Outcome = outcome;
         ExitCode = exitCode;
         Duration = duration;
+        IoCompletion = ioCompletion;
     }
 
     public ProcessOutcome Outcome { get; }
@@ -27,12 +30,21 @@ public sealed record AgentProcessExecutionEvidence
     /// <summary>Non-negative wall-clock duration measured by the host around the child process.</summary>
     public TimeSpan Duration { get; }
 
-    /// <summary>True only for a process that ran to completion and exited with code zero.</summary>
+    /// <summary>ADR-0072: the host's I/O completion facts, separate from the physical outcome. <see langword="null"/> when they
+    /// were not established, including for every attempt recorded before they existed.</summary>
+    public ProcessIoCompletion? IoCompletion { get; }
+
+    /// <summary>True only for a process that ran to completion and exited with code zero. A physical fact only: it says nothing
+    /// about <see cref="IoCompletion"/>.</summary>
     public bool IsCleanExit => Outcome == ProcessOutcome.Exited && ExitCode == 0;
+
+    /// <summary>True only when <see cref="IoCompletion"/> was established and is complete.</summary>
+    public bool HasCompleteIo => IoCompletion is { IsComplete: true };
 
     /// <summary>Creates validated evidence, throwing <see cref="ArgumentException"/> for any shape
     /// <see cref="Validate"/> rejects.</summary>
-    public static AgentProcessExecutionEvidence Create(ProcessOutcome outcome, int? exitCode, TimeSpan duration)
+    public static AgentProcessExecutionEvidence Create(
+        ProcessOutcome outcome, int? exitCode, TimeSpan duration, ProcessIoCompletion? ioCompletion = null)
     {
         var violation = Validate(outcome, exitCode, duration);
         if (violation is not null)
@@ -40,7 +52,7 @@ public sealed record AgentProcessExecutionEvidence
             throw new ArgumentException($"Invalid agent process evidence: {violation}.", nameof(outcome));
         }
 
-        return new AgentProcessExecutionEvidence(outcome, exitCode, duration);
+        return new AgentProcessExecutionEvidence(outcome, exitCode, duration, ioCompletion);
     }
 
     /// <summary>Returns the first shape violation, or <see langword="null"/> when the shape is valid.</summary>

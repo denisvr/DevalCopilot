@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Domain.Features.Projects;
 
 namespace DevalCopilot.Application.Features.Projects.Policies.ProjectVerificationInspection;
@@ -145,7 +146,29 @@ internal static class ProjectVerificationInspectionProjection
                         ? checkpoint.CheckpointNumber
                         : null,
                     ((byte[])(object)checkpoint.FingerprintSha256).Length <= FingerprintByteBound ? checkpoint.FingerprintSha256 : null,
-                    ((byte[])(object)checkpoint.FingerprintSha256).Length > FingerprintByteBound));
+                    ((byte[])(object)checkpoint.FingerprintSha256).Length > FingerprintByteBound,
+                    pair.execution.StandardOutputCompletion == null && pair.execution.StandardErrorCompletion == null && pair.execution.StandardInputDelivery == null
+                        ? VerificationIoCode.NotRecorded
+                        : pair.execution.StandardOutputCompletion == OutputCaptureCompletion.Complete
+                            && pair.execution.StandardErrorCompletion == OutputCaptureCompletion.Complete
+                            && (pair.execution.StandardInputDelivery == InputDeliveryCompletion.Complete
+                                || pair.execution.StandardInputDelivery == InputDeliveryCompletion.NotRedirected)
+                            ? VerificationIoCode.Complete
+                            : (pair.execution.StandardOutputCompletion == OutputCaptureCompletion.Unknown
+                                    || pair.execution.StandardOutputCompletion == OutputCaptureCompletion.Complete
+                                    || pair.execution.StandardOutputCompletion == OutputCaptureCompletion.DeadlineExceeded
+                                    || pair.execution.StandardOutputCompletion == OutputCaptureCompletion.Faulted)
+                                && (pair.execution.StandardErrorCompletion == OutputCaptureCompletion.Unknown
+                                    || pair.execution.StandardErrorCompletion == OutputCaptureCompletion.Complete
+                                    || pair.execution.StandardErrorCompletion == OutputCaptureCompletion.DeadlineExceeded
+                                    || pair.execution.StandardErrorCompletion == OutputCaptureCompletion.Faulted)
+                                && (pair.execution.StandardInputDelivery == InputDeliveryCompletion.Unknown
+                                    || pair.execution.StandardInputDelivery == InputDeliveryCompletion.NotRedirected
+                                    || pair.execution.StandardInputDelivery == InputDeliveryCompletion.Complete
+                                    || pair.execution.StandardInputDelivery == InputDeliveryCompletion.DeadlineExceeded
+                                    || pair.execution.StandardInputDelivery == InputDeliveryCompletion.Faulted)
+                                ? VerificationIoCode.Incomplete
+                                : VerificationIoCode.Unrecognized));
 
     /// <summary>Only the two allowlisted purposes are ever selected; any other stored purpose is never read as a supported stream.</summary>
     public static IQueryable<VerificationOutputArtifact> WhereAllowlisted(this IQueryable<VerificationOutputArtifact> outputs) =>

@@ -45,12 +45,12 @@ public sealed class AttemptClaudeMutationTurnLimitTests
     [InlineData(1)]
     [InlineData(12)]
     [InlineData(100)]
-    public void The_review_correction_factory_always_uses_v2_and_snapshots_the_limit(int? maxTurns)
+    public void The_review_correction_factory_always_uses_the_current_v3_and_snapshots_the_limit(int? maxTurns)
     {
         var attempt = ClaimCorrection(maxTurns);
 
         Assert.Equal(maxTurns, attempt.AgentRequestedMaxTurns);
-        Assert.Equal("claude-review-correction-v2", attempt.AgentAdapterContractVersion);
+        Assert.Equal("claude-review-correction-v3", attempt.AgentAdapterContractVersion);
         Assert.Equal(
             maxTurns is null ? ClaudeMutationTurnLimitEvidence.NotRequested : ClaudeMutationTurnLimitEvidence.Requested,
             attempt.GetMutationTurnLimitEvidence());
@@ -77,11 +77,12 @@ public sealed class AttemptClaudeMutationTurnLimitTests
 
     [Theory]
     [InlineData("claude-implementation-v1")]
-    [InlineData("claude-implementation-v3")]
+    [InlineData("claude-implementation-v4")]
     [InlineData("claude-review-correction-v2")]
+    [InlineData("claude-review-correction-v3")]
     [InlineData("Claude-Implementation-V2")]
     [InlineData("custom-contract")]
-    public void A_limit_is_rejected_with_any_version_other_than_exactly_implementation_v2(string version)
+    public void A_limit_is_rejected_with_any_version_other_than_exactly_implementation_v2_or_v3(string version)
     {
         Assert.Throws<ArgumentException>(() => ClaimImplementation(5, version));
     }
@@ -220,7 +221,7 @@ public sealed class AttemptClaudeMutationTurnLimitTests
                 profile, ClaudeMutationAdapterContract.ImplementationV2, valid));
         }
 
-        foreach (var version in new[] { null, string.Empty, ClaudeMutationAdapterContract.ImplementationV1, "claude-implementation-v3", ClaudeMutationAdapterContract.ReviewCorrectionV2 })
+        foreach (var version in new[] { null, string.Empty, ClaudeMutationAdapterContract.ImplementationV1, "claude-implementation-v4", ClaudeMutationAdapterContract.ReviewCorrectionV2 })
         {
             Assert.False(ClaudeMutationAdapterContract.IsDispatchCoherent(
                 AgentResponseContract.ImplementationReport, AgentRole.Implementer, AgentProvider.ClaudeCode,

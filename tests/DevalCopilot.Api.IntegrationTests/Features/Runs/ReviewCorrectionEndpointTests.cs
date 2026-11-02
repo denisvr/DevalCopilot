@@ -136,7 +136,13 @@ public sealed partial class ReviewCorrectionEndpointTests : IDisposable
         Assert.Equal(JsonValueKind.Null, processExecution.GetProperty("exitCode").ValueKind);
         Assert.Equal(JsonValueKind.Null, processExecution.GetProperty("durationMilliseconds").ValueKind);
         Assert.True(processExecution.GetProperty("timeoutMilliseconds").GetInt64() > 0);
-        Assert.Equal(4, processExecution.EnumerateObject().Count());
+        // ADR-0072: the three I/O completion facts are equally unknown before dispatch.
+        foreach (var member in new[] { "standardOutputCompletion", "standardErrorCompletion", "standardInputDelivery" })
+        {
+            Assert.Equal(JsonValueKind.Null, processExecution.GetProperty(member).ValueKind);
+        }
+
+        Assert.Equal(7, processExecution.EnumerateObject().Count());
         // The just-created attempt uses the real ClaimAgentReviewCorrection claim factory, so its
         // assignment is coherent by default — these configured facts are populated even while the
         // attempt is still Running, exactly like every other assignment fact on this attempt.
@@ -160,7 +166,7 @@ public sealed partial class ReviewCorrectionEndpointTests : IDisposable
         {
             var db = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
             await db.Database.ExecuteSqlInterpolatedAsync(
-                $"UPDATE attempts SET AgentAdapterContractVersion = 'claude-review-correction-v3' WHERE Id = {attemptId}");
+                $"UPDATE attempts SET AgentAdapterContractVersion = 'claude-review-correction-v4' WHERE Id = {attemptId}");
         }
 
         var after = await client.GetAsync($"/api/runs/{seed.RunId}/agent-attempts/review-correction");

@@ -138,6 +138,9 @@ public sealed class RecoverInterruptedVerificationOutputArtifactsTransactionBoun
             VerificationOutputPurpose purpose,
             CancellationToken cancellationToken) => Task.FromResult<SealedVerificationOutputFile?>(null);
 
+        public bool HasSealedFile(Guid verificationExecutionId, VerificationOutputPurpose purpose) =>
+            verificationExecutionId == successfulExecutionId && purpose == VerificationOutputPurpose.StandardOutput;
+
         public Task<SealedVerificationOutputFile?> DescribeSealedFileAsync(
             Guid verificationExecutionId,
             VerificationOutputPurpose purpose,

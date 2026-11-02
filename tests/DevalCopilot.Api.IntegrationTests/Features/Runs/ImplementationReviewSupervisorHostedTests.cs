@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using System.Text.Json;
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
@@ -711,7 +712,7 @@ public sealed partial class ImplementationReviewSupervisorHostedTests : IDisposa
         var workspace = await dbContext.GitWorkspaces.SingleAsync(w => w.Id == workspaceId);
         var execution = VerificationExecution.Claim(Guid.NewGuid(), projectId, 1, workspace, resultCheckpoint, command, DateTimeOffset.UtcNow);
         execution.MarkDispatched(DateTimeOffset.UtcNow);
-        execution.Complete(VerificationExecutionOutcome.Exited, 0, resultCheckpoint.FingerprintSha256, DateTimeOffset.UtcNow);
+        execution.Complete(VerificationExecutionOutcome.Exited, 0, resultCheckpoint.FingerprintSha256, DateTimeOffset.UtcNow, ProcessIoCompletion.CompleteWithoutInput);
         dbContext.VerificationExecutions.Add(execution);
         await dbContext.SaveChangesAsync(CancellationToken.None);
 

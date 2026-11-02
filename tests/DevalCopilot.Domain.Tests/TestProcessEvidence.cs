@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Domain.Features.Runs;
 
 namespace DevalCopilot.Domain.Tests;
@@ -7,5 +8,5 @@ namespace DevalCopilot.Domain.Tests;
 internal static class TestProcessEvidence
 {
     public static AgentProcessExecutionEvidence CleanExit { get; } =
-        AgentProcessExecutionEvidence.Create(ProcessOutcome.Exited, 0, TimeSpan.FromMilliseconds(1250));
+        AgentProcessExecutionEvidence.Create(ProcessOutcome.Exited, 0, TimeSpan.FromMilliseconds(1250), ProcessIoCompletion.CompleteWithInput);
 }

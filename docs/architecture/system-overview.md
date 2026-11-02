@@ -68,6 +68,15 @@ The shell owns:
 It does not own workflow state, agent invocation, Git behavior, approvals,
 business decisions, or persistence.
 
+The sidecar stdout protocol carries one Ready line (`{"port":N,"warnings":[…]}` with closed
+warning names) or, since [ADR-0072](../decisions/0072-adopt-one-windows-execution-profile.md),
+one bounded failure frame (`DEVALCOPILOT_SIDECAR_FAILED` with version 1 and closed stage,
+reason and action names). The shell validates either line against closed lists and a 512-byte
+bound and ignores fragments and malformed records. A valid failure frame is terminal for that
+launch: `get_launch_session` returns the closed `startup-failed` error and the WebView shows its
+failed-startup screen with fixed guidance and the copyable diagnostic, without any API call or
+session. A late Ready never restores a failed launch. Valid warnings reach one app-shell summary.
+
 ### React frontend
 
 The frontend owns:

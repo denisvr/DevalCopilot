@@ -188,13 +188,14 @@ public sealed partial class ProviderFixtureContractTests
         ["projectInstructions"] = CycleMarker,
     }.ToJsonString();
 
+    // ADR-0072: the schema-bound response is the documented structured output object, never the narrative result.
     private static JsonObject ResultOf(Result result) =>
-        JsonNode.Parse(JsonNode.Parse(result.StandardOutput)!.AsObject()["result"]!.GetValue<string>())!.AsObject();
+        JsonNode.Parse(result.StandardOutput)!.AsObject()["structured_output"]!.AsObject();
 
     private static ValidatedReviewCorrection ParseCorrection(Result result, Guid expectedFinding)
     {
         var envelope = JsonNode.Parse(result.StandardOutput)!.AsObject();
-        var parsed = ReviewCorrectionResponseParser.TryParse(envelope["result"]!.GetValue<string>(), [expectedFinding]);
+        var parsed = ReviewCorrectionResponseParser.TryParse(envelope["structured_output"]!.ToJsonString(), [expectedFinding]);
         Assert.NotNull(parsed);
         return parsed;
     }

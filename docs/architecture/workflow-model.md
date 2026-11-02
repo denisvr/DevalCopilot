@@ -76,6 +76,34 @@ and the selected Git checkpoint only when the workspace is `Ready`, its mutation
 `Active`, and a fresh evidence capture still matches that checkpoint. The host persists the
 claim and a dispatch marker before starting the child process; the process uses no shell, no
 PATH lookup, and no ambient environment, and its working directory is the isolated workspace.
+Since [ADR-0072](../decisions/0072-adopt-one-windows-execution-profile.md) every dispatched
+verification receives the fixed environment profile instead of an empty one (`windows-verification-v1`;
+`windows-verification-v2` added the NuGet base below since
+[ADR-0073](../decisions/0073-add-an-owned-nuget-base-to-the-windows-verification-profile.md); new executions record
+`windows-verification-v3` since
+[ADR-0074](../decisions/0074-disable-sdk-first-run-persistent-side-effects-in-the-windows-verification-profile.md)): `SystemRoot`, `ComSpec`, a `PATH` of only the validated executable directory and the
+system directory, and owned per-execution `TEMP`, `TMP`, `USERPROFILE`, `APPDATA` and
+`LOCALAPPDATA`; for `dotnet.exe` also `DOTNET_ROOT`, owned `DOTNET_CLI_HOME` and
+`NUGET_PACKAGES` (the owned directory with a trailing directory separator, because the SDK's `$(NuGetPackageRoot)` is that value
+verbatim and shared MSBuild targets append package-relative paths to it directly; a representational detail, not a new
+key or version), `DOTNET_CLI_TELEMETRY_OPTOUT=1`, `DOTNET_NOLOGO=1`, (version 2) `ProgramFiles(x86)` pointing at a new,
+empty owned directory as NuGet's machine-settings base (configuration scoping, not isolation; no ambient Program Files value) and
+(version 3) the literal `DOTNET_ADD_GLOBAL_TOOLS_TO_PATH=false` and `DOTNET_GENERATE_ASPNET_CERTIFICATE=false`, because the SDK's
+first run in each fresh owned CLI home would otherwise append its tools directory to the persistent user `PATH` and generate an
+ASP.NET development certificate, both of which outlive the owned scratch (disabling two named side effects, not isolation); for `node.exe` running
+its own bundled `npm-cli.js`, an owned `npm_config_cache` and empty owned user and global npm
+configuration files. Nothing is copied from the host environment, profile, credentials or caches,
+and there is no fallback. A direct `npm.cmd` launch, an unvalidated executable or a missing
+prerequisite completes the execution as `Failed` with the closed diagnostic
+`EnvironmentUnavailable`, and an incomplete capture as `CaptureDeadlineExceeded` or
+`CaptureFault`. `Passed` additionally requires complete stdout, stderr and stdin I/O; an observed
+exit code zero with incomplete I/O is recorded unchanged as `Failed`. The execution records the
+profile version, its I/O facts and any diagnostic. Owned scratch is removed only after a proved
+exit with complete I/O. A preparation that fails after the durable dispatch marker is recorded once
+as `Failed` with `EnvironmentUnavailable`, no profile version and no process, its unused scratch is
+removed and nothing is redispatched. A captured stream is sealed only when its writer was proved
+closed. Recipes, gates and standalone Process attempts (still empty environment) are unchanged.
+Executions that recorded version 1 or no profile keep exactly what they recorded.
 
 The explicit claim (`POST /api/projects/{projectId}/verification-commands/{verificationCommandId}/executions`, HTTP 202 with the
 execution identity and number) decides from fresh facts at its commit. It requires an enabled recipe owned by the project, the

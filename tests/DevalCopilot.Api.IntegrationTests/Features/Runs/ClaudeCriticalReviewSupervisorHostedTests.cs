@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using System.Text.Json;
 using Devalente.Shared.Cqrs;
 using DevalCopilot.Api.HostedServices;
@@ -626,7 +627,7 @@ public sealed partial class ClaudeCriticalReviewSupervisorHostedTests : IDisposa
         {
             ResultToReturn = new CriticalReviewInvocationResult(
                 CriticalReviewInvocationOutcome.Failed, false, false, null,
-                new AgentProcessEvidence(ProcessExecutionOutcome.Exited, 0, TimeSpan.FromMilliseconds(300)), usage),
+                new AgentProcessEvidence(ProcessExecutionOutcome.Exited, 0, TimeSpan.FromMilliseconds(300)) { IoCompletion = ProcessIoCompletion.CompleteWithInput }, usage),
         };
 
         await using var provider = BuildServiceProvider(evidenceReader, adapter);

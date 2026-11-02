@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Processes.Ports;
@@ -142,6 +143,7 @@ internal sealed partial class LocalExecutionSequenceTestScene
                 DispatchTicket = ticket,
                 Termination = termination,
                 ProcessDuration = processDuration,
+                IoCompletion = outcome == VerificationExecutionOutcome.Failed ? null : ProcessIoCompletion.CompleteWithoutInput,
             },
             CancellationToken.None));
     }

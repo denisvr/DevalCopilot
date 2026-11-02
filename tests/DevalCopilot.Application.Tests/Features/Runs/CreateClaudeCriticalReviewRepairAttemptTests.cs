@@ -79,7 +79,7 @@ public sealed class CreateClaudeCriticalReviewRepairAttemptTests : IAsyncLifetim
         Assert.Equal(AgentRole.CriticalReviewer, repair.AgentRole);
         Assert.Equal(AgentResponseContract.CriticalReview, repair.AgentResponseContract);
         Assert.Equal(AgentPermissionProfile.ReadOnly, repair.AgentPermissionProfile);
-        Assert.Equal("claude-critical-review-v1", repair.AgentAdapterContractVersion);
+        Assert.Equal("claude-critical-review-v2", repair.AgentAdapterContractVersion);
         Assert.Equal(scene.Workspace.Id, repair.AgentGitWorkspaceId);
         Assert.Equal(scene.Checkpoint.Id, repair.AgentGitCheckpointId);
         Assert.Equal(source.AgentBudgetSlot + 1, repair.AgentBudgetSlot);

@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -317,7 +318,7 @@ public sealed class LocalDeliveryReceiptEndpointTests : LocalDeliveryReceiptTest
             var rerun = VerificationExecution.Claim(
                 Guid.NewGuid(), project.Id, project.ReserveVerificationExecutionNumber(), workspace, checkpoint, command, DateTimeOffset.UtcNow);
             rerun.MarkDispatched(DateTimeOffset.UtcNow);
-            rerun.Complete(VerificationExecutionOutcome.Exited, 1, checkpoint.FingerprintSha256, DateTimeOffset.UtcNow);
+            rerun.Complete(VerificationExecutionOutcome.Exited, 1, checkpoint.FingerprintSha256, DateTimeOffset.UtcNow, ProcessIoCompletion.CompleteWithoutInput);
             db.VerificationExecutions.Add(rerun);
             await db.SaveChangesAsync();
         }

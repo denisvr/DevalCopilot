@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.Runs;
 using DevalCopilot.Infrastructure.Features.Processes;
@@ -68,6 +69,7 @@ public sealed class CodexChallengeResolutionAdapterTests : IDisposable
                 capturedSchemaContent = File.Exists(schemaPath) ? File.ReadAllText(schemaPath) : null;
                 return new ProcessExecutionResult
                 {
+                    IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                     Outcome = ProcessExecutionOutcome.Exited,
                     ExitCode = 0,
                     StandardOutput = string.Empty,
@@ -232,6 +234,7 @@ public sealed class CodexChallengeResolutionAdapterTests : IDisposable
         {
             OnExecute = _ => new ProcessExecutionResult
             {
+                IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                 Outcome = ProcessExecutionOutcome.Exited,
                 ExitCode = 1,
                 StandardOutput = string.Empty,
@@ -293,6 +296,7 @@ public sealed class CodexChallengeResolutionAdapterTests : IDisposable
         {
             OnExecute = _ => new ProcessExecutionResult
             {
+                IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                 Outcome = ProcessExecutionOutcome.Exited,
                 ExitCode = 0,
                 StandardOutput = """{"type":"thread.started","thread_id":"thread-abc-123"}""" + "\n",
@@ -325,6 +329,7 @@ public sealed class CodexChallengeResolutionAdapterTests : IDisposable
         {
             OnExecute = _ => new ProcessExecutionResult
             {
+                IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                 Outcome = ProcessExecutionOutcome.Exited,
                 ExitCode = 0,
                 StandardOutput = """{"type":"session_meta","session_id":"session-abc-123"}""" + "\n",
@@ -412,6 +417,7 @@ public sealed class CodexChallengeResolutionAdapterTests : IDisposable
 
             var result = OnExecute?.Invoke(request) ?? new ProcessExecutionResult
             {
+                IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                 Outcome = ProcessExecutionOutcome.Exited,
                 ExitCode = 0,
                 StandardOutput = string.Empty,

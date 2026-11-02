@@ -1,3 +1,5 @@
+using DevalCopilot.Application.Features.Projects.Policies;
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
@@ -261,5 +263,27 @@ internal static class LocalExecutionInspectionProjection
             execution.ExitCode != null,
             execution.ClaimedAtUtc,
             execution.DispatchedAtUtc,
-            execution.CompletedAtUtc));
+            execution.CompletedAtUtc,
+            execution.StandardOutputCompletion == null && execution.StandardErrorCompletion == null && execution.StandardInputDelivery == null
+                ? VerificationIoCode.NotRecorded
+                : execution.StandardOutputCompletion == OutputCaptureCompletion.Complete
+                    && execution.StandardErrorCompletion == OutputCaptureCompletion.Complete
+                    && (execution.StandardInputDelivery == InputDeliveryCompletion.Complete
+                        || execution.StandardInputDelivery == InputDeliveryCompletion.NotRedirected)
+                    ? VerificationIoCode.Complete
+                    : (execution.StandardOutputCompletion == OutputCaptureCompletion.Unknown
+                            || execution.StandardOutputCompletion == OutputCaptureCompletion.Complete
+                            || execution.StandardOutputCompletion == OutputCaptureCompletion.DeadlineExceeded
+                            || execution.StandardOutputCompletion == OutputCaptureCompletion.Faulted)
+                        && (execution.StandardErrorCompletion == OutputCaptureCompletion.Unknown
+                            || execution.StandardErrorCompletion == OutputCaptureCompletion.Complete
+                            || execution.StandardErrorCompletion == OutputCaptureCompletion.DeadlineExceeded
+                            || execution.StandardErrorCompletion == OutputCaptureCompletion.Faulted)
+                        && (execution.StandardInputDelivery == InputDeliveryCompletion.Unknown
+                            || execution.StandardInputDelivery == InputDeliveryCompletion.NotRedirected
+                            || execution.StandardInputDelivery == InputDeliveryCompletion.Complete
+                            || execution.StandardInputDelivery == InputDeliveryCompletion.DeadlineExceeded
+                            || execution.StandardInputDelivery == InputDeliveryCompletion.Faulted)
+                        ? VerificationIoCode.Incomplete
+                        : VerificationIoCode.Unrecognized));
 }

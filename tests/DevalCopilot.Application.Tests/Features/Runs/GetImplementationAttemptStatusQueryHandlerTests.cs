@@ -192,7 +192,7 @@ public sealed class GetImplementationAttemptStatusQueryHandlerTests : IAsyncLife
             seed.Attempts.Add(Attempt.ClaimAgentImplementationWithAssignment(
                 attemptId, runId, 1, Guid.NewGuid(), Guid.NewGuid(), new string('f', 64), Guid.NewGuid(),
                 TimeSpan.FromMinutes(20), 65536, 131072, Now, requestedModel: null, requestedEffort: null,
-                AgentPermissionProfile.WorkspaceEditOnly, "claude-implementation-v3", 1));
+                AgentPermissionProfile.WorkspaceEditOnly, "claude-implementation-v4", 1));
             seed.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), attemptId, Guid.NewGuid(), 0));
             await seed.SaveChangesAsync();
         }
@@ -329,7 +329,7 @@ public sealed class GetImplementationAttemptStatusQueryHandlerTests : IAsyncLife
     [Fact]
     public async Task HandleAsync_reports_no_configured_facts_for_an_unknown_version_but_unknown_limit_evidence()
     {
-        var (runId, _) = await SeedTurnLimitAttemptAsync("claude-implementation-v3", attemptLimit: null);
+        var (runId, _) = await SeedTurnLimitAttemptAsync("claude-implementation-v4", attemptLimit: null);
 
         var status = await ReadStatusAsync(runId);
 

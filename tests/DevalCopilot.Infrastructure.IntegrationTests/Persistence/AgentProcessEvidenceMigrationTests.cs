@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using DevalCopilot.Infrastructure.Persistence;
@@ -199,7 +200,7 @@ public sealed class AgentProcessEvidenceMigrationTests : IDisposable
             attempt.MarkAgentDispatched(now);
             attempt.CompleteAgent(
                 AgentOutcome.Proposed, "fingerprint", now.AddSeconds(2),
-                AgentProcessExecutionEvidence.Create(ProcessOutcome.Exited, 0, subMillisecondDuration));
+                AgentProcessExecutionEvidence.Create(ProcessOutcome.Exited, 0, subMillisecondDuration, ProcessIoCompletion.CompleteWithInput));
 
             context.Attempts.Add(attempt);
             await context.SaveChangesAsync();
@@ -212,7 +213,7 @@ public sealed class AgentProcessEvidenceMigrationTests : IDisposable
         Assert.Equal(subMillisecondDuration, persisted.AgentProcessDuration);
         Assert.Equal(subMillisecondDuration.Ticks, persisted.AgentProcessDuration!.Value.Ticks);
         Assert.Equal(
-            AgentProcessExecutionEvidence.Create(ProcessOutcome.Exited, 0, subMillisecondDuration),
+            AgentProcessExecutionEvidence.Create(ProcessOutcome.Exited, 0, subMillisecondDuration, ProcessIoCompletion.CompleteWithInput),
             persisted.GetAgentProcessExecutionEvidence());
     }
 

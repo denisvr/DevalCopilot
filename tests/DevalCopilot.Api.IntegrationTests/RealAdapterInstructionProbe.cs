@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Application.Features.Runs.Ports;
@@ -65,6 +66,7 @@ internal static class RealAdapterInstructionProbe
             OnExecute?.Invoke(request);
             return Task.FromResult(new ProcessExecutionResult
             {
+                IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                 Outcome = ProcessExecutionOutcome.Exited,
                 ExitCode = 0,
                 StandardOutput = "{}",
@@ -116,7 +118,9 @@ internal static class RealAdapterInstructionProbe
                 break;
             case AgentResponseContract.CriticalReview:
                 await new ClaudeCriticalReviewAdapter(process, artifactStore).InvokeAsync(
-                    new CriticalReviewInvocationRequest(run, id, workspacePath, path, length, hash, launchExecutable, timeout, perStream, total),
+                    new CriticalReviewInvocationRequest(
+                        run, id, workspacePath, path, length, hash, launchExecutable, timeout, perStream, total,
+                        AdapterContractVersion: subject.AdapterContractVersion),
                     CancellationToken.None);
                 break;
             case AgentResponseContract.ChallengeResolution:

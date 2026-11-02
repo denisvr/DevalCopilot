@@ -23,7 +23,10 @@ public sealed class AgentProcessExecutionEvidenceEndpointTests(ApiWebApplication
 {
     private const string SessionSentinel = "provider-session-sentinel-must-not-leak";
     private static readonly string Fingerprint = new('a', 64);
-    private static readonly HashSet<string> EvidenceFields = ["outcome", "exitCode", "durationMilliseconds", "timeoutMilliseconds"];
+
+    // ADR-0072 adds the three closed I/O completion facts beside the four process facts.
+    private static readonly HashSet<string> EvidenceFields =
+        ["outcome", "exitCode", "durationMilliseconds", "timeoutMilliseconds", "standardOutputCompletion", "standardErrorCompletion", "standardInputDelivery"];
 
     public static TheoryData<string> ProtectedRoutes => new()
     {

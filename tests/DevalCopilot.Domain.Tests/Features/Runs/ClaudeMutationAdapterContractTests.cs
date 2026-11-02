@@ -19,13 +19,15 @@ public sealed class ClaudeMutationAdapterContractTests
     [InlineData("claude-review-correction-v2", true)]
     [InlineData("claude-implementation-v1", false)]
     [InlineData("claude-review-correction-v1", false)]
-    [InlineData("claude-implementation-v3", false)]
+    [InlineData("claude-implementation-v3", true)]
+    [InlineData("claude-review-correction-v3", true)]
+    [InlineData("claude-implementation-v4", false)]
     [InlineData("Claude-Implementation-V2", false)]
     [InlineData("claude-implementation-v2 ", false)]
     [InlineData("claude-critical-review-v1", false)]
     [InlineData("", false)]
     [InlineData(null, false)]
-    public void CarriesTurnLimit_is_true_only_for_the_exact_v2_versions(string? version, bool expected)
+    public void CarriesTurnLimit_is_true_only_for_the_exact_v2_and_v3_versions(string? version, bool expected)
     {
         Assert.Equal(expected, ClaudeMutationAdapterContract.CarriesTurnLimit(version));
     }
@@ -33,21 +35,23 @@ public sealed class ClaudeMutationAdapterContractTests
     [Theory]
     [InlineData(AgentResponseContract.ImplementationReport, "claude-implementation-v1", true)]
     [InlineData(AgentResponseContract.ImplementationReport, "claude-implementation-v2", true)]
-    [InlineData(AgentResponseContract.ImplementationReport, "claude-implementation-v3", false)]
+    [InlineData(AgentResponseContract.ImplementationReport, "claude-implementation-v3", true)]
+    [InlineData(AgentResponseContract.ImplementationReport, "claude-implementation-v4", false)]
     [InlineData(AgentResponseContract.ImplementationReport, "claude-review-correction-v1", false)]
     [InlineData(AgentResponseContract.ImplementationReport, "claude-review-correction-v2", false)]
     [InlineData(AgentResponseContract.ImplementationReport, null, false)]
     [InlineData(AgentResponseContract.ImplementationReport, "", false)]
     [InlineData(AgentResponseContract.ReviewCorrection, "claude-review-correction-v1", true)]
     [InlineData(AgentResponseContract.ReviewCorrection, "claude-review-correction-v2", true)]
-    [InlineData(AgentResponseContract.ReviewCorrection, "claude-review-correction-v3", false)]
+    [InlineData(AgentResponseContract.ReviewCorrection, "claude-review-correction-v3", true)]
+    [InlineData(AgentResponseContract.ReviewCorrection, "claude-review-correction-v4", false)]
     [InlineData(AgentResponseContract.ReviewCorrection, "claude-implementation-v1", false)]
     [InlineData(AgentResponseContract.ReviewCorrection, "claude-implementation-v2", false)]
     [InlineData(AgentResponseContract.ReviewCorrection, null, false)]
     [InlineData(AgentResponseContract.CriticalReview, "claude-implementation-v1", false)]
     [InlineData(AgentResponseContract.Proposal, "claude-review-correction-v2", false)]
     [InlineData(null, "claude-implementation-v2", false)]
-    public void IsKnownVersionFor_accepts_only_the_exact_v1_or_v2_of_the_owning_path(
+    public void IsKnownVersionFor_accepts_only_the_exact_v1_v2_or_v3_of_the_owning_path(
         AgentResponseContract? contract, string? version, bool expected)
     {
         Assert.Equal(expected, ClaudeMutationAdapterContract.IsKnownVersionFor(contract, version));
@@ -55,7 +59,9 @@ public sealed class ClaudeMutationAdapterContractTests
 
     [Theory]
     [InlineData(AgentResponseContract.ImplementationReport, "claude-implementation-v1", "claude-implementation-v2")]
+    [InlineData(AgentResponseContract.ImplementationReport, "claude-implementation-v1", "claude-implementation-v3")]
     [InlineData(AgentResponseContract.ReviewCorrection, "claude-review-correction-v1", "claude-review-correction-v2")]
+    [InlineData(AgentResponseContract.ReviewCorrection, "claude-review-correction-v1", "claude-review-correction-v3")]
     public void Classify_yields_the_four_outcomes_for_a_coherent_mutation_attempt(
         AgentResponseContract contract, string v1, string v2)
     {
@@ -105,7 +111,7 @@ public sealed class ClaudeMutationAdapterContractTests
             ? "claude-review-correction-v2"
             : "claude-implementation-v2";
 
-        foreach (var version in new string?[] { "claude-implementation-v3", "claude-review-correction-v3", "", null, other })
+        foreach (var version in new string?[] { "claude-implementation-v4", "claude-review-correction-v4", "", null, other })
         {
             Assert.Equal(ClaudeMutationTurnLimitEvidence.Unknown, Classify(contract, version, null));
             Assert.Equal(ClaudeMutationTurnLimitEvidence.Unknown, Classify(contract, version, 5));

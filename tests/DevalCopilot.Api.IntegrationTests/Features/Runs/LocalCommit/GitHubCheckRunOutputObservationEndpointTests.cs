@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Application.Features.Runs.Queries.GetGitHubCheckRunOutputObservation;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
@@ -994,6 +995,7 @@ public sealed partial class GitHubCheckRunOutputObservationEndpointTests
             var output = request.Arguments.Any(argument => argument.Contains("title summary text", StringComparison.Ordinal));
             return Task.FromResult(new ProcessExecutionResult
             {
+                IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                 Outcome = ProcessExecutionOutcome.Exited,
                 ExitCode = 0,
                 StandardOutput = standardOutput(output),

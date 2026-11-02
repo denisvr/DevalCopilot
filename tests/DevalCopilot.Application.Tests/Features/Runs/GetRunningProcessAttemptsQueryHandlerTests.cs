@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Application.Features.Runs.Queries.GetRunningProcessAttempts;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
@@ -34,7 +35,7 @@ public sealed class GetRunningProcessAttemptsQueryHandlerTests : IAsyncLifetime
         var completedRun = Run.RecordIntent(Guid.NewGuid(), project.Id, 2, "completed", Now);
         completedRun.Claim(Now);
         var completedAttempt = Attempt.ClaimProcess(Guid.NewGuid(), completedRun.Id, 1, CreateIntent(), Now);
-        completedAttempt.CompleteProcess(ProcessOutcome.Exited, 0, Now);
+        completedAttempt.CompleteProcess(ProcessOutcome.Exited, 0, Now, ProcessIoCompletion.CompleteWithoutInput);
         completedRun.Complete(Now);
 
         var simulatedRun = Run.RecordIntent(Guid.NewGuid(), project.Id, 3, "simulated", Now);

@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.Runs;
@@ -58,7 +59,7 @@ public sealed class ClaudeImplementationAdapterTests : IDisposable
         var adapter = new ClaudeImplementationAdapter(fake, _artifactStore);
         var request = new ImplementationInvocationRequest(
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
-            executablePath, TimeSpan.FromMinutes(20), 65536, 131072);
+            executablePath, TimeSpan.FromMinutes(20), 65536, 131072, AdapterContractVersion: ClaudeMutationAdapterContract.CurrentImplementation);
 
         var result = await adapter.InvokeAsync(request, CancellationToken.None);
 
@@ -67,7 +68,8 @@ public sealed class ClaudeImplementationAdapterTests : IDisposable
         var arguments = fake.CapturedRequest!.Arguments.ToArray();
 
         var expectedSchemaJson = JsonSerializer.Serialize(ImplementationReportOutputSchema.BuildSchemaDocument());
-        Assert.Equal(23, arguments.Length);
+        // ADR-0072: the prompt-suggestion flag and its value are no longer passed.
+        Assert.Equal(21, arguments.Length);
         Assert.Equal("--print", arguments[0]);
         Assert.Equal("--input-format", arguments[1]);
         Assert.Equal("text", arguments[2]);
@@ -81,16 +83,15 @@ public sealed class ClaudeImplementationAdapterTests : IDisposable
         Assert.Equal("--no-chrome", arguments[10]);
         Assert.Equal("--permission-prompts", arguments[11]);
         Assert.Equal("none", arguments[12]);
-        Assert.Equal("--prompt-suggestions", arguments[13]);
-        Assert.Equal("false", arguments[14]);
-        Assert.Equal("--tools", arguments[15]);
-        Assert.Equal("Read,Edit,Write,Glob,Grep", arguments[16]);
-        Assert.Equal("--strict-mcp-config", arguments[17]);
-        Assert.Equal("--permission-mode", arguments[18]);
-        Assert.Equal("acceptEdits", arguments[19]);
-        Assert.Equal("--no-session-persistence", arguments[20]);
-        Assert.Equal("--session-id", arguments[21]);
-        Assert.True(Guid.TryParse(arguments[22], out _));
+        Assert.Equal("--tools", arguments[13]);
+        Assert.Equal("Read,Edit,Write,Glob,Grep", arguments[14]);
+        Assert.Equal("--strict-mcp-config", arguments[15]);
+        Assert.Equal("--permission-mode", arguments[16]);
+        Assert.Equal("acceptEdits", arguments[17]);
+        Assert.Equal("--no-session-persistence", arguments[18]);
+        Assert.Equal("--session-id", arguments[19]);
+        Assert.True(Guid.TryParse(arguments[20], out _));
+        Assert.DoesNotContain("--prompt-suggestions", arguments);
 
         // No --max-turns: implementation is deliberately unbounded in turn count, unlike the
         // single-turn critical-review adapter.
@@ -113,7 +114,7 @@ public sealed class ClaudeImplementationAdapterTests : IDisposable
         var adapter = new ClaudeImplementationAdapter(fake, _artifactStore);
         var request = new ImplementationInvocationRequest(
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
-            executablePath, TimeSpan.FromMinutes(20), 65536, 131072);
+            executablePath, TimeSpan.FromMinutes(20), 65536, 131072, AdapterContractVersion: ClaudeMutationAdapterContract.CurrentImplementation);
 
         await adapter.InvokeAsync(request, CancellationToken.None);
 
@@ -181,7 +182,7 @@ public sealed class ClaudeImplementationAdapterTests : IDisposable
         var adapter = new ClaudeImplementationAdapter(fake, _artifactStore);
         var request = new ImplementationInvocationRequest(
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
-            executablePath, TimeSpan.FromMinutes(20), 65536, 131072);
+            executablePath, TimeSpan.FromMinutes(20), 65536, 131072, AdapterContractVersion: ClaudeMutationAdapterContract.CurrentImplementation);
 
         await adapter.InvokeAsync(request, CancellationToken.None);
 
@@ -203,7 +204,7 @@ public sealed class ClaudeImplementationAdapterTests : IDisposable
         var adapter = new ClaudeImplementationAdapter(fake, _artifactStore);
         var request = new ImplementationInvocationRequest(
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
-            missingExecutablePath, TimeSpan.FromMinutes(20), 65536, 131072);
+            missingExecutablePath, TimeSpan.FromMinutes(20), 65536, 131072, AdapterContractVersion: ClaudeMutationAdapterContract.CurrentImplementation);
 
         var result = await adapter.InvokeAsync(request, CancellationToken.None);
 
@@ -223,6 +224,7 @@ public sealed class ClaudeImplementationAdapterTests : IDisposable
         {
             OnExecute = _ => new ProcessExecutionResult
             {
+                IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                 Outcome = ProcessExecutionOutcome.Exited,
                 ExitCode = 1,
                 StandardOutput = string.Empty,
@@ -235,7 +237,7 @@ public sealed class ClaudeImplementationAdapterTests : IDisposable
         var adapter = new ClaudeImplementationAdapter(fake, _artifactStore);
         var request = new ImplementationInvocationRequest(
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
-            executablePath, TimeSpan.FromMinutes(20), 65536, 131072);
+            executablePath, TimeSpan.FromMinutes(20), 65536, 131072, AdapterContractVersion: ClaudeMutationAdapterContract.CurrentImplementation);
 
         var result = await adapter.InvokeAsync(request, CancellationToken.None);
 
@@ -255,12 +257,13 @@ public sealed class ClaudeImplementationAdapterTests : IDisposable
 
         const string FinalResponseJson =
             """{"summary":"done","changedRelativePaths":["src/Foo.cs"],"implementationNotes":"added the file","unexpectedDiscoveries":"","remainingRisks":"","recommendedVerification":"run tests"}""";
-        var envelope = JsonSerializer.Serialize(new { is_error = false, result = FinalResponseJson, session_id = "session-impl" });
+        var envelope = ClaudeDocumentedEnvelope.SuccessText(FinalResponseJson, "session-impl");
 
         var fake = new FakeProcessExecutionAdapter
         {
             OnExecute = _ => new ProcessExecutionResult
             {
+                IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                 Outcome = ProcessExecutionOutcome.Exited,
                 ExitCode = 0,
                 StandardOutput = envelope,
@@ -273,7 +276,7 @@ public sealed class ClaudeImplementationAdapterTests : IDisposable
         var adapter = new ClaudeImplementationAdapter(fake, _artifactStore);
         var request = new ImplementationInvocationRequest(
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
-            executablePath, TimeSpan.FromMinutes(20), 65536, 131072);
+            executablePath, TimeSpan.FromMinutes(20), 65536, 131072, AdapterContractVersion: ClaudeMutationAdapterContract.CurrentImplementation);
 
         var result = await adapter.InvokeAsync(request, CancellationToken.None);
 
@@ -293,7 +296,7 @@ public sealed class ClaudeImplementationAdapterTests : IDisposable
         var request = new ImplementationInvocationRequest(
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
             CreateLaunchFile($"fake-claude-impl-model-{Guid.NewGuid():N}.exe"), TimeSpan.FromMinutes(20), 65536, 131072,
-            requestedClaudeModel, requestedClaudeEffort);
+            requestedClaudeModel, requestedClaudeEffort, AdapterContractVersion: ClaudeMutationAdapterContract.CurrentImplementation);
 
         var result = await new ClaudeImplementationAdapter(fake, _artifactStore).InvokeAsync(request, CancellationToken.None);
 
@@ -341,7 +344,7 @@ public sealed class ClaudeImplementationAdapterTests : IDisposable
         var fake = new FakeProcessExecutionAdapter();
         var request = new ImplementationInvocationRequest(
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
-            CreateLaunchFile("fake-claude-impl-bad-model.exe"), TimeSpan.FromMinutes(20), 65536, 131072, malformed);
+            CreateLaunchFile("fake-claude-impl-bad-model.exe"), TimeSpan.FromMinutes(20), 65536, 131072, malformed, AdapterContractVersion: ClaudeMutationAdapterContract.CurrentImplementation);
 
         var result = await new ClaudeImplementationAdapter(fake, _artifactStore).InvokeAsync(request, CancellationToken.None);
 
@@ -389,7 +392,7 @@ public sealed class ClaudeImplementationAdapterTests : IDisposable
         var fake = new FakeProcessExecutionAdapter();
         var request = new ImplementationInvocationRequest(
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
-            CreateLaunchFile("fake-claude-bad-pair.exe"), TimeSpan.FromMinutes(20), 65536, 131072, model, effort);
+            CreateLaunchFile("fake-claude-bad-pair.exe"), TimeSpan.FromMinutes(20), 65536, 131072, model, effort, AdapterContractVersion: ClaudeMutationAdapterContract.CurrentImplementation);
 
         var result = await new ClaudeImplementationAdapter(fake, _artifactStore).InvokeAsync(request, CancellationToken.None);
 
@@ -431,9 +434,10 @@ public sealed class ClaudeImplementationAdapterTests : IDisposable
 
             var result = OnExecute?.Invoke(request) ?? new ProcessExecutionResult
             {
+                IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                 Outcome = ProcessExecutionOutcome.Exited,
                 ExitCode = 0,
-                StandardOutput = JsonSerializer.Serialize(new { is_error = false, result = "{}", session_id = (string?)null }),
+                StandardOutput = ClaudeDocumentedEnvelope.SuccessText("{}", (string?)null),
                 StandardOutputTruncated = false,
                 StandardError = string.Empty,
                 StandardErrorTruncated = false,

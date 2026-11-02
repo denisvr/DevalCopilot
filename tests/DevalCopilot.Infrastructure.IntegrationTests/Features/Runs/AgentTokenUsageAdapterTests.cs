@@ -1,5 +1,6 @@
 using System.Text;
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.Runs;
 using DevalCopilot.Infrastructure.Features.Processes;
@@ -18,7 +19,10 @@ namespace DevalCopilot.Infrastructure.IntegrationTests.Features.Runs;
 /// </summary>
 public sealed class AgentTokenUsageAdapterTests : IDisposable
 {
-    private const string ValidResult = "\"result\":\"{\\\"summary\\\":\\\"ok\\\"}\"";
+    /// <summary>ADR-0072: an error envelope carries only its narrative result, never structured output.</summary>
+    private const string ErrorNarrative = "\"result\":\"Provider error text that is never read.\"";
+
+    private const string ValidResult = "\"result\":\"Done.\",\"structured_output\":{\"summary\":\"ok\"}";
     private const string ValidUsage =
         "\"usage\":{\"input_tokens\":1200,\"output_tokens\":345,\"cache_creation_input_tokens\":67,\"cache_read_input_tokens\":890}";
 
@@ -105,10 +109,24 @@ public sealed class AgentTokenUsageAdapterTests : IDisposable
         "\"usage\":{\"input_tokens\":1200,\"output_tokens\":345,\"output_tokens\":1,\"cache_creation_input_tokens\":67,\"cache_read_input_tokens\":890}",
         "\"usage\":{\"input_tokens\":1200,\"output_tokens\":345,\"cache_creation_input_tokens\":67,\"cache_creation_input_tokens\":1,\"cache_read_input_tokens\":890}",
         "\"usage\":{\"input_tokens\":1200,\"output_tokens\":345,\"cache_creation_input_tokens\":67,\"cache_read_input_tokens\":890,\"cache_read_input_tokens\":1}",
-        // Duplicate root usage objects are equally ambiguous.
-        ValidUsage + ",\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"cache_creation_input_tokens\":1,\"cache_read_input_tokens\":1}",
-        "\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"cache_creation_input_tokens\":1,\"cache_read_input_tokens\":1}," + ValidUsage,
     };
+
+    // ADR-0072: a duplicated root usage object is a duplicated contract-bearing property, so the whole envelope is rejected and no
+    // usage is kept, in either order.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task A_duplicated_root_usage_object_rejects_the_whole_envelope(bool validFirst)
+    {
+        const string Other = "\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"cache_creation_input_tokens\":1,\"cache_read_input_tokens\":1}";
+        var stdout = validFirst ? Envelope(isError: false, ValidResult, ValidUsage, Other) : Envelope(isError: false, ValidResult, Other, ValidUsage);
+
+        foreach (var result in await InvokeClaudeAdaptersAsync(Clean(stdout)))
+        {
+            Assert.False(result.Succeeded, result.Adapter);
+            Assert.Null(result.Usage);
+        }
+    }
 
     // Discriminating: if a usage-parsing failure were wired to reject the whole envelope, every
     // adapter below would report Failed instead of Exited.
@@ -128,7 +146,7 @@ public sealed class AgentTokenUsageAdapterTests : IDisposable
     [Fact]
     public async Task A_structurally_valid_error_envelope_still_carries_the_usage_the_provider_reported()
     {
-        var stdout = Envelope(isError: true, ValidResult, ValidUsage);
+        var stdout = Envelope(isError: true, ErrorNarrative, ValidUsage);
 
         foreach (var result in await InvokeClaudeAdaptersAsync(Clean(stdout)))
         {
@@ -465,7 +483,7 @@ public sealed class AgentTokenUsageAdapterTests : IDisposable
         var criticalReview = await new ClaudeCriticalReviewAdapter(processAdapter, _artifactStore).InvokeAsync(
             new CriticalReviewInvocationRequest(
                 runId, attemptId, _workspacePath, manifest.RelativeStoragePath, manifest.ByteLength, manifest.ContentHash,
-                executable, timeout, 65536, 131072),
+                executable, timeout, 65536, 131072, AdapterContractVersion: ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion),
             CancellationToken.None);
         results.Add(("CriticalReviewer", criticalReview.Outcome == CriticalReviewInvocationOutcome.Exited,
             criticalReview.TokenUsage, criticalReview.ProcessEvidence));
@@ -474,7 +492,7 @@ public sealed class AgentTokenUsageAdapterTests : IDisposable
         var implementation = await new ClaudeImplementationAdapter(processAdapter, _artifactStore).InvokeAsync(
             new ImplementationInvocationRequest(
                 runId, attemptId, _workspacePath, manifest.RelativeStoragePath, manifest.ByteLength, manifest.ContentHash,
-                executable, timeout, 65536, 131072),
+                executable, timeout, 65536, 131072, AdapterContractVersion: ClaudeMutationAdapterContract.CurrentImplementation),
             CancellationToken.None);
         results.Add(("Implementer", implementation.Outcome == ImplementationInvocationOutcome.Exited,
             implementation.TokenUsage, implementation.ProcessEvidence));
@@ -483,7 +501,7 @@ public sealed class AgentTokenUsageAdapterTests : IDisposable
         var correction = await new ClaudeReviewCorrectionAdapter(processAdapter, _artifactStore).InvokeAsync(
             new ReviewCorrectionInvocationRequest(
                 runId, attemptId, _workspacePath, manifest.RelativeStoragePath, manifest.ByteLength, manifest.ContentHash,
-                executable, timeout, 65536, 131072),
+                executable, timeout, 65536, 131072, AdapterContractVersion: ClaudeMutationAdapterContract.CurrentReviewCorrection),
             CancellationToken.None);
         results.Add(("ReviewCorrection", correction.Outcome == ImplementationInvocationOutcome.Exited,
             correction.TokenUsage, correction.ProcessEvidence));
@@ -520,6 +538,7 @@ public sealed class AgentTokenUsageAdapterTests : IDisposable
 
     private static ProcessExecutionResult Result(ProcessExecutionOutcome outcome, int? exitCode, string standardOutput) => new()
     {
+        IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
         Outcome = outcome,
         ExitCode = exitCode,
         StandardOutput = standardOutput,

@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Application.Features.Runs.Queries.GetRunCockpit;
 using DevalCopilot.Domain.Features.Runs;
 using Xunit;
@@ -7,7 +8,7 @@ namespace DevalCopilot.Application.Tests.Features.Runs;
 public sealed class RunCockpitAgentProcessDurationSummaryTests
 {
     private static AgentProcessExecutionEvidence Exited(TimeSpan duration) =>
-        AgentProcessExecutionEvidence.Create(ProcessOutcome.Exited, 0, duration);
+        AgentProcessExecutionEvidence.Create(ProcessOutcome.Exited, 0, duration, ProcessIoCompletion.CompleteWithInput);
 
     [Fact]
     public void No_dispatched_attempts_reports_nothing_to_measure()

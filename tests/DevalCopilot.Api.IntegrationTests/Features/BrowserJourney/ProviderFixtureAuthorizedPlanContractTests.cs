@@ -58,8 +58,8 @@ public sealed partial class ProviderFixtureContractTests
         Assert.Equal(0, second.ExitCode);
         Assert.Equal("ROOT-PLAN", firstEntry["planMarker"]!.GetValue<string>());
         Assert.Equal("REVISED-PLAN", secondEntry["planMarker"]!.GetValue<string>());
-        var firstChallenge = JsonNode.Parse(JsonNode.Parse(first.StandardOutput)!["result"]!.GetValue<string>())!["challenges"]![0]!;
-        var secondChallenge = JsonNode.Parse(JsonNode.Parse(second.StandardOutput)!["result"]!.GetValue<string>())!["challenges"]![0]!;
+        var firstChallenge = JsonNode.Parse(first.StandardOutput)!["structured_output"]!["challenges"]![0]!;
+        var secondChallenge = JsonNode.Parse(second.StandardOutput)!["structured_output"]!["challenges"]![0]!;
         Assert.NotEqual(firstChallenge["disputedItem"]!.GetValue<string>(), secondChallenge["disputedItem"]!.GetValue<string>());
         Assert.NotEqual(firstChallenge["materialImpact"]!.GetValue<string>(), secondChallenge["materialImpact"]!.GetValue<string>());
         Assert.NotEqual(firstChallenge["reasoning"]!.GetValue<string>(), secondChallenge["reasoning"]!.GetValue<string>());
@@ -238,7 +238,7 @@ public sealed partial class ProviderFixtureContractTests
         Assert.DoesNotContain("SENTINEL-AUTH-REASON", LogText() + result.StandardOutput + result.StandardError, StringComparison.Ordinal);
         Assert.DoesNotContain("humanAuthorization", LogText(), StringComparison.Ordinal);
         Assert.DoesNotContain("Implement the total as one return statement", LogText(), StringComparison.Ordinal);
-        Assert.Contains("final plan", JsonNode.Parse(JsonNode.Parse(result.StandardOutput)!["result"]!.GetValue<string>())!["implementationNotes"]!.GetValue<string>(), StringComparison.Ordinal);
+        Assert.Contains("final plan", JsonNode.Parse(result.StandardOutput)!["structured_output"]!["implementationNotes"]!.GetValue<string>(), StringComparison.Ordinal);
     }
 
     public static TheoryData<string> AuthorizationDefects => new()

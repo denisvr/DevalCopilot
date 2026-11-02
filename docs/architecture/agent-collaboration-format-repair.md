@@ -111,7 +111,10 @@ attempt has no repair.
   with status `Failed` and outcome exactly `InvalidStructuredOutput`, dispatched and concluded, with
   host-measured process evidence proving a clean exit, the path's exact provider, role, response contract,
   expected message type, protocol `1.0`, `ReadOnly` permission profile, and current known v1 adapter contract
-  (`claude-critical-review-v1`, `codex-challenge-resolution-v1`, `codex-implementation-review-v1`), and a
+  (`claude-critical-review-v1`, `codex-challenge-resolution-v1`, `codex-implementation-review-v1`; since
+  [ADR-0072](../decisions/0072-adopt-one-windows-execution-profile.md) a Claude source may be the historical
+  `claude-critical-review-v1` or the current `claude-critical-review-v2`, and its repair is claimed and dispatched
+  under the current version), and a
   well-formed assignment snapshot; otherwise 409 `agent_attempts.repair_source_ineligible`. It must carry no
   `AgentRepairSourceAttemptId` itself (`agent_attempts.repair_of_repair_forbidden`), have produced **no durable
   collaboration message** (a source that recorded a semantic result did not fail structurally), have no existing

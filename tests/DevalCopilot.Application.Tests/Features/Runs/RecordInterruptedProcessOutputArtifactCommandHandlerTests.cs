@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Application.Features.Runs.Commands.RecordInterruptedProcessOutputArtifact;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
@@ -206,7 +207,7 @@ public sealed class RecordInterruptedProcessOutputArtifactCommandHandlerTests : 
 
     public static TheoryData<Action<Attempt, DateTimeOffset>> NonRunningStates() => new()
     {
-        (attempt, now) => attempt.CompleteProcess(ProcessOutcome.Exited, 0, now),
+        (attempt, now) => attempt.CompleteProcess(ProcessOutcome.Exited, 0, now, ProcessIoCompletion.CompleteWithoutInput),
         (attempt, now) => attempt.Fail(now),
         (attempt, now) => attempt.Interrupt(now),
     };

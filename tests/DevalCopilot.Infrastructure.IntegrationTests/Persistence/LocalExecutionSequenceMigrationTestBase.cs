@@ -98,6 +98,9 @@ public abstract class LocalExecutionSequenceMigrationTestBase : IAsyncLifetime
     protected DevalCopilotDbContext CreateContext() =>
         new(new DbContextOptionsBuilder<DevalCopilotDbContext>().UseSqlite($"Data Source={databasePath}").Options);
 
+    /// <summary>ADR-0072: seeds and reads at a schema older than AddWindowsExecutionProfileEvidence.</summary>
+    protected DevalCopilotDbContext CreatePriorSchemaContext() => BeforeExecutionProfileContext.Create($"Data Source={databasePath}");
+
     protected async Task MigrateToAsync(string? target)
     {
         await using var context = CreateContext();

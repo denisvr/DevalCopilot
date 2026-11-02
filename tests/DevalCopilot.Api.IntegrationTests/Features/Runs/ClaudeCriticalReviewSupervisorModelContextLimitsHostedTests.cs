@@ -88,7 +88,7 @@ public sealed partial class ClaudeCriticalReviewSupervisorHostedTests
     public async Task The_limits_are_recorded_even_when_the_business_output_is_not_a_valid_review()
     {
         var recorded = await RunRealAdapterReviewAsync(ClaudeEnvelopeProcessDouble.Envelope(
-            "this is not the review contract", ClaudeEnvelopeProcessDouble.TwoModelUsage));
+            """{"not":"the review contract"}""", ClaudeEnvelopeProcessDouble.TwoModelUsage));
 
         Assert.Equal(AttemptStatus.Failed, recorded.Status);
         Assert.Equal(AgentOutcome.InvalidStructuredOutput, recorded.Outcome);

@@ -31,8 +31,9 @@ describe('session', () => {
     await session.initializeLaunchSession()
 
     expect(invokeMock).toHaveBeenCalledWith('get_launch_session')
-    expect(session.getLaunchSession()).toEqual({ baseUrl: 'http://127.0.0.1:5080', secret: 'abc' })
+    expect(session.getLaunchSession()).toEqual({ baseUrl: 'http://127.0.0.1:5080', secret: 'abc', startupWarnings: [] })
     expect(session.getSessionStatus()).toBe('ready')
+    expect(session.getStartupFailure()).toBeNull()
   })
 
   it('does not fall back to the test-harness session when the Tauri bootstrap fails', async () => {
@@ -161,5 +162,62 @@ describe('session', () => {
     expect(session.getLaunchSession()).toBeNull()
     expect(session.getSessionStatus()).toBe('failed')
     expect(invokeMock).not.toHaveBeenCalled()
+  })
+
+  // ADR-0072: the shell's closed startup failure and the closed warnings of a ready session.
+  it('keeps the closed startup failure the shell reported and never becomes ready afterwards', async () => {
+    ;(window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {}
+    invokeMock.mockRejectedValue({
+      kind: 'startup-failed',
+      stage: 'Workspaces',
+      reason: 'StateIncoherent',
+      action: 'RequestReviewedRepair',
+    })
+    const session = await freshSessionModule()
+
+    await session.initializeLaunchSession()
+    await session.initializeLaunchSession()
+
+    expect(invokeMock).toHaveBeenCalledTimes(1)
+    expect(session.getSessionStatus()).toBe('failed')
+    expect(session.getLaunchSession()).toBeNull()
+    expect(session.getStartupFailure()).toEqual({
+      stage: 'Workspaces',
+      reason: 'StateIncoherent',
+      action: 'RequestReviewedRepair',
+      code: 'DCSF1-Workspaces-StateIncoherent-RequestReviewedRepair',
+    })
+  })
+
+  it.each([
+    [{ kind: 'startup-failed', stage: 'Elsewhere', reason: 'StateIncoherent', action: 'RequestReviewedRepair' }],
+    [{ kind: 'startup-failed', stage: 'Workspaces', reason: 'StorageUnavailable', action: 'RequestReviewedRepair' }],
+    [{ kind: 'startup-failed', stage: 'Workspaces', reason: 'StateIncoherent', action: 'RequestReviewedRepair', path: 'C:/private' }],
+    [{ kind: 'other', stage: 'Workspaces', reason: 'StateIncoherent', action: 'RequestReviewedRepair' }],
+    ['raw stderr text'],
+    [null],
+  ])('treats a malformed or unknown rejection as an ordinary failure with no startup diagnosis (%j)', async (rejection) => {
+    ;(window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {}
+    invokeMock.mockRejectedValue(rejection)
+    const session = await freshSessionModule()
+
+    await session.initializeLaunchSession()
+
+    expect(session.getSessionStatus()).toBe('failed')
+    expect(session.getStartupFailure()).toBeNull()
+  })
+
+  it('carries closed startup warnings with a ready session and fails closed on malformed ones', async () => {
+    ;(window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {}
+    invokeMock.mockResolvedValue({ baseUrl: 'http://127.0.0.1:5080', secret: 'abc', startupWarnings: ['OptionalOutputDeferred'] })
+    const session = await freshSessionModule()
+    await session.initializeLaunchSession()
+    expect(session.getLaunchSession()?.startupWarnings).toEqual(['OptionalOutputDeferred'])
+
+    invokeMock.mockResolvedValue({ baseUrl: 'http://127.0.0.1:5080', secret: 'abc', startupWarnings: ['EverythingIsFine'] })
+    const malformed = await freshSessionModule()
+    await malformed.initializeLaunchSession()
+    expect(malformed.getSessionStatus()).toBe('failed')
+    expect(malformed.getLaunchSession()).toBeNull()
   })
 })

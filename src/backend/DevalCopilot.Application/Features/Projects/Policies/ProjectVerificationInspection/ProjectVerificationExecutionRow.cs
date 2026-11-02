@@ -5,7 +5,8 @@ namespace DevalCopilot.Application.Features.Projects.Policies.ProjectVerificatio
 /// statement (ADR-0069). Identifiers and times are raw stored bytes within their bound, a <c>Present</c> flag tells a rejected value from an
 /// absent one, <see cref="StatusCode"/> is 1 to 8 in declaration order (0 unknown) and <see cref="OutcomeCode"/> 0 for none, 1 to 4 in
 /// declaration order and 99 for an unknown one, and a number is null unless the stored value is an exact integer in its range. Every string
-/// is read only within its byte guard and flagged when oversized. No path, executable, argument or timeout is part of it.
+/// is read only within its byte guard and flagged when oversized. No path, executable, argument or timeout is part of it. ADR-0072:
+/// <see cref="IoCode"/> is the <see cref="VerificationIoCode"/> of the three recorded I/O completion columns.
 /// </summary>
 internal sealed record ProjectVerificationExecutionRow(
     byte[]? Id,
@@ -36,4 +37,5 @@ internal sealed record ProjectVerificationExecutionRow(
     byte[]? CheckpointWorkspaceId,
     int? CheckpointNumber,
     string? CheckpointFingerprint,
-    bool CheckpointFingerprintOversized);
+    bool CheckpointFingerprintOversized,
+    int IoCode);

@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Projects.Queries.GetCheckpointApprovalEvidence;
@@ -461,7 +462,7 @@ public sealed class GetCheckpointApprovalEvidenceQueryHandlerTests : IAsyncLifet
     {
         var execution = VerificationExecution.Claim(Guid.NewGuid(), project.Id, number, workspace, checkpoint, command, Now);
         execution.MarkDispatched(Now);
-        execution.Complete(VerificationExecutionOutcome.Exited, status == VerificationExecutionStatus.Passed ? 0 : 1, completionFingerprint, Now);
+        execution.Complete(VerificationExecutionOutcome.Exited, status == VerificationExecutionStatus.Passed ? 0 : 1, completionFingerprint, Now, ProcessIoCompletion.CompleteWithoutInput);
         return execution;
     }
 

@@ -3,6 +3,7 @@ using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Runs.Policies;
+using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
 
@@ -129,6 +130,12 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandler(IDevalCopilot
             return Result<RecordClaudeCriticalReviewResultCommandResult>.Failure(processEvidenceError);
         }
 
+        // ADR-0072: a closed invocation diagnostic is only ever recorded beside a failure of a dispatched attempt.
+        if (AgentInvocationDiagnosticRecording.Validate(command.InvocationDiagnostic, attempt, command.Outcome) is { } diagnosticError)
+        {
+            return Result<RecordClaudeCriticalReviewResultCommandResult>.Failure(diagnosticError);
+        }
+
         // Provider-reported token usage is best-effort and never required, but when supplied it is
         // validated before any mutation: bound to a dispatched attempt and never attached to a
         // pre-invocation outcome. Recorded atomically with the outcome and process evidence below.
@@ -186,11 +193,16 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandler(IDevalCopilot
             attempt.RecordAgentProviderSessionId(command.ProviderSessionId);
         }
 
+        if (command.InvocationDiagnostic is { } diagnostic)
+        {
+            attempt.RecordAgentInvocationDiagnostic(diagnostic);
+        }
+
         attempt.CompleteAgent(command.Outcome, command.CompletionFingerprintSha256, nowUtc, processEvidence, tokenUsage, modelLimits);
 
         foreach (var sealedArtifact in command.SealedArtifacts)
         {
-            RecordArtifact(command.RunId, command.AttemptId, sealedArtifact, nowUtc);
+            RecordArtifact(command.RunId, command.AttemptId, sealedArtifact, nowUtc, command.ProcessEvidence);
         }
 
         // The override inside CompleteAgent is the single source of truth for whether this
@@ -328,7 +340,8 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandler(IDevalCopilot
         return runEvent;
     }
 
-    private void RecordArtifact(Guid runId, Guid attemptId, SealedCriticalReviewArtifact sealedArtifact, DateTimeOffset nowUtc)
+    private void RecordArtifact(Guid runId, Guid attemptId, SealedCriticalReviewArtifact sealedArtifact, DateTimeOffset nowUtc,
+        AgentProcessEvidence? processEvidence)
     {
         var mediaType = sealedArtifact.Purpose == ArtifactPurpose.AgentFinalResponse
             ? "application/json"
@@ -347,7 +360,8 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandler(IDevalCopilot
             ArtifactCaptureOutcome.Captured,
             ArtifactSensitivity.RedactedBestEffort,
             ArtifactRetentionPolicy.RetainUntilRunDeleted,
-            nowUtc);
+            nowUtc,
+            AgentProcessEvidenceRecording.CaptureCompletionFor(sealedArtifact.Purpose, processEvidence));
         dbContext.Artifacts.Add(artifact);
     }
 }

@@ -16,7 +16,18 @@ sealed artifact windows and attempt history are in the [evidence inspection](age
 ## Execution evidence versus semantic outcome
 
 Every Agent attempt keeps five kinds of facts apart, and none of them stands in
-for another:
+for another. Since [ADR-0072](../decisions/0072-adopt-one-windows-execution-profile.md)
+two more join them: the separately recorded stdout, stderr and stdin I/O
+completion of the same process (`Complete`, `DeadlineExceeded`, `Faulted`,
+`Unknown`, and for stdin also `NotRedirected`), and, for a Claude attempt that
+did not reach semantic success, one closed invocation diagnostic
+(`agent-invocation-diagnostic-v1`). Every outcome that requires a clean exit
+also requires explicitly complete I/O; an observed exit code zero with
+incomplete or unknown I/O is recorded unchanged and is a failure. The
+diagnostic is write-once, recorded atomically with the failed result, never
+beside a semantic success, and shown with fixed copy in the existing Agent
+attempt evidence (current run and run history); historical attempts show
+nothing. The five original kinds are:
 
 - **Semantic outcome** — `AgentOutcome` is the workflow classification of the
   attempt (`Proposed`, `Challenged`, `Implemented`, `ProviderInvocationFailed`,

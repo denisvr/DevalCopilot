@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Runs.Commands.RecordImplementationReviewResult;
 using DevalCopilot.Application.Features.Runs.Policies;
@@ -50,7 +51,7 @@ public sealed class RecordImplementationReviewResultCommandHandlerTests : IAsync
 
         var execution = VerificationExecution.Claim(Guid.NewGuid(), project.Id, 1, workspace, checkpoint, command, Now);
         execution.MarkDispatched(Now);
-        execution.Complete(VerificationExecutionOutcome.Exited, 0, checkpoint.FingerprintSha256, Now);
+        execution.Complete(VerificationExecutionOutcome.Exited, 0, checkpoint.FingerprintSha256, Now, ProcessIoCompletion.CompleteWithoutInput);
         dbContext.VerificationExecutions.Add(execution);
 
         var attempt = Attempt.ClaimAgentCodeReview(

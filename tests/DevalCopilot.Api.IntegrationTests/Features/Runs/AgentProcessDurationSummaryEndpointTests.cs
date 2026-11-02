@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
@@ -67,7 +68,7 @@ public sealed class AgentProcessDurationSummaryEndpointTests(ApiWebApplicationFa
         var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
         var now = DateTimeOffset.UtcNow;
         var attempt = ClaimAndDispatch(runId, attemptNumber, now);
-        var evidence = AgentProcessExecutionEvidence.Create(ProcessOutcome.Exited, 0, duration);
+        var evidence = AgentProcessExecutionEvidence.Create(ProcessOutcome.Exited, 0, duration, ProcessIoCompletion.CompleteWithInput);
         attempt.CompleteAgent(AgentOutcome.Proposed, Fingerprint, now.AddSeconds(1), evidence);
         dbContext.Attempts.Add(attempt);
         dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), attempt.Id, Guid.NewGuid(), 0));

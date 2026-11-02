@@ -22,4 +22,5 @@ public sealed record CriticalReviewInvocationRequest(
     int MaxBytesPerStream,
     int MaxTotalCapturedBytes,
     string? RequestedClaudeModel = null,
-    string? RequestedClaudeEffort = null);
+    string? RequestedClaudeEffort = null,
+    string? AdapterContractVersion = null);

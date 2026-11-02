@@ -70,6 +70,7 @@ public sealed class GetEligibleClaudeCriticalReviewAttemptsQueryHandler(IDevalCo
                     InputCollaborationMessageId = inputMessage.CollaborationMessageId,
                     RequestedClaudeModel = combined.attempt.AgentRequestedModel,
                     RequestedClaudeEffort = combined.attempt.AgentRequestedEffort,
+                    AdapterContractVersion = combined.attempt.AgentAdapterContractVersion,
                 })
             .ToListAsync(cancellationToken);
 
@@ -101,7 +102,8 @@ public sealed class GetEligibleClaudeCriticalReviewAttemptsQueryHandler(IDevalCo
                 candidate.MaxTotalCapturedBytes,
                 candidate.InputCollaborationMessageId,
                 candidate.RequestedClaudeModel,
-                candidate.RequestedClaudeEffort))
+                candidate.RequestedClaudeEffort,
+                candidate.AdapterContractVersion))
             .ToArray();
 
         // Advisory (ADR-0057): an attempt that something else owns its workspace beside is not proposed; the dispatch gate decides.

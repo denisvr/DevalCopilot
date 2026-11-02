@@ -174,7 +174,7 @@ public sealed class GetReviewCorrectionAttemptStatusQueryHandlerTests : IAsyncLi
             correctionAttemptId = seed.CorrectionAttemptId;
             await seedContext.SaveChangesAsync(CancellationToken.None);
             await seedContext.Database.ExecuteSqlInterpolatedAsync($"""
-                UPDATE attempts SET AgentAdapterContractVersion = 'claude-review-correction-v3'
+                UPDATE attempts SET AgentAdapterContractVersion = 'claude-review-correction-v4'
                 WHERE Id = {correctionAttemptId}
                 """);
         }

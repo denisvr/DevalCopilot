@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
@@ -61,7 +62,7 @@ public sealed class RunCockpitProviderTokenUsageEndpointTests(ApiWebApplicationF
             TimeSpan.FromMinutes(10), 65536, 131072, now, attemptNumber);
         attempt.MarkAgentDispatched(now);
         var usage = AgentTokenUsageEvidence.Create(inputTokens, outputTokens, null, null, AgentTokenUsageEvidencePolicy.CodexCliSchemaVersion);
-        var processEvidence = AgentProcessExecutionEvidence.Create(ProcessOutcome.Exited, 0, TimeSpan.FromSeconds(1));
+        var processEvidence = AgentProcessExecutionEvidence.Create(ProcessOutcome.Exited, 0, TimeSpan.FromSeconds(1), ProcessIoCompletion.CompleteWithInput);
         attempt.CompleteAgent(AgentOutcome.Proposed, Fingerprint, now.AddSeconds(1), processEvidence, usage);
         dbContext.Attempts.Add(attempt);
         dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), attempt.Id, Guid.NewGuid(), 0));
@@ -81,7 +82,7 @@ public sealed class RunCockpitProviderTokenUsageEndpointTests(ApiWebApplicationF
         attempt.MarkAgentDispatched(now);
         var usage = AgentTokenUsageEvidence.Create(
             inputTokens, outputTokens, cacheCreationInputTokens, cacheReadInputTokens, AgentTokenUsageEvidencePolicy.ClaudeCliSchemaVersion);
-        var processEvidence = AgentProcessExecutionEvidence.Create(ProcessOutcome.Exited, 0, TimeSpan.FromSeconds(1));
+        var processEvidence = AgentProcessExecutionEvidence.Create(ProcessOutcome.Exited, 0, TimeSpan.FromSeconds(1), ProcessIoCompletion.CompleteWithInput);
         attempt.CompleteAgent(AgentOutcome.Accepted, Fingerprint, now.AddSeconds(1), processEvidence, usage);
         dbContext.Attempts.Add(attempt);
         dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), attempt.Id, Guid.NewGuid(), 0));

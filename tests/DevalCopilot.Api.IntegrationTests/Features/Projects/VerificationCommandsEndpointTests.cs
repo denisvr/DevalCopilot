@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -389,7 +390,7 @@ public sealed class VerificationCommandsEndpointTests(ReviewApiWebApplicationFac
         var command = VerificationCommand.Configure(Guid.NewGuid(), project.Id, 1, "Backend tests", @"C:\dotnet.exe", ["test"], 60, true, now);
         var execution = VerificationExecution.Claim(Guid.NewGuid(), project.Id, 1, workspace, checkpoint, command, now);
         execution.MarkDispatched(now);
-        execution.Complete(VerificationExecutionOutcome.Exited, 0, checkpoint.FingerprintSha256, now);
+        execution.Complete(VerificationExecutionOutcome.Exited, 0, checkpoint.FingerprintSha256, now, ProcessIoCompletion.CompleteWithoutInput);
 
         dbContext.Projects.Add(project);
         dbContext.GitWorkspaces.Add(workspace);

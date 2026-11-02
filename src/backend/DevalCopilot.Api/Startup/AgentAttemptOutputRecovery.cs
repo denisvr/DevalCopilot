@@ -24,8 +24,14 @@ public static class AgentAttemptOutputRecovery
         ArtifactPurpose.AgentStandardOutput, ArtifactPurpose.AgentStandardError, ArtifactPurpose.AgentFinalResponse,
     ];
 
-    public static async Task RunAsync(IServiceProvider services, ILogger logger, CancellationToken cancellationToken)
+    /// <remarks>ADR-0072: a per-item file-system seal failure or rejected import is an optional-output warning and leaves the files
+    /// in place; a database fault from a query or an import, or any unclassified exception, escapes as fatal. A terminal attempt's partial file is removed only when that attempt
+    /// already recorded an artifact of the same purpose (independently proved redundant); any other partial, including one left by a
+    /// deferred import on an earlier launch or by a writer that was never proved closed, is preserved.</remarks>
+    public static async Task<OutputRecoveryOutcome> RunAsync(IServiceProvider services, ILogger logger, CancellationToken cancellationToken)
     {
+        var optionalOutputDeferred = false;
+        var redundantCleanupDeferred = false;
         await using var scope = services.CreateAsyncScope();
         var mediator = scope.ServiceProvider.GetRequiredService<IApplicationMediator>();
         var artifactStore = scope.ServiceProvider.GetRequiredService<IArtifactStore>();
@@ -35,7 +41,8 @@ public static class AgentAttemptOutputRecovery
         {
             foreach (var purpose in Purposes)
             {
-                await RecoverOneAsync(mediator, artifactStore, logger, attempt.RunId, attempt.AttemptId, purpose, cancellationToken);
+                optionalOutputDeferred |= !await RecoverOneAsync(
+                    mediator, artifactStore, logger, attempt.RunId, attempt.AttemptId, purpose, cancellationToken);
             }
         }
 
@@ -44,15 +51,21 @@ public static class AgentAttemptOutputRecovery
         {
             foreach (var purpose in Purposes)
             {
-                if (artifactStore.HasPartialFile(attempt.RunId, attempt.AttemptId, purpose))
+                if (artifactStore.HasPartialFile(attempt.RunId, attempt.AttemptId, purpose)
+                    && attempt.RecordedPurposes?.Contains(purpose) == true)
                 {
                     artifactStore.DeleteOrphanedPartialFile(attempt.RunId, attempt.AttemptId, purpose);
+                    redundantCleanupDeferred |= artifactStore.HasPartialFile(attempt.RunId, attempt.AttemptId, purpose);
                 }
             }
         }
+
+        return new OutputRecoveryOutcome(optionalOutputDeferred, redundantCleanupDeferred);
     }
 
-    private static async Task RecoverOneAsync(
+    /// <summary>Returns false when this item's output could not be sealed or its import was rejected (an optional-output
+    /// warning); a database fault propagates.</summary>
+    private static async Task<bool> RecoverOneAsync(
         IApplicationMediator mediator,
         IArtifactStore artifactStore,
         ILogger logger,
@@ -61,23 +74,37 @@ public static class AgentAttemptOutputRecovery
         ArtifactPurpose purpose,
         CancellationToken cancellationToken)
     {
+        // ADR-0072 (review WEP-R2): existence is read first, so a file that exists but cannot be described or sealed is a deferred
+        // optional output (its files stay in place), never mistaken for an absence.
+        var hadSealedFile = artifactStore.HasSealedFile(runId, attemptId, purpose);
+        var hadPartialFile = !hadSealedFile && artifactStore.HasPartialFile(runId, attemptId, purpose);
         SealedOutputFile? sealedFile;
         try
         {
-            sealedFile = artifactStore.HasSealedFile(runId, attemptId, purpose)
+            sealedFile = hadSealedFile
                 ? await artifactStore.DescribeSealedFileAsync(runId, attemptId, purpose, cancellationToken)
                 : await artifactStore.SealAsync(runId, attemptId, purpose, cancellationToken);
         }
-        catch (Exception)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
+            // ADR-0072 (review WEP-R2): only a file-system fault on this one historical output item is optional; its files stay in
+            // place. Any other exception is unclassified and escapes as fatal.
             logger.LogError(
                 "agent_attempt_output_recovery_seal_failed AttemptId={AttemptId} Purpose={Purpose}", attemptId, purpose);
-            return;
+            return false;
         }
 
         if (sealedFile is null)
         {
-            return;
+            if (hadSealedFile || hadPartialFile)
+            {
+                logger.LogError(
+                    "agent_attempt_output_recovery_unreadable AttemptId={AttemptId} Purpose={Purpose}", attemptId, purpose);
+                return false;
+            }
+
+            // Nothing was ever captured for this stream: nothing to import.
+            return true;
         }
 
         try
@@ -92,12 +119,16 @@ public static class AgentAttemptOutputRecovery
                 logger.LogError(
                     "agent_attempt_output_recovery_import_rejected AttemptId={AttemptId} Purpose={Purpose} ErrorCode={ErrorCode}",
                     attemptId, purpose, result.Errors[0].Code);
+                return false;
             }
         }
         catch (Exception)
         {
             logger.LogError(
                 "agent_attempt_output_recovery_import_failed AttemptId={AttemptId} Purpose={Purpose}", attemptId, purpose);
+            throw;
         }
+
+        return true;
     }
 }

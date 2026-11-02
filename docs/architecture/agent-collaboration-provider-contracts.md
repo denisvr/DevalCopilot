@@ -179,7 +179,6 @@ containing prompt text, repository content, or a credential:
 --disable-slash-commands
 --no-chrome
 --permission-prompts none
---prompt-suggestions false
 --tools ""
 --strict-mcp-config
 --permission-mode plan
@@ -192,12 +191,11 @@ containing prompt text, repository content, or a credential:
 - **Stdin, never argv**: `--input-format text` (the default) reads the prompt/context from
   stdin; the CLI's own embedded strings confirm a bounded stdin-wait and UTF-8 stdin handling.
 - **Structured output**: `--output-format json` wraps the result in one JSON envelope on stdout
-  (fields observed in the binary's own string table: `is_error`, `result`, `session_id`,
-  `subtype`, `num_turns`, `total_cost_usd`, `duration_ms`); `--json-schema` constrains the
-  provider's own `result` field to this slice's fixed Acceptance/Challenge schema. Unlike Codex,
-  Claude's print mode has no file-based final-response flag — the adapter extracts `result` from
-  this envelope and writes it to the same sealed final-response artifact Codex's CLI writes
-  directly, so every later parsing/recording step is identical between both providers.
+  and `--json-schema` constrains the provider's documented `structured_output` object to this
+  slice's fixed Acceptance/Challenge schema. Unlike Codex, Claude's print mode has no file-based
+  final-response flag — the adapter re-serializes that object and writes it to the same sealed
+  final-response artifact Codex's CLI writes directly, so every later parsing/recording step is
+  identical between both providers. The narrative `result` text is never read as the response.
 - **Fully isolated from local customizations and indirect execution**: `--tools ""` and
   `--strict-mcp-config` alone disable built-in tools and non-declared MCP servers, but the
   installed CLI's own `--help` proves neither one disables hooks, plugins, skills, CLAUDE.md
@@ -211,7 +209,9 @@ containing prompt text, repository content, or a credential:
   `--permission-prompts none` denies anything that would otherwise prompt, independent of the
   permission mode; and `--permission-mode plan` is the strongest available permission mode — it
   never executes an action, only plans one, even if every tool were somehow still reachable.
-  `--prompt-suggestions false` suppresses the provider's own predicted-next-prompt side output.
+  `--prompt-suggestions false` was passed by historical contract versions and is no longer passed
+  from `claude-critical-review-v2`, `claude-implementation-v3` and `claude-review-correction-v3`
+  ([ADR-0072](../decisions/0072-adopt-one-windows-execution-profile.md)).
   `--bare` is deliberately never passed: the installed version's own `--help` states it changes
   the authentication contract itself (Anthropic auth becomes strictly
   `ANTHROPIC_API_KEY`/`apiKeyHelper`; OAuth and keychain are never read), which would silently
@@ -227,21 +227,33 @@ containing prompt text, repository content, or a credential:
   termination infrastructure already established for Codex — a `DirectExecutable` launch target
   is handled identically regardless of which provider resolved to it.
 
-The stdout envelope itself is also validated, not merely parsed: `is_error` must be present and a
-genuine JSON boolean (only a literal `false` is ever treated as success — a missing or
-non-boolean value fails the whole envelope closed), `result` must be present, and a present
-`session_id` must be a well-shaped bounded string (a genuine JSON `null` is tolerated exactly like
-an absent field, since `--no-session-persistence` means the provider may legitimately have no
-session to report; anything else malformed rejects the whole envelope, never just that field, on
-the reasoning that a provider which cannot even shape its own bookkeeping field correctly is not
-a source whose `result` should be trusted either).
+### Documented result envelope (ADR-0072)
 
-One material limitation, honestly disclosed rather than assumed away: the exact shape of the
-`result` field when `--json-schema` is supplied (a JSON string containing schema-conformant text,
-versus the schema-conformant JSON value directly) was inferred from embedded evidence and general
-knowledge of the CLI's public contract, not observed from a real authenticated invocation — the
-adapter therefore normalizes either shape defensively, and the downstream parser fails closed
-(`InvalidStructuredOutput`, never a false Acceptance) if that inference is ever wrong.
+All three Claude roles read stdout through one shared, pure envelope reader for the documented
+single result message of `--print --output-format json --json-schema` (code.claude.com "Run
+Claude Code programmatically" and the Agent SDK result message): `type` `"result"`, a `subtype`
+of `success`, `error_max_turns`, `error_during_execution`, `error_max_budget_usd` or
+`error_max_structured_output_retries`, a boolean `is_error`, the narrative `result` on the success
+arm, an `errors` array on the error arm, an optional numeric `api_error_status` and, for a valid
+structured run, `structured_output`. Semantic success requires an observed exit code zero,
+complete stdout/stderr/stdin I/O, untruncated stdout, exactly one occurrence of every root
+property (a duplicated property rejects the whole envelope), coherent metadata, `is_error`
+`false`, subtype `success`, no `errors` or API error status, and a `structured_output` JSON
+object without duplicate property names. Only that object reaches the role's own schema parser.
+The envelope is bounded in size and nesting depth; a present `session_id` must be a well-shaped
+bounded string or JSON `null`. Other documented or future fields are ignored.
+
+Every invocation that does not reach semantic success records exactly one closed diagnostic
+(`agent-invocation-diagnostic-v1`): InvocationUnavailable, EnvironmentUnavailable, TimedOut,
+Cancelled, CaptureDeadlineExceeded, CaptureFault, AuthenticationRequired, ProviderLimitReached,
+ProviderReportedError, NonZeroExit, InvalidEnvelope, StructuredOutputMissing or
+InvalidStructuredOutput. A failure envelope is interpreted even on a non-zero exit. Only the
+documented `api_error_status` values 401 (AuthenticationRequired) and 429
+(ProviderLimitReached) produce specific provider categories; every other reported error is
+ProviderReportedError. No narrative, error text, payload or path is matched, stored or shown.
+The category describes what was observed or reported, never a verified cause. An installed
+version's conformance to this documented envelope is unqualified until a separately authorized
+provider qualification observes it.
 
 ## Claude Code implementation CLI safety contract
 
@@ -261,7 +273,6 @@ The context manifest is delivered over stdin exactly as above:
 --disable-slash-commands
 --no-chrome
 --permission-prompts none
---prompt-suggestions false
 --tools "Read,Edit,Write,Glob,Grep"
 --strict-mcp-config
 --permission-mode acceptEdits
@@ -271,7 +282,7 @@ The context manifest is delivered over stdin exactly as above:
 
 Every hardening flag shared with the critical-review contract above (`--safe-mode`,
 `--restricted`, `--disable-slash-commands`, `--no-chrome`, `--permission-prompts none`,
-`--prompt-suggestions false`, `--strict-mcp-config`, `--no-session-persistence`, and the same
+`--strict-mcp-config`, `--no-session-persistence`, and the same
 never-`--bare`/`--continue`/`--resume`/`--fork-session`/`--dangerously-skip-permissions` set)
 applies identically. Two differences are deliberate:
 
@@ -308,7 +319,7 @@ applies identically. Two differences are deliberate:
   consequence (that it truly never blocks on a prompt for an in-boundary edit) — the CLI ships no
   bundled documentation asserting this in so many words, and confirming it further would require
   an authenticated invocation this project's evidence discipline forbids. Mirrors the
-  `result`-field-shape limitation the critical-review contract above already discloses in kind.
+  unqualified-envelope limitation the critical-review contract above already discloses in kind.
 - **No `--max-turns` by default; an optional owner request adds exactly one**: implementation is
   inherently multi-step (read, edit, re-read), unlike a single-turn critical review, so no turn
   limit is passed unless the attempt's immutable snapshot requested one (see

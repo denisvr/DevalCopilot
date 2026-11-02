@@ -187,7 +187,7 @@ public sealed class GetClaudeCriticalReviewAttemptStatusEndpointTests(ClaudeCrit
             dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), attempt.Id, Guid.NewGuid(), sequence: 0));
             await dbContext.SaveChangesAsync();
             await dbContext.Database.ExecuteSqlInterpolatedAsync(
-                $"UPDATE attempts SET AgentAdapterContractVersion = 'claude-critical-review-v2' WHERE Id = {attempt.Id}");
+                $"UPDATE attempts SET AgentAdapterContractVersion = 'claude-critical-review-v3' WHERE Id = {attempt.Id}");
         }
 
         using var client = CreateAuthenticatedClient();

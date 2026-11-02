@@ -429,7 +429,8 @@ public sealed class InstructionDeliveryProjectionTests : IDisposable
         await new ClaudeCriticalReviewAdapter(process, _store).InvokeAsync(
             new CriticalReviewInvocationRequest(
                 run, attempt, repository, sealedFile!.RelativeStoragePath, sealedFile.ByteLength, sealedFile.ContentHash, _launch,
-                TimeSpan.FromMinutes(5), 256 * 1024, 512 * 1024),
+                TimeSpan.FromMinutes(5), 256 * 1024, 512 * 1024,
+                AdapterContractVersion: ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion),
             CancellationToken.None);
         var stdin = Encoding.UTF8.GetString(Assert.Single(process.Requests).StandardInput!);
         Assert.Equal(manifest, stdin);

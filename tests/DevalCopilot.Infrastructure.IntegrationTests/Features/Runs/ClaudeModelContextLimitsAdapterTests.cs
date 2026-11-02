@@ -1,5 +1,6 @@
 using System.Text;
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.Runs;
 using DevalCopilot.Infrastructure.Features.Processes;
@@ -17,7 +18,10 @@ namespace DevalCopilot.Infrastructure.IntegrationTests.Features.Runs;
 /// </summary>
 public sealed class ClaudeModelContextLimitsAdapterTests : IDisposable
 {
-    private const string ValidResult = "\"result\":\"{\\\"summary\\\":\\\"ok\\\"}\"";
+    /// <summary>ADR-0072: an error envelope carries only its narrative result, never structured output.</summary>
+    private const string ErrorNarrative = "\"result\":\"Provider error text that is never read.\"";
+
+    private const string ValidResult = "\"result\":\"Done.\",\"structured_output\":{\"summary\":\"ok\"}";
     private const string ValidUsage =
         "\"usage\":{\"input_tokens\":1200,\"output_tokens\":345,\"cache_creation_input_tokens\":67,\"cache_read_input_tokens\":890}";
     private const string Source = "claude-cli-model-usage-v1";
@@ -149,9 +153,22 @@ public sealed class ClaudeModelContextLimitsAdapterTests : IDisposable
         // All-or-unknown: one valid entry never survives beside a malformed one, in either order.
         Map(Entry("good"), Entry("bad", "-1", "1")), Map(Entry("bad", "-1", "1"), Entry("good")), Map(Entry("good"), Entry("bad", "5", "6")),
         Map(Entry("good"), Entry("bad id")),
-        // A duplicate root map is ambiguous.
-        SingleMap + "," + Map(Entry("other")), Map(Entry("other")) + "," + SingleMap,
     };
+
+    // ADR-0072: a duplicated root model map is a duplicated contract-bearing property, so the whole envelope is rejected.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task A_duplicated_root_model_map_rejects_the_whole_envelope(bool validFirst)
+    {
+        var maps = validFirst ? SingleMap + "," + Map(Entry("other")) : Map(Entry("other")) + "," + SingleMap;
+
+        foreach (var result in await InvokeAsync(Clean(Envelope(isError: false, ValidResult, ValidUsage, maps))))
+        {
+            Assert.False(result.Succeeded, result.Adapter);
+            Assert.Null(result.Limits);
+        }
+    }
 
     // Discriminating: if a map-parsing failure were wired to reject the whole envelope, every adapter below would report Failed
     // instead of Exited, and the token usage would be lost.
@@ -212,7 +229,7 @@ public sealed class ClaudeModelContextLimitsAdapterTests : IDisposable
     [Fact]
     public async Task A_structurally_valid_error_envelope_still_carries_the_limits_the_provider_reported()
     {
-        foreach (var result in await InvokeAsync(Clean(Envelope(isError: true, ValidResult, ValidUsage, SingleMap))))
+        foreach (var result in await InvokeAsync(Clean(Envelope(isError: true, ErrorNarrative, ValidUsage, SingleMap))))
         {
             Assert.False(result.Succeeded, result.Adapter);
             Assert.Equal(ExpectedUsage, result.Usage);
@@ -224,7 +241,7 @@ public sealed class ClaudeModelContextLimitsAdapterTests : IDisposable
     public async Task A_valid_envelope_whose_business_output_will_not_pass_the_schema_still_carries_the_limits()
     {
         // The adapters only seal the final response; the semantic judgement happens later and must not decide this evidence.
-        var stdout = Envelope(isError: false, "\"result\":\"not the contract at all\"", SingleMap);
+        var stdout = Envelope(isError: false, "\"result\":\"x\",\"structured_output\":{\"not\":\"the contract at all\"}", SingleMap);
 
         foreach (var result in await InvokeAsync(Clean(stdout)))
         {
@@ -329,7 +346,7 @@ public sealed class ClaudeModelContextLimitsAdapterTests : IDisposable
         var criticalReview = await new ClaudeCriticalReviewAdapter(processAdapter, _artifactStore).InvokeAsync(
             new CriticalReviewInvocationRequest(
                 runId, attemptId, _workspacePath, manifest.RelativeStoragePath, manifest.ByteLength, manifest.ContentHash,
-                executable, timeout, 65536, 131072),
+                executable, timeout, 65536, 131072, AdapterContractVersion: ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion),
             CancellationToken.None);
         results.Add(Observe("CriticalReviewer", criticalReview.Outcome == CriticalReviewInvocationOutcome.Exited,
             criticalReview.ModelContextLimits, criticalReview.TokenUsage, criticalReview.ProcessEvidence, null, processAdapter));
@@ -338,7 +355,7 @@ public sealed class ClaudeModelContextLimitsAdapterTests : IDisposable
         var implementation = await new ClaudeImplementationAdapter(processAdapter, _artifactStore).InvokeAsync(
             new ImplementationInvocationRequest(
                 runId, attemptId, _workspacePath, manifest.RelativeStoragePath, manifest.ByteLength, manifest.ContentHash,
-                executable, timeout, 65536, 131072),
+                executable, timeout, 65536, 131072, AdapterContractVersion: ClaudeMutationAdapterContract.CurrentImplementation),
             CancellationToken.None);
         results.Add(Observe("Implementer", implementation.Outcome == ImplementationInvocationOutcome.Exited,
             implementation.ModelContextLimits, implementation.TokenUsage, implementation.ProcessEvidence, implementation.ObservedModel,
@@ -348,7 +365,7 @@ public sealed class ClaudeModelContextLimitsAdapterTests : IDisposable
         var correction = await new ClaudeReviewCorrectionAdapter(processAdapter, _artifactStore).InvokeAsync(
             new ReviewCorrectionInvocationRequest(
                 runId, attemptId, _workspacePath, manifest.RelativeStoragePath, manifest.ByteLength, manifest.ContentHash,
-                executable, timeout, 65536, 131072),
+                executable, timeout, 65536, 131072, AdapterContractVersion: ClaudeMutationAdapterContract.CurrentReviewCorrection),
             CancellationToken.None);
         results.Add(Observe("ReviewCorrection", correction.Outcome == ImplementationInvocationOutcome.Exited,
             correction.ModelContextLimits, correction.TokenUsage, correction.ProcessEvidence, null, processAdapter));
@@ -408,6 +425,7 @@ public sealed class ClaudeModelContextLimitsAdapterTests : IDisposable
 
     private static ProcessExecutionResult Result(ProcessExecutionOutcome outcome, int? exitCode, string standardOutput) => new()
     {
+        IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
         Outcome = outcome,
         ExitCode = exitCode,
         StandardOutput = standardOutput,

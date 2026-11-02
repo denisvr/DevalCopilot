@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using DevalCopilot.Application.Features.EnvironmentReadiness.Queries.GetGitHubStoredAuthentication;
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Infrastructure.Features.EnvironmentReadiness;
 using DevalCopilot.Infrastructure.Features.Processes;
 using Xunit;
@@ -67,6 +68,7 @@ public sealed class GitHubStoredAuthenticationAdapterTests : IDisposable
         string stdout, int exitCode = 0, bool stdoutTruncated = false, bool stderrTruncated = false, string stderr = "",
         ProcessExecutionOutcome outcome = ProcessExecutionOutcome.Exited) => new()
         {
+            IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
             Outcome = outcome,
             ExitCode = outcome == ProcessExecutionOutcome.Exited ? exitCode : null,
             StandardOutput = stdout,

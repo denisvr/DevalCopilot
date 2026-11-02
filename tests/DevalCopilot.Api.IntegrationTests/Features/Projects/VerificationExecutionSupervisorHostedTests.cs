@@ -1,11 +1,13 @@
 using DevalCopilot.Api.HostedServices;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Application.Features.Projects.Commands.ClaimVerificationExecution;
 using DevalCopilot.Application.Features.Projects.Commands.ReconcileInterruptedVerificationExecutions;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Infrastructure.Features.Processes;
+using DevalCopilot.Infrastructure.Features.Projects;
 using DevalCopilot.Infrastructure.Persistence;
 using Devalente.Shared.Cqrs;
 using Microsoft.Data.Sqlite;
@@ -78,6 +80,83 @@ public sealed class VerificationExecutionSupervisorHostedTests : IDisposable
         Assert.Equal(0, execution.ExitCode);
         Assert.NotNull(execution.DispatchedAtUtc);
         Assert.Equal(2, await verify.VerificationOutputArtifacts.CountAsync(artifact => artifact.VerificationExecutionId == execution.Id));
+    }
+
+    [Fact]
+    public async Task An_unproved_stdout_writer_is_neither_sealed_nor_deleted_and_the_exit_zero_fails()
+    {
+        // ADR-0072 (review WEP-R1): the stdout writer was not proved closed; stderr was.
+        await using var host = await BuildHostAsync();
+        var scene = await SeedClaimAsync(host, ["one"], timeoutSeconds: 30);
+        host.Process.Results.Enqueue((0, "unproved stdout", "proved stderr"));
+        host.Process.IoCompletion = new ProcessIoCompletion(
+            OutputCaptureCompletion.Unknown, OutputCaptureCompletion.Complete, InputDeliveryCompletion.NotRedirected);
+
+        await RunUntilTerminalAsync(host, scene.ExecutionId);
+
+        await using var verify = CreateContext();
+        var execution = await verify.VerificationExecutions.SingleAsync();
+        Assert.Equal(VerificationExecutionStatus.Failed, execution.Status);
+        Assert.Equal(VerificationExecutionOutcome.Exited, execution.Outcome);
+        Assert.Equal(0, execution.ExitCode);
+        Assert.Equal(OutputCaptureCompletion.Unknown, execution.StandardOutputCompletion);
+        var purposes = await verify.VerificationOutputArtifacts
+            .Where(artifact => artifact.VerificationExecutionId == execution.Id)
+            .Select(artifact => artifact.Purpose)
+            .ToListAsync();
+        Assert.Equal([VerificationOutputPurpose.StandardError], purposes);
+        Assert.True(File.Exists(artifactStore.GetPartialPath(execution.Id, VerificationOutputPurpose.StandardOutput)));
+    }
+
+    [Fact]
+    public async Task Recorded_version_one_two_and_unrecorded_profiles_stay_exactly_as_recorded_while_a_new_execution_records_version_three()
+    {
+        // ADR-0073 and ADR-0074: no relabeling, backfill, implicit upgrade, replay or redispatch of history.
+        await using var host = await BuildHostAsync();
+        var scene = await SeedClaimAsync(host, ["one"], timeoutSeconds: 30);
+        Guid versionOne;
+        Guid versionTwo;
+        Guid unrecorded;
+        await using (var seed = CreateContext())
+        {
+            var workspace = await seed.GitWorkspaces.SingleAsync(candidate => candidate.Id == scene.Workspace.Id);
+            var checkpoint = await seed.GitCheckpoints.SingleAsync(candidate => candidate.Id == scene.CheckpointId);
+            var recipe = await seed.VerificationCommands.SingleAsync(candidate => candidate.Id == scene.Recipe.Id);
+            var first = VerificationExecution.Claim(Guid.NewGuid(), scene.ProjectId, 2, workspace, checkpoint, recipe, Now.AddMinutes(-20));
+            first.MarkDispatched(Now.AddMinutes(-19));
+            first.Complete(
+                VerificationExecutionOutcome.Exited, 0, Fingerprint, Now.AddMinutes(-18), ProcessIoCompletion.CompleteWithoutInput,
+                WindowsVerificationEnvironmentProvider.HistoricalProfileVersionV1);
+            var second = VerificationExecution.Claim(Guid.NewGuid(), scene.ProjectId, 3, workspace, checkpoint, recipe, Now.AddMinutes(-10));
+            second.MarkDispatched(Now.AddMinutes(-9));
+            second.Complete(VerificationExecutionOutcome.Exited, 1, Fingerprint, Now.AddMinutes(-8), null);
+            var third = VerificationExecution.Claim(Guid.NewGuid(), scene.ProjectId, 4, workspace, checkpoint, recipe, Now.AddMinutes(-6));
+            third.MarkDispatched(Now.AddMinutes(-5));
+            third.Complete(
+                VerificationExecutionOutcome.Exited, 1, Fingerprint, Now.AddMinutes(-4), ProcessIoCompletion.CompleteWithoutInput,
+                WindowsVerificationEnvironmentProvider.HistoricalProfileVersionV2);
+            seed.VerificationExecutions.AddRange(first, second, third);
+            await seed.SaveChangesAsync();
+            (versionOne, versionTwo, unrecorded) = (first.Id, third.Id, second.Id);
+        }
+
+        await RunUntilTerminalAsync(host, scene.ExecutionId);
+        await RunForAWhileAsync(host);
+
+        Assert.Single(host.Process.Requests);
+        await using var verify = CreateContext();
+        var rows = await verify.VerificationExecutions.AsNoTracking().ToDictionaryAsync(execution => execution.Id);
+        Assert.Equal("windows-verification-v3", rows[scene.ExecutionId].EnvironmentProfileVersion);
+        Assert.Equal(VerificationExecutionStatus.Passed, rows[scene.ExecutionId].Status);
+        Assert.Equal("windows-verification-v1", rows[versionOne].EnvironmentProfileVersion);
+        Assert.Equal(VerificationExecutionStatus.Passed, rows[versionOne].Status);
+        Assert.Equal(Now.AddMinutes(-18), rows[versionOne].CompletedAtUtc);
+        Assert.Equal("windows-verification-v2", rows[versionTwo].EnvironmentProfileVersion);
+        Assert.Equal(VerificationExecutionStatus.Failed, rows[versionTwo].Status);
+        Assert.Equal(Now.AddMinutes(-4), rows[versionTwo].CompletedAtUtc);
+        Assert.Null(rows[unrecorded].EnvironmentProfileVersion);
+        Assert.Equal(VerificationExecutionStatus.Failed, rows[unrecorded].Status);
+        Assert.Equal(Now.AddMinutes(-8), rows[unrecorded].CompletedAtUtc);
     }
 
     [Fact]
@@ -380,6 +459,40 @@ public sealed class VerificationExecutionSupervisorHostedTests : IDisposable
         Assert.Equal(VerificationExecutionStatus.Interrupted, (await verify.VerificationExecutions.SingleAsync()).Status);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_preparation_that_throws_after_dispatch_is_recorded_once_without_a_process_and_never_redispatched(bool unexpected)
+    {
+        // ADR-0072 (review WEP-R5): the dispatch marker is durable before the environment is prepared.
+        await using var host = await BuildHostAsync();
+        var scene = await SeedClaimAsync(host, ["x"], timeoutSeconds: 60);
+        var environment = new ThrowingEnvironmentProvider(unexpected);
+
+        await RunUntilTerminalAsync(host, scene.ExecutionId, environment);
+        await using (var first = CreateContext())
+        {
+            var execution = await first.VerificationExecutions.AsNoTracking().SingleAsync();
+            Assert.Equal(VerificationExecutionStatus.Failed, execution.Status);
+            Assert.Equal(VerificationExecutionOutcome.Failed, execution.Outcome);
+            Assert.Null(execution.ExitCode);
+            Assert.Equal(VerificationExecutionDiagnostic.EnvironmentUnavailable, execution.Diagnostic);
+            Assert.Null(execution.EnvironmentProfileVersion);
+            Assert.Null(execution.StandardOutputCompletion);
+            Assert.NotNull(execution.DispatchedAtUtc);
+        }
+
+        // A second supervisor lifetime finds nothing to dispatch again.
+        await RunForAWhileAsync(host, environment);
+
+        Assert.Empty(host.Process.Requests);
+        Assert.Equal(1, environment.Prepares);
+        Assert.Equal([scene.ExecutionId], environment.Released);
+        await using var verify = CreateContext();
+        Assert.Equal(VerificationExecutionStatus.Failed, (await verify.VerificationExecutions.AsNoTracking().SingleAsync()).Status);
+        Assert.Equal(0, await verify.VerificationOutputArtifacts.CountAsync());
+    }
+
     [Fact]
     public async Task A_process_failure_after_dispatch_still_records_a_failed_outcome_after_one_call()
     {
@@ -634,6 +747,8 @@ public sealed class VerificationExecutionSupervisorHostedTests : IDisposable
 
         public TimeSpan Delay { get; set; }
 
+        public ProcessIoCompletion IoCompletion { get; set; } = ProcessIoCompletion.CompleteWithoutInput;
+
         public bool Throw { get; set; }
 
         public async Task<ProcessExecutionResult> ExecuteAsync(ProcessExecutionRequest request, CancellationToken cancellationToken)
@@ -659,6 +774,7 @@ public sealed class VerificationExecutionSupervisorHostedTests : IDisposable
             await File.WriteAllTextAsync(request.StandardErrorSinkPath!, stderr, cancellationToken);
             return new ProcessExecutionResult
             {
+                IoCompletion = IoCompletion,
                 Outcome = ProcessExecutionOutcome.Exited,
                 ExitCode = exitCode,
                 StandardOutput = string.Empty,
@@ -698,12 +814,39 @@ public sealed class VerificationExecutionSupervisorHostedTests : IDisposable
         return new Host(services.BuildServiceProvider(), evidence, process);
     }
 
-    private static VerificationExecutionSupervisor SupervisorFor(Host host) => new(
+    private static VerificationExecutionSupervisor SupervisorFor(Host host, IVerificationEnvironmentProvider? environment = null) => new(
         host.Provider.GetRequiredService<IServiceScopeFactory>(),
         host.Process,
         host.Evidence,
         host.Provider.GetRequiredService<IVerificationOutputArtifactStore>(),
+        environment ?? new FixedVerificationEnvironmentProvider(),
         NullLogger<VerificationExecutionSupervisor>.Instance);
+
+    /// <summary>Fails while preparing, as a scratch or configuration child creation can: an I/O fault, or an unexpected one.</summary>
+    private sealed class ThrowingEnvironmentProvider(bool unexpected) : IVerificationEnvironmentProvider
+    {
+        private int _prepares;
+
+        public int Prepares => Volatile.Read(ref _prepares);
+
+        public List<Guid> Released { get; } = [];
+
+        public VerificationEnvironmentPreparation Prepare(Guid verificationExecutionId, string executablePath, IReadOnlyList<string> arguments)
+        {
+            Interlocked.Increment(ref _prepares);
+            throw unexpected
+                ? new InvalidOperationException("Scripted unexpected preparation failure.")
+                : new IOException("Scripted partial-setup failure.");
+        }
+
+        public void ReleaseScratch(Guid verificationExecutionId)
+        {
+            lock (Released)
+            {
+                Released.Add(verificationExecutionId);
+            }
+        }
+    }
 
     private async Task WaitUntilAsync(Host host, Guid executionId, Func<VerificationExecutionStatus, bool> done)
     {
@@ -721,9 +864,9 @@ public sealed class VerificationExecutionSupervisorHostedTests : IDisposable
         throw new TimeoutException("The verification execution did not reach the expected state.");
     }
 
-    private async Task RunUntilTerminalAsync(Host host, Guid executionId)
+    private async Task RunUntilTerminalAsync(Host host, Guid executionId, IVerificationEnvironmentProvider? environment = null)
     {
-        var supervisor = SupervisorFor(host);
+        var supervisor = SupervisorFor(host, environment);
         await supervisor.StartAsync(CancellationToken.None);
         try
         {
@@ -736,9 +879,9 @@ public sealed class VerificationExecutionSupervisorHostedTests : IDisposable
         }
     }
 
-    private static async Task RunForAWhileAsync(Host host)
+    private static async Task RunForAWhileAsync(Host host, IVerificationEnvironmentProvider? environment = null)
     {
-        var supervisor = SupervisorFor(host);
+        var supervisor = SupervisorFor(host, environment);
         await supervisor.StartAsync(CancellationToken.None);
         try
         {

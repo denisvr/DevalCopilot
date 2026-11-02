@@ -19,7 +19,13 @@ public sealed class GetTerminalAgentAttemptsQueryHandler(IDevalCopilotDbContext 
             .AsNoTracking()
             .Where(attempt => attempt.Kind == AttemptKind.Agent && attempt.Status != AttemptStatus.Running
                 && !retained.Contains(attempt.Id))
-            .Select(attempt => new TerminalAgentAttempt(attempt.RunId, attempt.Id))
+            .Select(attempt => new TerminalAgentAttempt(
+                attempt.RunId,
+                attempt.Id,
+                dbContext.Artifacts
+                    .Where(artifact => artifact.AttemptId == attempt.Id && artifact.RunId == attempt.RunId)
+                    .Select(artifact => artifact.Purpose)
+                    .ToList()))
             .ToListAsync(cancellationToken);
     }
 }

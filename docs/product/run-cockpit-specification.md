@@ -1593,6 +1593,25 @@ running/dispatched state before it ever consults the record's shape, exactly
 as it already does for token usage. The attempt's configured timeout is a
 separate, always-known value shown regardless of this check.
 
+Since [ADR-0072](../decisions/0072-adopt-one-windows-execution-profile.md) the
+same Agent attempt evidence (current run and selected historical run) shows a
+concluded Claude attempt's recorded invocation diagnostic, when one exists,
+with fixed copy chosen from the closed category alone
+(`describeInvocationDiagnostic.ts`) and the caveat that it describes what was
+observed or reported, not a verified cause. Nothing the provider printed is
+shown, and no retry, repair or sign-in action is mounted. An attempt with no
+diagnostic (every success and every earlier attempt) shows none; an unknown
+state, category or version is shown as unavailable. Recorded incomplete I/O is
+stated beside the process facts so an exit code zero is never read as success.
+
+When the host reports a fatal startup failure, the existing failed-startup
+screen shows fixed guidance for the closed action (restore storage access and
+reopen once, or keep the data and worktrees as they are and request a reviewed
+repair), the warning against editing the database, resetting worktrees,
+force-releasing ownership or restarting repeatedly, and the copyable
+`DCSF1-<stage>-<reason>-<action>` diagnostic, without any API call. Nonfatal
+startup warnings appear once, as fixed sentences, in one app-shell summary.
+
 ### Configured Claude Implementer permission mode
 
 A bounded, read-only fact on the Claude Implementer attempt status — the

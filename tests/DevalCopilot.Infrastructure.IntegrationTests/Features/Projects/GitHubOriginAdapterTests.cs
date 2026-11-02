@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Projects.Queries.GetProjectGitHubOrigin;
 using DevalCopilot.Infrastructure.Features.Projects;
@@ -53,6 +54,7 @@ public sealed class GitHubOriginAdapterTests
         string stdout, int exitCode = 0, bool stdoutTruncated = false, bool stderrTruncated = false,
         ProcessExecutionOutcome outcome = ProcessExecutionOutcome.Exited) => new()
         {
+            IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
             Outcome = outcome,
             ExitCode = outcome == ProcessExecutionOutcome.Exited ? exitCode : null,
             StandardOutput = stdout,

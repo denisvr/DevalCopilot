@@ -9,12 +9,14 @@ using DevalCopilot.Domain.Features.Runs;
 namespace DevalCopilot.Infrastructure.Features.Runs;
 
 /// <summary>Invokes Claude with the same bounded, no-shell, isolated mutation contract as the
-/// established implementation adapter, but uses the ReviewCorrection schema.</summary>
+/// established implementation adapter, but uses the ReviewCorrection schema. ADR-0072 (contract
+/// <c>claude-review-correction-v3</c>): only the current contract is dispatched, the shared
+/// <see cref="ClaudeResultEnvelope"/> returns the schema-bound <c>structured_output</c> object only for
+/// semantic success, and every failure carries one closed <see cref="AgentInvocationDiagnostic"/>.</summary>
 public sealed class ClaudeReviewCorrectionAdapter(IProcessExecutionAdapter processExecutionAdapter, IArtifactStore artifactStore)
     : IClaudeReviewCorrectionAdapter
 {
     private const int MaxManifestBytes = 32 * 1024;
-    private const int MaxSessionIdLength = 256;
 
     private readonly ClaudeProcessEnvironmentInputs _environmentInputs = ClaudeProcessEnvironmentInputs.Current;
 
@@ -32,11 +34,17 @@ public sealed class ClaudeReviewCorrectionAdapter(IProcessExecutionAdapter proce
     public async Task<ReviewCorrectionInvocationResult> InvokeAsync(
         ReviewCorrectionInvocationRequest request, CancellationToken cancellationToken)
     {
+        if (!ClaudeMutationAdapterContract.IsCurrentVersionFor(AgentResponseContract.ReviewCorrection, request.AdapterContractVersion))
+        {
+            // ADR-0072: only the current contract is dispatched; a historical attempt is never upgraded or redispatched.
+            return Failed(AgentInvocationDiagnostic.InvocationUnavailable);
+        }
+
         if (!Path.IsPathFullyQualified(request.LaunchExecutablePath)
             || !File.Exists(request.LaunchExecutablePath)
             || AgentInvocationScratchDirectory.PathOrAnyAncestorHasReparsePoint(request.LaunchExecutablePath))
         {
-            return Failed();
+            return Failed(AgentInvocationDiagnostic.InvocationUnavailable);
         }
 
         // Mirrors ClaudeCriticalReviewAdapter: a cancelled request is never masked as an environment refusal.
@@ -46,7 +54,7 @@ public sealed class ClaudeReviewCorrectionAdapter(IProcessExecutionAdapter proce
         // requested, any artifact is written or a process starts — never retried with the smaller map.
         if (!ClaudeProcessEnvironment.TryBuild(_environmentInputs, out var environment))
         {
-            return Failed();
+            return Failed(AgentInvocationDiagnostic.EnvironmentUnavailable);
         }
 
         var manifest = await artifactStore.VerifyAndReadSealedAsync(
@@ -61,7 +69,7 @@ public sealed class ClaudeReviewCorrectionAdapter(IProcessExecutionAdapter proce
         if (manifest.Status != SealedReadStatus.Ok
             || !DirectHumanGuidanceManifest.Agrees(manifest.Text, request.DirectHumanGuidance))
         {
-            return Failed();
+            return Failed(AgentInvocationDiagnostic.InvocationUnavailable);
         }
 
         var arguments = new List<string>
@@ -69,7 +77,7 @@ public sealed class ClaudeReviewCorrectionAdapter(IProcessExecutionAdapter proce
             "--print", "--input-format", "text", "--output-format", "json",
             "--json-schema", JsonSerializer.Serialize(ReviewCorrectionOutputSchema.BuildSchemaDocument()),
             "--safe-mode", "--restricted", "--disable-slash-commands", "--no-chrome",
-            "--permission-prompts", "none", "--prompt-suggestions", "false",
+            "--permission-prompts", "none",
             "--tools", "Read,Edit,Write,Glob,Grep", "--strict-mcp-config",
             "--permission-mode", "acceptEdits", "--no-session-persistence",
             "--session-id", Guid.NewGuid().ToString(),
@@ -78,14 +86,14 @@ public sealed class ClaudeReviewCorrectionAdapter(IProcessExecutionAdapter proce
         if (!ClaudeModelRequestArguments.TryAppend(
                 arguments, request.RequestedClaudeModel, request.RequestedClaudeEffort))
         {
-            return Failed();
+            return Failed(AgentInvocationDiagnostic.InvocationUnavailable);
         }
 
         if (!ClaudeMutationTurnLimitArguments.TryAppend(
                 arguments, request.RequestedMaxTurns, request.AdapterContractVersion,
-                ClaudeMutationAdapterContract.ReviewCorrectionV2))
+                ClaudeMutationAdapterContract.CurrentReviewCorrection))
         {
-            return Failed();
+            return Failed(AgentInvocationDiagnostic.InvocationUnavailable);
         }
 
         ProcessExecutionResult result;
@@ -112,113 +120,42 @@ public sealed class ClaudeReviewCorrectionAdapter(IProcessExecutionAdapter proce
         }
         catch (Exception)
         {
-            return Failed();
+            return Failed(AgentInvocationDiagnostic.InvocationUnavailable);
         }
 
         // Preserved for every real result, never collapsed into the closed Exited/Failed
         // classification alone — mirrors ClaudeImplementationAdapter.
         var processEvidence = AgentProcessEvidence.FromProcessExecutionResult(result);
-        if (result.Outcome != ProcessExecutionOutcome.Exited || result.ExitCode != 0)
+        var reading = ClaudeResultEnvelope.Classify(result);
+        if (!reading.IsSuccess)
         {
-            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence);
-        }
-
-        var parsed = TryParseEnvelope(
-            result.StandardOutput, out var finalResponse, out var sessionId, out var reportedUsage, out var reportedLimits);
-        var tokenUsage = ClaudeCliTokenUsage.UnlessTruncated(reportedUsage, result.StandardOutputTruncated);
-        var modelLimits = ClaudeCliModelContextLimits.UnlessTruncated(reportedLimits, result.StandardOutputTruncated);
-        if (!parsed || finalResponse is null)
-        {
-            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence, tokenUsage, modelLimits);
+            return Failed(reading.Diagnostic!.Value, result, processEvidence, reading.TokenUsage, reading.ModelContextLimits);
         }
 
         try
         {
             var path = artifactStore.GetPartialPath(request.RunId, request.AttemptId, Domain.Features.Runs.ArtifactPurpose.AgentFinalResponse);
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            await File.WriteAllTextAsync(path, finalResponse, cancellationToken);
+            await File.WriteAllTextAsync(path, reading.StructuredOutputJson, cancellationToken);
         }
-        catch (IOException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence, tokenUsage, modelLimits);
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence, tokenUsage, modelLimits);
+            return Failed(
+                AgentInvocationDiagnostic.CaptureFault, result, processEvidence, reading.TokenUsage, reading.ModelContextLimits);
         }
 
         return new ReviewCorrectionInvocationResult(
-            ImplementationInvocationOutcome.Exited, result.StandardOutputTruncated, result.StandardErrorTruncated, sessionId, processEvidence,
-            tokenUsage, modelLimits);
+            ImplementationInvocationOutcome.Exited, result.StandardOutputTruncated, result.StandardErrorTruncated, reading.SessionId,
+            processEvidence, reading.TokenUsage, reading.ModelContextLimits);
     }
 
-    /// <summary>Returns true only for a successful, well-shaped envelope. <paramref name="tokenUsage"/>
-    /// is set whenever the envelope is structurally valid — including an <c>is_error: true</c> or
-    /// empty-result envelope, which still returns false — and stays null for a malformed envelope or
-    /// a missing or malformed <c>usage</c> object; usage never decides the return value. Likewise <paramref name="modelLimits"/>
-    /// is the independent, optional <c>modelUsage</c> evidence of the same envelope and never decides it. See
-    /// <see cref="ClaudeCliTokenUsage"/> and <see cref="ClaudeCliModelContextLimits"/>.</summary>
-    private static bool TryParseEnvelope(
-        string output, out string? finalResponse, out string? sessionId, out AgentTokenUsage? tokenUsage,
-        out AgentModelContextLimits? modelLimits)
-    {
-        finalResponse = null;
-        sessionId = null;
-        tokenUsage = null;
-        modelLimits = null;
-        try
-        {
-            using var document = JsonDocument.Parse(output);
-            var root = document.RootElement;
-            if (root.ValueKind != JsonValueKind.Object
-                || !root.TryGetProperty("is_error", out var error)
-                || (error.ValueKind != JsonValueKind.True && error.ValueKind != JsonValueKind.False)
-                || !root.TryGetProperty("result", out var result))
-            {
-                return false;
-            }
-
-            string? observedSessionId = null;
-            if (root.TryGetProperty("session_id", out var session) && session.ValueKind == JsonValueKind.String)
-            {
-                var value = session.GetString();
-                if (string.IsNullOrWhiteSpace(value) || value.Length > MaxSessionIdLength)
-                {
-                    return false;
-                }
-
-                observedSessionId = value;
-            }
-            else if (root.TryGetProperty("session_id", out session) && session.ValueKind != JsonValueKind.Null)
-            {
-                return false;
-            }
-
-            tokenUsage = ClaudeCliTokenUsage.TryRead(root);
-            modelLimits = ClaudeCliModelContextLimits.TryRead(root);
-            if (error.ValueKind == JsonValueKind.True)
-            {
-                return false;
-            }
-
-            sessionId = observedSessionId;
-            finalResponse = result.ValueKind == JsonValueKind.String ? result.GetString() : result.GetRawText();
-            return !string.IsNullOrWhiteSpace(finalResponse);
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
-    }
-
-    /// <summary><paramref name="processEvidence"/> is null only when no process result exists;
-    /// <paramref name="tokenUsage"/> and <paramref name="modelLimits"/> are null whenever no structurally valid envelope reported
-    /// well-shaped usage or limits, each judged independently.</summary>
+    /// <summary>Mirrors <c>ClaudeCriticalReviewAdapter.Failed</c>.</summary>
     private static ReviewCorrectionInvocationResult Failed(
-        bool stdoutTruncated = false,
-        bool stderrTruncated = false,
+        AgentInvocationDiagnostic diagnostic,
+        ProcessExecutionResult? result = null,
         AgentProcessEvidence? processEvidence = null,
         AgentTokenUsage? tokenUsage = null,
         AgentModelContextLimits? modelLimits = null) =>
-        new(ImplementationInvocationOutcome.Failed, stdoutTruncated, stderrTruncated, null, processEvidence, tokenUsage, modelLimits);
+        new(ImplementationInvocationOutcome.Failed, result?.StandardOutputTruncated ?? false, result?.StandardErrorTruncated ?? false,
+            null, processEvidence, tokenUsage, modelLimits, diagnostic);
 }

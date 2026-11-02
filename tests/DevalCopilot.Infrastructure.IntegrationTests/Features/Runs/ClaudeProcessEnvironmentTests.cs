@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Text;
 using System.Text.Json;
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.Runs;
@@ -517,7 +518,7 @@ public sealed class ClaudeProcessEnvironmentTests : IDisposable
                     var result = await new ClaudeCriticalReviewAdapter(process, store, inputs).InvokeAsync(
                         new CriticalReviewInvocationRequest(
                             runId, attemptId, _workspacePath, manifest!.RelativeStoragePath, manifest.ByteLength, manifest.ContentHash,
-                            executablePath, TimeSpan.FromSeconds(30), 65536, 131072),
+                            executablePath, TimeSpan.FromSeconds(30), 65536, 131072, AdapterContractVersion: ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion),
                         cancellationToken);
                     failed = result.Outcome == CriticalReviewInvocationOutcome.Failed;
                     hasEvidence = result.ProcessEvidence is not null;
@@ -530,7 +531,7 @@ public sealed class ClaudeProcessEnvironmentTests : IDisposable
                     var result = await new ClaudeImplementationAdapter(process, store, inputs).InvokeAsync(
                         new ImplementationInvocationRequest(
                             runId, attemptId, _workspacePath, manifest!.RelativeStoragePath, manifest.ByteLength, manifest.ContentHash,
-                            executablePath, TimeSpan.FromSeconds(30), 65536, 131072),
+                            executablePath, TimeSpan.FromSeconds(30), 65536, 131072, AdapterContractVersion: ClaudeMutationAdapterContract.CurrentImplementation),
                         cancellationToken);
                     failed = result.Outcome == ImplementationInvocationOutcome.Failed;
                     hasEvidence = result.ProcessEvidence is not null;
@@ -543,7 +544,7 @@ public sealed class ClaudeProcessEnvironmentTests : IDisposable
                     var result = await new ClaudeReviewCorrectionAdapter(process, store, inputs).InvokeAsync(
                         new ReviewCorrectionInvocationRequest(
                             runId, attemptId, _workspacePath, manifest!.RelativeStoragePath, manifest.ByteLength, manifest.ContentHash,
-                            executablePath, TimeSpan.FromSeconds(30), 65536, 131072),
+                            executablePath, TimeSpan.FromSeconds(30), 65536, 131072, AdapterContractVersion: ClaudeMutationAdapterContract.CurrentReviewCorrection),
                         cancellationToken);
                     failed = result.Outcome == ImplementationInvocationOutcome.Failed;
                     hasEvidence = result.ProcessEvidence is not null;
@@ -590,9 +591,10 @@ public sealed class ClaudeProcessEnvironmentTests : IDisposable
 
             return Task.FromResult(new ProcessExecutionResult
             {
+                IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                 Outcome = ProcessExecutionOutcome.Exited,
                 ExitCode = 0,
-                StandardOutput = JsonSerializer.Serialize(new { is_error = false, result = "{\"ok\":true}", session_id = (string?)null }),
+                StandardOutput = ClaudeDocumentedEnvelope.SuccessText("{\"ok\":true}", (string?)null),
                 StandardOutputTruncated = false,
                 StandardError = string.Empty,
                 StandardErrorTruncated = false,

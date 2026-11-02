@@ -1,3 +1,4 @@
+using DevalCopilot.Api.IntegrationTests.Startup;
 using DevalCopilot.Api.HostedServices;
 using DevalCopilot.Domain.Features.Runs;
 using DevalCopilot.Infrastructure.Persistence;
@@ -254,9 +255,9 @@ public sealed class LocalExecutionSequenceStartupTests : IDisposable
     [Fact]
     public void The_local_sequence_closure_follows_migration_and_precedes_every_recovery_reconciliation_and_supervisor()
     {
-        var program = File.ReadAllText(FindProgram());
+        var program = StartupCompositionSource.Read();
 
-        var migrate = program.IndexOf("dbContext.Database.MigrateAsync()", StringComparison.Ordinal);
+        var migrate = program.IndexOf("dbContext.Database.MigrateAsync(", StringComparison.Ordinal);
         var localInterrupt = program.IndexOf("new InterruptLocalExecutionSequencesCommand()", StringComparison.Ordinal);
         var attemptRecovery = program.IndexOf("ProcessAttemptOutputRecovery.RunAsync", StringComparison.Ordinal);
         var processReconcile = program.IndexOf("new ReconcileInterruptedProcessAttemptsCommand()", StringComparison.Ordinal);
@@ -288,22 +289,5 @@ public sealed class LocalExecutionSequenceStartupTests : IDisposable
 
         Assert.Contains("builder.Services.AddHostedService<LocalExecutionSequenceCoordinator>()", program, StringComparison.Ordinal);
         Assert.Contains("builder.Services.AddHostedService<PlanningSequenceCoordinator>()", program, StringComparison.Ordinal);
-    }
-
-    private static string FindProgram()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            var candidate = Path.Combine(directory.FullName, "src", "backend", "DevalCopilot.Api", "Program.cs");
-            if (File.Exists(candidate))
-            {
-                return candidate;
-            }
-
-            directory = directory.Parent;
-        }
-
-        throw new FileNotFoundException("Program.cs was not found above the test binaries.");
     }
 }

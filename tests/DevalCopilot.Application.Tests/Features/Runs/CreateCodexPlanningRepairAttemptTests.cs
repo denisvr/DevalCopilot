@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using System.Text.Json;
 using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Application.Features.Runs.Policies;
@@ -39,7 +40,7 @@ public sealed partial class CreateCodexPlanningAttemptCommandHandlerTests
         attempt.MarkAgentDispatched(Now);
         attempt.CompleteAgent(
             AgentOutcome.InvalidStructuredOutput, Fingerprint, Now,
-            AgentProcessExecutionEvidence.Create(ProcessOutcome.Exited, 0, TimeSpan.FromSeconds(1)));
+            AgentProcessExecutionEvidence.Create(ProcessOutcome.Exited, 0, TimeSpan.FromSeconds(1), ProcessIoCompletion.CompleteWithInput));
         return attempt;
     }
 
@@ -590,7 +591,7 @@ public sealed partial class CreateCodexPlanningAttemptCommandHandlerTests
         attempt.MarkAgentDispatched(Now);
         attempt.CompleteAgent(
             AgentOutcome.InvalidStructuredOutput, Fingerprint, Now,
-            AgentProcessExecutionEvidence.Create(ProcessOutcome.Exited, 0, TimeSpan.FromSeconds(1)), usage);
+            AgentProcessExecutionEvidence.Create(ProcessOutcome.Exited, 0, TimeSpan.FromSeconds(1), ProcessIoCompletion.CompleteWithInput), usage);
         return attempt;
     }
 

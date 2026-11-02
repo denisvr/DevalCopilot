@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using DevalCopilot.Infrastructure.Persistence;
@@ -90,7 +91,7 @@ internal sealed class RecordedVerificationSeed(SqliteDatabaseFixture fixture)
         await dbContext.SaveChangesAsync();
         var execution = VerificationExecution.Claim(Guid.NewGuid(), projectId, number, workspace, checkpoint, command, Now.AddSeconds(number));
         execution.MarkDispatched(Now.AddSeconds(number + 1));
-        execution.Complete(VerificationExecutionOutcome.Exited, failed ? 1 : 0, checkpoint.FingerprintSha256, Now.AddSeconds(number + 2));
+        execution.Complete(VerificationExecutionOutcome.Exited, failed ? 1 : 0, checkpoint.FingerprintSha256, Now.AddSeconds(number + 2), ProcessIoCompletion.CompleteWithoutInput);
         dbContext.Add(execution);
         await dbContext.SaveChangesAsync();
         return new SeededVerificationMember(command, execution);

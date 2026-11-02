@@ -6,6 +6,7 @@ import { ClaudeTurnLimitFacts } from './ClaudeTurnLimitFacts'
 import { DirectGuidanceFact } from './DirectGuidanceFact'
 import { ModelContextLimitsFact } from './ModelContextLimitsFact'
 import { CodexAccountUsageDecisionFact } from './CodexAccountUsageDecisionFact'
+import { InvocationDiagnosticFact } from './InvocationDiagnosticFact'
 import { SelectedAttemptExecutionFacts } from './SelectedAttemptExecutionFacts'
 import { SelectedAttemptRecordedInputs } from './SelectedAttemptRecordedInputs'
 import { SelectedAttemptRecordedOutputs } from './SelectedAttemptRecordedOutputs'
@@ -79,6 +80,7 @@ function AgentAttemptEvidenceBody({ target, evidence }: { target: AgentAttemptAr
       </p>
       {lineage && <p className="dc-attempt-history-lineage">{lineage}. Provenance only.</p>}
       <SelectedAttemptExecutionFacts evidence={evidence} />
+      <InvocationDiagnosticFact evidence={evidence} />
       {artifacts.length === 0 ? (
         <p className="dc-empty-state">No sealed artifacts were recorded for this attempt.</p>
       ) : (

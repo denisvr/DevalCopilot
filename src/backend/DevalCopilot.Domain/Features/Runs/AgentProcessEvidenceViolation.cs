@@ -33,4 +33,8 @@ public enum AgentProcessEvidenceViolation
     /// or one of the "input already handled" race outcomes. No child process can exist for these
     /// regardless of the attempt's dispatch state.</summary>
     PreInvocationOutcomeCannotCarryEvidence = 6,
+
+    /// <summary>ADR-0072: a clean-exit-required outcome also requires I/O facts proving every stream completed and input was
+    /// delivered (or never redirected); an observed exit code zero with incomplete or unknown I/O is a semantic failure.</summary>
+    CompleteIoRequired = 7,
 }

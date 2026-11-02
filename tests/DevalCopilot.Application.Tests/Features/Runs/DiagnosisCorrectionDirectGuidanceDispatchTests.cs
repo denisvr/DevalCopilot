@@ -83,7 +83,7 @@ public sealed class DiagnosisCorrectionDirectGuidanceDispatchTests : IAsyncLifet
 
         Assert.Equal(attemptId, item.AttemptId);
         Assert.Equal(Guidance, item.DirectHumanGuidance);
-        Assert.Equal("claude-review-correction-v2", item.AdapterContractVersion);
+        Assert.Equal("claude-review-correction-v3", item.AdapterContractVersion);
         Assert.Equal(2, item.OrderedInputMessageIds.Count);
         Assert.True(result.IsSuccess, result.IsFailure ? result.Errors[0].Code : null);
         await using var verify = _fixture.CreateContext();

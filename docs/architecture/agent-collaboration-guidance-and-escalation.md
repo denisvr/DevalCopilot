@@ -117,7 +117,9 @@ never creates a `HumanInstruction`, an escalation, or an authorization, and the 
   default, no backfill; historical rows are null and nothing is inferred). Only the two mutation claims assign it, in the same
   commit as the attempt, its exactly ordered `AttemptInputMessage` rows (ADR-0010 is unchanged), its manifest artifact, and the
   claim-budget reservation. The factories accept only normalized text and only with the version 2 contract
-  (`claude-implementation-v2` or `claude-review-correction-v2`) and the workspace-edit profile. A reading is absent, valid, or
+  (`claude-implementation-v2` or `claude-review-correction-v2`; since
+  [ADR-0072](../decisions/0072-adopt-one-windows-execution-profile.md) also the equivalent v3, which every new claim uses)
+  and the workspace-edit profile. A reading is absent, valid, or
   malformed; the evidence state is `NotRecorded` (a coherent attempt with a null snapshot: no direct guidance was recorded, which is
   neutral for historical and new unguided attempts alike, so version 2 does not date the feature and no submission history is
   inferred), `Provided`, or `Unknown` (malformed, or guidance

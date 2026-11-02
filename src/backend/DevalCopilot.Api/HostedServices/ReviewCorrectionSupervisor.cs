@@ -1,4 +1,5 @@
 using Devalente.Shared.Cqrs;
+using DevalCopilot.Domain.Features.Processes;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Projects.Ports;
@@ -14,6 +15,7 @@ using DevalCopilot.Application.Features.Runs.Queries.GetClaudeLaunchTarget;
 using DevalCopilot.Application.Features.Runs.Queries.GetEligibleReviewCorrectionAttempts;
 using DevalCopilot.Application.Features.Runs.Queries.GetIneligibleAgentAttempts;
 using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
+using DevalCopilot.Domain.Features.Runs;
 
 namespace DevalCopilot.Api.HostedServices;
 
@@ -111,7 +113,8 @@ public sealed class ReviewCorrectionSupervisor(
         if (launchTarget is null)
         {
             await observation.EnterRecordingResultAsync();
-            await RecordResultAsync(attempt, ticket, false, false, false, null, null, null, null, stoppingToken);
+            await RecordResultAsync(
+                attempt, ticket, false, false, false, null, null, null, null, stoppingToken, AgentInvocationDiagnostic.InvocationUnavailable);
             return;
         }
 
@@ -132,21 +135,26 @@ public sealed class ReviewCorrectionSupervisor(
         catch (OperationCanceledException)
         {
             await observation.EnterRecordingResultAsync();
-            await RecordResultAsync(attempt, ticket, false, false, false, null, null, null, null, CancellationToken.None);
+            await RecordResultAsync(
+                attempt, ticket, false, false, false, null, null, null, null, CancellationToken.None, AgentInvocationDiagnostic.Cancelled);
             return;
         }
         catch (Exception)
         {
             logger.LogError("review_correction_invocation_failed AttemptId={AttemptId}", attempt.AttemptId);
             await observation.EnterRecordingResultAsync();
-            await RecordResultAsync(attempt, ticket, false, false, false, null, null, null, null, CancellationToken.None);
+            await RecordResultAsync(
+                attempt, ticket, false, false, false, null, null, null, null, CancellationToken.None,
+                AgentInvocationDiagnostic.InvocationUnavailable);
             return;
         }
 
         // An Exited classification is trusted only when the host-measured evidence independently
         // confirms a clean exit; contradictory or missing evidence never becomes a success.
+        // ADR-0072: and only with complete I/O and no diagnostic.
         var processSucceeded = invocation.Outcome == ImplementationInvocationOutcome.Exited
-            && invocation.ProcessEvidence is { IsCleanExit: true };
+            && invocation.ProcessEvidence is { IsCleanExit: true, IoCompletion.IsComplete: true }
+            && invocation.Diagnostic is null;
         await observation.EnterRecordingResultAsync();
         await RecordResultAsync(
             attempt,
@@ -158,7 +166,8 @@ public sealed class ReviewCorrectionSupervisor(
             invocation.ProcessEvidence,
             invocation.TokenUsage,
             invocation.ModelContextLimits,
-            CancellationToken.None);
+            CancellationToken.None,
+            processSucceeded ? null : invocation.Diagnostic ?? AgentInvocationDiagnostic.InvalidEnvelope);
     }
 
     private async Task RecordResultAsync(
@@ -171,14 +180,15 @@ public sealed class ReviewCorrectionSupervisor(
         AgentProcessEvidence? processEvidence,
         AgentTokenUsage? tokenUsage,
         AgentModelContextLimits? modelLimits,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        AgentInvocationDiagnostic? diagnostic = null)
     {
         var completionEvidence = await CaptureEvidenceSafelyAsync(attempt.WorkspacePath, CancellationToken.None);
         var evidenceAvailable = completionEvidence.Outcome == GitWorkspaceEvidenceOutcome.Success
             && completionEvidence.HeadCommitSha is not null
             && completionEvidence.FingerprintSha256 is not null;
 
-        var sealedArtifacts = await SealArtifactsAsync(attempt, standardOutputTruncated, standardErrorTruncated);
+        var sealedArtifacts = await SealArtifactsAsync(attempt, standardOutputTruncated, standardErrorTruncated, processEvidence?.IoCompletion);
         ValidatedReviewCorrection? correction = null;
         if (processSucceeded)
         {
@@ -211,7 +221,8 @@ public sealed class ReviewCorrectionSupervisor(
                 providerSessionId,
                 processEvidence,
                 tokenUsage,
-                modelLimits)
+                modelLimits,
+                processSucceeded ? null : diagnostic)
             { DispatchTicket = ticket }, recordingTimeoutSource.Token);
         }
         catch (Exception)
@@ -232,7 +243,7 @@ public sealed class ReviewCorrectionSupervisor(
     }
 
     private async Task<IReadOnlyList<SealedReviewCorrectionArtifact>> SealArtifactsAsync(
-        EligibleReviewCorrectionAttempt attempt, bool standardOutputTruncated, bool standardErrorTruncated)
+        EligibleReviewCorrectionAttempt attempt, bool standardOutputTruncated, bool standardErrorTruncated, ProcessIoCompletion? ioCompletion)
     {
         var results = new List<SealedReviewCorrectionArtifact>();
         foreach (var (purpose, truncated) in new[]
@@ -242,6 +253,12 @@ public sealed class ReviewCorrectionSupervisor(
                      (Domain.Features.Runs.ArtifactPurpose.AgentFinalResponse, false),
                  })
         {
+            if (!CapturedOutputSealing.MaySealAgentArtifact(purpose, ioCompletion))
+            {
+                // ADR-0072: the captured stream's writer was not proved closed; its partial file is neither sealed nor deleted.
+                continue;
+            }
+
             var sealedFile = await artifactStore.SealAsync(attempt.RunId, attempt.AttemptId, purpose, CancellationToken.None);
             if (sealedFile is not null)
             {

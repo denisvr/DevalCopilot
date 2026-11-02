@@ -165,7 +165,7 @@ public sealed partial class ProviderFixtureContractTests : IDisposable
     private static IEnumerable<string> ClaudePrint(string contract, string tools, string mode, params string[] extra) =>
     [
         "--print", "--input-format", "text", "--output-format", "json", "--json-schema", ActualSchema(contract), "--safe-mode", "--restricted",
-        "--disable-slash-commands", "--no-chrome", "--permission-prompts", "none", "--prompt-suggestions", "false", "--tools", tools,
+        "--disable-slash-commands", "--no-chrome", "--permission-prompts", "none", "--tools", tools,
         "--strict-mcp-config", "--permission-mode", mode, "--no-session-persistence", "--session-id", Guid.NewGuid().ToString(), .. extra,
     ];
 

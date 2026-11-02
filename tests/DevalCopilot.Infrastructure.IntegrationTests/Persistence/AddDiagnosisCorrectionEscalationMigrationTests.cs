@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using DevalCopilot.Infrastructure.Persistence;
@@ -303,7 +304,7 @@ public sealed class AddDiagnosisCorrectionEscalationMigrationTests : IAsyncLifet
         await context.Database.MigrateAsync();
         var seed = await SeedDiagnosisAsync(context);
         var attempt = await context.Attempts.SingleAsync(a => a.Id == seed.DiagnosisAttemptId);
-        attempt.CompleteAgent(AgentOutcome.VerificationEvidenceChanged, Fingerprint, Now.AddMinutes(1), AgentProcessExecutionEvidence.Create(ProcessOutcome.Exited, 0, TimeSpan.FromSeconds(1)));
+        attempt.CompleteAgent(AgentOutcome.VerificationEvidenceChanged, Fingerprint, Now.AddMinutes(1), AgentProcessExecutionEvidence.Create(ProcessOutcome.Exited, 0, TimeSpan.FromSeconds(1), ProcessIoCompletion.CompleteWithInput));
         await context.SaveChangesAsync();
 
         await using var verify = CreateContext();

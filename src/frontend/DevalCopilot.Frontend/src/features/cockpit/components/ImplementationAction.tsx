@@ -11,7 +11,7 @@ import { TokenUsageLine } from './TokenUsageLine'
 import { LOCAL_EXECUTION_DISPATCH_REFUSED_LABEL } from '../localExecutionSequenceCopy'
 
 /** The exact, closed set of Claude implementation adapter contracts this view recognizes; never a prefix match. */
-const KNOWN_ADAPTER_CONTRACTS: readonly string[] = ['claude-implementation-v1', 'claude-implementation-v2']
+const KNOWN_ADAPTER_CONTRACTS: readonly string[] = ['claude-implementation-v1', 'claude-implementation-v2', 'claude-implementation-v3']
 
 interface ImplementationActionProps {
   /** With `planProposalMessageId`, the identity that owns the optional guidance draft. */

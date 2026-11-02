@@ -1,3 +1,5 @@
+using DevalCopilot.Domain.Features.Processes;
+
 namespace DevalCopilot.Domain.Features.Runs;
 
 /// <summary>
@@ -25,7 +27,8 @@ public sealed class Artifact
         ArtifactCaptureOutcome captureOutcome,
         ArtifactSensitivity sensitivity,
         ArtifactRetentionPolicy retentionPolicy,
-        DateTimeOffset createdAtUtc)
+        DateTimeOffset createdAtUtc,
+        OutputCaptureCompletion? captureCompletion = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(mediaType);
         ArgumentException.ThrowIfNullOrWhiteSpace(relativeStoragePath);
@@ -52,6 +55,13 @@ public sealed class Artifact
                 nameof(truncated));
         }
 
+        // ADR-0072: only a same-host capture records how its stream ended; an interrupted-host import never observed it.
+        if (captureCompletion is { } completion && (captureOutcome != ArtifactCaptureOutcome.Captured || !Enum.IsDefined(completion)))
+        {
+            throw new ArgumentException(
+                "Only a Captured artifact may record a defined capture completion.", nameof(captureCompletion));
+        }
+
         return new Artifact
         {
             Id = id,
@@ -67,6 +77,7 @@ public sealed class Artifact
             Sensitivity = sensitivity,
             RetentionPolicy = retentionPolicy,
             CreatedAtUtc = createdAtUtc,
+            CaptureCompletion = captureCompletion,
         };
     }
 
@@ -97,6 +108,12 @@ public sealed class Artifact
     public bool? Truncated { get; private set; }
 
     public ArtifactCaptureOutcome CaptureOutcome { get; private set; }
+
+    /// <summary>ADR-0072: how the captured stream ended (<see cref="OutputCaptureCompletion"/>), recorded separately from
+    /// <see cref="Truncated"/>: anything other than <see cref="OutputCaptureCompletion.Complete"/> classifies this artifact as
+    /// incomplete. <see langword="null"/> means not recorded (every earlier artifact, every interrupted-host import and every
+    /// non-stream artifact); it is never read as complete.</summary>
+    public OutputCaptureCompletion? CaptureCompletion { get; private set; }
 
     public ArtifactSensitivity Sensitivity { get; private set; }
 

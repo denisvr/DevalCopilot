@@ -151,7 +151,8 @@ internal sealed class LocalExecutionSequenceHostedHarness : IAsyncDisposable
                 ? new IHostedService[]
                 {
                     new VerificationExecutionSupervisor(
-                        scopeFactory, Process, Evidence, ArtifactStore, NullLogger<VerificationExecutionSupervisor>.Instance),
+                        scopeFactory, Process, Evidence, ArtifactStore, new FixedVerificationEnvironmentProvider(),
+                        NullLogger<VerificationExecutionSupervisor>.Instance),
                 }
                 : [],
         ];
@@ -174,7 +175,7 @@ internal sealed class LocalExecutionSequenceHostedHarness : IAsyncDisposable
     {
         var service = new VerificationExecutionSupervisor(
             Provider.GetRequiredService<IServiceScopeFactory>(), Process, Evidence, ArtifactStore,
-            NullLogger<VerificationExecutionSupervisor>.Instance);
+            new FixedVerificationEnvironmentProvider(), NullLogger<VerificationExecutionSupervisor>.Instance);
         await service.StartAsync(CancellationToken.None);
         started.Add(service);
     }

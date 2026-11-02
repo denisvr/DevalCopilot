@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Application.Features.Runs.Commands.RecordProcessAttemptResult;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
@@ -41,7 +42,7 @@ public sealed class RecordProcessAttemptResultCommandHandlerTests(SqliteDatabase
 
         var handler = new RecordProcessAttemptResultCommandHandler(dbContext, new FixedTimeProvider(Now));
         var result = await handler.HandleAsync(
-            new RecordProcessAttemptResultCommand(run.Id, attempt.Id, ProcessOutcome.Exited, 0, NoArtifacts), CancellationToken.None);
+            new RecordProcessAttemptResultCommand(run.Id, attempt.Id, ProcessOutcome.Exited, 0, NoArtifacts, ProcessIoCompletion.CompleteWithoutInput), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(AttemptStatus.Completed, result.Value);
@@ -139,7 +140,7 @@ public sealed class RecordProcessAttemptResultCommandHandlerTests(SqliteDatabase
 
         var handler = new RecordProcessAttemptResultCommandHandler(dbContext, new FixedTimeProvider(Now));
         var result = await handler.HandleAsync(
-            new RecordProcessAttemptResultCommand(targetRun.Id, otherAttempt.Id, ProcessOutcome.Exited, 0, NoArtifacts), CancellationToken.None);
+            new RecordProcessAttemptResultCommand(targetRun.Id, otherAttempt.Id, ProcessOutcome.Exited, 0, NoArtifacts, ProcessIoCompletion.CompleteWithoutInput), CancellationToken.None);
 
         Assert.True(result.IsFailure);
         Assert.Equal("attempts.not_found", Assert.Single(result.Errors).Code);
@@ -162,7 +163,7 @@ public sealed class RecordProcessAttemptResultCommandHandlerTests(SqliteDatabase
 
         var handler = new RecordProcessAttemptResultCommandHandler(dbContext, new FixedTimeProvider(Now));
         var result = await handler.HandleAsync(
-            new RecordProcessAttemptResultCommand(run.Id, attempt.Id, ProcessOutcome.Exited, 0, NoArtifacts), CancellationToken.None);
+            new RecordProcessAttemptResultCommand(run.Id, attempt.Id, ProcessOutcome.Exited, 0, NoArtifacts, ProcessIoCompletion.CompleteWithoutInput), CancellationToken.None);
 
         Assert.True(result.IsFailure);
         Assert.Equal("attempts.not_process", Assert.Single(result.Errors).Code);
@@ -175,7 +176,7 @@ public sealed class RecordProcessAttemptResultCommandHandlerTests(SqliteDatabase
     {
         await using var dbContext = fixture.CreateContext();
         var (project, run, attempt) = CreateClaimedProcessAttempt();
-        attempt.CompleteProcess(ProcessOutcome.Exited, 0, Now);
+        attempt.CompleteProcess(ProcessOutcome.Exited, 0, Now, ProcessIoCompletion.CompleteWithoutInput);
         run.Complete(Now);
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
@@ -199,7 +200,7 @@ public sealed class RecordProcessAttemptResultCommandHandlerTests(SqliteDatabase
 
         var handler = new RecordProcessAttemptResultCommandHandler(dbContext, new FixedTimeProvider(Now));
         var result = await handler.HandleAsync(
-            new RecordProcessAttemptResultCommand(Guid.NewGuid(), Guid.NewGuid(), ProcessOutcome.Exited, 0, NoArtifacts), CancellationToken.None);
+            new RecordProcessAttemptResultCommand(Guid.NewGuid(), Guid.NewGuid(), ProcessOutcome.Exited, 0, NoArtifacts, ProcessIoCompletion.CompleteWithoutInput), CancellationToken.None);
 
         Assert.True(result.IsFailure);
         Assert.Equal("runs.not_found", Assert.Single(result.Errors).Code);
@@ -223,7 +224,7 @@ public sealed class RecordProcessAttemptResultCommandHandlerTests(SqliteDatabase
 
         var handler = new RecordProcessAttemptResultCommandHandler(dbContext, new FixedTimeProvider(Now));
         var result = await handler.HandleAsync(
-            new RecordProcessAttemptResultCommand(run.Id, attempt.Id, ProcessOutcome.Exited, 0, sealedArtifacts), CancellationToken.None);
+            new RecordProcessAttemptResultCommand(run.Id, attempt.Id, ProcessOutcome.Exited, 0, sealedArtifacts, ProcessIoCompletion.CompleteWithoutInput), CancellationToken.None);
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         Assert.True(result.IsSuccess);

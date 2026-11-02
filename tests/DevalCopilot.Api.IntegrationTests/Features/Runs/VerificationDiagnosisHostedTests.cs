@@ -3,6 +3,7 @@ using System.Text.Json;
 using DevalCopilot.Api.HostedServices;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Application.Features.Projects.Commands.ClaimVerificationExecution;
 using DevalCopilot.Application.Features.Projects.Commands.ConfigureVerificationCommand;
 using DevalCopilot.Application.Features.Projects.Ports;
@@ -140,6 +141,7 @@ public sealed partial class VerificationDiagnosisHostedTests : IDisposable
                 File.WriteAllText(stderrSink, stderr);
                 return Task.FromResult(new ProcessExecutionResult
                 {
+                    IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                     Outcome = ProcessExecutionOutcome.Exited,
                     ExitCode = exitCode,
                     StandardOutput = string.Empty,
@@ -153,9 +155,10 @@ public sealed partial class VerificationDiagnosisHostedTests : IDisposable
             evidence.Stage++;
             return Task.FromResult(new ProcessExecutionResult
             {
+                IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                 Outcome = ProcessExecutionOutcome.Exited,
                 ExitCode = 0,
-                StandardOutput = JsonSerializer.Serialize(new { is_error = false, result = FinalResponse, session_id = (string?)null }),
+                StandardOutput = ClaudeEnvelopeProcessDouble.Documented(FinalResponse),
                 StandardOutputTruncated = false,
                 StandardError = string.Empty,
                 StandardErrorTruncated = false,
@@ -310,6 +313,7 @@ public sealed partial class VerificationDiagnosisHostedTests : IDisposable
         host.Provider.GetRequiredService<IProcessExecutionAdapter>(),
         host.Evidence,
         host.Provider.GetRequiredService<IVerificationOutputArtifactStore>(),
+        new FixedVerificationEnvironmentProvider(),
         NullLogger<VerificationExecutionSupervisor>.Instance);
 
     private static async Task RunSupervisorUntilAsync(BackgroundService supervisor, Func<Task<bool>> isDone, bool expectDone = true)
@@ -356,7 +360,7 @@ public sealed partial class VerificationDiagnosisHostedTests : IDisposable
         var execution = VerificationExecution.Claim(
             Guid.NewGuid(), project.Id, project.ReserveVerificationExecutionNumber(), workspace, checkpoint, command, DateTimeOffset.UtcNow);
         execution.MarkDispatched(DateTimeOffset.UtcNow);
-        execution.Complete(VerificationExecutionOutcome.Exited, 1, checkpoint.FingerprintSha256, DateTimeOffset.UtcNow);
+        execution.Complete(VerificationExecutionOutcome.Exited, 1, checkpoint.FingerprintSha256, DateTimeOffset.UtcNow, ProcessIoCompletion.CompleteWithoutInput);
         db.VerificationExecutions.Add(execution);
         await db.SaveChangesAsync();
     }

@@ -66,7 +66,7 @@ public sealed class LocalExecutionQueueMigrationTests : LocalExecutionSequenceMi
 
     private async Task<(Scene Scene, Guid SequenceId)> QueuedAsync()
     {
-        await using var seed = CreateContext();
+        await using var seed = CreatePriorSchemaContext();
         var scene = await SeedSceneAsync(seed);
         await seed.SaveChangesAsync();
         var sequenceId = Guid.NewGuid();
@@ -81,7 +81,7 @@ public sealed class LocalExecutionQueueMigrationTests : LocalExecutionSequenceMi
 
     private async Task<Scene> NewSceneAsync(int runNumber)
     {
-        await using var seed = CreateContext();
+        await using var seed = CreatePriorSchemaContext();
         var scene = await SeedSceneAsync(seed, runNumber);
         await seed.SaveChangesAsync();
         return scene;
@@ -120,7 +120,7 @@ public sealed class LocalExecutionQueueMigrationTests : LocalExecutionSequenceMi
         Assert.Equal(2, await CountAsync("SELECT COUNT(*) FROM local_execution_sequence_recipes"));
         Assert.Equal(2, await CountAsync("SELECT COUNT(*) FROM local_execution_sequences WHERE \"State\" = 'Armed'"));
 
-        await using var verify = CreateContext();
+        await using var verify = CreatePriorSchemaContext();
         var read = await verify.LocalExecutionSequences.AsNoTracking().OrderBy(sequence => sequence.CoordinationNumber).ToListAsync();
         Assert.Equal([olderId, youngerId], read.Select(sequence => sequence.Id));
         Assert.All(read, sequence => Assert.Equal(LocalExecutionAdmissionMode.Immediate, sequence.AdmissionMode));
@@ -150,7 +150,7 @@ public sealed class LocalExecutionQueueMigrationTests : LocalExecutionSequenceMi
         Assert.Equal(2, await CountAsync($"SELECT COUNT(*) FROM local_execution_sequence_recipes WHERE \"SequenceId\" = {Q(queuedId)}"));
 
         // The previous guard still works after the reverse: an attempt of an Armed sequence's run is refused.
-        await using (var refused = CreateContext())
+        await using (var refused = CreatePriorSchemaContext())
         {
             refused.Attempts.Add(PlannerAttempt(immediate, Guid.NewGuid()));
             var exception = await Assert.ThrowsAsync<DbUpdateException>(() => refused.SaveChangesAsync());

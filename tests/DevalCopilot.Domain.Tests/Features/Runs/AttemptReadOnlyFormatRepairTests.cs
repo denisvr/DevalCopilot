@@ -90,11 +90,11 @@ public sealed class AttemptReadOnlyFormatRepairTests
 
     [Theory]
     [MemberData(nameof(Contracts))]
-    public void The_pinned_adapter_contract_versions_are_the_current_known_v1_values(AgentResponseContract contract)
+    public void The_pinned_adapter_contract_versions_are_the_current_known_values(AgentResponseContract contract)
     {
         var expected = contract switch
         {
-            AgentResponseContract.CriticalReview => "claude-critical-review-v1",
+            AgentResponseContract.CriticalReview => "claude-critical-review-v2",
             AgentResponseContract.ChallengeResolution => "codex-challenge-resolution-v1",
             _ => "codex-implementation-review-v1",
         };

@@ -237,7 +237,10 @@ internal static class CodexProcessInvoker
             // Preserved for every real result, never collapsed into the Succeeded flag alone: a
             // timeout, a cancellation, and a non-zero exit remain distinguishable host-measured facts.
             var processEvidence = AgentProcessEvidence.FromProcessExecutionResult(result);
-            if (result.Outcome != ProcessExecutionOutcome.Exited || result.ExitCode != 0)
+
+            // ADR-0072: an observed exit zero whose I/O never demonstrably completed stays recorded in the evidence above and is
+            // still a failed invocation; neither its output nor its final-response file is parsed.
+            if (result.Outcome != ProcessExecutionOutcome.Exited || result.ExitCode != 0 || !result.IoCompletion.IsComplete)
             {
                 return new Outcome(false, result.StandardOutputTruncated, result.StandardErrorTruncated, null, processEvidence);
             }

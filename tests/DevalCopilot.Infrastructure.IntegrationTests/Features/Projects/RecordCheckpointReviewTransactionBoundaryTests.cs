@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using Devalente.Shared.Cqrs;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Projects.Commands.RecordCheckpointReview;
@@ -137,7 +138,7 @@ public sealed class RecordCheckpointReviewTransactionBoundaryTests : IAsyncLifet
             var lint = await other.VerificationCommands.SingleAsync(command => command.CommandNumber == 2);
             var newer = VerificationExecution.Claim(Guid.NewGuid(), project.Id, 9, workspace, checkpoint, lint, Now);
             newer.MarkDispatched(Now);
-            newer.Complete(VerificationExecutionOutcome.Exited, 1, data.FingerprintSha256, Now);
+            newer.Complete(VerificationExecutionOutcome.Exited, 1, data.FingerprintSha256, Now, ProcessIoCompletion.CompleteWithoutInput);
             other.VerificationExecutions.Add(newer);
             await other.SaveChangesAsync(CancellationToken.None);
         };
@@ -236,10 +237,10 @@ public sealed class RecordCheckpointReviewTransactionBoundaryTests : IAsyncLifet
         var lint = VerificationCommand.Configure(Guid.NewGuid(), project.Id, 2, "Lint", @"C:\dotnet.exe", ["format"], 60, true, Now);
         var unitRun = VerificationExecution.Claim(Guid.NewGuid(), project.Id, 1, workspace, checkpoint, unit, Now);
         unitRun.MarkDispatched(Now);
-        unitRun.Complete(VerificationExecutionOutcome.Exited, 0, fingerprint, Now);
+        unitRun.Complete(VerificationExecutionOutcome.Exited, 0, fingerprint, Now, ProcessIoCompletion.CompleteWithoutInput);
         var lintRun = VerificationExecution.Claim(Guid.NewGuid(), project.Id, 2, workspace, checkpoint, lint, Now);
         lintRun.MarkDispatched(Now);
-        lintRun.Complete(VerificationExecutionOutcome.Exited, 0, fingerprint, Now);
+        lintRun.Complete(VerificationExecutionOutcome.Exited, 0, fingerprint, Now, ProcessIoCompletion.CompleteWithoutInput);
 
         context.Projects.Add(project);
         context.GitWorkspaces.Add(workspace);
@@ -265,7 +266,7 @@ public sealed class RecordCheckpointReviewTransactionBoundaryTests : IAsyncLifet
         var command = VerificationCommand.Configure(Guid.NewGuid(), project.Id, 1, "Tests", @"C:\dotnet.exe", ["test"], 60, true, Now);
         var execution = VerificationExecution.Claim(Guid.NewGuid(), project.Id, 1, workspace, checkpoint, command, Now);
         execution.MarkDispatched(Now);
-        execution.Complete(VerificationExecutionOutcome.Exited, 0, fingerprint, Now);
+        execution.Complete(VerificationExecutionOutcome.Exited, 0, fingerprint, Now, ProcessIoCompletion.CompleteWithoutInput);
 
         context.Projects.Add(project);
         context.GitWorkspaces.Add(workspace);

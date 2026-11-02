@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Application.Features.Runs.Queries.GetGitHubCheckContextsObservation;
 using DevalCopilot.Infrastructure.Features.Processes;
 using DevalCopilot.Infrastructure.Features.Runs;
@@ -71,6 +72,7 @@ public sealed partial class GitHubCheckContextsObservationAdapterTests : IDispos
         string stdout, int exitCode = 0, bool stdoutTruncated = false, bool stderrTruncated = false, string stderr = "",
         ProcessExecutionOutcome outcome = ProcessExecutionOutcome.Exited) => new()
         {
+            IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
             Outcome = outcome,
             ExitCode = outcome == ProcessExecutionOutcome.Exited ? exitCode : null,
             StandardOutput = stdout,

@@ -2803,9 +2803,11 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
     // The selected historical run offers only its own close control and the collapsed toggles (the recorded local commit, recorded events,
     // recorded collaboration, the Agent attempt history, the recorded local execution and the recorded planning), which have read nothing:
     // no mutation, configuration or live-progress control. The recorded local commit toggle (ADR-0070) follows the receipt. The recorded
-    // planning toggle (ADR-0068) was mounted in the selected run before this expectation listed it.
+    // planning toggle (ADR-0068) was mounted in the selected run before this expectation listed it, as was the recorded abandonment
+    // toggle (ADR-0071), which every selected historical run mounts collapsed.
     expect(await detail.getByRole('button').allTextContents()).toEqual([
       'Inspect recorded local commit',
+      'Inspect recorded abandonment',
       'Show recorded events',
       'Show recorded collaboration',
       'Show Agent attempt history',

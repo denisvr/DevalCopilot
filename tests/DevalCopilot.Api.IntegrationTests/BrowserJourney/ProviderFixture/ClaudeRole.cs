@@ -8,6 +8,9 @@ namespace DevalCopilot.Api.IntegrationTests.BrowserJourney.ProviderFixture;
 /// <summary>The Claude double: the fixed version probe and the fixed print contracts for critical review, implementation, and correction.</summary>
 public static class ClaudeRole
 {
+    /// <summary>The fixed narrative of the double's error report; the invocation diagnostic journey proves the page never shows it.</summary>
+    public const string ReportedErrorNarrative = "FIXTURE-PROVIDER-NARRATIVE-NEVER-SHOWN";
+
     public static int Run(IReadOnlyList<string> args, OwnedLocation location, string currentDirectory, Func<string> readStandardInput)
     {
         if (args.Count == 1 && args[0] == "--version")
@@ -23,6 +26,25 @@ public static class ClaudeRole
         ResponseSchemas.RequireAgreement("claude", manifest.Contract, exec.SchemaJson);
         var fields = new Dictionary<string, object?> { ["role"] = "claude", ["kind"] = "print", ["contract"] = manifest.Contract };
         InstructionEvidence.Record(fields, manifest);
+
+        if (manifest.Contract == "CriticalReview" && exec.Profile == ClosedArguments.ClaudeProfile.ReadOnly && manifest.ReportsAuthenticationError)
+        {
+            // ADR-0072: the documented error report of a rejected credential, on a non-zero exit. The narrative is a fixed sentinel the
+            // journey proves is never shown; nothing about any real account is involved.
+            fields["outcome"] = "reported_api_error_401";
+            InvocationLog.Append(location, fields);
+            var report = new JsonObject
+            {
+                ["type"] = "result",
+                ["subtype"] = "success",
+                ["is_error"] = true,
+                ["result"] = ReportedErrorNarrative,
+                ["api_error_status"] = 401,
+                ["session_id"] = "fixture-session-" + Guid.NewGuid().ToString("N"),
+            };
+            Console.Out.Write(report.ToJsonString(new JsonSerializerOptions()) + "\n");
+            return 1;
+        }
 
         string response;
         switch (manifest.Contract, exec.Profile)
@@ -93,7 +115,9 @@ public static class ClaudeRole
             ["type"] = "result",
             ["subtype"] = "success",
             ["is_error"] = false,
-            ["result"] = response,
+            ["result"] = "Done.",
+            // ADR-0072: the schema-bound response travels only as the documented structured output object.
+            ["structured_output"] = JsonNode.Parse(response),
             ["session_id"] = "fixture-session-" + Guid.NewGuid().ToString("N"),
             // The models the double lists with the limits it reports, as the provider contract carries them. The values differ by
             // contract so a limit can never be mistaken for another stage's, and every entry carries unrelated members the host ignores.

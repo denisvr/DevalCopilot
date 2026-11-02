@@ -1,5 +1,6 @@
 using System.Text;
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.Runs;
 using DevalCopilot.Infrastructure.Features.Processes;
@@ -149,7 +150,7 @@ public sealed class AgentProcessEvidenceAdapterTests : IDisposable
         var result = await adapter.InvokeAsync(
             new CriticalReviewInvocationRequest(
                 runId, attemptId, _workspacePath, manifest.RelativeStoragePath, manifest.ByteLength, manifest.ContentHash,
-                FixtureExecutablePath, TimeSpan.FromSeconds(30), 65536, 131072),
+                FixtureExecutablePath, TimeSpan.FromSeconds(30), 65536, 131072, AdapterContractVersion: ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion),
             CancellationToken.None);
 
         Assert.Equal(CriticalReviewInvocationOutcome.Failed, result.Outcome);
@@ -168,7 +169,7 @@ public sealed class AgentProcessEvidenceAdapterTests : IDisposable
     [MemberData(nameof(NonCleanResults))]
     public async Task Every_adapter_preserves_a_non_clean_process_result_as_evidence(ProcessExecutionOutcome outcome, int? exitCode)
     {
-        var expected = new AgentProcessEvidence(outcome, exitCode, TimeSpan.FromMilliseconds(1234));
+        var expected = new AgentProcessEvidence(outcome, exitCode, TimeSpan.FromMilliseconds(1234)) { IoCompletion = ProcessIoCompletion.CompleteWithoutInput };
         var fake = new ScriptedProcessExecutionAdapter(_ => Result(outcome, exitCode, TimeSpan.FromMilliseconds(1234), string.Empty));
 
         foreach (var evidence in await InvokeEveryAdapterAsync(fake))
@@ -187,7 +188,7 @@ public sealed class AgentProcessEvidenceAdapterTests : IDisposable
 
         foreach (var evidence in await InvokeEveryAdapterAsync(fake))
         {
-            Assert.Equal(new AgentProcessEvidence(ProcessExecutionOutcome.Exited, 0, TimeSpan.FromMilliseconds(77)), evidence.Evidence);
+            Assert.Equal(new AgentProcessEvidence(ProcessExecutionOutcome.Exited, 0, TimeSpan.FromMilliseconds(77)) { IoCompletion = ProcessIoCompletion.CompleteWithoutInput }, evidence.Evidence);
         }
     }
 
@@ -287,7 +288,7 @@ public sealed class AgentProcessEvidenceAdapterTests : IDisposable
         var criticalReview = await new ClaudeCriticalReviewAdapter(processAdapter, _artifactStore).InvokeAsync(
             new CriticalReviewInvocationRequest(
                 runId, attemptId, _workspacePath, manifest.RelativeStoragePath, manifest.ByteLength, manifest.ContentHash,
-                executable, timeout, 65536, 131072),
+                executable, timeout, 65536, 131072, AdapterContractVersion: ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion),
             CancellationToken.None);
         results.Add(("CriticalReviewer", criticalReview.Outcome == CriticalReviewInvocationOutcome.Exited, criticalReview.ProcessEvidence));
 
@@ -295,7 +296,7 @@ public sealed class AgentProcessEvidenceAdapterTests : IDisposable
         var implementation = await new ClaudeImplementationAdapter(processAdapter, _artifactStore).InvokeAsync(
             new ImplementationInvocationRequest(
                 runId, attemptId, _workspacePath, manifest.RelativeStoragePath, manifest.ByteLength, manifest.ContentHash,
-                executable, timeout, 65536, 131072),
+                executable, timeout, 65536, 131072, AdapterContractVersion: ClaudeMutationAdapterContract.CurrentImplementation),
             CancellationToken.None);
         results.Add(("Implementer", implementation.Outcome == ImplementationInvocationOutcome.Exited, implementation.ProcessEvidence));
 
@@ -303,7 +304,7 @@ public sealed class AgentProcessEvidenceAdapterTests : IDisposable
         var correction = await new ClaudeReviewCorrectionAdapter(processAdapter, _artifactStore).InvokeAsync(
             new ReviewCorrectionInvocationRequest(
                 runId, attemptId, _workspacePath, manifest.RelativeStoragePath, manifest.ByteLength, manifest.ContentHash,
-                executable, timeout, 65536, 131072),
+                executable, timeout, 65536, 131072, AdapterContractVersion: ClaudeMutationAdapterContract.CurrentReviewCorrection),
             CancellationToken.None);
         results.Add(("ReviewCorrection", correction.Outcome == ImplementationInvocationOutcome.Exited, correction.ProcessEvidence));
 
@@ -337,6 +338,7 @@ public sealed class AgentProcessEvidenceAdapterTests : IDisposable
 
     private static ProcessExecutionResult Result(ProcessExecutionOutcome outcome, int? exitCode, TimeSpan duration, string standardOutput) => new()
     {
+        IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
         Outcome = outcome,
         ExitCode = exitCode,
         StandardOutput = standardOutput,

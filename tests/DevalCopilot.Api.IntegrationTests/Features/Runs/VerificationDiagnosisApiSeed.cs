@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using System.Text.Json;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs.Policies.VerificationDiagnosis;
@@ -78,7 +79,7 @@ internal static class VerificationDiagnosisApiSeed
         var next = (await dbContext.VerificationExecutions.Where(candidate => candidate.ProjectId == workspace.ProjectId).Select(candidate => (int?)candidate.ExecutionNumber).MaxAsync() ?? 0) + 1;
         var execution = VerificationExecution.Claim(Guid.NewGuid(), workspace.ProjectId, next, workspace, checkpoint, command, now);
         execution.MarkDispatched(now);
-        execution.Complete(VerificationExecutionOutcome.Exited, exitCode, checkpoint.FingerprintSha256, now);
+        execution.Complete(VerificationExecutionOutcome.Exited, exitCode, checkpoint.FingerprintSha256, now, ProcessIoCompletion.CompleteWithoutInput);
         dbContext.VerificationExecutions.Add(execution);
         await dbContext.SaveChangesAsync();
 
@@ -184,7 +185,7 @@ internal static class VerificationDiagnosisApiSeed
         var latest = await dbContext.VerificationExecutions.Where(candidate => candidate.ProjectId == workspace.ProjectId).MaxAsync(candidate => candidate.ExecutionNumber);
         var execution = VerificationExecution.Claim(Guid.NewGuid(), workspace.ProjectId, latest + 1, workspace, checkpoint, command, now);
         execution.MarkDispatched(now);
-        execution.Complete(VerificationExecutionOutcome.Exited, exitCode, checkpoint.FingerprintSha256, now);
+        execution.Complete(VerificationExecutionOutcome.Exited, exitCode, checkpoint.FingerprintSha256, now, ProcessIoCompletion.CompleteWithoutInput);
         dbContext.VerificationExecutions.Add(execution);
         await dbContext.SaveChangesAsync();
     }

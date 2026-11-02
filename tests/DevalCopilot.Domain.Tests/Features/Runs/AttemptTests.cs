@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Domain.Features.Runs;
 using Xunit;
 
@@ -219,7 +220,7 @@ public sealed class AttemptTests
     {
         var attempt = Attempt.ClaimProcess(Guid.NewGuid(), Guid.NewGuid(), 1, CreateIntent(), BaseTime);
 
-        attempt.CompleteProcess(ProcessOutcome.Exited, exitCode, BaseTime.AddSeconds(1));
+        attempt.CompleteProcess(ProcessOutcome.Exited, exitCode, BaseTime.AddSeconds(1), ProcessIoCompletion.CompleteWithoutInput);
 
         Assert.Equal(expectedStatus, attempt.Status);
         Assert.Equal(ProcessOutcome.Exited, attempt.ProcessOutcome);
@@ -233,7 +234,7 @@ public sealed class AttemptTests
     {
         var attempt = Attempt.ClaimProcess(Guid.NewGuid(), Guid.NewGuid(), 1, CreateIntent(), BaseTime);
 
-        attempt.CompleteProcess(outcome, exitCode: null, BaseTime.AddSeconds(1));
+        attempt.CompleteProcess(outcome, exitCode: null, BaseTime.AddSeconds(1), ProcessIoCompletion.CompleteWithoutInput);
 
         Assert.Equal(AttemptStatus.Failed, attempt.Status);
         Assert.Equal(outcome, attempt.ProcessOutcome);
@@ -246,7 +247,7 @@ public sealed class AttemptTests
         var attempt = Attempt.ClaimProcess(Guid.NewGuid(), Guid.NewGuid(), 1, CreateIntent(), BaseTime);
 
         Assert.Throws<ArgumentException>(
-            () => attempt.CompleteProcess(ProcessOutcome.Exited, exitCode: null, BaseTime.AddSeconds(1)));
+            () => attempt.CompleteProcess(ProcessOutcome.Exited, exitCode: null, BaseTime.AddSeconds(1), ProcessIoCompletion.CompleteWithoutInput));
     }
 
     [Theory]
@@ -256,7 +257,7 @@ public sealed class AttemptTests
     {
         var attempt = Attempt.ClaimProcess(Guid.NewGuid(), Guid.NewGuid(), 1, CreateIntent(), BaseTime);
 
-        Assert.Throws<ArgumentException>(() => attempt.CompleteProcess(outcome, exitCode: 0, BaseTime.AddSeconds(1)));
+        Assert.Throws<ArgumentException>(() => attempt.CompleteProcess(outcome, exitCode: 0, BaseTime.AddSeconds(1), ProcessIoCompletion.CompleteWithoutInput));
     }
 
     [Fact]
@@ -265,17 +266,17 @@ public sealed class AttemptTests
         var attempt = Attempt.Claim(Guid.NewGuid(), Guid.NewGuid(), 1, BaseTime);
 
         Assert.Throws<InvalidOperationException>(
-            () => attempt.CompleteProcess(ProcessOutcome.Exited, exitCode: 0, BaseTime.AddSeconds(1)));
+            () => attempt.CompleteProcess(ProcessOutcome.Exited, exitCode: 0, BaseTime.AddSeconds(1), ProcessIoCompletion.CompleteWithoutInput));
     }
 
     [Fact]
     public void CompleteProcess_throws_when_attempt_is_not_running()
     {
         var attempt = Attempt.ClaimProcess(Guid.NewGuid(), Guid.NewGuid(), 1, CreateIntent(), BaseTime);
-        attempt.CompleteProcess(ProcessOutcome.Exited, 0, BaseTime.AddSeconds(1));
+        attempt.CompleteProcess(ProcessOutcome.Exited, 0, BaseTime.AddSeconds(1), ProcessIoCompletion.CompleteWithoutInput);
 
         Assert.Throws<InvalidOperationException>(
-            () => attempt.CompleteProcess(ProcessOutcome.Exited, 0, BaseTime.AddSeconds(2)));
+            () => attempt.CompleteProcess(ProcessOutcome.Exited, 0, BaseTime.AddSeconds(2), ProcessIoCompletion.CompleteWithoutInput));
     }
 
     [Fact]

@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using System.Text;
 using System.Text.Json;
 using DevalCopilot.Application.Data;
@@ -159,19 +160,19 @@ internal sealed class DiagnosisTestScene
         {
             case Kind.Passed:
                 execution.MarkDispatched(Now);
-                execution.Complete(VerificationExecutionOutcome.Exited, 0, fingerprint, Now);
+                execution.Complete(VerificationExecutionOutcome.Exited, 0, fingerprint, Now, ProcessIoCompletion.CompleteWithoutInput);
                 break;
             case Kind.Failed:
                 execution.MarkDispatched(Now);
-                execution.Complete(VerificationExecutionOutcome.Exited, spec.ExitCode, fingerprint, Now);
+                execution.Complete(VerificationExecutionOutcome.Exited, spec.ExitCode, fingerprint, Now, ProcessIoCompletion.CompleteWithoutInput);
                 break;
             case Kind.TimedOut:
                 execution.MarkDispatched(Now);
-                execution.Complete(VerificationExecutionOutcome.TimedOut, null, fingerprint, Now);
+                execution.Complete(VerificationExecutionOutcome.TimedOut, null, fingerprint, Now, ProcessIoCompletion.CompleteWithoutInput);
                 break;
             case Kind.Cancelled:
                 execution.MarkDispatched(Now);
-                execution.Complete(VerificationExecutionOutcome.Cancelled, null, fingerprint, Now);
+                execution.Complete(VerificationExecutionOutcome.Cancelled, null, fingerprint, Now, ProcessIoCompletion.CompleteWithoutInput);
                 break;
             case Kind.Interrupted:
                 execution.MarkDispatched(Now);
@@ -179,11 +180,11 @@ internal sealed class DiagnosisTestScene
                 break;
             case Kind.SourceChanged:
                 execution.MarkDispatched(Now);
-                execution.Complete(VerificationExecutionOutcome.Exited, 0, new string('f', 64), Now);
+                execution.Complete(VerificationExecutionOutcome.Exited, 0, new string('f', 64), Now, ProcessIoCompletion.CompleteWithoutInput);
                 break;
             case Kind.StartFailure:
                 execution.MarkDispatched(Now);
-                execution.Complete(VerificationExecutionOutcome.Failed, null, fingerprint, Now);
+                execution.Complete(VerificationExecutionOutcome.Failed, null, fingerprint, Now, ProcessIoCompletion.CompleteWithoutInput);
                 break;
             case Kind.Running:
                 execution.MarkDispatched(Now);

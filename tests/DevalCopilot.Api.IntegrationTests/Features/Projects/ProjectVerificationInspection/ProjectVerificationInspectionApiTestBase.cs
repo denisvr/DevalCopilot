@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
@@ -169,7 +170,7 @@ public abstract class ProjectVerificationInspectionApiTestBase : IDisposable
                 var execution = VerificationExecution.Claim(Guid.NewGuid(), projectId, number, workspace, checkpoint, command, Now.AddSeconds(number));
                 execution.MarkDispatched(Now.AddSeconds(number).AddTicks(10_000_001));
                 execution.Complete(
-                    VerificationExecutionOutcome.Exited, shapes[index] ? 3 : 0, checkpoint.FingerprintSha256, Now.AddSeconds(number).AddTicks(30_000_004));
+                    VerificationExecutionOutcome.Exited, shapes[index] ? 3 : 0, checkpoint.FingerprintSha256, Now.AddSeconds(number).AddTicks(30_000_004), ProcessIoCompletion.CompleteWithoutInput);
                 db.VerificationExecutions.Add(execution);
                 executions.Add(new ApiSeededExecution(execution.Id, number, command.Id, workspace.Id, checkpoint.Id));
             }

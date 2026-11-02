@@ -1,6 +1,7 @@
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Runs.Ports;
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Domain.Features.Runs;
 
 namespace DevalCopilot.Application.Features.Runs.Policies;
@@ -20,6 +21,7 @@ public static class AgentProcessEvidenceRecording
     public const string EvidenceWithoutDispatchCode = "agent_attempts.process_evidence_requires_dispatch";
     public const string CleanExitRequiredCode = "agent_attempts.outcome_requires_clean_process_exit";
     public const string PreInvocationOutcomeCannotCarryEvidenceCode = "agent_attempts.pre_invocation_outcome_cannot_carry_process_evidence";
+    public const string CompleteIoRequiredCode = "agent_attempts.outcome_requires_complete_process_io";
 
     /// <summary>Validates the supplied evidence against the outcome the handler is about to record.
     /// On success, <paramref name="domainEvidence"/> holds the Domain value to pass to the
@@ -47,6 +49,8 @@ public static class AgentProcessEvidenceRecording
                 EvidenceWithoutDispatchCode, "Process evidence cannot be recorded for an attempt that was never dispatched."),
             AgentProcessEvidenceViolation.CleanExitRequired => Error.Failure(
                 CleanExitRequiredCode, "This outcome requires evidence that the provider process exited with code zero."),
+            AgentProcessEvidenceViolation.CompleteIoRequired => Error.Failure(
+                CompleteIoRequiredCode, "This outcome requires evidence that the provider process I/O completed."),
             AgentProcessEvidenceViolation.PreInvocationOutcomeCannotCarryEvidence => Error.Conflict(
                 PreInvocationOutcomeCannotCarryEvidenceCode,
                 "This outcome is always detected before the provider is ever invoked and cannot carry process evidence."),
@@ -71,7 +75,23 @@ public static class AgentProcessEvidenceRecording
             return Error.Failure(InvalidEvidenceCode, "The reported process evidence is not valid.");
         }
 
-        domainEvidence = AgentProcessExecutionEvidence.Create(mappedOutcome, evidence.ExitCode, evidence.Duration);
+        if (evidence.IoCompletion is { } io
+            && (!Enum.IsDefined(io.StandardOutput) || !Enum.IsDefined(io.StandardError) || !Enum.IsDefined(io.StandardInput)))
+        {
+            return Error.Failure(InvalidEvidenceCode, "The reported process evidence is not valid.");
+        }
+
+        domainEvidence = AgentProcessExecutionEvidence.Create(mappedOutcome, evidence.ExitCode, evidence.Duration, evidence.IoCompletion);
         return null;
     }
+
+    /// <summary>ADR-0072: the capture completion an Agent stream artifact records, from the same evidence its result records:
+    /// the stdout fact for <see cref="ArtifactPurpose.AgentStandardOutput"/>, the stderr fact for
+    /// <see cref="ArtifactPurpose.AgentStandardError"/>, and null for every other purpose or when no I/O facts exist.</summary>
+    public static OutputCaptureCompletion? CaptureCompletionFor(ArtifactPurpose purpose, AgentProcessEvidence? evidence) => purpose switch
+    {
+        ArtifactPurpose.AgentStandardOutput => evidence?.IoCompletion?.StandardOutput,
+        ArtifactPurpose.AgentStandardError => evidence?.IoCompletion?.StandardError,
+        _ => null,
+    };
 }

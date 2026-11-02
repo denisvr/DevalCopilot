@@ -150,7 +150,9 @@ public sealed class AgentSupervisionBoundaryTests
             .Order(StringComparer.Ordinal)
             .ToArray();
 
-        // Only the data context contract, the event-type constants, the host composition root and the seven supervisors name it.
+        // Only the data context contract, the event-type constants, the host composition root and the seven supervisors name it. ADR-0072
+        // moved the startup closure call from Program.cs into the checked startup runner, whose closed stage list names the step; neither
+        // reads an observation.
         string[] allowed =
         [
             "DevalCopilot.Api/HostedServices/AgentAttemptSupervisor.cs",
@@ -161,6 +163,8 @@ public sealed class AgentSupervisionBoundaryTests
             "DevalCopilot.Api/HostedServices/ReviewCorrectionSupervisor.cs",
             "DevalCopilot.Api/HostedServices/VerificationDiagnosisSupervisor.cs",
             "DevalCopilot.Api/Program.cs",
+            "DevalCopilot.Api/Startup/StartupFailureStage.cs",
+            "DevalCopilot.Api/Startup/StartupRecovery.cs",
             "DevalCopilot.Application/Data/IDevalCopilotDbContext.cs",
             "DevalCopilot.Domain/Features/Runs/RunEventType.cs",
         ];

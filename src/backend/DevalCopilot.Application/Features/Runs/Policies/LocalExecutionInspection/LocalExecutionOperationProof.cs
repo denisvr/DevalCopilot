@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using DevalCopilot.Application.Features.Projects.Policies;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Runs.Policies.AgentAttemptVerification;
 using DevalCopilot.Application.Features.Runs.Queries.GetAgentAttemptVerificationEvidence;
@@ -213,11 +214,14 @@ internal static class LocalExecutionOperationProof
             case VerificationExecutionStatus.Running:
                 return !completedAt && outcome is null && exitCode is null && !execution.CompletionFingerprintPresent;
             case VerificationExecutionStatus.Passed:
-                return dispatchedAt && completedAt && sameFingerprint && outcome == VerificationExecutionOutcome.Exited && exitCode == 0;
+                return dispatchedAt && completedAt && sameFingerprint && outcome == VerificationExecutionOutcome.Exited && exitCode == 0
+                    && VerificationIoCode.AllowsPassed(execution.IoCode);
             case VerificationExecutionStatus.Failed:
                 return dispatchedAt && completedAt && sameFingerprint
                     && ((outcome == VerificationExecutionOutcome.Exited && exitCode is not null && exitCode != 0)
-                        || (outcome == VerificationExecutionOutcome.Failed && exitCode is null));
+                        || (outcome == VerificationExecutionOutcome.Failed && exitCode is null)
+                        || (outcome == VerificationExecutionOutcome.Exited && exitCode == 0
+                            && VerificationIoCode.ExplainsFailedZeroExit(execution.IoCode)));
             case VerificationExecutionStatus.TimedOut:
                 return dispatchedAt && completedAt && sameFingerprint && outcome == VerificationExecutionOutcome.TimedOut && exitCode is null;
             case VerificationExecutionStatus.Cancelled:

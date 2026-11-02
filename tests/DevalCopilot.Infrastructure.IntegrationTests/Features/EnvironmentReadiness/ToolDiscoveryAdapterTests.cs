@@ -1,5 +1,6 @@
 using DevalCopilot.Application.Features.EnvironmentReadiness.Ports;
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Infrastructure.Features.EnvironmentReadiness;
 using Xunit;
@@ -64,6 +65,7 @@ public sealed class ToolDiscoveryAdapterTests : IDisposable
 
     private static ProcessExecutionResult Exited(int exitCode, string standardOutput) => new()
     {
+        IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
         Outcome = ProcessExecutionOutcome.Exited,
         ExitCode = exitCode,
         StandardOutput = standardOutput,
@@ -119,6 +121,7 @@ public sealed class ToolDiscoveryAdapterTests : IDisposable
     {
         var fake = new FakeProcessExecutionAdapter((_, _) => Task.FromResult(new ProcessExecutionResult
         {
+            IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
             Outcome = ProcessExecutionOutcome.TimedOut,
             ExitCode = null,
             StandardOutput = string.Empty,
@@ -161,6 +164,7 @@ public sealed class ToolDiscoveryAdapterTests : IDisposable
     {
         var fake = new FakeProcessExecutionAdapter((_, _) => Task.FromResult(new ProcessExecutionResult
         {
+            IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
             Outcome = ProcessExecutionOutcome.Cancelled,
             ExitCode = null,
             StandardOutput = string.Empty,
@@ -466,6 +470,7 @@ public sealed class ToolDiscoveryAdapterTests : IDisposable
     {
         var fake = new FakeProcessExecutionAdapter((_, _) => Task.FromResult(new ProcessExecutionResult
         {
+            IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
             Outcome = ProcessExecutionOutcome.Cancelled,
             ExitCode = null,
             StandardOutput = string.Empty,
@@ -566,6 +571,7 @@ public sealed class ToolDiscoveryAdapterTests : IDisposable
     {
         var fake = new FakeProcessExecutionAdapter((_, _) => Task.FromResult(new ProcessExecutionResult
         {
+            IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
             Outcome = ProcessExecutionOutcome.Cancelled,
             ExitCode = null,
             StandardOutput = string.Empty,

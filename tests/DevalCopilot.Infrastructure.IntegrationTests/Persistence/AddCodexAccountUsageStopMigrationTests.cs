@@ -441,7 +441,18 @@ public sealed class AddCodexAccountUsageStopMigrationTests : IAsyncLifetime
             runColumnsBefore.Except(runColumnsAfter).Order());
         Assert.Empty(runColumnsAfter.Except(runColumnsBefore));
         Assert.Equal(
-            ["AgentAccountUsageDecisionSnapshot", "AgentCodexAccountUsageStopPercent"],
+            [
+                "AgentAccountUsageDecisionSnapshot",
+                "AgentCodexAccountUsageStopPercent",
+                "AgentInvocationDiagnostic",
+                "AgentInvocationDiagnosticVersion",
+                "AgentStandardErrorCompletion",
+                "AgentStandardInputDelivery",
+                "AgentStandardOutputCompletion",
+                "ProcessStandardErrorCompletion",
+                "ProcessStandardInputDelivery",
+                "ProcessStandardOutputCompletion",
+            ],
             attemptColumnsBefore.Except(attemptColumnsAfter).Order());
         Assert.Empty(attemptColumnsAfter.Except(attemptColumnsBefore));
 

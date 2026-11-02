@@ -6,7 +6,653 @@ was prepared ([recovery](development-workflow.md#recovery)). Git and code
 prevail; compare branch, `HEAD`, `origin/main` and staged/unstaged/untracked
 state first.
 
-## Active slice: CLAUDE-AUTHENTICATION-STATUS-01 one owner-authorized `claude auth status` observation (ReportedLoggedOut; no repair or requalification)
+## Active slice: WIN-EXEC-PROFILE-01 one Windows execution profile (ADR-0072/0073/0074; reviewed, publication pending)
+
+This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
+This record alone grants no publication authority.
+
+**Delivery phase: final planner review after independently accepted Correction 6 and successful isolated F attempt 4 (2026-11-02). Acceptance F and WEP-F5 are closed at their defined toolchain boundary; the reviewed diff remains unstaged, uncommitted and unpushed pending the explicit exact-content publication GO.** Git remains `main`, `HEAD` and local/live `origin/main` `e880c4da311f65d7688196105364f239b4f116f0`, empty index, 263 modified tracked paths and 63 untracked files. Planner review includes the narrowly qualified certificate-effect wording and this F evidence update.
+
+### Earlier delivery phases (historical; not current publication state)
+
+Earlier phase (**return of correction 5 (WEP-F4 only: the third isolated F attempt failed in the shared NSwag target on a missing separator in `NuGetPackageRoot`; see [Correction 5](#correction-5-wep-f4-nuget-package-root-separator)) to Codex, in the same executor chat; the complete diff is unstaged, uncommitted and unpushed. No GO exists and F is not Met.** Correction 5 preflight: branch `main`; `HEAD` and local `origin/main` `e880c4da311f65d7688196105364f239b4f116f0` (the planner independently verified the live remote; the executor did not query it); an empty index; 263 modified tracked paths and 60 untracked files; planner-handoff.md at `8FFE0DD2…DB5B`, which the executor did not edit. Earlier phase (return of correction 4, the planner's NO-GO review of Correction 3: WEP-F1 P1 and WEP-F2 P2 still open, WEP-V2 P2
+new; see [Correction 4](#correction-4-planner-review-of-correction-3-wep-f1-wep-f2-and-wep-v2)) to Codex, in the same executor chat; the
+complete diff is unstaged, uncommitted and unpushed. No GO exists and F is not Met.** Correction 4 preflight: branch `main`; `HEAD` and
+local `origin/main` `e880c4da311f65d7688196105364f239b4f116f0` (the planner freshly verified the live remote; the executor did not query
+it, as nothing is published); an empty index; 263 modified tracked paths and 57 untracked slice files; planner-handoff.md at
+`57FD9987…506B`, which the executor did not edit. Earlier phase (return of correction 3, planner decision after F attempt 1: WEP-F1 and
+WEP-F2, both P2; see
+[Correction 3](#correction-3-planner-decision-after-f-attempt-1-wep-f1-and-wep-f2)): Correction 3 preflight: branch `main`; `HEAD` and local
+`origin/main` `e880c4da311f65d7688196105364f239b4f116f0`; an empty index; 263 modified tracked paths and 54 untracked slice files; the
+planner-updated planner-handoff.md at `998DC5AB…E7D4`, which the executor did not edit. Earlier phase (return of correction 2, Codex
+review 2: WEP-R1, R2, R3, R5 and V1 closed; WEP-R4/E open; see [Correction 2](#correction-2-codex-review-2-wep-r4-under-adr-0073)):
+Correction 2 preflight: the same three commit values, an empty index, 263 modified tracked paths
+and 53 untracked slice files, and the reviewer-updated planner-handoff.md at
+`D276C39CF8E2CB78D3FC07261B9ABAE22A6A4537F9A2C2641E59542A24B7D385`, which the executor did not edit. Earlier phase: return of correction 1
+(Codex review 1 NO-GO: WEP-R1 P1, WEP-R2 to WEP-R5 P2, WEP-V1 P2; see
+[Correction 1](#correction-1-codex-review-1-no-go-wep-r1-to-wep-r5-wep-v1)). The first-return record below is kept as that return's record, with the acceptance
+and evidence statements Review 1 found inaccurate corrected in place and named in Correction 1. Baseline (first return): branch `main`;
+`HEAD`, local `origin/main` and a live `git ls-remote origin refs/heads/main` read all equalled
+`e880c4da311f65d7688196105364f239b4f116f0`; the index was empty, nothing was untracked and only the planner-owned planner-handoff.md was
+modified (SHA-256 `6F2EF1D6…5D574`), which the executor did not edit. Correction preflight: the same three commit values, an empty index,
+250 modified tracked paths and 50 untracked slice files, and the reviewer-updated planner-handoff.md at
+`51D1CC37C6FDE1A707815F2D1E6D1E5D02CA01496DB2BFF42E523A24240DB46D`, which the executor did not edit. ADR-0050 stays Proposed; frozen
+snapshots and history files are unchanged.
+
+### What exists
+
+- **A. Versioned Claude contracts and one envelope reader.** New claims use `claude-critical-review-v2`, `claude-implementation-v3` and
+  `claude-review-correction-v3` (`ClaudeMutationAdapterContract`, `ReadOnlyFormatRepairPolicy`). Each adapter checks the claimed version
+  first and dispatches only its current one; v1/v2/unrecorded attempts fail closed before a process starts. `--prompt-suggestions false`
+  is removed; every other argument is unchanged. One internal pure reader (`ClaudeResultEnvelope`) classifies the documented result
+  envelope (duplicate root properties rejected, 4 MiB and depth 64 bounds); success needs exit 0, complete I/O, untruncated stdout,
+  `is_error` false, subtype `success`, no errors or API status and an object `structured_output`, which alone reaches the role parser.
+- **B. Closed persisted diagnostics.** `AgentInvocationDiagnostic` (13 values, `agent-invocation-diagnostic-v1`) is recorded write-once,
+  atomically with every failed dispatched Claude result and never beside a success (Domain backstop). 401/429 come only from
+  `api_error_status`. The existing Agent attempt evidence (`GET …/agent-attempts/{id}/evidence`, current run rail and Run history)
+  carries `invocationDiagnostic`; the frontend shows fixed copy (`describeInvocationDiagnostic.ts`) and recorded incomplete capture.
+- **C. Bounded process I/O completion.** `ChildProcessExecutionAdapter` keeps the timeout and 5 s post-kill wait, then allows 5 s for all
+  I/O and 1 s to cancel reads/the input write, close its pipe ends and close each writer under its gate (`BoundedOutputCapture`).
+  `ProcessIoCompletion` (stdout/stderr Complete/DeadlineExceeded/Faulted/Unknown; stdin also NotRedirected) is required on every
+  `ProcessExecutionResult`. Agent clean-exit outcomes, Process completion and verification Passed require complete I/O; every other
+  consumer (Codex, Git inspection/worktree/evidence, local commit, discovery, GitHub observations) fails on incomplete I/O.
+- **D. Fatal startup.** `StartupRecovery` runs the unchanged ordered steps, checks every Result/payload and stops on the first fatal
+  (`StartupFailure` stage/reason/action); Program writes `DEVALCOPILOT_SIDECAR_FAILED {"version":1,…}` (bootstrap only) and
+  `Startup failed: DCSF1-…` on stderr and exits 3 without the API, Ready line or workers. Warnings travel on the Ready line
+  (`{"port":N,"warnings":[…]}`). Tauri validates both lines (closed lists, 512 bytes), keeps a failed launch terminal and returns the
+  closed `startup-failed` error; the WebView shows fixed guidance and the copyable code; one app-shell summary shows warnings.
+- **E. Fixed verification environment.** `WindowsVerificationEnvironmentProvider` (`windows-verification-v3` for new executions since
+  ADR-0074, which extends ADR-0073's v2; recorded v1/v2/null history unchanged) supplies the base, .NET and npm keys only, with owned per-execution scratch; `npm.cmd` direct launch, unvalidated executables or missing prerequisites
+  complete the execution as Failed/EnvironmentUnavailable. Executions record the profile version, I/O facts and a closed diagnostic.
+- **Persistence.** Migration `20261101164117_AddWindowsExecutionProfileEvidence` adds 15 nullable text columns; Down refuses before
+  any change once a new fact exists, then drops natively. Recorded inspection readers admit Failed+Exited/0 only beside recorded
+  incomplete I/O.
+- **F. Dependency preparation.** `scripts/proof/prepare-isolated-dependencies.mjs` (+ node:test harness) copies lockfile-exact
+  `.nupkg` archives and SRI-addressed npm cacache entries into fresh owned staging with a locked, offline, local-only NuGet.Config.
+  Before the planner's F attempt 1 it had **not been run against real caches**. Correction 3 changes it: NuGet content hashes come from
+  the installed SDK's own NuGet.Packaging (`nuget-content-hasher.mjs`, `nuget-content-hash.fsx`) beside a separate raw archive identity,
+  npm selection is target-aware for Windows x64, and the harness uses real archives (see Correction 3). Correction 4 bounds the whole
+  validator exchange and its closure, keeps npm admission per lock entry, and replaces the certificate-based signing fixture with an
+  in-memory NuGet-layout fixture that involves no key material. F itself is still not Met.
+- **Docs.** ADR-0072 and its index entry; provider contracts, execution evidence, usage evidence, invocation configuration, guidance,
+  format repair, data and recovery, system overview, workflow model, cockpit specification, threat model and engineering context.
+
+### Final acceptance status (planner review, including retained evidence and independent controls)
+
+| ID | Status | Basis |
+|---|---|---|
+| A | Met; reviewed envelope/adapter contract and retained fixture evidence | `ClaudeResultEnvelopeTests` and the three adapter suites over documented-envelope fixtures (`ClaudeDocumentedEnvelope`, built from the code.claude.com result-message documentation): malformed, duplicate, error-arm, truncated, narrative-only, missing/string/null `structured_output`, 401/429/generic, never success on a non-zero exit. A reported 401/429 is a classification of the reported envelope, not installed-version qualification. |
+| B | Met; WEP-R1 closed by review and independent capture/sealing controls | The first return's Met claim was not accepted. Now: held write, held cancellable write, held flush, delayed disposal, post-close chunk and immutable-snapshot controls on the capture; the production adapter with a held sink; Claude critical review, Process and verification supervisors never sealing an unproved writer (Correction 1). |
+| C | Met; additive history/persistence and inspection contract reviewed | Domain backstops; `AddWindowsExecutionProfileEvidenceMigrationTests` (upgrade, reopen, downgrade refusal, native drop) and the updated prior-schema migration tests; inspection readers' Failed+Exited/0 rule; release/exclusion suites unchanged and passing. |
+| D | Met; WEP-R2/R5 closed by review and independent startup/preparation controls | The first return's Met claim was not accepted. Now: one typed optional/fatal rule for all three output families, preserved partials across repeated starts, database and unclassified faults fatal, preparation failure recorded once (Correction 1); the earlier fatal-startup controls are kept. |
+| E | Met; accepted hosted boundary, rechecked independently under v3 (review 07) | Under `windows-verification-v2` (ADR-0073; Correction 6 re-ran them under v3), 13 real-toolchain cases through the production supervisor and provider: real SDK restore+build pass and compile failure, per-execution restore/cache lifetime, missing SDK, controlled NuGet-configuration view, real `dotnet test` with discovered and executed passing tests and a deliberate assertion failure (Failed, exit 1), plus the earlier runtime/npm/prerequisite cases; sentinel exclusion, source binding, profile version and complete I/O asserted (Correction 2). In Correction 1 this row was **Not met** with four SDK cases skipped. |
+| F | **Met: planner independently executed and reviewed attempt 4 (2026-11-02)** | One fresh network-disabled Windows Sandbox guest, real Git source binding, production verification supervisor and `windows-verification-v3`; locked restore and serial solution build (NSwag included, zero warnings/errors), 14 relevant tests passed, offline npm installation and frontend build all Passed/Exited 0 with complete I/O and eight sealed exports independently verified. All 99 locked NuGet and 133 applicable npm identities admitted; three separately identified SDK runtime supplements plus installed targeting components. Owned private-package missing/tamper controls refused correctly. No credential/config copying, source-cache writes, package HTTP/auth fallback or security override. This is the bounded toolchain demonstration, not fresh external vulnerability or independent signer/revocation qualification. |
+| G | Met; shell/UI source review with retained Rust/frontend/journey evidence | Rust 18/18 (frame/Ready parsing, bounds, fragments, late Ready after failure, closed error); `session.test.ts`, `StartupFailureGuidance.test.tsx`, `describeInvocationDiagnostic.test.ts` in the full Vitest run. |
+
+### First-return evidence (retained record; failures preserved; superseded where Correction 1 reran)
+
+- **Solution build:** the first `dotnet build DevalCopilot.slnx -warnaserror --no-incremental` attempt (parallel) failed with CS0006
+  (Infrastructure could not find the Application reference assembly; no compile error was reported). No cause was established. A serial
+  `-m:1` rerun exited 0 with 0 warnings (46 s).
+- **NSwag:** `dotnet build src/backend/DevalCopilot.Api -warnaserror` exit 0; `api-client.ts` SHA-256 identical before and after
+  (`0e08d8e3…ae004`).
+- **Tests (`--no-build --no-restore`, serial):** Architecture first 231/232 (the supervision-name allowlist, then updated) and 232/232
+  after; Domain 1804/1804; Infrastructure 3696 passed, 4 skipped, 0 failed; API 3602/3602; Application 9469/9469. An earlier
+  Infrastructure run, concurrent with API builds and tests, failed
+  `LocalCommitRefTransactionProtocolTests.Caller_cancellation_during_prepare…` once; it passed three times in isolation and in the matrix.
+  No cause, flakiness or load effect is established by that sequence.
+- **Frontend:** the full Vitest run gave 8289/8290; only the corrected file was rerun then (31/31), so the first return did not have a
+  green full run (Correction 1 reran it). Lint exit 0 with 9 pre-existing warnings; build exit 0; strict e2e `tsc` exit 0; harness 95/95.
+- **Rust:** `cargo test --locked --offline` 18/18; `cargo fmt --check` exit 0 after formatting the `main.rs` changes (HEAD was clean).
+- **Journeys:** one combined run of 17 gave 13 passed and 4 failed: `claude-invocation-diagnostic` (my provider label), `collaboration`
+  (the stale Run-history pin), `local-execution-sequence` and `local-quarantine-release` (both fail at `git commit` in their fixture setup
+  when they follow `local-execution-queue` in one owned root, because all three create `local-execution-source`). The latter three
+  passed in separate invocations after the label fix; `collaboration` was not completed in the first return.
+- **Formatting, links, sensitive data, dependencies:** as rerun in Correction 1.
+- **Not run:** the real-host `*.spec.ts` smoke suite (its `PlaywrightSmoke` composition runs hosted readiness/discovery against the real
+  machine, which the dispatch forbids; this exclusion supplies no provider qualification); F; any real provider. The installed Claude
+  behavior and the historical failure causes remain unproved.
+
+### Challenges, limits and risks for review
+
+1. **WEP-R4 (resolved by the planner in Review 2 through ADR-0073; Correction 1's text kept as raised): the approved profile cannot run NuGet restore.** Under the `windows-verification-v1` keys, a no-package
+   `dotnet build` fails inside the SDK with `NuGet.targets(782,5): error : Value cannot be null. (Parameter 'path1')`: NuGet derives its
+   machine-wide configuration directory from `ProgramFiles(x86)` or `ProgramFiles`, which the profile omits. In an owned diagnostic copy
+   of the profile, adding either key to the real Program Files directory made restore run (that would inherit machine NuGet
+   configuration, so it is not proposed); adding only `ProgramFiles(x86)` pointing to an owned, empty, per-execution directory also made
+   restore run, and the build reached the fixture's genuine `error CS0029` without reading any machine configuration. Proposal for the
+   planner: add that one owned key for `dotnet.exe` (and decide whether that is a new profile version). Not implemented, because it
+   changes the approved key list; dependent work (the four SDK cases) is paused, and E stays unmet. Separately, `dotnet test` needs
+   `Microsoft.NET.Test.Sdk` and a test framework, which only a download or the real package cache could supply; neither is authorized.
+2. **Documented status mapping.** AuthenticationRequired/ProviderLimitReached come only from `api_error_status` 401/429; every other
+   value is ProviderReportedError. This is reported-envelope classification, not installed-version qualification.
+3. **Startup is fatal on states it used to ignore** (accepted by the planner as the approved contract). One API test scene relied on the
+   old tolerance (a Running attempt in an unclaimed run) and now claims its run.
+4. **Stdin delivery is part of success** (accepted by the planner as the approved contract): a child given stdin that exits without
+   reading it makes delivery Faulted and the result a failure.
+5. **Test pins changed, subject to review (not blanket-approved):** version pins (v3/critical-review v2; unknown-version tests use
+   v4/v3); invalid-business-output tests send a schema-violating object; `StartupRecoveryTests` substitute `IRequestHandler<,>`; the
+   startup order pins read `StartupRecovery.cs` inlined at its Program call site; the Architecture allowlist of `AgentSupervision` names
+   gains `Startup/StartupRecovery.cs` and `Startup/StartupFailureStage.cs`; the frontend implementation-contract pin recognizes v3; the
+   verification recovery handler test that pinned deletion of an unsealed partial now pins its preservation (WEP-R2).
+6. **Pre-existing, not changed here:** `GitCommandResult` LaunchFailed still uses exit code 0; EF connection logging may include the
+   database path; two `dotnet format` findings at untouched lines; 15 repository-wide link failures in an unchanged roadmap file.
+7. **Recipe shape:** each execution gets fresh owned caches, so a .NET recipe must restore and build in one execution, and SDK recipes
+   should disable build servers so no persistent node inherits the captured pipes. `LocalExecutionOutcomeClassifier` still treats
+   Failed+Exited/0 as non-coherent (attention) and verification diagnosis excludes it.
+
+### Correction 1 (Codex review 1 NO-GO: WEP-R1 to WEP-R5, WEP-V1)
+
+- **WEP-R1 (P1) bounded capture finalization.** `BoundedOutputCapture` now freezes the returned output and truncation fact as an
+  immutable snapshot when a close is requested (under a buffer lock never held across I/O), cancels the writer's sink write/flush through
+  a writer token (the production sink is opened with `FileOptions.Asynchronous` and no managed buffer, so cancellation reaches the
+  operating system), drops every later chunk before the buffer or sink, and proves the writer closed only when the gate AND the sink's
+  disposal finish within the budget (a pending disposal is awaited, never started twice). A held writer finalizes the sink itself once its
+  I/O returns, without changing a reported completion. `ChildProcessExecutionAdapter` requests both closures together with the read
+  cancellation on window expiry, inside the unchanged one-second release window, and has an internal sink-factory seam for tests. Every
+  sealing consumer now requires a proved writer (`ProcessIoCompletion.ProvesWriterClosed`): the seven Agent supervisors (including the
+  three Claude supervisors) through `CapturedOutputSealing`, the Process supervisor and the verification supervisor (which also no longer
+  deletes partials after an adapter exception). Outcome, termination, truncation, duration, ownership and release are unchanged.
+  Controls: `BoundedCaptureFinalizationTests` (8: held write ignoring cancellation, held cancellable write, held flush, delayed disposal,
+  a chunk after an unproved close while disposal is pending, asynchronous production sink, and the production adapter with a held
+  ignoring and a held cancellable sink write); supervisor controls in `ClaudeCriticalReviewSupervisorCaptureSealingHostedTests`,
+  `ProcessAttemptSupervisorHostedTests` and `VerificationExecutionSupervisorHostedTests`. Two hash-guarded mutants were killed (accepting
+  chunks after the close request: 1 failure; an unbounded disposal wait: 2 failures); the first mutant initially survived, which exposed
+  a missing control that was then added.
+- **WEP-R2 (P2) typed startup recovery.** One rule for Agent, Process and verification output: existence is read first; an existing
+  file that cannot be read, described or sealed is an optional-output warning with its files kept; an absent file is nothing to import;
+  database queries/commits and any other exception stay fatal. The verification handler returns a typed result
+  (`ImportedCount`, `OptionalOutputDeferred`), catches only per-item file-system faults, and no longer deletes an unsealed, unrecorded
+  partial; a partial is removed only when an artifact of its purpose is recorded. The port gains `HasSealedFile`. Controls: hosted
+  `StartupRecoveryTests` (a locked sealed verification output gives a warning, the other execution imports, the unreadable file and an
+  unsealed partial survive three starts; a database fault in verification recovery is fatal at that stage and no later step runs; an
+  unclassified seal exception is fatal for the Process and the Agent family); handler tests (a real locked file is a deferral that imports
+  on the next start; a commit failure propagates; partial preservation across repeated runs).
+- **WEP-R3 (P2) dependency preparation boundaries.** Before any write, staging may not equal, contain, sit inside or alias (link or
+  junction) the repository or either source cache, physically and case-insensitively on Windows; it is re-proved after creation. Only
+  `HEAD`'s committed lockfile blobs are authority (Git runs read-only without system or global configuration). NuGet archives and npm
+  content are read once through one bounded regular-file/link/containment reader, verified in memory, and exactly those bytes are
+  written to staging (no hash-then-reopen). Harness (synthetic roots and disposable Git repositories only): 11 passed, 1 skipped (symlink
+  privilege), including the reviewer's equal-empty-source case. The reviewer's probe script was not rerun because it would overwrite the
+  retained review result file.
+- **WEP-R4 (P2) acceptance E.** The runtime/npm controls are kept. Four real-SDK cases (restore+build pass with the owned cache and an
+  in-build sentinel guard; compile error; a `--no-restore` build that cannot use an earlier execution's released cache; a missing SDK
+  pin) are written against an SDK-packed owned local feed, and are skipped with the open challenge above. E is not met.
+- **WEP-R5 (P2) preparation failure.** The supervisor records a throwing preparation once as Failed/EnvironmentUnavailable with no
+  profile version and no process, releases the execution's unused scratch, and never redispatches; the provider removes a partially
+  created scratch after an I/O failure and returns unavailable. Controls: provider partial-setup cases (3) and an unexpected-exception
+  case; hosted supervisor cases for an I/O and an unexpected preparation failure (one preparation, no process request, no artifact, still
+  Failed after a second supervisor lifetime).
+- **WEP-V1 (P2) collaboration journey and reporting.** The smallest test-only inventory correction adds **Inspect recorded abandonment**
+  to the collaboration journey's Run-history button list; its no-write assertions are unchanged. The first-return evidence above is
+  re-qualified (no flakiness or transient cause claimed, no full-green frontend claim, 50 untracked files at review).
+- **Correction validation (fresh unless stated):** focused controls first (capture/adapter 8/8 and the existing process suite 137
+  passed, 1 pre-existing skip; hosted supervisors 335/335; verification hosted 44/44; provider 10/10; startup 12/12; verification
+  recovery handler 20/20; preparation harness 11 passed, 1 skipped). Final matrix on the stable inputs:
+  `dotnet build DevalCopilot.slnx -warnaserror --no-incremental -m:1` exit 0 (47 s); the explicit API build left `api-client.ts`
+  byte-identical (`0e08d8e3…ae004`); Architecture 232/232; Domain 1804/1804; Infrastructure 3708 passed, 4 skipped, 0 failed (6 m 27 s);
+  API 3617 passed, 4 skipped (the four blocked SDK cases), 0 failed (14 m 55 s); Application 9471/9471 (40 m 37 s). Frontend full run
+  344 files, 8292/8292; lint exit 0 (the same 9 pre-existing warnings); build exit 0; strict e2e `tsc` exit 0. Journeys, headed, serial,
+  zero retries, deterministic doubles, host DLLs hash-identical to the matrix build: 15/15 in one invocation including `collaboration`
+  (run to completion) and `claude-invocation-diagnostic`, then `local-execution-sequence` and `local-quarantine-release` 1/1 each in their
+  own invocations. `dotnet format --verify-no-changes` on the 278 changed C# files: only the two pre-existing findings. Links: 396 in the
+  changed documents, 0 failures, negative control detecting both planted failures. Sensitive data: only the synthetic redaction
+  sentinel. No dependency manifest or lockfile changed. **Retained (unchanged inputs):** Rust 18/18 and `cargo fmt` (no Rust change in
+  this correction); e2e harness 95/95 (no harness change). **Not run:** F, the real-host smoke suite, any real provider, the reviewer's
+  probe scripts, `dotnet test`.
+
+### Correction 2 (Codex review 2: WEP-R4 under ADR-0073)
+
+- **Profile version 2.** `WindowsVerificationEnvironmentProvider.ProfileVersion` is now `windows-verification-v2`; only `dotnet.exe` gains
+  `ProgramFiles(x86)`, created as a new empty `program-files-x86` directory inside that execution's owned scratch. No ambient Program Files
+  value is read or inherited, no `ProgramFiles` fallback is set, nothing is copied, and every other key, validation, failure handling,
+  budget, scratch lifetime and authority is unchanged. `HistoricalProfileVersionV1` names the recorded v1 value; nothing relabels,
+  backfills, upgrades, replays or redispatches history, and there is no profile selection. ADR-0073 records the extension; ADR-0072 links
+  it and keeps its v1 decision as history. This is configuration scoping, not filesystem or network isolation.
+- **Profile and history controls (fresh):** provider 12/12 (exact .NET key set including `ProgramFiles(x86)`; that directory fresh,
+  empty, at `<scratch>/<execution>/program-files-x86`, not a link or reparse point, different from both ambient values; no `ProgramFiles`
+  key or ambient value anywhere; node and other kinds keep their exact sets without it; a partial-setup failure on that directory removes
+  the scratch; new executions report v2). Hosted: an execution recorded under v1 and one with no profile keep exactly their profile,
+  status and completion time, are never dispatched again, and a new execution records v2.
+- **Real SDK build controls (the four former skips, now run):** restore+build in one execution passes (`Build succeeded`, `App.dll`,
+  `Fixture.Lib/1.0.0` resolved from the SDK-packed owned feed, assets' only package folder inside that execution's scratch, which was
+  released, and an in-build MSBuild guard that fails if the sentinel is visible); a compile error is Failed with `error CS0029` and a
+  non-zero exit; a restore then a `--no-restore` build in a later execution fails because the earlier execution's cache was released,
+  while restore+build together passes; a `global.json` pin to a missing SDK fails with no build output. New: `dotnet nuget config paths`
+  through the supervisor lists the workspace's `NuGet.config` and only files under the workspace or the owned scratch, none under the
+  ambient `APPDATA`, `ProgramFiles(x86)` or `ProgramFiles`. A hash-guarded mutant removing the new key failed all three real-SDK build
+  and test cases it was run against (3/3); the original was restored and verified.
+- **Real `dotnet test` (Review 2 challenge accepted: my earlier "needs a download or the real cache" claim was too broad).** A tiny owned
+  xunit fixture is compiled by the real SDK with direct local `<Reference>` items to a named 16-file closure copied file by file from this
+  test project's own current build output (never a package cache, archive, assets, configuration or whole tree), then run with
+  `dotnet test <built dll>` by the installed SDK's test platform: a passing filter discovers and executes two tests (`Total tests: 2`,
+  `Passed: 2`, exit 0, Passed), one of which asserts the sentinel is absent; a failing filter executes the deliberate assertion failure
+  (`Total tests: 1`, `Failed: 1`, `Assert.Equal() Failure`, exit 1, recorded Failed). The built output's closure bytes equal the recorded
+  hashes. No VSTest override, mock runner or exit-code substitute is used. Closure identities (file version, SHA-256):
+
+  | File | Version | SHA-256 |
+  |---|---|---|
+  | `xunit.abstractions.dll` | 2.0.0.0 | `3166DC70323FB30CCF1CEDB0FE86F2AD122C46D254542342D90386EFC4C9285C` |
+  | `xunit.assert.dll` | 2.9.3 | `BCD9711B22D227AC8CD4C1568E72433A0F576D2EC8AAE64AC508081892015B1D` |
+  | `xunit.core.dll` | 2.9.3 | `2F7FEEEC8C6DEC7DF684C25FB80AADB292B963D09723460F03D53C5AD2088ACC` |
+  | `xunit.execution.dotnet.dll` | 2.9.3 | `E70FEBE547C15F8155DB3E2D95C3BA4445A59CBC21A3E7541AB22ED49D3DCF7B` |
+  | `xunit.runner.visualstudio.testadapter.dll` | 2.8.2 | `C5AC41B36FAC0FCEF9714FB80FEA0175913530FB53DD7BB8E5E1470339667100` |
+  | `xunit.runner.utility.netcoreapp10.dll` | 2.9.0 | `EC705AD62E33F31FC46AD5800C9B1694C02D0EC4E1EE704712DA9F24EBBEA22E` |
+  | `xunit.runner.reporters.netcoreapp10.dll` | 2.9.0 | `194458C816E0EA9FF0C5EAC8896C52133FE9205661833B3D0F57E85A4E66936B` |
+  | `testhost.dll` | 17.1400.125.30202 | `92CBDF52DB5249112F9F53F1FCDAF9F9AA3FCE467141C688A31A7FE095E4D304` |
+  | `Microsoft.TestPlatform.CommunicationUtilities.dll` | 17.1400.125.30202 | `E38A359AA502BB1867D6092DCA9ABA5C130DD6F9111DECEA8156AA746B2C69E6` |
+  | `Microsoft.TestPlatform.CrossPlatEngine.dll` | 17.1400.125.30202 | `D55399BC66DC5B451D60AD82662452CA4A5F735918135DFC91CA9B5E3E38A6AB` |
+  | `Microsoft.TestPlatform.Utilities.dll` | 17.1400.125.30202 | `01FFD64D25A4BD905AEF9594D2AA700E020273A90A77A8720AF6BEC8B4FD5444` |
+  | `Microsoft.VisualStudio.TestPlatform.Common.dll` | 17.1400.125.30202 | `059AA2F335C3F7B14AC3FB7CAA1625BC2767581B9548E9FF53A246C7F2F94D6A` |
+  | `Microsoft.TestPlatform.CoreUtilities.dll` | 17.1400.125.30202 | `F6E2495C44640D8915B2AEFC938F391C970300266DA014350FF35512A448EE84` |
+  | `Microsoft.TestPlatform.PlatformAbstractions.dll` | 17.1400.125.30202 | `7B919CE4429C3B7B8FA2C36FD641B70B2F459A30ECB7C65FD80F437673CEC930` |
+  | `Microsoft.VisualStudio.TestPlatform.ObjectModel.dll` | 17.1400.125.30202 | `F83E38EE9020BAA42E284E2299E233070FFA86CE4B10213583F9B7C8A521BCD0` |
+  | `Newtonsoft.Json.dll` | 13.0.3.27908 | `22C649F75FCE5BE7C7CCDA8880473B634EF69ECF33F5D1AB8AD892CAF47D5A07` |
+
+- **Failed attempts in this correction (preserved):** the first build of the new tests failed (CS9006, a raw-string prefix my scripted edit
+  collapsed); the first focused run failed 5 cases from two harness defects of mine (a repeated project registration path, and an ambient
+  check that wrongly included `USERPROFILE`, under which the owned test root itself lives); the next run failed 1 case from my wrong
+  assumption that a class library copies package assemblies to its output. All were test-harness defects, corrected in the tests.
+- **Validation.** Fresh, focused: provider 12/12; the 13 real-toolchain cases and the verification supervisor class together passed
+  (exit 0); the v2-key mutant 3/3 killed and restored. Fresh, final (invalidated by the provider and API-test changes):
+  `dotnet build DevalCopilot.slnx -warnaserror --no-incremental -m:1` exit 0 (44 s); the explicit API build left `api-client.ts`
+  byte-identical (`0e08d8e3…ae004`); Architecture 232/232; Infrastructure 3710 passed, 4 skipped (pre-existing privilege skips), 0 failed
+  (6 m 19 s); API 3625/3625, 0 skipped (16 m 9 s); journeys headed, serial, zero retries, host DLLs hash-identical: 15/15, then
+  `local-execution-sequence` and `local-quarantine-release` 1/1 each; `dotnet format --verify-no-changes` on this correction's C# files
+  exit 0; links in the changed documents 0 failures. **Retained, with unchanged relevant inputs:** Domain 1804/1804 and Application
+  9471/9471 (Correction 1 matrix; no Domain or Application source changed, neither test project references the provider), frontend
+  8292/8292, lint and build (no frontend change), Rust 18/18 and the e2e and dependency-preparation harnesses (unchanged). **Not run:** F
+  (Blocked, WEP-ENV-01), the real-host smoke suite, any real provider, the reviewer's feasibility script.
+
+### Correction 3 (planner decision after F attempt 1: WEP-F1 and WEP-F2)
+
+Authority and scope: the planner released Correction 3 to this chat after the owner-authorized F attempt blocked in dependency
+preparation (the attempt's facts are the planner's, in planner-handoff.md; this record adds none). Only the proof preparer, its new
+support files and its harness changed (`scripts/proof/`) plus this record. No product process, environment profile, source-reader bound or
+trust, ownership, recovery or publication behavior, no ADR and no lockfile changed; no Sandbox, F attempt, real cache, preserved
+qualification evidence, provider, authentication, download, certificate installation or allowance was used. I read the planner's evidence
+only as evidence: `nuget-hash-diagnosis.ps1/.json`, `npm-target-diagnosis.mjs/.json`, `dependency-preparation.json`, `stage-locations.json`
+and the Sandbox configuration file, not the other result files and not any cache.
+
+- **WEP-F1 (P2) NuGet content hash: corrected (executor-reported; not yet reviewed).** The lock `contentHash` is no longer compared with the
+  raw whole-file SHA-512. `nuget-content-hasher.mjs` starts one child, `dotnet <sdk>/FSharp/fsi.dll --exec nuget-content-hash.fsx`, which
+  calls the installed SDK's own `NuGet.Packaging` `PackageArchiveReader.GetContentHash` and `IsSignedAsync` by reflection, so the definition
+  is NuGet's rather than a re-implementation of its byte ranges (I could only summarize NuGet's algorithm from its source here, so I did not
+  port it). The preparer reads each archive once through the unchanged bounded reader and hands only those admitted bytes to the child over
+  standard input; the source path is never reopened and `.nupkg.sha512` and `.nupkg.metadata` are never read (the harness plants a wrong
+  `.nupkg.sha512`). For an unsigned archive NuGet's content hash is the whole-archive SHA-512, handed to NuGet from those same bytes. The
+  raw archive SHA-256 and SHA-512 are recorded separately (`archives[]`, with `signed`) as the identity of the exact bytes, and the staged
+  file is read back from the owned feed and compared with that SHA-256 before it counts as prepared. Outcomes: a readable package with a
+  different content hash is `mismatched` (never copied); bytes that are not a readable archive (truncated, random, empty) are `invalid`
+  (`MalformedArchive`, never copied); both are `IntegrityMismatch` (exit 3). An unavailable validator is a refusal, never a raw fallback:
+  no `--dotnet-sdk`, missing SDK parts, a failed start, a wrong known-answer check (an empty ZIP of known hash is sent first), a timeout, an
+  exit, an oversized or unexpected line, or loss mid-run (exit 64). The refusal is raised before anything is written, except a loss
+  mid-run, which stops the run with a partial staging root and no manifest. The child gets a cleared environment whose every profile,
+  temp, cache and NuGet location is one disposable directory (removed afterwards), no `PATH` beyond the SDK's own directory and no
+  credential or proxy value. **Interface change for the launcher (not in this repository):** `--dotnet-sdk <abs SDK directory>` is required
+  whenever a locked NuGet package must be validated; PowerShell 7 is not needed (none was found on `PATH` or in Program Files in this
+  executor context, and the planner's diagnosis used one).
+- **WEP-F2 (P2) npm target selection: corrected (executor-reported; not yet reviewed).** `selectNpmPackages(lockDocuments, target)` follows
+  npm's own `os`/`cpu` list rule (the sole entry `any` allows everything; otherwise no negated entry may equal the value and the value must
+  equal a non-negated entry unless all are negated). The target is the constant `SUPPORTED_NPM_TARGET` = win32/x64: there is no option,
+  environment variable or file to change it, and `prepare` exposes none. Original locks are never rewritten (the test deep-compares them).
+  `selected` entries must be present and intact; `omitted` entries (incompatible AND `optional: true`) are never read or copied, even when
+  cached, and are recorded with name, version, integrity, constraints and `OptionalPlatformMismatch`; `incompatible` entries (not optional,
+  including `devOptional` and `peerOptional`) make the outcome `TargetIncompatible` (exit 4) with their identities and constraints, never a
+  silent omission. One tarball at several locations is needed if any location needs it. Malformed constraints (non-string/array, empty,
+  `''`, `'!'`, a non-boolean `optional`) and a `libc` constraint on an entry that os/cpu would otherwise admit are refused precisely
+  (`libc` is not evidence for a Windows target either way; an entry os/cpu already excludes stays excluded). Outcome precedence is
+  `IntegrityMismatch`, then `TargetIncompatible`, then `DependenciesUnavailable`, with every class still recorded. The manifest is version 3
+  and records `npm.target` with its fixed-profile source, `omitted`, `incompatible` and, for NuGet, the validator provenance
+  (`sdkVersion` only, never a path) with `signatureTrustValidated: false`.
+- **Controlled evidence (fresh; the signing statement is qualified and superseded by [Correction 4](#correction-4-planner-review-of-correction-3-wep-f1-wep-f2-and-wep-v2)).** Fixtures are structurally valid NuGet packages built in memory, one signed by the installed SDK's own
+  `dotnet nuget sign` with an ephemeral synthetic certificate (as recorded then: generated in memory, exported only to a throwaway PFX in a disposable
+  directory with a redirected profile, no timestamper, no network option, installed and trusted nowhere; the confinement words were not
+  established, see Correction 4, and nothing now relies on that signer). Against SDK 10.0.401: the
+  unsigned content hash equals the raw SHA-512; the signed package's content hash equals the original unsigned package's SHA-512 and
+  differs from its raw digest, so the old tool would have rejected it (the harness asserts this, and that a lock holding the signed raw
+  digest is a mismatch); changing a stored payload byte is a mismatch for unsigned and signed archives; truncated unsigned/signed, random
+  and empty inputs are `invalid`; frames stay paired across several archives in one session. **Limits, asserted rather than hidden:** a
+  changed signature entry, or a signature stripped so the archive equals the unsigned original, still matches the content hash (by NuGet's
+  definition), so content-hash equality is not signature trust or even proof that a signature is present. A plain well-formed ZIP with no
+  package shape is also accepted by the reader as unsigned; package shape is the restore's concern.
+- **Independent check on the committed lockfile (fresh; Git blob of `HEAD` only, no cache).** The new selection classifies
+  `src/frontend/DevalCopilot.Frontend/package-lock.json` for win32/x64 as 186 identities: 133 needed, 53 optional exclusions
+  (`OptionalPlatformMismatch`), 0 required-incompatible and no refusal; the four needed native bindings are the `win32-x64-msvc` ones
+  (oxlint, rolldown, `@tauri-apps/cli`, lightningcss). This matches the planner's 186/53 diagnosis through the production code, but says
+  nothing about whether the 133 needed archives are present or intact in the real cache.
+- **Validation (fresh, focused).** `node --test scripts/proof/prepare-isolated-dependencies.test.mjs`: 34 cases, 33 passed, 0 failed, 1
+  skipped (`a linked archive is never followed`: symbolic links cannot be created in this environment, the condition that skipped it
+  before), 32 s. The first run of this suite failed 1 case: `close()` removed the validator's scratch directory before a killed child had
+  exited (`EBUSY`, my defect; fixed by awaiting the exit and retrying the removal). Six baseline-hash-guarded hand mutants, each run on a
+  temporary copy so the real files were never touched, were all killed: raw digest accepted as a fallback, a required incompatible entry
+  treated as optional, the libc refusal removed, `TargetIncompatible` ranked above integrity failures, malformed archives not counted as an
+  integrity failure, and an omitted entry still staged. Earlier failed attempts (preserved): my first validator draft cast the content
+  hash to a byte array (the SDK returns the base64 string), and one scratch run pointed at the wrong script. Fresh, affected checks on the
+  final inputs: `node --check` on the four `.mjs` files exit 0; the five touched helper files and this document have no CR, tab or
+  trailing-whitespace bytes (no repository formatter covers `scripts/proof`, and no C#, TypeScript or Rust changed, so `dotnet format`,
+  lint and `cargo fmt` have no new input); links in this document: 89, 0 failures, with a negative control that detected both planted
+  failures (a missing file and a missing heading).
+- **Evidence classes, limits and risks for review.** The helper has still never run against the real 99 NuGet or 186 npm identities: the
+  other 88 reported NuGet mismatches are not validated, and whether they are also normalization false rejections needs a fresh, separately
+  authorized F attempt. The validator depends on the installed SDK's `NuGet.Packaging` public members and `dotnet fsi`; a different SDK that
+  changes them fails the known-answer check or the protocol and refuses, never degrades (**overclaim, corrected in Correction 4:** an
+  unsigned known-answer check proves only startup and the unsigned path, not every future change to signed hashing). NuGet's internal
+  effects of `dotnet nuget sign` (for example a temporary user key container while the PFX is loaded, whose location Windows derives from
+  the real profile rather than the redirected environment) were not audited. The `libc` refusal is deliberately stricter than npm; the committed lockfile does not trigger
+  it. ADR-0072's preparation text never equated the content hash with the raw digest, so it is unchanged; the equation existed only in the
+  planner's dispatch and the helper's comments, which are corrected.
+- **Retained (not rerun), with the relevant-input reason.** The backend, frontend, Rust and journey matrix of Correction 2 stays valid: this
+  correction changed no file under `src`, `tests`, `e2e` or `src-tauri`, nothing there references `scripts/proof`, and the helper's
+  documentation and tests are not part of any of those runs. **Not run:** F, Windows Sandbox, any real cache or package, any provider.
+
+### Correction 4 (planner review of Correction 3: WEP-F1, WEP-F2 and WEP-V2)
+
+Authority and scope: the planner's NO-GO of Correction 3 released Correction 4 to this chat. Only `scripts/proof/` (the preparer, its
+validator, fixtures and harness) and this record changed. No product code, environment profile, source-reader bound or trust, ownership,
+recovery, publication or dependency-installation behavior, no ADR (ADR-0072 needs no amendment, per the planner), lockfile or
+historical F-attempt launcher or result changed or ran. No Sandbox, F attempt, real cache, preserved qualification evidence, provider,
+authentication, download, certificate installation, trust root, key or certificate store inspection or allowance was used. I read the
+planner's `review-04` evidence (`review-summary.txt`, `stdin-deadline-result.json`, `npm-required-result.json`,
+`signing-import-metadata.json`, the stall stub and probe) as evidence only; I did not run the planner's probe (its result file is
+write-once) and used my own copy of the stub.
+
+- **Reproduction first.** Against the Correction 3 hasher, a real FSI child that completes the known-answer handshake and then stops
+  reading stdin, a 4 MiB archive and a 3000 ms bound: `hash()` was still pending at 4609 ms (the planner saw 4614 ms) and settled only
+  when the caller's `close()` ran. The same probe against the corrected hasher settles as `ContentHasherUnavailable` code `Timeout`
+  inside the bound, and the harness asserts it (elapsed at least 1800 and under 3500 ms for a 2000 ms bound).
+- **WEP-F1 (P1) bound the entire validator exchange: corrected (executor-reported; not yet reviewed).** `nuget-content-hasher.mjs` is a
+  state machine (`Running`, then terminal `Failed` or `Closed`, never back):
+  - *One deadline per exchange* starts before the first byte is written and covers the input writes, backpressure and the response
+    (writes are no longer awaited before a timeout begins). Startup has its own bound.
+  - *Any anomaly is terminal*: timeout, rejected write, exit, unsolicited output, more than one line for one frame, an oversized line
+    (4096 characters), a malformed or mis-numbered answer, a failed self-check. The affected promise rejects, the pipes are destroyed
+    (which cancels pending writes and reads), the child is asked to end, all later output is ignored and every later request is refused
+    at once with the same error; nothing is retried or queued, and no late reply can satisfy a later request. Answers now carry the
+    number of their frame (`OK <n> …`), so a reply is also paired by number.
+  - *Bounded output*: nothing is queued; output while no answer is expected, or beyond one short line per exchange, is the first
+    violation. The 200000-line flood in the harness fails on its first chunk.
+  - *`close()`* is idempotent (every call returns the same frozen result), bounded (graceful exit, then a kill, each with a bounded
+    wait) and truthful: `{ closed, reason, scratchPreserved }`. The disposable directory is the child's working directory and is removed
+    **only after the child's exit was observed**; otherwise it is preserved and the result is `ProcessExitNotObserved` (`closed: false`),
+    and a removal that fails is `ScratchNotRemoved`, never ignored. The removal retry budget is small (about 2 s), since a failing removal
+    retried every nested entry for about 22 s in the first version of the control. Closure means the validator's own process; its
+    descendants are not tracked (the SDK's `fsi` starts none).
+  - *The preparer* closes its own validator, and requires a proved closure, **before** concluding or writing the manifest: an unresolved
+    closure refuses the run with `the NuGet content-hash validator did not close; its scratch directory was preserved` and leaves no
+    manifest, and it is never lost behind another error already propagating (a combined message names both). Validator codes
+    (`Timeout`, `ProtocolViolation`, `ProcessExited`, `InputRejected`, `SelfCheckFailed`, …) are on `ContentHasherUnavailable.code`.
+  - *The fixture process runner* is now bounded the same way (`bounded-child.mjs`: one deadline over input and exit, bounded stdout,
+    kill and a bounded exit wait, a stated `closureProved`; its scratch directory is removed only when closure was proved).
+  - Single-read admission, immutable bytes handed to the validator, raw archive identity, exact staging with read-back and the ordinary
+    NuGet signature, trust, revocation and audit boundary are unchanged.
+- **WEP-F2 (P2) preserve required-incompatible facts: corrected (executor-reported; not yet reviewed).** Admission is decided per lock
+  entry (document and location) and every list is sorted by identity, location and document, so the result cannot depend on entry or
+  document order. `incompatible` and `omitted` records are one per entry (with `document`, mapped to `lockfile` in the manifest, and
+  `location`); `omitted` also says whether the same tarball is staged for another entry (`tarballNeededElsewhere`). Only byte transfer is
+  deduplicated: `prepareNpm` reads each content file once per SRI, verifies it, writes it under every distinct tarball URL key, and
+  reports missing or mismatched content for each identity that names it. The planner's case (a required Linux-only entry and a required
+  Windows-only entry sharing one SRI) now gives selected 1, incompatible 1 in both orders, and through preparation the outcome is
+  `TargetIncompatible`, never `Prepared`. Cross-document duplicates, optional and required variants and applicable missing or tampered
+  shared content are covered; locks, SRI checks, target provenance, source-cache protections and the absence of any fallback are unchanged.
+  The libc refusal is stricter than general npm behavior (npm does not apply libc on Windows as far as I know, which I did not verify),
+  accepted by the planner for this fixed Windows proof, and not exercised by the committed lockfile.
+- **WEP-V2 (P2) confine synthetic signing: corrected (executor-reported; not yet reviewed).** The certificate path is removed: there is no
+  `dotnet nuget sign`, PFX, certificate, key, store or signer anywhere in the helper, validator or fixtures, and a harness check fails if
+  code (comments excluded) mentions `X509`, `.pfx`, `CertificateRequest`, `SignPackageRequest`, `RSA`, `nuget sign` and similar. The
+  signed-layout fixture is the SDK's own `SignedPackageArchive.AddSignatureAsync` (the call NuGet's signer ends with) applied in memory to
+  the unsigned package with a **placeholder** signature entry (`nuget-signed-layout.fsx`, `nuget-signed-fixture.fsx`, stdin to stdout, no
+  file). It is **not a validly signed package**; its purpose is to exercise NuGet's signed layout and content-hash normalization, and a
+  restore's signature, trust, revocation and audit checks would reject it. Against SDK 10.0.401 the relations are the same as before: the
+  signed-layout archive reports signed, its content hash equals the unsigned original's SHA-512 and differs from its own raw digest.
+  Confinement is stated only as far as demonstrated: no key material exists in the code path (a few dozen lines to read), the SDK child
+  gets the cleared environment, and OS effects of the SDK child itself (for example the .NET runtime's own startup) are not audited.
+  *Retained signed controls:* signed and unsigned acceptance, raw-digest-lock mismatch, content tampering, truncated and malformed archives,
+  a changed or stripped signature still matching (content hash is not signature trust). *Overclaim corrected:* an unsigned-only known
+  answer does not show that a future SDK change to signed hashing would be detected. The validator's startup self-check now also proves
+  the signed normalization relation for its sample (an archive given NuGet's signed layout by the SDK's own writer must report signed and
+  hash to the unsigned value), and a harness control runs a copy whose signed-layout step also changes payload content and requires the
+  self-check to refuse it. That covers that sample and relation, not every signed-archive variant or every possible future change.
+- **Disclosure about the removed signer (Correction 3).** The `dotnet nuget sign` path with a PFX ran **twelve times** under my control
+  before it was removed: four feasibility runs, two full harness runs and six mutant runs (each mutant run executes the shared setup).
+  The planner established that the SDK loads the PFX without an explicit ephemeral key set and that actual key residue is neither
+  established nor excluded. I did not inspect any certificate or key store, did not clean up any key, did not rerun that signer in this
+  correction and did not use it to investigate its effects. Anything it may have left in the real user profile is **unknown**.
+- **Validation (fresh).** Order: the stopped-reader reproduction; the first full run of the new suite; focused reruns of the changed
+  controls; eleven baseline-hash-guarded hand mutants; one stable affected-harness pass.
+  - First full run of the new 47-case suite: 44 passed, 2 failed, 1 skipped. Both failures were defects of my new tests, fixed: an open
+    file handle does not pin a directory on Windows (Node opens with delete sharing), so the unresolved-scratch control now pins the
+    scratch with a live process whose working directory is inside it (the real mechanism); and a shared-tarball control forgot that the
+    intact base tarball legitimately creates the owned cache.
+  - Mutants on temporary copies (the real files are hashed before and after, unchanged): all 11 detected: the exchange timer never fires;
+    the deadline starting only after the writes complete (the reported defect; detected as a hang until the runner timeout); unsolicited
+    output ignored; answer number unchecked; several lines per exchange accepted; scratch removed without a proved exit; non-idempotent
+    close; a required incompatible entry absorbed by a shared tarball; preparation not requiring a proved closure; the signed self-check
+    dropped (first detected as a hang because the control left a started validator running when its assertion failed; the control now
+    closes whatever it starts and a rerun killed it cleanly); per-identity missing facts dropped.
+  - **Stable pass on the final inputs** (script hashes identical before and after the run): `node --test
+    scripts/proof/prepare-isolated-dependencies.test.mjs`: 48 cases, 47 passed, 0 failed, 1 skipped (`a linked archive is never
+    followed`: symbolic links cannot be created in this environment, the condition that skipped it in earlier versions), 52 s.
+  - The committed lockfile, reclassified through the per-entry selection (Git blob only, no cache): 186 identities, 133 needed, 53
+    optional exclusions, 0 required-incompatible, no refusal, the four needed native bindings are the `win32-x64-msvc` ones (the same as
+    in Correction 3).
+  - Static: `node --check` on the five `.mjs` files exit 0; the eight helper files and this document have no CR, tab or
+    trailing-whitespace bytes (no repository formatter covers `scripts/proof`; no C#, TypeScript or Rust changed); links in this
+    document: 91, 0 failures, with a negative control that detected both planted failures.
+- **Evidence classes, limits and risks for review.** The helper still has never run against the real 99 NuGet or 186 npm identities; the
+  other 88 reported NuGet mismatches are unvalidated. Timing-based controls use generous margins (a 2000 ms deadline settling between 1800
+  and 3500 ms) and can still be sensitive to a heavily loaded host. The deadline bound is per exchange; a 512 MiB archive at the default
+  120 s bound is assumed to fit, which was not measured. Closure and scratch removal concern the validator's own process only. The
+  unresolved-closure controls use a process double for the process boundary and a real process pinning the directory; a validator that
+  truly cannot be killed was not produced. The leftover state of my own runs is listed below.
+- **Leftover disposable scratch from my own runs (not removed).** Removing it was refused by the permission classifier and I did not work
+  around that: 13 directories under the user temp root, all created by this session's runs and named for them
+  (`devalcopilot-nuget-validator-*` ×8 and `feas-*` ×4 from the feasibility and hung-mutant runs, and one
+  `devalcopilot-dependency-prep-*` from a mutant run that was killed by its runner timeout before its cleanup hook). They hold only
+  disposable fixture and validator scratch. The owner can delete them.
+- **Retained (not rerun), with the relevant-input reason.** The backend, frontend, Rust and journey matrix of Correction 2: this correction
+  changed no file under `src`, `tests`, `e2e` or `src-tauri`, and nothing there references `scripts/proof`. **Not run:** F, Windows
+  Sandbox, any real cache or package, any provider, any signature, trust, revocation or audit verification.
+
+### Correction 5 (WEP-F4: NuGet package root separator)
+
+Authority and scope: the planner released Correction 5 for WEP-F4 only after the third isolated F attempt failed in the shared NSwag
+target (`$(NuGetPackageRoot)` followed directly by `nswag.msbuild/…`, recorded as `nuget-packagesnswag.msbuild`). Changed: one line of
+`WindowsVerificationEnvironmentProvider`, its tests, one hosted toolchain test with its SDK-packed fixture, one sentence in
+`docs/architecture/workflow-model.md` and this record. No environment key, profile version, ADR, schema or migration, no dependency,
+lockfile or NSwag change, no historical record, and nothing in `scripts/proof` changed. No Sandbox, F attempt, real cache, download,
+authentication, provider, certificate or key operation, or historical qualification evidence was used. I did not edit or rerun anything
+of the planner's F evidence.
+
+- **Reproduction first (red), through the production path.** A new hosted test packs a tool-only package (`Fixture.Tool`, files only,
+  no assembly) with the real SDK into the owned workspace feed and builds a consumer whose target does what the shared target does:
+  `$(NuGetPackageRoot)` + `fixture.tool/1.0.0/tools/tool.txt`, with an existence check, plus the same path built with
+  `EnsureTrailingSlash`. It runs through the real verification supervisor, real `ChildProcessExecutionAdapter` and the real v2 provider,
+  against the unchanged provider. The build itself reported: `NuGetPackageRoot=[…\scratch\<id>\nuget-packages]` (no trailing separator),
+  `ConcatenatedToolPath=[…\nuget-packagesfixture.tool/1.0.0/tools/tool.txt] exists=False`, and
+  `SeparatedToolPath=[…\nuget-packages\fixture.tool/1.0.0/tools/tool.txt] exists=True`, exit 1 (`Build FAILED`, the check's own error).
+  So the SDK-derived root is the profile value verbatim, the tool file really is in the owned package folder, and the missing separator is
+  the whole defect for this lookup.
+- **Hypothesis tested, then applied (green).** `NUGET_PACKAGES` is now the same owned directory with one trailing directory separator
+  (`WithTrailingSeparator`, which leaves a value that already ends in one alone). The same test passes through the supervisor: root
+  `…\nuget-packages\`, concatenated path exists, `Build succeeded`, exit 0, profile `windows-verification-v2`, complete stdout/stderr and
+  not-redirected stdin, checkpoint and completion fingerprints equal the recorded source, sentinel absent, and the scratch released at the
+  proved exit. The physical directory, the key set, the scratch lifetime and the authority are unchanged: the provider-level control
+  asserts the exact value, a single trailing separator (not two), the same empty fresh directory (no link, no extra or renamed child:
+  the seven expected children only), and that no other directory value is normalized (`TEMP`, `TMP`, `USERPROFILE`, `APPDATA`,
+  `LOCALAPPDATA`, `DOTNET_CLI_HOME`, `ProgramFiles(x86)` and `DOTNET_ROOT` keep their plain form). The owned-child observer still
+  receives the plain path, so the partial-setup controls are unchanged.
+- **Negative/mutation control.** A baseline-hash-guarded mutant that returns the directory unchanged (no separator) failed both the
+  hosted test (1/1) and exactly the new provider control (1 of 13; the other 12 passed); the original file was restored and its hash
+  verified equal. Both runs built first and neither was a build failure.
+- **Validation (fresh).** `dotnet build DevalCopilot.slnx -warnaserror --no-incremental -m:1` exit 0, 0 warnings, 0 errors, and
+  `api-client.ts` byte-identical (`0e08d8e3…`); `dotnet format --verify-no-changes` on the three changed C# files exit 0; provider
+  tests 13/13; the hosted toolchain class and `VerificationExecutionSupervisorHostedTests` (profile, source binding, v1/null history,
+  sentinel absence, failure, fresh scratch and release controls) 53/53; Architecture 232/232. **Retained, not rerun:** Domain,
+  Application, the rest of Infrastructure and API, frontend, Rust, journeys and the `scripts/proof` harness; the only product change is
+  one environment value of one provider, whose consumers are the classes above (no `src` file other than the provider changed, the
+  frontend and generated client are untouched). Static: no CR, tab or trailing-whitespace bytes in the five touched files; links in current-work.md 92 and in
+  workflow-model.md 13, 0 failures, with a negative control that detected both planted failures.
+- **Failed attempts (preserved).** The first validation script stopped at the solution build (exit 1) on the real shared NSwag
+  generation: `'dotnet' is not recognized` (exit 9009) from that step's `cmd.exe`. It was not caused by this change; see the next item.
+  The rerun used a short process-only `PATH` and passed. The test-project builds I ran before it skip NSwag generation (project
+  references pass `SkipNSwag`), which is why only the solution build met it.
+- **NEW FINDING, outside WEP-F4 and not fixed here (proposed WEP-F6, planner to classify): a real SDK execution under the profile
+  appends to the user's persistent `PATH`.** Evidence, all read-only except one controlled run: (1) the shell's `PATH` held dozens of
+  `…\scratch\<id>\dotnet-home\.dotnet\tools` entries and `cmd.exe /c where dotnet` failed (even `where.exe` was not found); (2) the
+  registry-level user `PATH` (`[Environment]::GetEnvironmentVariable('Path','User')`) was 11,891 characters with 79 entries, 73 of them
+  such directories, **including the owned root of today's own red run**, so entries are written by the SDK child, not inherited; (3) a
+  paired experiment (a trivial offline project built by the real SDK under profile-equivalent keys and a fresh `DOTNET_CLI_HOME`):
+  with the profile keys only the build succeeded and the user `PATH` grew 11,891 to 12,000 characters with that run's tools directory
+  added; with `DOTNET_ADD_GLOBAL_TOOLS_TO_PATH=false` it succeeded and the user `PATH` did not change (12,000 to 12,000). The .NET
+  documentation states that variable defaults to `true` and adds global tools to `PATH`
+  (https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-environment-variables). Consequences: each real SDK verification leaves a
+  permanent entry that survives the scratch release (contradicting the profile's owned-scratch, nothing-persistent intent), the
+  entries accumulate, and past a limit `cmd.exe` cannot resolve `dotnet`, which fails the shared NSwag step and anything else using
+  `cmd /c dotnet`, on the developer's host. It does not affect the isolated guest unless a run executes the SDK there with a persistent
+  user environment. **Proposed (not applied, because it adds an environment key, which this correction forbids and which is a profile
+  decision):** set `DOTNET_ADD_GLOBAL_TOOLS_TO_PATH=false` for `dotnet.exe` (the key set and version would change, so a v3 decision for the
+  planner, as ADR-0073 did for v2). **I did not clean the user `PATH`** (a user-configuration change I am not authorized to make, and
+  the entries were not all created by me).
+- **Disclosure: my validation added to that `PATH`.** After finding this I still ran the affected hosted tests the correction requires, and
+  the paired experiment's control run added one entry deliberately. The persistent user `PATH` went from 11,891 characters, 79 entries
+  (73 `dotnet-home` entries) when I first measured it, to 14,296 characters, 94 entries (88) at the end, that is 15 entries from this
+  work after that measurement. The red run before it added at least one (its owned root is present) and the green and mutant runs before
+  it presumably added theirs; I did not count them.
+  The owner may need to remove these entries; I did not.
+- **Leftover disposable scratch from my own runs (not removed).** Two experiment directories (`devalcopilot-f6-*`, created 15:23 under the user temp
+  root); the hosted tests removed their own roots. Earlier in this chat a request to delete my scratch directories was
+  refused by the permission classifier and I did not retry or work around it.
+- **Not run:** F, Windows Sandbox, any real cache, any provider, the real-host smoke suite, journeys, frontend, Rust, the helper harness,
+  and any signature, trust, revocation or audit verification. WEP-F5 (the planner's serial `-m:1` recipe) is the planner's and was not
+  touched.
+
+### Correction 6 (WEP-F6: SDK first-run persistent side effects)
+
+Authority and scope: the planner accepted the bounded contract change proposed under WEP-F6 and released it with the corrected preflight
+(preserve WEP-F4's trailing separator; WEP-F5 and actual F pending). Changed: `windows-verification-v3` = v2 plus exactly two keys, only
+for `dotnet.exe`: `DOTNET_ADD_GLOBAL_TOOLS_TO_PATH=false` and `DOTNET_GENERATE_ASPNET_CERTIFICATE=false` (literal constants; never an
+ambient value; absent for `node.exe`, npm and every other executable). New ADR-0074 extends ADR-0073; the ADR-0072 and ADR-0073 headers,
+ADR-0072's consequences, the decisions index, `engineering-context.md` and `workflow-model.md` point at v3 as current without rewriting
+their v1/v2 decisions. No schema, migration, backfill or API change: recorded v1, v2 and null executions keep their label, status and
+completion time; only new executions record v3. Not touched: WEP-F5, `scripts/proof`, the planner-handoff file, any dependency, lockfile
+or NSwag setting, the Sandbox feature (left enabled). No Sandbox, F attempt, real cache, download, authentication, provider,
+certificate or key operation, historical qualification evidence, user-`PATH` repair or unrelated cleanup was used or done.
+
+- **Safety order.** Before any SDK invocation, every outer command (`dotnet build/format/test`) ran from a runner script that sets
+  both flags to `false`, asserts them, and uses a short process-only `PATH` of validated tool and system directories (nothing
+  persistent). Implementation and the provider and pre-launch controls were run and inspected *before* any hosted real-SDK fixture.
+  I did not repeat the known persistent-write experiment, and no deliberately unsafe SDK child was ever launched.
+- **Provider controls (fresh, 14/14).** The `dotnet.exe` key set is exactly the base keys plus the eight v3 .NET keys; both new values
+  are the literal `false`; they are not taken from an ambient value (the test sets both to `true` in its own process and still gets
+  `false`); `node.exe` with its bundled CLI, `node.exe` running a script and another executable never receive either key; `NUGET_PACKAGES`
+  keeps the WEP-F4 trailing separator; the version-name test pins v3 as current with v1 and v2 as distinct historical constants
+  (`HistoricalProfileVersionV2` added).
+- **Pre-launch guard (test-side; fresh).** `SdkSideEffectGuardAdapter` wraps the real adapter in the real-toolchain hosted tests. It reads
+  the exact environment a `dotnet.exe` request is about to receive and, if either flag is absent or not the literal `false`, throws
+  *before* the real adapter is reached; the supervisor records a failed execution with no process, and the test's `RunAsync` then fails
+  loudly (`launches=0, missing=<flag name>`). 11 unit cases (both flags present; each missing; wrong value `true`, `0`, `False`, empty;
+  case-insensitive names and leaf; other executables never inspected) never start a process, read the user `PATH` or touch a store. It is a
+  test control, not product behavior; the product guarantee is the provider's constants.
+- **Missing-flag mutation controls (fresh; hash-guarded; not a physical negative SDK experiment).** Three provider mutants (omit
+  `DOTNET_ADD_GLOBAL_TOOLS_TO_PATH`, omit `DOTNET_GENERATE_ASPNET_CERTIFICATE`, set the certificate flag to `true`) were each built
+  and run against the provider tests and against the two hosted tests that launch only `dotnet <fixture dll>` (never an SDK command,
+  so even a defeated guard could not have run a first-run experience). Each mutant failed the provider suite (2, 2 and 1 of 14; the
+  rest passed) and failed both hosted tests with the guard message and `launches=0`, naming the missing flag. A build failure
+  would have stopped the sequence; none occurred. The original provider was restored by hash, and rebuilt.
+- **Real owned-fixture execution through the production supervisor under v3 (fresh).** The hosted class (restore/build, compile error,
+  restore-then-no-restore cache lifetime, WEP-F4 tool lookup, missing prerequisite, controlled NuGet configuration, `dotnet test`
+  pass/fail, runtime and npm cases) plus `VerificationExecutionSupervisorHostedTests` plus the guard cases: 66/66 passed, each asserting
+  profile `windows-verification-v3` (the class's single profile assertion now resolves to the constant), complete stdout/stderr, not-redirected
+  stdin, source fingerprints equal to the recorded source and scratch released at the proved exit, where asserted before.
+  Two new real cases: both flags reach the real child as `false` while the test process carries `true` (guarded positive execution), and
+  three fresh real SDK executions (pack, build, restore: a fresh `DOTNET_CLI_HOME` each, so each is a first run) leave a read-only
+  identity (length, entry count, SHA-256; never the value) of the persistent user `PATH` unchanged.
+- **User `PATH` identity (read-only, never restored or logged).** Measured by me outside the tests at the start of stage 1, before the
+  hosted fixtures and after them: 1,176 characters, 14 entries, hash prefix `F4BB293F…`, identical each time. (Before this correction
+  it was 14,296 characters and 94 entries at my last Correction 5 measurement; it has changed since, which I did not do; I do not know by whom
+  and did not inspect it further.) The unchanged identity across the hosted run is the positive evidence; the paired experiment of
+  Correction 5 (flag false: unchanged; profile keys only: grew) is the earlier physical evidence and was not repeated.
+- **Certificate control (supported source and guarded positive execution only).** No certificate store was enumerated, no certificate
+  generated and no trust changed. Evidence: the SDK's original implementation (`dotnet/cli` commit `ad8f3da`,
+  `ShouldGenerateAspNetCertificate`) reads `DOTNET_GENERATE_ASPNET_CERTIFICATE` as a boolean defaulting to `true` and gates generation on the
+  first-run check and a sentinel file; Microsoft's reference states the default `true` and that `0`, `false` or `no` disables it. That is
+  supporting evidence for the mechanism (not proof of the installed binary), plus the guarded positive executions above, in which the
+  real SDK ran under the literal `false`. I did not check the current `dotnet/sdk` source beyond the origin commit; the planner may weigh
+  that limit.
+- **Validation (fresh).** `dotnet build DevalCopilot.slnx -warnaserror --no-incremental -m:1` exit 0, 0 warnings, 0 errors, and
+  `api-client.ts` byte-identical (`0e08d8e3…`); `dotnet format --verify-no-changes` on the six touched C# files exit 0; provider tests
+  14/14; guard tests 11/11; hosted toolchain class, supervisor hosted class and guard cases 66/66; Architecture 232/232. **Retained, not
+  rerun:** Domain, Application, the rest of Infrastructure and API, frontend, Rust, journeys and the `scripts/proof` harness (the only
+  product change is two constants of one provider and the version label; no `src` file other than the provider changed and no migration
+  or generated client changed). Static: no CR, tab or trailing-whitespace bytes in the new or edited documents and test files; links 0
+  failures in current-work.md (92), the decisions index (77), ADR-0072 (4), ADR-0073 (2), ADR-0074 (1), workflow-model.md (14) and
+  engineering-context.md (34), with a negative control that detected 2 of 2 planted failures.
+- **Failed attempts (preserved).** (1) The first stage-1 build failed on my own guard test (`Assert.Throws` used on an async
+  call: CS0619 and xUnit2014); fixed to `ThrowsAsync`. (2) The first PATH-identity read inside the runner script failed because the short
+  `PATH` excludes `powershell.exe`, and then because the machine's script execution policy refuses a `.ps1` file; I did not bypass the policy
+  and read the identity with inline commands instead. No other failure.
+- **Findings and challenges for the planner.** (a) The guard is a test control; production defense in depth (the supervisor refusing an
+  unsafe `dotnet.exe` environment) would be a separate, optional change and was not made. (b) The flags protect against the two named
+  effects only; any other first-run or SDK persistent write is outside this decision (ADR-0074 says so). (c) Entries written by earlier
+  v2 executions and any certificate they generated are not removed or enumerated by me. (d) The temp directory holds thousands of
+  `devalcopilot*` entries from earlier runs; none from this correction's hosted runs remained (they removed their own roots). I did not
+  clean them. The two `devalcopilot-f6-*` directories from Correction 5 are not counted here and also remain.
+- **Not run:** F, Windows Sandbox, any real cache, any provider, the real-host smoke suite, journeys, frontend, Rust, the helper harness,
+  a physical negative SDK experiment, a certificate-store enumeration and any signature, trust, revocation or audit verification. WEP-F5
+  (the planner's serial `-m:1` recipe) is the planner's and was not touched.
+
+### Planner-independent F attempt 4 evidence (2026-11-02)
+
+The owner authorized exactly one fourth attempt, retaining the feature-enabled cleanup instruction. Launch 17:30:53 UTC;
+all production commands finished by 17:36:37 UTC and proof cleanup completed 17:40:03 UTC, within the 90-minute / 8-GiB limit.
+Fresh controls established the configured guest boundary before cache access: zero active non-loopback interfaces,
+direct/descendant loopback positives, direct/descendant denial to an owned host listener, host positive and zero guest connections.
+This does not claim universal containment or a separate IPv6/DNS transport test.
+
+- The accepted preparer admitted 99 committed-lock NuGet identities and 133 applicable npm identities, with 53 optional platform
+  exclusions and zero missing/mismatched/invalid/incompatible inputs. The explicit SDK was 10.0.401. Three SDK-derived runtime
+  10.0.12 archives were separately admitted by the previously reviewed hashes, and installed WindowsDesktop targeting references
+  were included; those supplements are not represented as repository-lockfile packages. All 12,057 transferred files matched
+  their manifest in the guest (845,090,750 tool bytes, 245,354,437 dependency bytes, 49,855,430 source bytes).
+- Only the disposable guest copy committed the exact source snapshot: `9f4706df849179fde188386a93e08edb2a0889ca`. The real Git reader
+  observed it clean. Every execution recorded fingerprint `9ef92c30de0c4573b053d82b686833977db48b802b6a701d78d32cc512ef463d`
+  unchanged from claim through completion; the real repository was never staged/committed/pushed by the proof.
+- Through the production supervisor/mediator/SQLite pipeline, real process adapter and unmodified v3 profile: serial solution
+  build including NSwag passed with zero warnings/errors; the Infrastructure WindowsVerificationEnvironmentProviderTests filter
+  discovered/executed 14 passing tests; `npm ci --offline` and the frontend npm build passed. Each .NET execution restored locked
+  from the explicit local feed inside that same execution. Both v3 SDK flags were false before launch; an ignored proof guard
+  could refuse an invalid environment but never repaired or replaced the provider's output. Project/security controls were retained.
+- All four executions recorded Passed/Exited 0, v3, complete stdin/stdout/stderr facts, no diagnostic and two untruncated sealed
+  artifacts. The eight exported byte lengths/SHA-256 values were independently checked against the durable artifact records.
+  Outer harness exited 0. WEP-F5 is closed by this actual serial build; earlier unexplained failures are not retrospectively explained.
+- Additional refusal controls used ONLY owned copies of already admitted archives/content: remove
+  `Devalente.Shared.AspNetCore.Mvc@0.2.0` and preparation returns DependenciesUnavailable/exit 2; flip one payload byte in its owned
+  copy and it returns IntegrityMismatch/exit 3. The other identities remain valid. No real cache was re-read for these controls,
+  and all 102 original admitted archives (99 locked plus 3 SDK supplements) were re-hashed unchanged afterwards.
+- No download, credential/config copy, source-cache write, authentication, real provider, security-policy weakening, old ledger
+  operation or preserved qualification-evidence content was involved. Offline npm's audit text is retained tool output, not a fresh
+  registry vulnerability assessment; no fresh external audit feed or independent signer/certificate/revocation qualification is
+  claimed. The existing Vite large-chunk advisory remains, without a failed frontend build or a scope expansion.
+- The owned guest shut down; only its identified residual session process was closed, owned controls stopped and the verified
+  attempt staging/input copies removed. No unknown scratch, certificate or key store was touched. Zero Sandbox processes remain;
+  the feature stays Enabled as the owner requested. User PATH remains 1,176 characters / 14 entries with unchanged identity.
+
+Bounded ignored records: `logs/planner-review/win-exec-profile-01/f-proof-04/results/`, including independent-review.json,
+negative-controls-summary.json, manifests, source/profile/command/result records, sealed exports and final-cleanup.json.
+This evidence supplements the retained final executor matrix and the independent correction controls; no unrelated suite was rerun.
+F success closes this slice's toolchain demonstration, not installed-provider qualification, general host-loss recovery,
+ADR-0050/publication architecture, exact-head CI or the successful green draft-PR/self-hosting exit demonstration.
+
+### Git state
+
+Branch `main`, `HEAD` `e880c4da311f65d7688196105364f239b4f116f0`, index empty; everything is unstaged and uncommitted, nothing pushed.
+After Correction 6: 263 modified tracked paths and 63 untracked files (three new: ADR-0074 and the two guard test files; the provider,
+both provider/toolchain test files and the supervisor hosted test file were already slice files, and the edited ADR-0072/0073, decisions
+index, engineering context, workflow model and this document were already modified or untracked). planner-handoff.md keeps the planner's
+SHA-256 `1C88FF48…1478`, which the executor did not edit.
+
+## Previous slice (published as e880c4d; historical record): CLAUDE-AUTHENTICATION-STATUS-01 one owner-authorized `claude auth status` observation (ReportedLoggedOut; no repair or requalification)
 
 This document records execution facts. Consult [planner-handoff.md](planner-handoff.md) for the planner decision and publication
 boundary. This record alone grants no publication authority.
@@ -1019,10 +1665,10 @@ Baseline: `main`, `HEAD`, local `origin/main` and a freshly queried live `origin
 
 | Case | Request key names | Outcome / exit | Adapter Duration | Outer elapsed | Termination observation | Stdout / stderr bytes | Truncated (out / err) | Key names printed by the child |
 |---|---|---|---|---|---|---|---|---|
-| A | none | Exited / 134 | 62.9 ms | 68.6 ms | exit 134 at 62.8 ms | 0 / 675 | no / no | none printed (aborted; unobserved) |
-| B | `SystemRoot` | Exited / 0 | 38.7 ms | 39.4 ms | exit 0 at 38.7 ms | 57 / 0 | no / no | `SystemRoot` |
-| C | `USERPROFILE` | Exited / 134 | 51.4 ms | 52.5 ms | exit 134 at 51.4 ms | 0 / 676 | no / no | none printed (aborted; unobserved) |
-| D | `SystemRoot`, `USERPROFILE` | Exited / 0 | 37.4 ms | 38.0 ms | exit 0 at 37.4 ms | 71 / 0 | no / no | `SystemRoot`, `USERPROFILE` |
+| A | Met; reviewed envelope/adapter contract and retained fixture evidence | Exited / 134 | 62.9 ms | 68.6 ms | exit 134 at 62.8 ms | 0 / 675 | no / no | none printed (aborted; unobserved) |
+| B | Met; WEP-R1 closed by review and independent capture/sealing controls | Exited / 0 | 38.7 ms | 39.4 ms | exit 0 at 38.7 ms | 57 / 0 | no / no | `SystemRoot` |
+| C | Met; additive history/persistence and inspection contract reviewed | Exited / 134 | 51.4 ms | 52.5 ms | exit 134 at 51.4 ms | 0 / 676 | no / no | none printed (aborted; unobserved) |
+| D | Met; WEP-R2/R5 closed by review and independent startup/preparation controls | Exited / 0 | 37.4 ms | 38.0 ms | exit 0 at 37.4 ms | 71 / 0 | no / no | `SystemRoot`, `USERPROFILE` |
 
 - **A and C stderr.** Each is the known abort: a leading blank line, the `node.exe[<pid>]` line naming `node::InitializeOncePerProcessInternal` at `src/node.cc:1225`, `Assertion failed: ncrypto::CSPRNG(nullptr, 0)`, `----- Native stack trace -----`, and seven numbered native frames ending in `BaseThreadInitThunk` and `RtlUserThreadStart`. After normalizing the process id, A and C are byte-identical (the 1-byte length difference is the id's digit count). The helper's stop gate accepted only this shape (every line blank, a `#` header line, the trace banner or a numbered frame).
 - **B and D stdout.** Exactly `QUALIFICATION-NODE-ENV-DIAGNOSIS-01:START` and a one-line JSON array of names (`["SystemRoot"]` and `["SystemRoot","USERPROFILE"]`), each line ending in a bare line feed; stderr empty.

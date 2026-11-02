@@ -71,6 +71,12 @@ public static class AgentProcessEvidencePolicy
             return AgentProcessEvidenceViolation.CleanExitRequired;
         }
 
+        // ADR-0072: the same outcomes need I/O proved complete; an exit zero with incomplete or unknown I/O stays a failure.
+        if (RequiresCleanExit(requestedOutcome) && evidence is not { HasCompleteIo: true })
+        {
+            return AgentProcessEvidenceViolation.CompleteIoRequired;
+        }
+
         return null;
     }
 

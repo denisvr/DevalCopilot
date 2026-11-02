@@ -1,5 +1,6 @@
 using System.Text;
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.Runs;
 using DevalCopilot.Infrastructure.Features.Processes;
@@ -118,6 +119,7 @@ public sealed class CodexVerificationDiagnosisAdapterTests : IDisposable
         {
             OnExecute = _ => new ProcessExecutionResult
             {
+                IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                 Outcome = ProcessExecutionOutcome.Exited,
                 ExitCode = 3,
                 StandardOutput = string.Empty,
@@ -172,6 +174,7 @@ public sealed class CodexVerificationDiagnosisAdapterTests : IDisposable
 
             var result = OnExecute?.Invoke(request) ?? new ProcessExecutionResult
             {
+                IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                 Outcome = ProcessExecutionOutcome.Exited,
                 ExitCode = 0,
                 StandardOutput = string.Empty,

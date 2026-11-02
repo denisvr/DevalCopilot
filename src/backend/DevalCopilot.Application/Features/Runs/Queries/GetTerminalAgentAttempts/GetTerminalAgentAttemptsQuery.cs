@@ -1,4 +1,5 @@
 using Devalente.Shared.Cqrs;
+using DevalCopilot.Domain.Features.Runs;
 
 namespace DevalCopilot.Application.Features.Runs.Queries.GetTerminalAgentAttempts;
 
@@ -6,4 +7,4 @@ namespace DevalCopilot.Application.Features.Runs.Queries.GetTerminalAgentAttempt
 /// orphaned partial file that no longer has a live attempt to seal it.</summary>
 public sealed record GetTerminalAgentAttemptsQuery : IQuery<IReadOnlyList<TerminalAgentAttempt>>;
 
-public sealed record TerminalAgentAttempt(Guid RunId, Guid AttemptId);
+public sealed record TerminalAgentAttempt(Guid RunId, Guid AttemptId, IReadOnlyList<ArtifactPurpose>? RecordedPurposes = null);

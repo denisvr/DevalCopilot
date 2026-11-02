@@ -22,15 +22,157 @@ const SIDECAR_NAME: &str = "devalcopilot-api";
 // non-secret flag — never a shell string, never anything derived from the secret.
 const SIDECAR_BOOTSTRAP_ARG: &str = "--bootstrap-stdin";
 const READY_MARKER: &str = "DEVALCOPILOT_SIDECAR_READY ";
+// ADR-0072: the one closed startup-failure frame the host writes on the same stdout protocol channel before it exits nonzero.
+const FAILED_MARKER: &str = "DEVALCOPILOT_SIDECAR_FAILED ";
+const STARTUP_FAILURE_VERSION: u64 = 1;
+// Every valid protocol line is far shorter; anything longer is never parsed.
+const MAX_PROTOCOL_LINE_BYTES: usize = 512;
 const SIDECAR_DISCONNECTED_EVENT: &str = "devalcopilot://sidecar-disconnected";
 const BOOTSTRAP_VERSION: u32 = 1;
 const READY_TIMEOUT: Duration = Duration::from_secs(30);
+
+// The closed values the host may report (ADR-0072); anything else makes the whole line malformed.
+const STARTUP_STAGES: &[&str] = &[
+    "StorageSchema",
+    "LocalExecutionSequences",
+    "ProcessAttemptOutput",
+    "ProcessAttempts",
+    "CapabilityCatalog",
+    "CapabilityProbes",
+    "LocalCommitOperations",
+    "Workspaces",
+    "VerificationOutput",
+    "VerificationExecutions",
+    "AgentAttemptOutput",
+    "AgentAttempts",
+    "ImplementationAttempts",
+    "PlanningSequences",
+    "AgentSupervisions",
+];
+const STARTUP_REASONS: &[&str] = &["StorageUnavailable", "StateIncoherent", "Unclassified"];
+const STARTUP_WARNINGS: &[&str] = &[
+    "OptionalOutputDeferred",
+    "RedundantCleanupDeferred",
+    "SupervisionObservationsUnclosed",
+];
 
 #[derive(Clone, Serialize)]
 struct LaunchSession {
     #[serde(rename = "baseUrl")]
     base_url: String,
     secret: String,
+    /// ADR-0072: the closed, nonfatal startup warning categories the host reported with readiness.
+    #[serde(rename = "startupWarnings")]
+    startup_warnings: Vec<String>,
+}
+
+/// ADR-0072: the validated closed diagnosis of a fatal host startup failure. Only these three closed names ever reach the WebView.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+struct StartupFailure {
+    stage: String,
+    reason: String,
+    action: String,
+}
+
+/// The error `get_launch_session` returns for a launch whose host reported a fatal startup failure.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+struct LaunchError {
+    kind: &'static str,
+    stage: String,
+    reason: String,
+    action: String,
+}
+
+impl From<StartupFailure> for LaunchError {
+    fn from(failure: StartupFailure) -> Self {
+        Self {
+            kind: "startup-failed",
+            stage: failure.stage,
+            reason: failure.reason,
+            action: failure.action,
+        }
+    }
+}
+
+/// One stdout protocol line, already bounded and validated; anything else is ignored as ordinary output.
+#[derive(Debug, PartialEq)]
+enum ProtocolLine {
+    Ready { port: u16, warnings: Vec<String> },
+    Failed(StartupFailure),
+    Ignored,
+}
+
+/// Pure, bounded parser of one stdout line. A line longer than the bound, not UTF-8, without a known prefix, with malformed JSON,
+/// an unexpected key, a wrong version, an unknown closed value or an action that does not follow from the reason is ignored, so a
+/// fragment of a frame split across events can never be read as a frame.
+fn parse_protocol_line(bytes: &[u8]) -> ProtocolLine {
+    if bytes.len() > MAX_PROTOCOL_LINE_BYTES {
+        return ProtocolLine::Ignored;
+    }
+    let Ok(text) = std::str::from_utf8(bytes) else {
+        return ProtocolLine::Ignored;
+    };
+    let line = text.trim_end_matches(['\r', '\n']);
+    if let Some(payload) = line.strip_prefix(READY_MARKER) {
+        return parse_ready(payload).unwrap_or(ProtocolLine::Ignored);
+    }
+    if let Some(payload) = line.strip_prefix(FAILED_MARKER) {
+        return parse_failure(payload)
+            .map(ProtocolLine::Failed)
+            .unwrap_or(ProtocolLine::Ignored);
+    }
+    ProtocolLine::Ignored
+}
+
+fn parse_ready(payload: &str) -> Option<ProtocolLine> {
+    let parsed = serde_json::from_str::<serde_json::Value>(payload).ok()?;
+    let object = parsed.as_object()?;
+    if object.keys().any(|key| key != "port" && key != "warnings") {
+        return None;
+    }
+    let port = u16::try_from(object.get("port")?.as_u64()?)
+        .ok()
+        .filter(|port| *port != 0)?;
+    let mut warnings = Vec::new();
+    if let Some(value) = object.get("warnings") {
+        for item in value.as_array()? {
+            let name = item.as_str()?;
+            if !STARTUP_WARNINGS.contains(&name)
+                || warnings.iter().any(|known: &String| known == name)
+            {
+                return None;
+            }
+            warnings.push(name.to_string());
+        }
+    }
+    Some(ProtocolLine::Ready { port, warnings })
+}
+
+fn parse_failure(payload: &str) -> Option<StartupFailure> {
+    let parsed = serde_json::from_str::<serde_json::Value>(payload).ok()?;
+    let object = parsed.as_object()?;
+    if object.len() != 4 || object.get("version")?.as_u64()? != STARTUP_FAILURE_VERSION {
+        return None;
+    }
+    let stage = object.get("stage")?.as_str()?;
+    let reason = object.get("reason")?.as_str()?;
+    let action = object.get("action")?.as_str()?;
+    let expected_action = if reason == "StorageUnavailable" {
+        "RestoreStorageAccess"
+    } else {
+        "RequestReviewedRepair"
+    };
+    if !STARTUP_STAGES.contains(&stage)
+        || !STARTUP_REASONS.contains(&reason)
+        || action != expected_action
+    {
+        return None;
+    }
+    Some(StartupFailure {
+        stage: stage.to_string(),
+        reason: reason.to_string(),
+        action: action.to_string(),
+    })
 }
 
 /// The sidecar's observed lifecycle from the shell's point of view. A previous session can
@@ -48,6 +190,8 @@ enum SidecarState {
     Starting,
     Ready(LaunchSession),
     Exited,
+    /// ADR-0072: the host reported a fatal startup failure. Terminal like `Exited`: a late ready line never restores a session.
+    Failed(StartupFailure),
 }
 
 struct AppState {
@@ -62,6 +206,7 @@ struct AppState {
 /// lifecycle reducer below can be unit-tested without a running app.
 enum SidecarFact {
     BecameReady(LaunchSession),
+    StartupFailed(StartupFailure),
     Terminated,
 }
 
@@ -94,15 +239,18 @@ impl SidecarLifecycle {
     fn apply(&mut self, fact: SidecarFact) -> bool {
         let was_ready = matches!(self.state, SidecarState::Ready(_));
 
-        self.state = match self.state {
+        self.state = match &self.state {
             SidecarState::Exited => SidecarState::Exited,
+            SidecarState::Failed(failure) => SidecarState::Failed(failure.clone()),
             _ => match fact {
                 SidecarFact::BecameReady(session) => SidecarState::Ready(session),
-                SidecarFact::Terminated => SidecarState::Exited,
+                // A failure frame is only a startup fact; after readiness it can only invalidate the session.
+                SidecarFact::StartupFailed(failure) if !was_ready => SidecarState::Failed(failure),
+                SidecarFact::StartupFailed(_) | SidecarFact::Terminated => SidecarState::Exited,
             },
         };
 
-        let just_terminated = matches!(self.state, SidecarState::Exited);
+        let just_terminated = matches!(self.state, SidecarState::Exited | SidecarState::Failed(_));
         if was_ready && just_terminated && !self.disconnect_emitted {
             self.disconnect_emitted = true;
             true
@@ -133,19 +281,20 @@ fn generate_secret() -> String {
 async fn wait_for_session(
     mut sidecar: watch::Receiver<SidecarState>,
     deadline: Instant,
-) -> Option<LaunchSession> {
+) -> Result<Option<LaunchSession>, StartupFailure> {
     loop {
         {
             let state = sidecar.borrow();
             match &*state {
-                SidecarState::Ready(session) => return Some(session.clone()),
-                SidecarState::Exited => return None,
+                SidecarState::Ready(session) => return Ok(Some(session.clone())),
+                SidecarState::Exited => return Ok(None),
+                SidecarState::Failed(failure) => return Err(failure.clone()),
                 SidecarState::Starting => {}
             }
         }
 
         if timeout_at(deadline, sidecar.changed()).await.is_err() {
-            return None;
+            return Ok(None);
         }
     }
 }
@@ -153,11 +302,16 @@ async fn wait_for_session(
 /// The one narrowly scoped command exposed to the bundled WebView. Waits for the sidecar to
 /// become ready (or fail) rather than requiring React to poll, and never echoes anything
 /// once the sidecar has already exited — the caller gets `None` and must not retry with a
-/// stale secret.
+/// stale secret. ADR-0072: a host that reported a fatal startup failure yields the closed
+/// `startup-failed` error instead, with only its stage, reason and action names.
 #[tauri::command]
-async fn get_launch_session(state: State<'_, AppState>) -> Result<Option<LaunchSession>, ()> {
+async fn get_launch_session(
+    state: State<'_, AppState>,
+) -> Result<Option<LaunchSession>, LaunchError> {
     let deadline = Instant::now() + READY_TIMEOUT;
-    Ok(wait_for_session(state.sidecar.subscribe(), deadline).await)
+    wait_for_session(state.sidecar.subscribe(), deadline)
+        .await
+        .map_err(LaunchError::from)
 }
 
 fn spawn_sidecar(app: &AppHandle) -> Result<(), tauri_plugin_shell::Error> {
@@ -185,30 +339,30 @@ fn spawn_sidecar(app: &AppHandle) -> Result<(), tauri_plugin_shell::Error> {
         while let Some(event) = events.recv().await {
             match event {
                 CommandEvent::Stdout(bytes) => {
-                    let Ok(line) = String::from_utf8(bytes) else {
-                        continue;
-                    };
-                    let Some(payload) = line.strip_prefix(READY_MARKER) else {
-                        // Ordinary host log output, not the readiness protocol — ignored.
-                        continue;
-                    };
-                    let Ok(parsed) = serde_json::from_str::<serde_json::Value>(payload) else {
-                        continue;
-                    };
-                    let Some(port) = parsed.get("port").and_then(|value| value.as_u64()) else {
-                        continue;
-                    };
+                    // One event may carry more than one line; each is bounded and parsed alone.
+                    for segment in bytes.split(|byte| *byte == b'\n') {
+                        let fact = match parse_protocol_line(segment) {
+                            ProtocolLine::Ready { port, warnings } => {
+                                SidecarFact::BecameReady(LaunchSession {
+                                    base_url: format!("http://127.0.0.1:{port}"),
+                                    secret: secret.clone(),
+                                    startup_warnings: warnings,
+                                })
+                            }
+                            ProtocolLine::Failed(failure) => SidecarFact::StartupFailed(failure),
+                            // Ordinary host output, a fragment or a malformed record — ignored.
+                            ProtocolLine::Ignored => continue,
+                        };
 
-                    let session = LaunchSession {
-                        base_url: format!("http://127.0.0.1:{port}"),
-                        secret: secret.clone(),
-                    };
-
-                    // A no-op once `lifecycle.state` is already `Exited`: a late ready line
-                    // racing behind an already-processed Terminated/Error event must never
-                    // resurrect a stale session.
-                    lifecycle.apply(SidecarFact::BecameReady(session));
-                    let _ = sidecar_sender.send(lifecycle.state.clone());
+                        // A no-op once `lifecycle.state` is already `Exited` or `Failed`: a late
+                        // ready line racing behind an already-processed termination or failure must
+                        // never resurrect a stale session.
+                        let owes_disconnect = lifecycle.apply(fact);
+                        let _ = sidecar_sender.send(lifecycle.state.clone());
+                        if owes_disconnect {
+                            let _ = app_handle.emit(SIDECAR_DISCONNECTED_EVENT, ());
+                        }
+                    }
                 }
                 CommandEvent::Terminated(_) | CommandEvent::Error(_) => {
                     let owes_disconnect = lifecycle.apply(SidecarFact::Terminated);
@@ -285,6 +439,7 @@ mod tests {
         LaunchSession {
             base_url: format!("http://127.0.0.1:0/{tag}"),
             secret: tag.to_string(),
+            startup_warnings: Vec::new(),
         }
     }
 
@@ -294,7 +449,10 @@ mod tests {
 
         let result = wait_for_session(rx, far_future_deadline()).await;
 
-        assert_eq!(result.map(|session| session.secret), Some("a".to_string()));
+        assert_eq!(
+            result.unwrap().map(|session| session.secret),
+            Some("a".to_string())
+        );
     }
 
     // The lost-wakeup regression test: yielding once lets the spawned task run its first
@@ -313,7 +471,10 @@ mod tests {
 
         let result = waiter.await.unwrap();
 
-        assert_eq!(result.map(|session| session.secret), Some("b".to_string()));
+        assert_eq!(
+            result.unwrap().map(|session| session.secret),
+            Some("b".to_string())
+        );
     }
 
     #[tokio::test]
@@ -322,7 +483,7 @@ mod tests {
 
         let result = wait_for_session(rx, far_future_deadline()).await;
 
-        assert!(result.is_none());
+        assert!(matches!(result, Ok(None)));
     }
 
     #[tokio::test]
@@ -335,7 +496,7 @@ mod tests {
 
         let result = waiter.await.unwrap();
 
-        assert!(result.is_none());
+        assert!(matches!(result, Ok(None)));
     }
 
     #[tokio::test(start_paused = true)]
@@ -345,7 +506,7 @@ mod tests {
 
         let result = wait_for_session(rx, deadline).await;
 
-        assert!(result.is_none());
+        assert!(matches!(result, Ok(None)));
     }
 
     #[tokio::test]
@@ -359,7 +520,7 @@ mod tests {
         let late_subscriber = tx.subscribe();
         let result = wait_for_session(late_subscriber, far_future_deadline()).await;
 
-        assert!(result.is_none());
+        assert!(matches!(result, Ok(None)));
     }
 
     #[test]
@@ -399,6 +560,167 @@ mod tests {
 
         assert!(matches!(lifecycle.state, SidecarState::Exited));
         assert!(!owes_disconnect);
+    }
+
+    fn failure(stage: &str, reason: &str, action: &str) -> StartupFailure {
+        StartupFailure {
+            stage: stage.to_string(),
+            reason: reason.to_string(),
+            action: action.to_string(),
+        }
+    }
+
+    #[test]
+    fn a_valid_failure_frame_is_parsed_into_its_closed_names() {
+        let line = br#"DEVALCOPILOT_SIDECAR_FAILED {"version":1,"stage":"StorageSchema","reason":"StorageUnavailable","action":"RestoreStorageAccess"}"#;
+
+        assert_eq!(
+            parse_protocol_line(line),
+            ProtocolLine::Failed(failure(
+                "StorageSchema",
+                "StorageUnavailable",
+                "RestoreStorageAccess"
+            ))
+        );
+    }
+
+    #[test]
+    fn a_failure_frame_with_a_trailing_newline_is_still_one_frame() {
+        let line = b"DEVALCOPILOT_SIDECAR_FAILED {\"version\":1,\"stage\":\"AgentAttempts\",\"reason\":\"StateIncoherent\",\"action\":\"RequestReviewedRepair\"}\r\n";
+
+        assert_eq!(
+            parse_protocol_line(line),
+            ProtocolLine::Failed(failure(
+                "AgentAttempts",
+                "StateIncoherent",
+                "RequestReviewedRepair"
+            ))
+        );
+    }
+
+    #[test]
+    fn malformed_unknown_wrong_version_mismatched_extra_or_oversized_failure_frames_are_ignored() {
+        let cases: Vec<Vec<u8>> = vec![
+            br#"DEVALCOPILOT_SIDECAR_FAILED {"version":1,"stage":"StorageSchema","reason":"StorageUnavailable""#.to_vec(),
+            br#"DEVALCOPILOT_SIDECAR_FAILED {"version":2,"stage":"StorageSchema","reason":"StorageUnavailable","action":"RestoreStorageAccess"}"#.to_vec(),
+            br#"DEVALCOPILOT_SIDECAR_FAILED {"version":1,"stage":"Elsewhere","reason":"StorageUnavailable","action":"RestoreStorageAccess"}"#.to_vec(),
+            br#"DEVALCOPILOT_SIDECAR_FAILED {"version":1,"stage":"StorageSchema","reason":"Disk on fire","action":"RestoreStorageAccess"}"#.to_vec(),
+            br#"DEVALCOPILOT_SIDECAR_FAILED {"version":1,"stage":"StorageSchema","reason":"StorageUnavailable","action":"RequestReviewedRepair"}"#.to_vec(),
+            br#"DEVALCOPILOT_SIDECAR_FAILED {"version":1,"stage":"StorageSchema","reason":"StateIncoherent","action":"RestoreStorageAccess"}"#.to_vec(),
+            br#"DEVALCOPILOT_SIDECAR_FAILED {"version":1,"stage":"StorageSchema","reason":"StateIncoherent","action":"RequestReviewedRepair","path":"C:\x"}"#.to_vec(),
+            br#"DEVALCOPILOT_SIDECAR_FAILED ["StorageSchema"]"#.to_vec(),
+            [b"DEVALCOPILOT_SIDECAR_FAILED ".to_vec(), vec![b' '; MAX_PROTOCOL_LINE_BYTES]].concat(),
+            vec![0xff, 0xfe, 0x00],
+        ];
+
+        for case in cases {
+            assert_eq!(parse_protocol_line(&case), ProtocolLine::Ignored);
+        }
+    }
+
+    #[test]
+    fn a_failure_frame_split_across_two_events_is_never_read_as_a_frame() {
+        let whole = br#"DEVALCOPILOT_SIDECAR_FAILED {"version":1,"stage":"Workspaces","reason":"StateIncoherent","action":"RequestReviewedRepair"}"#;
+        let (first, second) = whole.split_at(40);
+
+        assert_eq!(parse_protocol_line(first), ProtocolLine::Ignored);
+        assert_eq!(parse_protocol_line(second), ProtocolLine::Ignored);
+    }
+
+    #[test]
+    fn a_ready_line_carries_its_port_and_closed_warnings_and_rejects_unknown_ones() {
+        assert_eq!(
+            parse_protocol_line(br#"DEVALCOPILOT_SIDECAR_READY {"port":5123,"warnings":["OptionalOutputDeferred"]}"#),
+            ProtocolLine::Ready {
+                port: 5123,
+                warnings: vec!["OptionalOutputDeferred".to_string()]
+            }
+        );
+        assert_eq!(
+            parse_protocol_line(br#"DEVALCOPILOT_SIDECAR_READY {"port":5123}"#),
+            ProtocolLine::Ready {
+                port: 5123,
+                warnings: Vec::new()
+            }
+        );
+        for rejected in [
+            &br#"DEVALCOPILOT_SIDECAR_READY {"port":5123,"warnings":["Everything is fine"]}"#[..],
+            &br#"DEVALCOPILOT_SIDECAR_READY {"port":5123,"warnings":["OptionalOutputDeferred","OptionalOutputDeferred"]}"#[..],
+            &br#"DEVALCOPILOT_SIDECAR_READY {"port":70000}"#[..],
+            &br#"DEVALCOPILOT_SIDECAR_READY {"port":5123,"secret":"x"}"#[..],
+        ] {
+            assert_eq!(parse_protocol_line(rejected), ProtocolLine::Ignored);
+        }
+    }
+
+    #[test]
+    fn a_startup_failure_is_terminal_and_a_late_ready_never_restores_a_session() {
+        let mut lifecycle = SidecarLifecycle::new();
+
+        let owes_disconnect = lifecycle.apply(SidecarFact::StartupFailed(failure(
+            "Workspaces",
+            "StateIncoherent",
+            "RequestReviewedRepair",
+        )));
+        assert!(!owes_disconnect);
+        assert!(matches!(lifecycle.state, SidecarState::Failed(_)));
+
+        lifecycle.apply(SidecarFact::BecameReady(fake_session("late")));
+        lifecycle.apply(SidecarFact::Terminated);
+        lifecycle.apply_stream_end();
+
+        assert!(
+            matches!(&lifecycle.state, SidecarState::Failed(kept) if kept.stage == "Workspaces")
+        );
+    }
+
+    #[test]
+    fn a_failure_frame_after_readiness_only_invalidates_the_session() {
+        let mut lifecycle = SidecarLifecycle::new();
+        lifecycle.apply(SidecarFact::BecameReady(fake_session("a")));
+
+        let owes_disconnect = lifecycle.apply(SidecarFact::StartupFailed(failure(
+            "Workspaces",
+            "StateIncoherent",
+            "RequestReviewedRepair",
+        )));
+
+        assert!(owes_disconnect);
+        assert!(matches!(lifecycle.state, SidecarState::Exited));
+    }
+
+    #[tokio::test]
+    async fn waiting_for_a_session_reports_the_startup_failure() {
+        let (tx, rx) = watch::channel(SidecarState::Starting);
+
+        let waiter = tokio::spawn(wait_for_session(rx, far_future_deadline()));
+        tokio::task::yield_now().await;
+        tx.send(SidecarState::Failed(failure(
+            "StorageSchema",
+            "Unclassified",
+            "RequestReviewedRepair",
+        )))
+        .unwrap();
+
+        let result = waiter.await.unwrap();
+
+        assert_eq!(
+            result.err(),
+            Some(failure(
+                "StorageSchema",
+                "Unclassified",
+                "RequestReviewedRepair"
+            ))
+        );
+        let error = LaunchError::from(failure(
+            "StorageSchema",
+            "Unclassified",
+            "RequestReviewedRepair",
+        ));
+        assert_eq!(
+            serde_json::to_string(&error).unwrap(),
+            r#"{"kind":"startup-failed","stage":"StorageSchema","reason":"Unclassified","action":"RequestReviewedRepair"}"#
+        );
     }
 
     #[test]

@@ -3,6 +3,7 @@ using Devalente.Shared.Results;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
+using DevalCopilot.Domain.Features.Runs;
 
 namespace DevalCopilot.Application.Features.Runs.Commands.RecordImplementationResult;
 
@@ -48,7 +49,8 @@ public sealed record RecordImplementationResultCommand(
     string? ObservedEffort = null,
     AgentProcessEvidence? ProcessEvidence = null,
     AgentTokenUsage? TokenUsage = null,
-    AgentModelContextLimits? ModelContextLimits = null) : ICommand<Result<RecordImplementationResultCommandResult>>
+    AgentModelContextLimits? ModelContextLimits = null,
+    AgentInvocationDiagnostic? InvocationDiagnostic = null) : ICommand<Result<RecordImplementationResultCommandResult>>
 {
     /// <summary>ADR-0065: the opaque in-memory ticket the original host received from the committed dispatch marker of a linked local
     /// execution operation. It is public to the host supervisors only to be carried unchanged; it cannot be minted outside the

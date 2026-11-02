@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Application.Features.Runs.Queries.GetGitHubCheckContextsObservation;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Infrastructure.Features.Runs;
@@ -669,6 +670,7 @@ public sealed class GitHubCheckContextsObservationEndpointTests
             Invocations++;
             return Task.FromResult(new ProcessExecutionResult
             {
+                IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                 Outcome = ProcessExecutionOutcome.Exited,
                 ExitCode = 0,
                 StandardOutput = standardOutput(),

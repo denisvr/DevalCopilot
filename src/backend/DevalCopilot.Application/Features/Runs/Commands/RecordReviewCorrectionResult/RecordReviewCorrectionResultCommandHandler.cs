@@ -216,6 +216,12 @@ public sealed class RecordReviewCorrectionResultCommandHandler(IDevalCopilotDbCo
             return Failure(processEvidenceError);
         }
 
+        // ADR-0072: a closed invocation diagnostic is only ever recorded beside a failure of a dispatched attempt.
+        if (AgentInvocationDiagnosticRecording.Validate(command.InvocationDiagnostic, attempt, outcome) is { } diagnosticError)
+        {
+            return Failure(diagnosticError);
+        }
+
         // Provider-reported token usage is best-effort and never required, but when supplied it is
         // validated before any mutation: bound to a dispatched attempt and never attached to a
         // pre-invocation outcome. Recorded atomically with the outcome and process evidence below.
@@ -270,6 +276,11 @@ public sealed class RecordReviewCorrectionResultCommandHandler(IDevalCopilotDbCo
             resultCheckpointId = resultCheckpoint.Id;
         }
 
+        if (command.InvocationDiagnostic is { } diagnostic)
+        {
+            attempt.RecordAgentInvocationDiagnostic(diagnostic);
+        }
+
         attempt.CompleteReviewCorrection(outcome, resultCheckpointId, nowUtc, processEvidence, tokenUsage, modelLimits);
         if (mutationSuspected)
         {
@@ -283,7 +294,8 @@ public sealed class RecordReviewCorrectionResultCommandHandler(IDevalCopilotDbCo
                 artifact.Purpose == ArtifactPurpose.AgentFinalResponse ? "application/json" : "text/plain; charset=utf-8",
                 artifact.RelativeStoragePath, artifact.ContentHash, artifact.ByteLength, artifact.Truncated,
                 ArtifactCaptureOutcome.Captured, ArtifactSensitivity.RedactedBestEffort,
-                ArtifactRetentionPolicy.RetainUntilRunDeleted, nowUtc));
+                ArtifactRetentionPolicy.RetainUntilRunDeleted, nowUtc,
+                AgentProcessEvidenceRecording.CaptureCompletionFor(artifact.Purpose, command.ProcessEvidence)));
         }
 
         RunEvent latestEvent;

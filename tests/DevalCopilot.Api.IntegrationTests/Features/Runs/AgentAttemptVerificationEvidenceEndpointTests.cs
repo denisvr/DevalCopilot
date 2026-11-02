@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
@@ -294,7 +295,7 @@ public sealed class AgentAttemptVerificationEvidenceEndpointTests(ApiWebApplicat
             await db.SaveChangesAsync();
             var execution = VerificationExecution.Claim(Guid.NewGuid(), lineage.ProjectId, 33, workspace, checkpoint, command, Now.AddMinutes(1));
             execution.MarkDispatched(Now.AddMinutes(1).AddSeconds(1));
-            execution.Complete(VerificationExecutionOutcome.Exited, 0, checkpoint.FingerprintSha256, Now.AddMinutes(1).AddSeconds(2));
+            execution.Complete(VerificationExecutionOutcome.Exited, 0, checkpoint.FingerprintSha256, Now.AddMinutes(1).AddSeconds(2), ProcessIoCompletion.CompleteWithoutInput);
             db.VerificationExecutions.Add(execution);
             db.AttemptVerificationEvidence.Add(AttemptVerificationEvidence.Record(Guid.NewGuid(), lineage.AttemptId, command.Id, execution.Id, 32));
             return await db.SaveChangesAsync();

@@ -99,12 +99,12 @@ describe('implementation role status', () => {
     expect(screen.getByText('Current run request (applies to future attempts): Not requested')).toBeTruthy()
   })
 
-  it.each(['claude-implementation-v1', 'claude-implementation-v2'])('recognizes the exact adapter contract %s', (contract) => {
+  it.each(['claude-implementation-v1', 'claude-implementation-v2', 'claude-implementation-v3'])('recognizes the exact adapter contract %s', (contract) => {
     renderImplementation(status({ adapterContractVersion: contract }))
     expect(screen.getByText(new RegExp(`Adapter contract: ${contract} ·`))).toBeTruthy()
   })
 
-  it.each(['claude-implementation-v3', 'claude-implementation-v2-extra', 'claude-implementation-', 'xclaude-implementation-v1', undefined])(
+  it.each(['claude-implementation-v4', 'claude-implementation-v3-extra', 'claude-implementation-v2-extra', 'claude-implementation-', 'xclaude-implementation-v1', undefined])(
     'treats %s as Unknown, never by prefix',
     (contract) => {
       renderImplementation(status({ adapterContractVersion: contract }))

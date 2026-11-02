@@ -3,6 +3,7 @@ using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Runs.Policies;
+using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
 
@@ -205,7 +206,7 @@ public sealed class RecordChallengeResolutionResultCommandHandler(IDevalCopilotD
 
         foreach (var sealedArtifact in command.SealedArtifacts)
         {
-            RecordArtifact(command.RunId, command.AttemptId, sealedArtifact, nowUtc);
+            RecordArtifact(command.RunId, command.AttemptId, sealedArtifact, nowUtc, command.ProcessEvidence);
         }
 
         // The override inside CompleteAgent is the single source of truth for whether this
@@ -458,7 +459,8 @@ public sealed class RecordChallengeResolutionResultCommandHandler(IDevalCopilotD
     /// Challenged review that this attempt claimed to resolve.</summary>
     private sealed record ClaimedLineage(PlanningLineage.Node ReviewedProposal, IReadOnlyList<CollaborationMessage> Challenges);
 
-    private void RecordArtifact(Guid runId, Guid attemptId, SealedChallengeResolutionArtifact sealedArtifact, DateTimeOffset nowUtc)
+    private void RecordArtifact(Guid runId, Guid attemptId, SealedChallengeResolutionArtifact sealedArtifact, DateTimeOffset nowUtc,
+        AgentProcessEvidence? processEvidence)
     {
         var mediaType = sealedArtifact.Purpose == ArtifactPurpose.AgentFinalResponse
             ? "application/json"
@@ -477,7 +479,8 @@ public sealed class RecordChallengeResolutionResultCommandHandler(IDevalCopilotD
             ArtifactCaptureOutcome.Captured,
             ArtifactSensitivity.RedactedBestEffort,
             ArtifactRetentionPolicy.RetainUntilRunDeleted,
-            nowUtc);
+            nowUtc,
+            AgentProcessEvidenceRecording.CaptureCompletionFor(sealedArtifact.Purpose, processEvidence));
         dbContext.Artifacts.Add(artifact);
     }
 }

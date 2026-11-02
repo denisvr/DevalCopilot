@@ -7,25 +7,13 @@ using DevalCopilot.Api.Security.Bootstrap;
 using DevalCopilot.Api.Security.Cors;
 using DevalCopilot.Api.Startup;
 using DevalCopilot.Application.Data;
-using DevalCopilot.Application.Features.EnvironmentReadiness.Commands.EnsureHostCapabilityCatalogSeeded;
-using DevalCopilot.Application.Features.EnvironmentReadiness.Commands.ReconcileInterruptedHostCapabilityProbes;
 using DevalCopilot.Application.Features.EnvironmentReadiness.Ports;
 using DevalCopilot.Application.Features.EnvironmentReadiness.Queries.GetCodexAccountAllowance;
 using DevalCopilot.Application.Features.EnvironmentReadiness.Queries.GetCodexModelCatalog;
 using DevalCopilot.Application.Features.EnvironmentReadiness.Queries.GetGitHubStoredAuthentication;
 using DevalCopilot.Application.Features.Processes.Ports;
-using DevalCopilot.Application.Features.Projects.Commands.ReconcileWorkspaces;
-using DevalCopilot.Application.Features.Projects.Commands.ReconcileInterruptedVerificationExecutions;
-using DevalCopilot.Application.Features.Projects.Commands.RecoverInterruptedVerificationOutputArtifacts;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Projects.Queries.GetProjectGitHubOrigin;
-using DevalCopilot.Application.Features.Runs.Commands.CloseInterruptedAgentSupervisions;
-using DevalCopilot.Application.Features.Runs.Commands.InterruptLocalExecutionSequences;
-using DevalCopilot.Application.Features.Runs.Commands.InterruptPlanningSequences;
-using DevalCopilot.Application.Features.Runs.Commands.ReconcileInterruptedAgentAttempts;
-using DevalCopilot.Application.Features.Runs.Commands.RecoverLocalCommitOperations;
-using DevalCopilot.Application.Features.Runs.Commands.ReconcileInterruptedImplementationAttempts;
-using DevalCopilot.Application.Features.Runs.Commands.ReconcileInterruptedProcessAttempts;
 using DevalCopilot.Application.Features.Runs.Commands.StartSimulatedRun;
 using DevalCopilot.Application.Features.Runs.Policies.AgentSupervisions;
 using DevalCopilot.Application.Features.Runs.Ports;
@@ -200,6 +188,8 @@ builder.Services.AddSingleton<IGitWorktreeAdapter, GitWorktreeAdapter>();
 builder.Services.AddSingleton<IGitWorkspaceEvidenceReader, GitWorkspaceEvidenceReader>();
 builder.Services.AddSingleton<IWorkspaceOwnershipMarkerStore, WorkspaceOwnershipMarkerStore>();
 builder.Services.AddSingleton<IWorkspaceRootPathProvider, WorkspaceRootPathProvider>();
+// ADR-0072: the one fixed Windows verification environment profile, built per dispatched execution.
+builder.Services.AddSingleton<IVerificationEnvironmentProvider, WindowsVerificationEnvironmentProvider>();
 builder.Services.AddHostedService<VerificationExecutionSupervisor>();
 
 // The explicit local commit (ADR-0029): one Git adapter behind two narrow Application ports, its owned storage, and the supervisor
@@ -345,69 +335,31 @@ else if (!string.IsNullOrEmpty(allowedBrowserOrigin))
 
 var app = builder.Build();
 
+var startupReport = StartupRecoveryReport.Clean;
 if (!isSideEffectFreeComposition)
 {
-    using var startupScope = app.Services.CreateScope();
-    var dbContext = startupScope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
-    await dbContext.Database.MigrateAsync();
+    // ADR-0072: the existing ordered, idempotent recovery (ADR-0060 sequences, artifact recovery, attempt, capability, local-commit,
+    // workspace and verification reconciliation, ADR-0055 planning interruption and ADR-0056 supervision closure) runs through one
+    // checked runner. A fatal failure stops here: no later step, no API, no Ready line and no hosted dispatch. The sidecar reports
+    // it with one closed frame on its stdout protocol channel; stderr carries the same safe diagnostic for a direct host.
+    var startupLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("StartupRecovery");
+    startupReport = await StartupRecovery.RunAsync(app.Services, startupLogger, CancellationToken.None);
+    if (startupReport.Failure is { } startupFailure)
+    {
+        if (bootstrapStdin)
+        {
+            Console.WriteLine(StartupFailureFrame.Format(startupFailure));
+            await Console.Out.FlushAsync();
+        }
 
-    // ADR-0060: close every previous-launch local execution sequence and revoke its unclaimed preparations before any artifact
-    // recovery, attempt interruption, workspace reconciliation or supervisor. Nothing resumes, redispatches or adopts, and a linked
-    // dispatched operation without a coherent recorded result is left exactly as recorded for the recoveries below to exclude.
-    await startupScope.ServiceProvider.GetRequiredService<IApplicationMediator>()
-        .SendAsync(new InterruptLocalExecutionSequencesCommand(), CancellationToken.None);
+        await Console.Error.WriteLineAsync(StartupFailureFrame.FormatDiagnostic(startupFailure));
+        await Console.Error.FlushAsync();
 
-    // Must complete before ProcessAttemptSupervisor (started below, only once the host
-    // itself starts) can claim any work: a Process attempt this instance finds still
-    // Running was orphaned by a prior crash, never one safe to execute. Output recovery runs
-    // first, while GetRunningProcessAttemptsQuery still sees these attempts as Running — it
-    // discovers and imports whatever a prior host session captured for them before
-    // reconciliation flips their status.
-    var startupLogger = startupScope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("StartupRecovery");
-    await ProcessAttemptOutputRecovery.RunAsync(startupScope.ServiceProvider, startupLogger, CancellationToken.None);
-
-    var mediator = startupScope.ServiceProvider.GetRequiredService<IApplicationMediator>();
-    await mediator.SendAsync(new ReconcileInterruptedProcessAttemptsCommand(), CancellationToken.None);
-
-    // Host-scoped, not project-scoped: seeds the fixed capability catalog exactly once
-    // regardless of how many projects are registered, then clears any dispatch marker a prior
-    // crash left stuck — both must complete before HostCapabilityReadinessSupervisor starts.
-    await mediator.SendAsync(new EnsureHostCapabilityCatalogSeededCommand(), CancellationToken.None);
-    await mediator.SendAsync(new ReconcileInterruptedHostCapabilityProbesCommand(), CancellationToken.None);
-
-    // Evidence-driven workspace reconciliation: must complete before any new preparation
-    // request is accepted, so a workspace from a prior host instance is never silently
-    // adopted, orphaned, or double-leased.
-    await mediator.SendAsync(new RecoverLocalCommitOperationsCommand(), CancellationToken.None);
-    await mediator.SendAsync(new ReconcileWorkspacesCommand(), CancellationToken.None);
-    // Recover only sealed verification output for executions that are still Running. This
-    // must precede interruption reconciliation so a crash after sealing but before result
-    // metadata commit cannot lose truthful output, while partial files remain non-evidence.
-    await mediator.SendAsync(new RecoverInterruptedVerificationOutputArtifactsCommand(), CancellationToken.None);
-    await mediator.SendAsync(new ReconcileInterruptedVerificationExecutionsCommand(), CancellationToken.None);
-
-    // Same ordering rule as ProcessAttemptOutputRecovery above: must complete before
-    // AgentAttemptSupervisor can claim any work, and output recovery must run first, while
-    // GetRunningAgentAttemptsQuery still sees these attempts as Running.
-    await AgentAttemptOutputRecovery.RunAsync(startupScope.ServiceProvider, startupLogger, CancellationToken.None);
-    await mediator.SendAsync(new ReconcileInterruptedAgentAttemptsCommand(), CancellationToken.None);
-    // Implementer attempts are excluded from the generic command above and reconciled here
-    // instead: unlike every other Agent role, a dispatched implementation attempt may have
-    // mutated the owned worktree before the host was lost, so this independently re-reads fresh
-    // Git evidence for each affected workspace before ever deciding whether it must also be
-    // flagged NeedsAttention. Must still complete before ImplementationSupervisor can claim any
-    // work, same ordering rule as above.
-    await mediator.SendAsync(new ReconcileInterruptedImplementationAttemptsCommand(), CancellationToken.None);
-
-    // Only after the artifact and Agent/implementation reconciliation above, and before any hosted coordinator or provider supervisor
-    // starts (ADR-0055): every sequence that could still advance or drain, including Armed, preparation-only and between-step sessions,
-    // becomes Interrupted. Nothing resumes, redispatches or adopts a result.
-    await mediator.SendAsync(new InterruptPlanningSequencesCommand(), CancellationToken.None);
-
-    // Only after the attempt reconciliation above and before any hosted service starts (ADR-0056): every Agent supervision observation
-    // a previous host launch left open is closed as interrupted with its facts preserved. Nothing is adopted, renewed or resumed and no
-    // attempt, run, workspace, budget or ownership changes here.
-    await mediator.SendAsync(new CloseInterruptedAgentSupervisionsCommand(), CancellationToken.None);
+        // Returning from the entry point before the host starts ends the process with this code; nothing was started that could
+        // keep it alive (no hosted service, no server, no stdin monitor).
+        Environment.ExitCode = StartupFailureFrame.ExitCode;
+        return;
+    }
 }
 
 if (bootstrapStdin)
@@ -432,9 +384,9 @@ if (bootstrapStdin)
     var boundAddress = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.First();
     var port = new Uri(boundAddress).Port;
 
-    // The one and only stdout line this process ever writes in bootstrap mode: never the
-    // secret, only bounded readiness information and the selected port.
-    Console.WriteLine(BootstrapReadyMarker.Format(port));
+    // The one and only stdout line this process ever writes in bootstrap mode after a clean or warning-only recovery: never the
+    // secret, only bounded readiness information, the selected port and the closed startup warning categories (ADR-0072).
+    Console.WriteLine(BootstrapReadyMarker.Format(port, startupReport.Warnings));
 
     var stdinMonitorLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("BootstrapStdinMonitor");
     _ = BootstrapStdinMonitor.RunAsync(

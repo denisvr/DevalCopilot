@@ -14,6 +14,7 @@ public sealed class VerificationOutputArtifactConfiguration : IEntityTypeConfigu
         builder.Property(artifact => artifact.RelativeStoragePath).HasMaxLength(1024).IsRequired();
         builder.Property(artifact => artifact.ContentHash).HasMaxLength(128).IsRequired();
         builder.Property(artifact => artifact.CaptureOutcome).HasConversion<string>().HasMaxLength(64).IsRequired();
+        builder.Property(artifact => artifact.CaptureCompletion).HasConversion<string>().HasMaxLength(32);
         builder.HasOne<VerificationExecution>().WithMany().HasForeignKey(artifact => artifact.VerificationExecutionId)
             .OnDelete(DeleteBehavior.Cascade);
         builder.HasIndex(artifact => new { artifact.VerificationExecutionId, artifact.Purpose }).IsUnique();

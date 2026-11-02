@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.Data.Sqlite;
@@ -470,7 +471,7 @@ public sealed class LocalExecutionSequenceGuardTests : LocalExecutionSequenceMig
                 attempt.MarkAgentDispatched(Now.AddSeconds(20));
                 attempt.CompleteAgent(
                     AgentOutcome.ProviderInvocationFailed, null, Now.AddMinutes(1),
-                    AgentProcessExecutionEvidence.Create(ProcessOutcome.Exited, 0, TimeSpan.Zero));
+                    AgentProcessExecutionEvidence.Create(ProcessOutcome.Exited, 0, TimeSpan.Zero, ProcessIoCompletion.CompleteWithInput));
                 break;
             case AttemptScenario.DispatchedTimedOut:
                 attempt.MarkAgentDispatched(Now.AddSeconds(20));
@@ -601,15 +602,15 @@ public sealed class LocalExecutionSequenceGuardTests : LocalExecutionSequenceMig
                 break;
             case ExecutionScenario.PassedExited:
                 execution.MarkDispatched(Now.AddSeconds(20));
-                execution.Complete(VerificationExecutionOutcome.Exited, 0, Fingerprint, Now.AddMinutes(1));
+                execution.Complete(VerificationExecutionOutcome.Exited, 0, Fingerprint, Now.AddMinutes(1), ProcessIoCompletion.CompleteWithoutInput);
                 break;
             case ExecutionScenario.FailedExited:
                 execution.MarkDispatched(Now.AddSeconds(20));
-                execution.Complete(VerificationExecutionOutcome.Exited, 1, Fingerprint, Now.AddMinutes(1));
+                execution.Complete(VerificationExecutionOutcome.Exited, 1, Fingerprint, Now.AddMinutes(1), ProcessIoCompletion.CompleteWithoutInput);
                 break;
             case ExecutionScenario.TimedOut:
                 execution.MarkDispatched(Now.AddSeconds(20));
-                execution.Complete(VerificationExecutionOutcome.TimedOut, null, Fingerprint, Now.AddMinutes(1));
+                execution.Complete(VerificationExecutionOutcome.TimedOut, null, Fingerprint, Now.AddMinutes(1), ProcessIoCompletion.CompleteWithoutInput);
                 break;
             case ExecutionScenario.InterruptedAfterDispatch:
                 execution.MarkDispatched(Now.AddSeconds(20));

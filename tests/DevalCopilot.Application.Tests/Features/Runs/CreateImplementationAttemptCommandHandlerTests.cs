@@ -242,7 +242,7 @@ public sealed partial class CreateImplementationAttemptCommandHandlerTests : IAs
         Assert.Null(attempt.AgentRequestedEffort);
         Assert.Null(attempt.AgentObservedEffort);
         Assert.Equal(AgentPermissionProfile.WorkspaceEditOnly, attempt.AgentPermissionProfile);
-        Assert.Equal("claude-implementation-v2", attempt.AgentAdapterContractVersion);
+        Assert.Equal("claude-implementation-v3", attempt.AgentAdapterContractVersion);
 
         var orderedInputMessages = dbContext.AttemptInputMessages.Where(m => m.AttemptId == attempt.Id).OrderBy(m => m.Sequence).ToList();
         Assert.Equal(2, orderedInputMessages.Count);
@@ -1006,7 +1006,7 @@ public sealed partial class CreateImplementationAttemptCommandHandlerTests : IAs
     [InlineData(1)]
     [InlineData(37)]
     [InlineData(100)]
-    public async Task HandleAsync_snapshots_the_runs_turn_limit_under_the_v2_contract_immutably(int? limit)
+    public async Task HandleAsync_snapshots_the_runs_turn_limit_under_the_current_contract_immutably(int? limit)
     {
         var (runId, proposalId) = await SeedTurnLimitScenarioAsync(limit);
         await using var handlerContext = _fixture.CreateContext();
@@ -1018,7 +1018,7 @@ public sealed partial class CreateImplementationAttemptCommandHandlerTests : IAs
         Assert.True(result.IsSuccess);
         var attemptId = result.Value.AttemptId;
         Assert.Equal(limit, await ClaudeMutationTurnLimitTestSupport.ReadAttemptLimitAsync(_fixture, attemptId));
-        Assert.Equal("claude-implementation-v2", await ClaudeMutationTurnLimitTestSupport.ReadAttemptContractVersionAsync(_fixture, attemptId));
+        Assert.Equal("claude-implementation-v3", await ClaudeMutationTurnLimitTestSupport.ReadAttemptContractVersionAsync(_fixture, attemptId));
 
         // A later change or clear never alters the already-claimed attempt.
         await ClaudeMutationTurnLimitTestSupport.SetLimitAsync(_fixture, runId, limit == 50 ? 51 : 50);
@@ -1043,7 +1043,7 @@ public sealed partial class CreateImplementationAttemptCommandHandlerTests : IAs
 
         Assert.True(result.IsSuccess);
         Assert.Equal(12, await ClaudeMutationTurnLimitTestSupport.ReadAttemptLimitAsync(_fixture, result.Value.AttemptId));
-        Assert.Equal("claude-implementation-v2", await ClaudeMutationTurnLimitTestSupport.ReadAttemptContractVersionAsync(_fixture, result.Value.AttemptId));
+        Assert.Equal("claude-implementation-v3", await ClaudeMutationTurnLimitTestSupport.ReadAttemptContractVersionAsync(_fixture, result.Value.AttemptId));
     }
 
     [Fact]

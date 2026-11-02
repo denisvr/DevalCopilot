@@ -11,10 +11,9 @@ namespace DevalCopilot.Application.Features.Runs.Queries.GetClaudeCriticalReview
 public sealed class GetClaudeCriticalReviewAttemptStatusQueryHandler(IDevalCopilotDbContext dbContext)
     : IQueryHandler<GetClaudeCriticalReviewAttemptStatusQuery, Result<ClaudeCriticalReviewAttemptStatusQueryResult>>
 {
-    // Mirrors the adapter contract version fixed at claim time (Attempt.ClaimAgentCriticalReview)
-    // and the current ClaudeCriticalReviewAdapter's own fixed CLI arguments — fixed configuration
-    // facts, never a provider-observed result and never invocation eligibility.
-    private const string ClaudeCriticalReviewerAdapterContractVersion = "claude-critical-review-v1";
+    // Mirrors the ClaudeCriticalReviewAdapter.s own fixed CLI arguments — fixed configuration facts, never a provider-observed
+    // result and never invocation eligibility. Both the current and the historical v1 contract (ADR-0072) pass these same
+    // permission, session, prompt, resume and tool arguments.
     private const string ConfiguredClaudeCriticalReviewerPermissionMode = "plan";
     private const string ConfiguredClaudeCriticalReviewerSessionPersistence = "Disabled";
     private const string ConfiguredClaudeCriticalReviewerPermissionPrompts = "None";
@@ -82,7 +81,7 @@ public sealed class GetClaudeCriticalReviewAttemptStatusQueryHandler(IDevalCopil
             && attempt.AgentResponseContract == AgentResponseContract.CriticalReview
             && assignment.Provider == AgentProvider.ClaudeCode
             && assignment.PermissionProfile == AgentPermissionProfile.ReadOnly
-            && assignment.AdapterContractVersion == ClaudeCriticalReviewerAdapterContractVersion;
+            && ReadOnlyFormatRepairPolicy.IsKnownCriticalReviewVersion(assignment.AdapterContractVersion);
 
         var configuredPermissionMode = isCoherentDefaultCriticalReviewerAssignment
             ? ConfiguredClaudeCriticalReviewerPermissionMode : null;

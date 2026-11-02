@@ -35,8 +35,16 @@ public sealed class ManifestInfo
     /// <summary>The implementation note of the second correction report of the cycle, by which the review double recognizes it.</summary>
     public const string LocalCycleSecondCorrectionNote = "Removed the leftover review marker comment.";
 
+    /// <summary>
+    /// The conventions marker of the one repository the invocation diagnostic journey registers (ADR-0072): only its critical review
+    /// is answered with the documented authentication error report, so every other journey's Claude behavior is unchanged.
+    /// </summary>
+    public const string ReportedAuthenticationErrorMarker = "CONVENTIONS-OF-claude-diagnostic-source";
+
     public bool IsLocalCycle =>
         Raw.Contains(LocalCycleMarker, StringComparison.Ordinal) || Raw.Contains(LocalReleaseQueuedMarker, StringComparison.Ordinal);
+
+    public bool ReportsAuthenticationError => Raw.Contains(ReportedAuthenticationErrorMarker, StringComparison.Ordinal);
 
     private ManifestInfo(string raw, JsonElement root, string contract)
     {

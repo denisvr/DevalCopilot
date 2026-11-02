@@ -104,8 +104,6 @@ public static class ClosedArguments
         Expect("--no-chrome");
         Expect("--permission-prompts");
         Expect("none");
-        Expect("--prompt-suggestions");
-        Expect("false");
         Expect("--tools");
         var tools = Next();
         Expect("--strict-mcp-config");

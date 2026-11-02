@@ -41,6 +41,9 @@ public sealed class ExecutionCapacityConfigurationMigrationTests : IAsyncLifetim
     private DevalCopilotDbContext CreateContext() =>
         new(new DbContextOptionsBuilder<DevalCopilotDbContext>().UseSqlite($"Data Source={databasePath}").Options);
 
+    /// <summary>ADR-0072: seeds and reads at a schema older than AddWindowsExecutionProfileEvidence.</summary>
+    private DevalCopilotDbContext CreatePriorSchemaContext() => BeforeExecutionProfileContext.Create($"Data Source={databasePath}");
+
     private async Task MigrateToAsync(string? target)
     {
         await using var context = CreateContext();
@@ -98,7 +101,7 @@ public sealed class ExecutionCapacityConfigurationMigrationTests : IAsyncLifetim
 
     private async Task<(Guid ProjectId, Guid RunId, Guid AttemptId)> SeedHistoricalRowsAsync()
     {
-        await using var context = CreateContext();
+        await using var context = CreatePriorSchemaContext();
         var project = Project.Register(Guid.NewGuid(), "Project", $@"C:\repos\{Guid.NewGuid():N}", Now);
         var run = Run.RecordClassifiedIntent(Guid.NewGuid(), project.Id, 1, RunExecutionMode.ManualAgent, "Objective", Now);
         var attempt = Attempt.Claim(Guid.NewGuid(), run.Id, 1, Now);
@@ -120,7 +123,7 @@ public sealed class ExecutionCapacityConfigurationMigrationTests : IAsyncLifetim
 
         Assert.Equal([Table], await ReadNamesAsync("table", Table));
         Assert.Equal("1:2", await HistoryAsync());
-        await using var verify = CreateContext();
+        await using var verify = CreatePriorSchemaContext();
         Assert.Equal(projectId, (await verify.Projects.AsNoTracking().SingleAsync()).Id);
         Assert.Equal(runId, (await verify.Runs.AsNoTracking().SingleAsync()).Id);
         Assert.Equal(attemptId, (await verify.Attempts.AsNoTracking().SingleAsync()).Id);
@@ -151,7 +154,7 @@ public sealed class ExecutionCapacityConfigurationMigrationTests : IAsyncLifetim
         var tablesAfter = await ReadNamesAsync("table", "%");
         // The later local execution sequence migration (ADR-0060) is reversed with it; the queue tables (ADR-0062) and those three tables go with it.
         Assert.Equal(tablesBefore.Where(name => name != Table && !name.StartsWith("local_execution_", StringComparison.Ordinal)).ToList(), tablesAfter);
-        await using var verify = CreateContext();
+        await using var verify = CreatePriorSchemaContext();
         Assert.Equal(projectId, (await verify.Projects.AsNoTracking().SingleAsync()).Id);
         Assert.Equal(runId, (await verify.Runs.AsNoTracking().SingleAsync()).Id);
         Assert.Equal(attemptId, (await verify.Attempts.AsNoTracking().SingleAsync()).Id);

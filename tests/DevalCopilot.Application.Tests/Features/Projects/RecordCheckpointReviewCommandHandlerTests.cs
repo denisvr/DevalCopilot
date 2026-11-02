@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Application.Features.Projects.Commands.RecordCheckpointReview;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Projects.Queries.GetProjectCheckpointReviews;
@@ -294,7 +295,7 @@ public sealed class RecordCheckpointReviewCommandHandlerTests : IAsyncLifetime
         else if (status.HasValue)
         {
             execution.MarkDispatched(Now);
-            execution.Complete(outcome!.Value, exitCode, status == VerificationExecutionStatus.SourceChanged ? new string('c', 64) : checkpoint.FingerprintSha256, Now);
+            execution.Complete(outcome!.Value, exitCode, status == VerificationExecutionStatus.SourceChanged ? new string('c', 64) : checkpoint.FingerprintSha256, Now, ProcessIoCompletion.CompleteWithoutInput);
         }
         dbContext.Projects.Add(project);
         dbContext.GitWorkspaces.Add(workspace);

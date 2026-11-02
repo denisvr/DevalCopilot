@@ -1,4 +1,5 @@
 using Devalente.Shared.Cqrs;
+using DevalCopilot.Domain.Features.Processes;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Projects.Ports;
@@ -228,7 +229,7 @@ public sealed class VerificationDiagnosisSupervisor(
             logger.LogError("verification_diagnosis_completion_evidence_failed AttemptId={AttemptId}", attempt.AttemptId);
         }
 
-        var sealedArtifacts = await SealArtifactsAsync(attempt, standardOutputTruncated, standardErrorTruncated);
+        var sealedArtifacts = await SealArtifactsAsync(attempt, standardOutputTruncated, standardErrorTruncated, processEvidence?.IoCompletion);
 
         ValidatedVerificationDiagnosis? diagnosis = null;
         AgentOutcome effectiveOutcome;
@@ -282,7 +283,7 @@ public sealed class VerificationDiagnosisSupervisor(
     }
 
     private async Task<IReadOnlyList<SealedVerificationDiagnosisArtifact>> SealArtifactsAsync(
-        EligibleVerificationDiagnosisAttempt attempt, bool standardOutputTruncated, bool standardErrorTruncated)
+        EligibleVerificationDiagnosisAttempt attempt, bool standardOutputTruncated, bool standardErrorTruncated, ProcessIoCompletion? ioCompletion)
     {
         var results = new List<SealedVerificationDiagnosisArtifact>();
         foreach (var (purpose, truncated) in new[]
@@ -292,6 +293,12 @@ public sealed class VerificationDiagnosisSupervisor(
                      (ArtifactPurpose.AgentFinalResponse, false),
                  })
         {
+            if (!CapturedOutputSealing.MaySealAgentArtifact(purpose, ioCompletion))
+            {
+                // ADR-0072: the captured stream's writer was not proved closed; its partial file is neither sealed nor deleted.
+                continue;
+            }
+
             var sealedFile = await artifactStore.SealAsync(attempt.RunId, attempt.AttemptId, purpose, CancellationToken.None);
             if (sealedFile is not null)
             {

@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using DevalCopilot.Infrastructure.Persistence;
@@ -167,7 +168,7 @@ public sealed class AgentModelContextLimitsMigrationTests : IDisposable
             review.MarkAgentDispatched(now);
             review.CompleteAgent(
                 AgentOutcome.InvalidStructuredOutput, null, now.AddMinutes(1),
-                AgentProcessExecutionEvidence.Create(ProcessOutcome.Exited, 0, TimeSpan.FromSeconds(1)),
+                AgentProcessExecutionEvidence.Create(ProcessOutcome.Exited, 0, TimeSpan.FromSeconds(1), ProcessIoCompletion.CompleteWithInput),
                 AgentTokenUsageEvidence.Create(500, 60, null, null, "claude-cli-usage-v1"),
                 AgentModelContextLimitsEvidence.Create(Source, [new AgentModelContextLimit("claude-only", 100, 100)]));
 

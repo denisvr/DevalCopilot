@@ -45,7 +45,14 @@ public sealed class RecordVerificationExecutionResultCommandHandler(IDevalCopilo
             return Result<VerificationExecutionStatus>.Failure(terminationRefusal);
         }
 
-        execution.Complete(command.Outcome, command.ExitCode, command.CompletionFingerprintSha256, timeProvider.GetUtcNow());
+        execution.Complete(
+            command.Outcome,
+            command.ExitCode,
+            command.CompletionFingerprintSha256,
+            timeProvider.GetUtcNow(),
+            command.IoCompletion,
+            command.EnvironmentProfileVersion,
+            command.Diagnostic);
         if (termination.Observation is { } observation)
         {
             dbContext.LocalExecutionTerminationObservations.Add(observation);
@@ -62,7 +69,10 @@ public sealed class RecordVerificationExecutionResultCommandHandler(IDevalCopilo
                 sealedArtifact.ByteLength,
                 sealedArtifact.Truncated,
                 VerificationOutputCaptureOutcome.CapturedWithKnownTruncation,
-                timeProvider.GetUtcNow()));
+                timeProvider.GetUtcNow(),
+                sealedArtifact.Purpose == VerificationOutputPurpose.StandardOutput
+                    ? command.IoCompletion?.StandardOutput
+                    : command.IoCompletion?.StandardError));
         }
         return Result<VerificationExecutionStatus>.Success(execution.Status);
     }

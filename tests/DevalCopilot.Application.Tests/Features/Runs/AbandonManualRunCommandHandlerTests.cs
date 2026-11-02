@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using System.Text.Json;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Features.Runs;
@@ -231,7 +232,7 @@ public sealed class AbandonManualRunCommandHandlerTests(SqliteDatabaseFixture fi
                 var executionId = await scene.AddVerificationAsync(execution =>
                 {
                     execution.MarkDispatched(AbandonmentScene.Created);
-                    execution.Complete(VerificationExecutionOutcome.Exited, 0, new string('b', 64), AbandonmentScene.Created);
+                    execution.Complete(VerificationExecutionOutcome.Exited, 0, new string('b', 64), AbandonmentScene.Created, ProcessIoCompletion.CompleteWithoutInput);
                 });
                 await scene.SqlAsync("UPDATE verification_executions SET Status = 'Paused' WHERE Id = {0}", executionId);
                 break;
@@ -284,7 +285,7 @@ public sealed class AbandonManualRunCommandHandlerTests(SqliteDatabaseFixture fi
         await scene.AddVerificationAsync(execution =>
         {
             execution.MarkDispatched(AbandonmentScene.Created);
-            execution.Complete(VerificationExecutionOutcome.Exited, 0, new string('b', 64), AbandonmentScene.Created);
+            execution.Complete(VerificationExecutionOutcome.Exited, 0, new string('b', 64), AbandonmentScene.Created, ProcessIoCompletion.CompleteWithoutInput);
         });
 
         var result = await AbandonAsync(scene.RunId);

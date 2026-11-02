@@ -217,9 +217,22 @@ public sealed class AddDirectHumanGuidanceMigrationTests : IAsyncLifetime
         }
 
         var after = (await ReadColumnsAsync("attempts")).Select(column => column.Name).ToArray();
-        // The database is at the latest migration, so the later AddAgentModelContextLimits, AddCodexAccountUsageStop and AddCodexAccountUsageWarning columns are dropped on the way down too.
+        // The database is at the latest migration, so the later AddAgentModelContextLimits, AddCodexAccountUsageStop and AddCodexAccountUsageWarning and ADR-0072 AddWindowsExecutionProfileEvidence columns are dropped on the way down too.
         Assert.Equal(
-            ["AgentAccountUsageDecisionSnapshot", "AgentCodexAccountUsageStopPercent", "AgentDirectHumanGuidance", "AgentModelContextLimitsSnapshot"],
+            [
+                "AgentAccountUsageDecisionSnapshot",
+                "AgentCodexAccountUsageStopPercent",
+                "AgentDirectHumanGuidance",
+                "AgentInvocationDiagnostic",
+                "AgentInvocationDiagnosticVersion",
+                "AgentModelContextLimitsSnapshot",
+                "AgentStandardErrorCompletion",
+                "AgentStandardInputDelivery",
+                "AgentStandardOutputCompletion",
+                "ProcessStandardErrorCompletion",
+                "ProcessStandardInputDelivery",
+                "ProcessStandardOutputCompletion",
+            ],
             before.Except(after).Order());
         Assert.Empty(after.Except(before));
 

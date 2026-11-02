@@ -25,6 +25,11 @@ public sealed class VerificationExecutionConfiguration : IEntityTypeConfiguratio
         builder.Property(execution => execution.TimeoutSeconds).IsRequired();
         builder.Property(execution => execution.Status).HasConversion<string>().HasMaxLength(64).IsRequired();
         builder.Property(execution => execution.Outcome).HasConversion<string>().HasMaxLength(32);
+        builder.Property(execution => execution.StandardOutputCompletion).HasConversion<string>().HasMaxLength(32);
+        builder.Property(execution => execution.StandardErrorCompletion).HasConversion<string>().HasMaxLength(32);
+        builder.Property(execution => execution.StandardInputDelivery).HasConversion<string>().HasMaxLength(32);
+        builder.Property(execution => execution.EnvironmentProfileVersion).HasMaxLength(128);
+        builder.Property(execution => execution.Diagnostic).HasConversion<string>().HasMaxLength(64);
         builder.Property(execution => execution.CompletionFingerprintSha256).HasMaxLength(64);
         builder.Property(execution => execution.Arguments)
             .HasConversion(

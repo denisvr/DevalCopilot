@@ -1,5 +1,6 @@
 using System.Text.Json;
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Application.Features.Runs.Queries.GetAgentAttemptEvidence;
 using DevalCopilot.Domain.Features.Runs;
 using Xunit;
@@ -32,18 +33,52 @@ internal sealed class ClaudeEnvelopeProcessDouble(string standardOutput) : IProc
 
     public List<ProcessExecutionRequest> Requests { get; } = [];
 
+    /// <summary>The I/O completion facts the double reports (ADR-0072); complete by default.</summary>
+    public ProcessIoCompletion IoCompletion { get; init; } = ProcessIoCompletion.CompleteWithoutInput;
+
+    /// <summary>When set, the double also writes its output into the request's partial sink files, as the real adapter does.</summary>
+    public bool WriteSinks { get; init; }
+
     internal static string Envelope(string result, params string[] members) => Envelope(false, result, members);
 
+    /// <summary>ADR-0072: the documented result envelope. A success carries <paramref name="result"/> as its
+    /// <c>structured_output</c> (as an object when it is one, otherwise as the string a provider might wrongly emit); an error carries
+    /// only a narrative result.</summary>
     internal static string Envelope(bool isError, string result, params string[] members) =>
         "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":" + (isError ? "true" : "false")
-        + ",\"result\":" + JsonSerializer.Serialize(result) + ",\"session_id\":\"hosted-session\""
+        + ",\"result\":\"Done.\",\"session_id\":\"hosted-session\""
+        + (isError ? string.Empty : ",\"structured_output\":" + StructuredOutput(result))
         + string.Concat(members.Select(member => "," + member)) + "}";
+
+    /// <summary>A documented success envelope whose structured output is <paramref name="structuredOutputJson"/>.</summary>
+    internal static string Documented(string structuredOutputJson, string? sessionId = null) =>
+        "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"result\":\"Done.\",\"session_id\":"
+        + JsonSerializer.Serialize(sessionId) + ",\"structured_output\":" + StructuredOutput(structuredOutputJson) + "}";
+
+    private static string StructuredOutput(string json)
+    {
+        try
+        {
+            return System.Text.Json.Nodes.JsonNode.Parse(json) is System.Text.Json.Nodes.JsonObject ? json : JsonSerializer.Serialize(json);
+        }
+        catch (JsonException)
+        {
+            return JsonSerializer.Serialize(json);
+        }
+    }
 
     public Task<ProcessExecutionResult> ExecuteAsync(ProcessExecutionRequest request, CancellationToken cancellationToken)
     {
         Requests.Add(request);
+        if (WriteSinks)
+        {
+            WriteSink(request.StandardOutputSinkPath, standardOutput);
+            WriteSink(request.StandardErrorSinkPath, "hosted stderr");
+        }
+
         return Task.FromResult(new ProcessExecutionResult
         {
+            IoCompletion = IoCompletion,
             Outcome = ProcessExecutionOutcome.Exited,
             ExitCode = 0,
             StandardOutput = standardOutput,
@@ -52,6 +87,15 @@ internal sealed class ClaudeEnvelopeProcessDouble(string standardOutput) : IProc
             StandardErrorTruncated = false,
             Duration = TimeSpan.FromMilliseconds(5),
         });
+    }
+
+    private static void WriteSink(string? path, string text)
+    {
+        if (path is not null)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, text);
+        }
     }
 
     /// <summary>A real file at a fully qualified path, which the real adapters require of a launch component.</summary>

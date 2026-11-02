@@ -156,7 +156,8 @@ public sealed class GitHubRepositoryPermissionObservationAdapter : IGitHubReposi
         }
 
         if (result.Outcome != ProcessExecutionOutcome.Exited || result.ExitCode != 0
-            || result.StandardOutputTruncated || result.StandardErrorTruncated)
+            || result.StandardOutputTruncated || result.StandardErrorTruncated
+            || !result.IoCompletion.IsComplete)
         {
             return null;
         }

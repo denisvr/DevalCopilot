@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Application.Features.Runs.Ports;
@@ -110,7 +111,7 @@ public sealed class PlanningAuthorizationAdapterTests : IDisposable
         var result = await new ClaudeImplementationAdapter(fake, _artifactStore).InvokeAsync(
             new ImplementationInvocationRequest(
                 runId, attemptId, _workspacePath, sealedFile.RelativeStoragePath, sealedFile.ByteLength, sealedFile.ContentHash,
-                executablePath, TimeSpan.FromMinutes(20), 65536, 131072, "opus", "high", 7, ClaudeMutationAdapterContract.ImplementationV2,
+                executablePath, TimeSpan.FromMinutes(20), 65536, 131072, "opus", "high", 7, ClaudeMutationAdapterContract.ImplementationV3,
                 null, expected),
             CancellationToken.None);
 
@@ -221,9 +222,10 @@ public sealed class PlanningAuthorizationAdapterTests : IDisposable
             Starts++;
             return Task.FromResult(new ProcessExecutionResult
             {
+                IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                 Outcome = ProcessExecutionOutcome.Exited,
                 ExitCode = 0,
-                StandardOutput = JsonSerializer.Serialize(new { is_error = false, result = "{}", session_id = (string?)null }),
+                StandardOutput = ClaudeDocumentedEnvelope.SuccessText("{}", (string?)null),
                 StandardOutputTruncated = false,
                 StandardError = string.Empty,
                 StandardErrorTruncated = false,

@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
@@ -58,6 +59,9 @@ public abstract class AgentAttemptVerificationApiTestBase(WebApplicationFactory<
         db.Projects.Add(project);
         var run = Run.RecordClassifiedIntent(
             Guid.NewGuid(), project.Id, project.ReserveExecutionNumber(), RunExecutionMode.ManualAgent, "Objective", Now);
+        // A Running attempt belongs to a claimed run. ADR-0072: every later host of this class runs the checked startup recovery over
+        // this shared database, and a Running attempt in an unclaimed run is an incoherent state that recovery now refuses fatally.
+        run.Claim(Now);
         db.Runs.Add(run);
         await db.SaveChangesAsync();
         return (project.Id, run.Id);
@@ -87,7 +91,7 @@ public abstract class AgentAttemptVerificationApiTestBase(WebApplicationFactory<
                 await db.SaveChangesAsync();
                 var execution = VerificationExecution.Claim(Guid.NewGuid(), projectId, index + 1, workspace, checkpoint, command, Now.AddSeconds(number));
                 execution.MarkDispatched(Now.AddSeconds(number + 1));
-                execution.Complete(VerificationExecutionOutcome.Exited, failed[index] ? 1 : 0, checkpoint.FingerprintSha256, Now.AddSeconds(number + 2));
+                execution.Complete(VerificationExecutionOutcome.Exited, failed[index] ? 1 : 0, checkpoint.FingerprintSha256, Now.AddSeconds(number + 2), ProcessIoCompletion.CompleteWithoutInput);
                 db.VerificationExecutions.Add(execution);
                 await db.SaveChangesAsync();
                 executions.Add((command, execution));

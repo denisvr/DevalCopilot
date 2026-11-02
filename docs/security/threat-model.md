@@ -147,7 +147,14 @@ Controls:
 - invalidate approval after any source change;
 - preserve workflow attempt identifiers and conclusions;
 - never interpret absent, neutral, skipped, stale, or unknown checks as success
-  without explicit repository policy.
+  without explicit repository policy;
+- never accept an exit code zero as success unless stdout, stderr and stdin I/O
+  were explicitly complete, and never read a Claude narrative `result` as the
+  structured response
+  ([ADR-0072](../decisions/0072-adopt-one-windows-execution-profile.md));
+- run verification under one fixed, versioned environment profile that copies
+  no host environment, credential, profile configuration or cache, and record
+  that profile beside the result.
 
 ### Duplicate external action after timeout or crash
 
@@ -194,6 +201,10 @@ Controls:
 - finite wall-clock, output, artifact, token, retry, and correction budgets;
 - bounded channels with explicit overflow behavior;
 - process-tree termination;
+- bounded I/O completion after exit or kill (at most five seconds, then one
+  second to release reads, writes and writers); a descendant that holds an
+  inherited pipe makes the result incomplete, never successful, and an expired
+  window never proves the descendant stopped;
 - disk-space checks and artifact retention;
 - one active MVP workflow;
 - visible budget-exhaustion escalation.

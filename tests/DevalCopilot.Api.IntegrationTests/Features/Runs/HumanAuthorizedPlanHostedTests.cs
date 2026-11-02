@@ -4,6 +4,7 @@ using Devalente.Shared.Cqrs;
 using DevalCopilot.Api.HostedServices;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Application.Features.Runs.Commands.AuthorizePlanningImplementation;
@@ -124,9 +125,10 @@ public sealed class HumanAuthorizedPlanHostedTests : IDisposable
             evidence.Stage++;
             return Task.FromResult(new ProcessExecutionResult
             {
+                IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                 Outcome = ProcessExecutionOutcome.Exited,
                 ExitCode = 0,
-                StandardOutput = JsonSerializer.Serialize(new { is_error = false, result = FinalResponse, session_id = (string?)null }),
+                StandardOutput = ClaudeEnvelopeProcessDouble.Documented(FinalResponse),
                 StandardOutputTruncated = false,
                 StandardError = string.Empty,
                 StandardErrorTruncated = false,
@@ -479,7 +481,7 @@ public sealed class HumanAuthorizedPlanHostedTests : IDisposable
         var execution = VerificationExecution.Claim(
             Guid.NewGuid(), lineage.ProjectId, executionNumber, workspace, checkpoint, command, DateTimeOffset.UtcNow);
         execution.MarkDispatched(DateTimeOffset.UtcNow);
-        execution.Complete(VerificationExecutionOutcome.Exited, 0, checkpoint.FingerprintSha256, DateTimeOffset.UtcNow);
+        execution.Complete(VerificationExecutionOutcome.Exited, 0, checkpoint.FingerprintSha256, DateTimeOffset.UtcNow, ProcessIoCompletion.CompleteWithoutInput);
         db.VerificationExecutions.Add(execution);
         await db.SaveChangesAsync();
     }

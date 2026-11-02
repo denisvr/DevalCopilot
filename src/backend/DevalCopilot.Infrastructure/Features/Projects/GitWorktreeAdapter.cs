@@ -195,6 +195,9 @@ public sealed class GitWorktreeAdapter(IProcessExecutionAdapter processExecution
         Exited,
         TimedOut,
         LaunchFailed,
+
+        /// <summary>ADR-0072: the process exited but its output or input never demonstrably completed; never parsed.</summary>
+        IoIncomplete,
     }
 
     private readonly record struct GitCommandResult(GitCommandOutcome Outcome, int ExitCode, string Output);
@@ -240,6 +243,11 @@ public sealed class GitWorktreeAdapter(IProcessExecutionAdapter processExecution
                 throw new OperationCanceledException(cancellationToken);
             case ProcessExecutionOutcome.TimedOut:
                 return new GitCommandResult(GitCommandOutcome.TimedOut, 0, string.Empty);
+        }
+
+        if (!result.IoCompletion.IsComplete)
+        {
+            return new GitCommandResult(GitCommandOutcome.IoIncomplete, -1, string.Empty);
         }
 
         return new GitCommandResult(GitCommandOutcome.Exited, result.ExitCode!.Value, result.StandardOutput.Trim());

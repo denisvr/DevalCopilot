@@ -90,7 +90,7 @@ public sealed class CreateDiagnosisCorrectionAttemptDirectGuidanceTests : IAsync
         await using var verify = _fixture.CreateContext();
         var attempt = await verify.Attempts.AsNoTracking().SingleAsync(a => a.Id == created.AttemptId);
         Assert.Equal(AgentResponseContract.ReviewCorrection, attempt.AgentResponseContract);
-        Assert.Equal("claude-review-correction-v2", attempt.AgentAdapterContractVersion);
+        Assert.Equal("claude-review-correction-v3", attempt.AgentAdapterContractVersion);
         Assert.Equal(AgentPermissionProfile.WorkspaceEditOnly, attempt.AgentPermissionProfile);
         Assert.Equal(DirectHumanGuidanceEvidence.Provided, attempt.GetDirectHumanGuidanceEvidence());
         var findings = await verify.CollaborationMessages.AsNoTracking()

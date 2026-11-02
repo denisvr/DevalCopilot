@@ -12,7 +12,7 @@ namespace DevalCopilot.Infrastructure.Features.Runs;
 /// critical-review mode using the locally observed contract:
 /// <c>--print --input-format text --output-format json --json-schema &lt;inline schema&gt;
 /// --safe-mode --restricted --disable-slash-commands --no-chrome --permission-prompts none
-/// --prompt-suggestions false --tools "" --strict-mcp-config --permission-mode plan
+/// --tools "" --strict-mcp-config --permission-mode plan
 /// --no-session-persistence --session-id &lt;fresh GUID&gt; --max-turns 1</c>, with the context
 /// manifest written to stdin and stdin then closed.
 ///
@@ -34,8 +34,6 @@ namespace DevalCopilot.Infrastructure.Features.Runs;
 /// never has any reason to control a browser.</item>
 /// <item><c>--permission-prompts none</c> — anything that would otherwise prompt for permission is
 /// denied automatically, independent of whatever the permission mode decides.</item>
-/// <item><c>--prompt-suggestions false</c> — suppresses the provider's own predicted-next-prompt
-/// side output; this attempt never has a next turn to suggest one for.</item>
 /// <item><c>--permission-mode plan</c> — the strongest available permission mode: even if every
 /// tool were somehow still reachable, this mode never executes an action, only plans one.</item>
 /// </list>
@@ -54,17 +52,19 @@ namespace DevalCopilot.Infrastructure.Features.Runs;
 /// private desktop application layout — the launch target arrives already resolved and is only
 /// revalidated here.
 ///
-/// Unlike Codex, Claude's print-mode CLI has no file-based final-response flag: the schema-bound
-/// result is nested in the <c>result</c> field of the single JSON envelope it writes to stdout.
-/// This adapter extracts that field and writes it to the same
-/// <see cref="ArtifactPurpose.AgentFinalResponse"/> sink Codex's own CLI writes to directly, so
-/// every later stage (sealing, parsing, recording) is identical between both providers.
+/// Unlike Codex, Claude's print-mode CLI has no file-based final-response flag. ADR-0072 (contract
+/// <c>claude-critical-review-v2</c>): the documented single JSON envelope on stdout carries the schema-bound
+/// value in its <c>structured_output</c> field. The shared <see cref="ClaudeResultEnvelope"/> classifies the
+/// process result and returns that object only for semantic success, never the narrative <c>result</c> text;
+/// this adapter writes it to the same <see cref="ArtifactPurpose.AgentFinalResponse"/> sink Codex's own CLI
+/// writes to directly, so sealing, schema parsing and recording stay identical between both providers. Every
+/// failure carries one closed <see cref="AgentInvocationDiagnostic"/>. Only the current contract is
+/// dispatched: an attempt claimed under the historical v1 contract fails closed before any process starts.
 /// </summary>
 public sealed class ClaudeCriticalReviewAdapter(IProcessExecutionAdapter processExecutionAdapter, IArtifactStore artifactStore)
     : ICriticalReviewAdapter
 {
     private const int MaxContextManifestReadBytes = 32 * 1024;
-    private const int MaxSessionIdLength = 256;
 
     private readonly ClaudeProcessEnvironmentInputs _environmentInputs = ClaudeProcessEnvironmentInputs.Current;
 
@@ -82,12 +82,18 @@ public sealed class ClaudeCriticalReviewAdapter(IProcessExecutionAdapter process
     public async Task<CriticalReviewInvocationResult> InvokeAsync(
         CriticalReviewInvocationRequest request, CancellationToken cancellationToken)
     {
+        if (request.AdapterContractVersion != ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion)
+        {
+            // ADR-0072: only the current contract is dispatched; a historical attempt is never upgraded or redispatched.
+            return Failed(AgentInvocationDiagnostic.InvocationUnavailable);
+        }
+
         if (!IsAcceptableLaunchComponent(request.LaunchExecutablePath))
         {
             // Revalidation only — never a new search through PATH or a private install
             // location. A component that no longer exists or no longer has its accepted shape
             // fails this invocation closed before any process starts.
-            return Failed();
+            return Failed(AgentInvocationDiagnostic.InvocationUnavailable);
         }
 
         // A cancelled request stays cancelled: the environment refusal below never masks it as a failure.
@@ -98,7 +104,7 @@ public sealed class ClaudeCriticalReviewAdapter(IProcessExecutionAdapter process
             // The Windows prerequisite could not be derived: refused before the manifest is read,
             // any sink is requested, any artifact is written or a process starts — never retried
             // with the smaller map.
-            return Failed();
+            return Failed(AgentInvocationDiagnostic.EnvironmentUnavailable);
         }
 
         var manifestWindow = await artifactStore.VerifyAndReadSealedAsync(
@@ -110,7 +116,7 @@ public sealed class ClaudeCriticalReviewAdapter(IProcessExecutionAdapter process
             cancellationToken).ConfigureAwait(false);
         if (manifestWindow.Status != SealedReadStatus.Ok)
         {
-            return Failed();
+            return Failed(AgentInvocationDiagnostic.InvocationUnavailable);
         }
 
         var arguments = new List<string>
@@ -124,7 +130,6 @@ public sealed class ClaudeCriticalReviewAdapter(IProcessExecutionAdapter process
             "--disable-slash-commands",
             "--no-chrome",
             "--permission-prompts", "none",
-            "--prompt-suggestions", "false",
             "--tools", string.Empty,
             "--strict-mcp-config",
             "--permission-mode", "plan",
@@ -136,7 +141,7 @@ public sealed class ClaudeCriticalReviewAdapter(IProcessExecutionAdapter process
         if (!ClaudeModelRequestArguments.TryAppend(
                 arguments, request.RequestedClaudeModel, request.RequestedClaudeEffort))
         {
-            return Failed();
+            return Failed(AgentInvocationDiagnostic.InvocationUnavailable);
         }
 
         var executionRequest = new ProcessExecutionRequest
@@ -165,51 +170,39 @@ public sealed class ClaudeCriticalReviewAdapter(IProcessExecutionAdapter process
         }
         catch (Exception)
         {
-            return Failed();
+            return Failed(AgentInvocationDiagnostic.InvocationUnavailable);
         }
 
         // Preserved for every real result — including a timeout, a cancellation, a non-zero exit,
-        // and a zero exit whose envelope is later rejected — never collapsed into the closed
-        // Exited/Failed classification alone.
+        // incomplete I/O and a zero exit whose envelope is later rejected — never collapsed into the
+        // closed Exited/Failed classification alone.
         var processEvidence = AgentProcessEvidence.FromProcessExecutionResult(result);
-        if (result.Outcome != ProcessExecutionOutcome.Exited || result.ExitCode != 0)
+        var reading = ClaudeResultEnvelope.Classify(result);
+        if (!reading.IsSuccess)
         {
-            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence);
-        }
-
-        var envelope = TryParseEnvelope(result.StandardOutput);
-        var tokenUsage = ClaudeCliTokenUsage.UnlessTruncated(envelope?.Usage, result.StandardOutputTruncated);
-        var modelLimits = ClaudeCliModelContextLimits.UnlessTruncated(envelope?.ModelLimits, result.StandardOutputTruncated);
-        if (envelope is null || envelope.IsError || envelope.FinalResponseJson is null)
-        {
-            // A non-zero exit is already handled above; this covers a zero exit that still
-            // reported a business-level failure (e.g. hitting --max-turns) or an envelope this
-            // adapter could not make sense of. Either way, there is no trustworthy final
-            // response to seal as a proposal review — recorded as a truthful provider failure,
-            // never as an empty or invented success. Provider-reported usage is still preserved
-            // when the envelope itself was structurally valid (for example is_error: true).
-            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence, tokenUsage, modelLimits);
+            return Failed(reading.Diagnostic!.Value, result, processEvidence, reading.TokenUsage, reading.ModelContextLimits);
         }
 
         try
         {
             var resultPath = artifactStore.GetPartialPath(request.RunId, request.AttemptId, ArtifactPurpose.AgentFinalResponse);
             Directory.CreateDirectory(Path.GetDirectoryName(resultPath)!);
-            await File.WriteAllTextAsync(resultPath, envelope.FinalResponseJson, cancellationToken).ConfigureAwait(false);
+            await File.WriteAllTextAsync(resultPath, reading.StructuredOutputJson, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence, tokenUsage, modelLimits);
+            return Failed(
+                AgentInvocationDiagnostic.CaptureFault, result, processEvidence, reading.TokenUsage, reading.ModelContextLimits);
         }
 
         return new CriticalReviewInvocationResult(
             CriticalReviewInvocationOutcome.Exited,
             result.StandardOutputTruncated,
             result.StandardErrorTruncated,
-            envelope.SessionId,
+            reading.SessionId,
             ProcessEvidence: processEvidence,
-            TokenUsage: tokenUsage,
-            ModelContextLimits: modelLimits);
+            TokenUsage: reading.TokenUsage,
+            ModelContextLimits: reading.ModelContextLimits);
     }
 
     /// <summary>Never a searched, invented, or PATH-resolved value — must already be a fully
@@ -226,108 +219,15 @@ public sealed class ClaudeCriticalReviewAdapter(IProcessExecutionAdapter process
         && File.Exists(path)
         && !AgentInvocationScratchDirectory.PathOrAnyAncestorHasReparsePoint(path);
 
-    /// <summary>
-    /// Parses Claude's single <c>--print --output-format json</c> stdout envelope. Fails closed
-    /// to <see langword="null"/> for anything not shaped as a JSON object with the expected
-    /// fields — never partially trusts a malformed or ambiguous envelope, which the caller always
-    /// maps to <c>ProviderInvocationFailed</c>, never to an invented success. Specifically:
-    /// <c>is_error</c> must be present and a genuine JSON boolean — a missing or non-boolean
-    /// value is an ambiguous shape this adapter never guesses about, and only a literal
-    /// <see langword="false"/> is ever treated as success; <c>result</c> must be present (its
-    /// absence is never treated as an empty or default response); and a <c>session_id</c>, when
-    /// present and non-null, must be a well-shaped, bounded string — a present-but-malformed
-    /// session id rejects the whole envelope rather than being silently dropped, since a provider
-    /// that cannot even shape its own bookkeeping field correctly is not a source whose
-    /// <c>result</c> should be trusted either. A genuine JSON <see langword="null"/> session id is
-    /// tolerated exactly like an absent field (plausible here specifically because this attempt
-    /// always passes <c>--no-session-persistence</c>, so the provider may have no session to
-    /// report at all) — only a present, non-null value of the wrong shape is malformed. Any other
-    /// field is tolerated and ignored: this is a fixed contract
-    /// against a versioned CLI, not a strict schema over every field the provider may ever add.
-    /// The two additions are <c>usage</c> and <c>modelUsage</c>, read by <see cref="ClaudeCliTokenUsage.TryRead"/> and
-    /// <see cref="ClaudeCliModelContextLimits.TryRead"/> as independent, best-effort evidence: a missing or malformed one only
-    /// leaves <see cref="ClaudeEnvelope.Usage"/> or <see cref="ClaudeEnvelope.ModelLimits"/> null and never rejects the envelope.
-    /// <c>result</c> is normalized to a bare JSON string regardless of whether the provider
-    /// emitted it as a JSON string (containing schema-conformant JSON text) or as a
-    /// schema-conformant JSON value directly; either way, the caller feeds the returned text into
-    /// the same parser Codex's file-based final response goes through.
-    /// </summary>
-    private static ClaudeEnvelope? TryParseEnvelope(string standardOutput)
-    {
-        JsonDocument document;
-        try
-        {
-            document = JsonDocument.Parse(standardOutput);
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
-
-        using (document)
-        {
-            var root = document.RootElement;
-            if (root.ValueKind != JsonValueKind.Object)
-            {
-                return null;
-            }
-
-            if (!root.TryGetProperty("is_error", out var isErrorElement)
-                || (isErrorElement.ValueKind != JsonValueKind.True && isErrorElement.ValueKind != JsonValueKind.False))
-            {
-                return null;
-            }
-
-            var isError = isErrorElement.ValueKind == JsonValueKind.True;
-
-            if (!root.TryGetProperty("result", out var resultElement))
-            {
-                return null;
-            }
-
-            var finalResponseJson = resultElement.ValueKind == JsonValueKind.String
-                ? resultElement.GetString()
-                : resultElement.GetRawText();
-
-            string? sessionId = null;
-            if (root.TryGetProperty("session_id", out var sessionIdElement) && sessionIdElement.ValueKind != JsonValueKind.Null)
-            {
-                // A genuine JSON null (plausible here specifically because this attempt always
-                // passes --no-session-persistence, so the provider may have no session to report
-                // at all) is treated exactly like the field being absent — tolerated, never
-                // rejected. Only a present, non-null value that is not itself a well-shaped,
-                // bounded string is treated as malformed.
-                if (sessionIdElement.ValueKind != JsonValueKind.String)
-                {
-                    return null;
-                }
-
-                var value = sessionIdElement.GetString();
-                if (string.IsNullOrWhiteSpace(value) || value.Length > MaxSessionIdLength)
-                {
-                    return null;
-                }
-
-                sessionId = value;
-            }
-
-            return new ClaudeEnvelope(
-                isError, finalResponseJson, sessionId, ClaudeCliTokenUsage.TryRead(root), ClaudeCliModelContextLimits.TryRead(root));
-        }
-    }
-
-    private sealed record ClaudeEnvelope(
-        bool IsError, string? FinalResponseJson, string? SessionId, AgentTokenUsage? Usage, AgentModelContextLimits? ModelLimits);
-
-    /// <summary><paramref name="processEvidence"/> is null only when no process result exists;
-    /// <paramref name="tokenUsage"/> and <paramref name="modelLimits"/> are null whenever no structurally valid envelope reported
-    /// well-shaped usage or limits, each judged independently.</summary>
+    /// <summary><paramref name="result"/> and <paramref name="processEvidence"/> are null only when no process result exists;
+    /// <paramref name="tokenUsage"/> and <paramref name="modelLimits"/> come only from a structurally valid envelope of a zero exit
+    /// with complete I/O, each judged independently.</summary>
     private static CriticalReviewInvocationResult Failed(
-        bool standardOutputTruncated = false,
-        bool standardErrorTruncated = false,
+        AgentInvocationDiagnostic diagnostic,
+        ProcessExecutionResult? result = null,
         AgentProcessEvidence? processEvidence = null,
         AgentTokenUsage? tokenUsage = null,
         AgentModelContextLimits? modelLimits = null) =>
-        new(CriticalReviewInvocationOutcome.Failed, standardOutputTruncated, standardErrorTruncated, ProviderSessionId: null, processEvidence,
-            tokenUsage, modelLimits);
+        new(CriticalReviewInvocationOutcome.Failed, result?.StandardOutputTruncated ?? false, result?.StandardErrorTruncated ?? false,
+            ProviderSessionId: null, processEvidence, tokenUsage, modelLimits, diagnostic);
 }

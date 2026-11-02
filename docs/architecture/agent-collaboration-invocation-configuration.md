@@ -501,6 +501,11 @@ invocation-eligibility claim. `CriticalReviewer` keeps exactly `--max-turns 1`; 
   `ClaimAgentReviewCorrectionWithModelRequest`) reject a non-null limit beside v1, an unknown version, or a permission
   profile other than `WorkspaceEditOnly`; the convenience overloads remain v1 with no limit. `ClaudeMutationAdapterContract`
   holds the four exact versions and classifies a stored attempt by exact version-aware mappings.
+  [ADR-0072](../decisions/0072-adopt-one-windows-execution-profile.md) adds `claude-implementation-v3` and
+  `claude-review-correction-v3`, which carry exactly the v2 turn-limit and direct-guidance options and the documented
+  result-envelope reader. Every new claim now uses v3; v1 and v2 remain classifiable history. Each adapter dispatches
+  only its path's current version: an attempt stored under v1, v2 or no version fails closed before any process starts
+  and is never upgraded or redispatched.
 - **Dispatch and adapters.** The eligible-attempt queries project the Attempt's own `AgentRequestedMaxTurns` and
   `AdapterContractVersion` into the two invocation requests, which the supervisors pass unchanged; the mutable Run is never
   read at dispatch or restart replay, and an undispatched attempt replays from its stored configuration and sealed

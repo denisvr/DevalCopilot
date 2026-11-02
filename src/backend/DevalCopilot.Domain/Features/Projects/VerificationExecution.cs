@@ -1,3 +1,5 @@
+using DevalCopilot.Domain.Features.Processes;
+
 namespace DevalCopilot.Domain.Features.Projects;
 
 /// <summary>
@@ -91,6 +93,29 @@ public sealed class VerificationExecution
 
     public string? CompletionFingerprintSha256 { get; private set; }
 
+    /// <summary>ADR-0072: the stdout completion fact of the dispatched process; <see langword="null"/> means not recorded.</summary>
+    public OutputCaptureCompletion? StandardOutputCompletion { get; private set; }
+
+    /// <summary>ADR-0072: the stderr completion fact of the dispatched process; <see langword="null"/> means not recorded.</summary>
+    public OutputCaptureCompletion? StandardErrorCompletion { get; private set; }
+
+    /// <summary>ADR-0072: the standard-input fact of the dispatched process; <see langword="null"/> means not recorded.</summary>
+    public InputDeliveryCompletion? StandardInputDelivery { get; private set; }
+
+    /// <summary>ADR-0072: the fixed environment profile version the host built for this execution; <see langword="null"/> means not
+    /// recorded, as for every earlier execution.</summary>
+    public string? EnvironmentProfileVersion { get; private set; }
+
+    /// <summary>ADR-0072: the closed reason of a failure its exit code does not explain; <see langword="null"/> means none recorded.</summary>
+    public VerificationExecutionDiagnostic? Diagnostic { get; private set; }
+
+    /// <summary>ADR-0072: the recorded I/O facts, or <see langword="null"/> unless all three were recorded together.</summary>
+    public ProcessIoCompletion? GetIoCompletion() =>
+        StandardOutputCompletion is { } standardOutput && StandardErrorCompletion is { } standardError
+        && StandardInputDelivery is { } standardInput
+            ? new ProcessIoCompletion(standardOutput, standardError, standardInput)
+            : null;
+
     public void MarkDispatched(DateTimeOffset nowUtc)
     {
         if (Status != VerificationExecutionStatus.Running || DispatchedAtUtc.HasValue)
@@ -127,11 +152,17 @@ public sealed class VerificationExecution
         CompletedAtUtc = nowUtc;
     }
 
+    /// <remarks>ADR-0072: only an exit code zero with explicitly complete <paramref name="ioCompletion"/> passes; an exit code zero
+    /// with incomplete or unknown I/O is recorded unchanged as Exited/0 and fails. <paramref name="environmentProfileVersion"/> and
+    /// <paramref name="diagnostic"/> are recorded as given; a diagnostic is never recorded beside a pass.</remarks>
     public void Complete(
         VerificationExecutionOutcome outcome,
         int? exitCode,
         string completionFingerprintSha256,
-        DateTimeOffset nowUtc)
+        DateTimeOffset nowUtc,
+        ProcessIoCompletion? ioCompletion,
+        string? environmentProfileVersion = null,
+        VerificationExecutionDiagnostic? diagnostic = null)
     {
         if (Status != VerificationExecutionStatus.Running || !DispatchedAtUtc.HasValue)
         {
@@ -144,14 +175,30 @@ public sealed class VerificationExecution
             throw new ArgumentException("Only an exited process may have an exit code.", nameof(exitCode));
         }
 
+        if (diagnostic is { } value && !Enum.IsDefined(value))
+        {
+            throw new ArgumentOutOfRangeException(nameof(diagnostic), diagnostic, "Not a defined verification diagnostic.");
+        }
+
+        if (environmentProfileVersion is { Length: 0 or > 128 })
+        {
+            throw new ArgumentException("An environment profile version must be non-empty and bounded.", nameof(environmentProfileVersion));
+        }
+
+        var ioComplete = ioCompletion is { IsComplete: true };
         Outcome = outcome;
         ExitCode = exitCode;
         CompletionFingerprintSha256 = completionFingerprintSha256;
+        StandardOutputCompletion = ioCompletion?.StandardOutput;
+        StandardErrorCompletion = ioCompletion?.StandardError;
+        StandardInputDelivery = ioCompletion?.StandardInput;
+        EnvironmentProfileVersion = environmentProfileVersion;
+        Diagnostic = diagnostic;
         Status = !string.Equals(CheckpointFingerprintSha256, completionFingerprintSha256, StringComparison.Ordinal)
             ? VerificationExecutionStatus.SourceChanged
             : outcome switch
             {
-                VerificationExecutionOutcome.Exited when exitCode == 0 => VerificationExecutionStatus.Passed,
+                VerificationExecutionOutcome.Exited when exitCode == 0 && ioComplete && diagnostic is null => VerificationExecutionStatus.Passed,
                 VerificationExecutionOutcome.Exited => VerificationExecutionStatus.Failed,
                 VerificationExecutionOutcome.TimedOut => VerificationExecutionStatus.TimedOut,
                 VerificationExecutionOutcome.Cancelled => VerificationExecutionStatus.Cancelled,

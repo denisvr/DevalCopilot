@@ -2,6 +2,7 @@ using System.Text.Json;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Application.Features.Runs.Policies.VerificationDiagnosis;
+using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.Runs;
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
@@ -188,7 +189,7 @@ public sealed class RecordVerificationDiagnosisResultCommandHandler(IDevalCopilo
 
         foreach (var sealedArtifact in command.SealedArtifacts)
         {
-            RecordArtifact(command.RunId, command.AttemptId, sealedArtifact, nowUtc);
+            RecordArtifact(command.RunId, command.AttemptId, sealedArtifact, nowUtc, command.ProcessEvidence);
         }
 
         RunEvent latestEvent;
@@ -327,7 +328,8 @@ public sealed class RecordVerificationDiagnosisResultCommandHandler(IDevalCopilo
         return runEvent;
     }
 
-    private void RecordArtifact(Guid runId, Guid attemptId, SealedVerificationDiagnosisArtifact sealedArtifact, DateTimeOffset nowUtc)
+    private void RecordArtifact(Guid runId, Guid attemptId, SealedVerificationDiagnosisArtifact sealedArtifact, DateTimeOffset nowUtc,
+        AgentProcessEvidence? processEvidence)
     {
         var mediaType = sealedArtifact.Purpose == ArtifactPurpose.AgentFinalResponse ? "application/json" : "text/plain; charset=utf-8";
         dbContext.Artifacts.Add(Artifact.Record(
@@ -343,7 +345,8 @@ public sealed class RecordVerificationDiagnosisResultCommandHandler(IDevalCopilo
             ArtifactCaptureOutcome.Captured,
             ArtifactSensitivity.RedactedBestEffort,
             ArtifactRetentionPolicy.RetainUntilRunDeleted,
-            nowUtc));
+            nowUtc,
+            AgentProcessEvidenceRecording.CaptureCompletionFor(sealedArtifact.Purpose, processEvidence)));
     }
 
     private static Result<RecordVerificationDiagnosisResultCommandResult> Failure(Error error) =>

@@ -5,6 +5,8 @@ namespace DevalCopilot.Application.Features.Runs.Policies.LocalExecutionInspecti
 /// to 8 in the Domain order plus one (0 unknown); <see cref="OutcomeCode"/> is 0 for none, 1 to 4 in the Domain order plus one and 99
 /// for an unknown stored value. Numbers are null unless exact integers in range, with <see cref="ExitCodePresent"/> separating a rejected
 /// exit code from an absent one. The workspace path is never selected, and the executable and arguments only within their byte guards.
+/// ADR-0072: <see cref="IoCode"/> is the <see cref="DevalCopilot.Application.Features.Projects.Policies.VerificationIoCode"/> of the three
+/// recorded I/O completion columns.
 /// </summary>
 internal sealed record LocalExecutionInspectionExecutionRow(
     Guid Id,
@@ -31,4 +33,5 @@ internal sealed record LocalExecutionInspectionExecutionRow(
     bool ExitCodePresent,
     DateTimeOffset ClaimedAtUtc,
     DateTimeOffset? DispatchedAtUtc,
-    DateTimeOffset? CompletedAtUtc);
+    DateTimeOffset? CompletedAtUtc,
+    int IoCode);

@@ -186,7 +186,7 @@ public sealed class AddClaudeMutationTurnLimitMigrationTests : IAsyncLifetime
         Assert.Equal(ClaudeMutationTurnLimitEvidence.NotRequested, unlimitedAttemptRow.GetMutationTurnLimitEvidence());
         var correctionRow = await reopened.Attempts.AsNoTracking().SingleAsync(a => a.Id == correctionAttemptId);
         Assert.Equal(1, correctionRow.AgentRequestedMaxTurns);
-        Assert.Equal("claude-review-correction-v2", correctionRow.AgentAdapterContractVersion);
+        Assert.Equal("claude-review-correction-v3", correctionRow.AgentAdapterContractVersion);
     }
 
     [Fact]
@@ -374,15 +374,26 @@ public sealed class AddClaudeMutationTurnLimitMigrationTests : IAsyncLifetime
 
         var runColumnsAfter = (await ReadColumnsAsync("runs")).Select(column => column.Name).ToArray();
         var attemptColumnsAfter = (await ReadColumnsAsync("attempts")).Select(column => column.Name).ToArray();
-        // The database is at the latest migration, so the later AddRunExecutionMode, AddDirectHumanGuidance, AddAgentModelContextLimits, AddCodexAccountUsageStop and AddCodexAccountUsageWarning columns are dropped on the way down too.
+        // The database is at the latest migration, so the later AddRunExecutionMode, AddDirectHumanGuidance, AddAgentModelContextLimits, AddCodexAccountUsageStop and AddCodexAccountUsageWarning and ADR-0072 AddWindowsExecutionProfileEvidence columns are dropped on the way down too.
         Assert.Equal(
             ["AbandonedAtUtc", "AbandonmentReason", "CodexAccountUsageStopPercent", "CodexAccountUsageWarningPercent", "ExecutionMode", "RequestedClaudeMaxTurns"],
             runColumnsBefore.Except(runColumnsAfter).Order());
         Assert.Empty(runColumnsAfter.Except(runColumnsBefore));
         Assert.Equal(
             [
-                "AgentAccountUsageDecisionSnapshot", "AgentCodexAccountUsageStopPercent", "AgentDirectHumanGuidance",
-                "AgentModelContextLimitsSnapshot", "AgentRequestedMaxTurns",
+                "AgentAccountUsageDecisionSnapshot",
+                "AgentCodexAccountUsageStopPercent",
+                "AgentDirectHumanGuidance",
+                "AgentInvocationDiagnostic",
+                "AgentInvocationDiagnosticVersion",
+                "AgentModelContextLimitsSnapshot",
+                "AgentRequestedMaxTurns",
+                "AgentStandardErrorCompletion",
+                "AgentStandardInputDelivery",
+                "AgentStandardOutputCompletion",
+                "ProcessStandardErrorCompletion",
+                "ProcessStandardInputDelivery",
+                "ProcessStandardOutputCompletion",
             ],
             attemptColumnsBefore.Except(attemptColumnsAfter).Order());
         Assert.Empty(attemptColumnsAfter.Except(attemptColumnsBefore));

@@ -3,6 +3,7 @@ using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Runs.Commands.MarkProcessAttemptDispatched;
 using DevalCopilot.Application.Features.Runs.Commands.RecordProcessAttemptResult;
 using DevalCopilot.Application.Features.Runs.Queries.GetEligibleProcessAttempts;
+using DevalCopilot.Domain.Features.Processes;
 using DomainArtifactPurpose = DevalCopilot.Domain.Features.Runs.ArtifactPurpose;
 using DomainProcessOutcome = DevalCopilot.Domain.Features.Runs.ProcessOutcome;
 
@@ -117,6 +118,7 @@ public sealed class ProcessAttemptSupervisor(
 
         DomainProcessOutcome? outcome;
         int? exitCode = null;
+        ProcessIoCompletion? ioCompletion = null;
         var standardOutputTruncated = false;
         var standardErrorTruncated = false;
         try
@@ -128,6 +130,7 @@ public sealed class ProcessAttemptSupervisor(
             exitCode = result.ExitCode;
             standardOutputTruncated = result.StandardOutputTruncated;
             standardErrorTruncated = result.StandardErrorTruncated;
+            ioCompletion = result.IoCompletion;
         }
         catch (OperationCanceledException)
         {
@@ -150,13 +153,12 @@ public sealed class ProcessAttemptSupervisor(
             outcome = null;
         }
 
-        // Whatever was captured — a real result, a shutdown cancellation, or a no-result
-        // failure — the adapter has already closed both sink write handles by the time it
-        // returns or throws, so sealing (rename + hash) is always safe to attempt here. This
-        // is plain local file I/O, entirely outside any database transaction, and finishes
-        // before the short recording transaction below even starts.
+        // ADR-0072: a stream is sealed (rename + hash) only when the adapter's result proved its writer closed. Without a result
+        // (a shutdown cancellation or a no-result failure) or with an unproved writer, the partial file is neither sealed nor
+        // deleted. This is plain local file I/O, entirely outside any database transaction, and finishes before the short
+        // recording transaction below even starts.
         var sealedArtifacts = await SealCapturedOutputAsync(
-            attempt.RunId, attempt.AttemptId, standardOutputTruncated, standardErrorTruncated);
+            attempt.RunId, attempt.AttemptId, standardOutputTruncated, standardErrorTruncated, ioCompletion);
 
         // A terminal classification exists at this point — a real result, an adapter-level
         // cancellation, or a safe no-result failure — so this short recording transaction is
@@ -171,7 +173,7 @@ public sealed class ProcessAttemptSupervisor(
         try
         {
             var recordResult = await DispatchAsync(
-                new RecordProcessAttemptResultCommand(attempt.RunId, attempt.AttemptId, outcome, exitCode, sealedArtifacts),
+                new RecordProcessAttemptResultCommand(attempt.RunId, attempt.AttemptId, outcome, exitCode, sealedArtifacts, ioCompletion),
                 recordingTimeoutSource.Token);
 
             if (recordResult.IsFailure)
@@ -193,17 +195,20 @@ public sealed class ProcessAttemptSupervisor(
     }
 
     private async Task<IReadOnlyList<SealedOutputArtifact>> SealCapturedOutputAsync(
-        Guid runId, Guid attemptId, bool standardOutputTruncated, bool standardErrorTruncated)
+        Guid runId, Guid attemptId, bool standardOutputTruncated, bool standardErrorTruncated, ProcessIoCompletion? ioCompletion)
     {
         var results = new List<SealedOutputArtifact>(2);
-        var truncatedByPurpose = new Dictionary<DomainArtifactPurpose, bool>
+        foreach (var (purpose, truncated, completion) in new[]
+                 {
+                     (DomainArtifactPurpose.ProcessStandardOutput, standardOutputTruncated, ioCompletion?.StandardOutput),
+                     (DomainArtifactPurpose.ProcessStandardError, standardErrorTruncated, ioCompletion?.StandardError),
+                 })
         {
-            [DomainArtifactPurpose.ProcessStandardOutput] = standardOutputTruncated,
-            [DomainArtifactPurpose.ProcessStandardError] = standardErrorTruncated,
-        };
+            if (!ProcessIoCompletion.ProvesWriterClosed(completion))
+            {
+                continue;
+            }
 
-        foreach (var (purpose, truncated) in truncatedByPurpose)
-        {
             try
             {
                 var sealedFile = await artifactStore.SealAsync(runId, attemptId, purpose, CancellationToken.None);

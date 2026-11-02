@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text;
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Domain.Features.Processes;
 
 namespace DevalCopilot.Infrastructure.Features.Processes;
 
@@ -15,6 +16,26 @@ namespace DevalCopilot.Infrastructure.Features.Processes;
 public sealed class ChildProcessExecutionAdapter : IProcessExecutionAdapter
 {
     private static readonly TimeSpan PostKillWait = TimeSpan.FromSeconds(5);
+
+    /// <summary>ADR-0072: the aggregate bound for every output read and the input write to finish once the process outcome is
+    /// known.</summary>
+    internal static readonly TimeSpan IoCompletionWindow = TimeSpan.FromSeconds(5);
+
+    /// <summary>ADR-0072: the additional bound for cancelling expired I/O and proving each writer closed.</summary>
+    internal static readonly TimeSpan IoReleaseWindow = TimeSpan.FromSeconds(1);
+
+    private readonly Func<string, Stream> _openSink;
+
+    public ChildProcessExecutionAdapter()
+        : this(BoundedOutputCapture.OpenSink)
+    {
+    }
+
+    /// <summary>Opens each durable output sink through <paramref name="openSink"/> instead of the production file sink.</summary>
+    internal ChildProcessExecutionAdapter(Func<string, Stream> openSink)
+    {
+        _openSink = openSink;
+    }
 
     public async Task<ProcessExecutionResult> ExecuteAsync(ProcessExecutionRequest request, CancellationToken cancellationToken)
     {
@@ -51,20 +72,24 @@ public sealed class ChildProcessExecutionAdapter : IProcessExecutionAdapter
         using var process = new Process { StartInfo = startInfo };
         var sharedBudget = new SharedCaptureBudget(request.MaxTotalCapturedBytes);
         await using var standardOutput = new BoundedOutputCapture(
-            request.MaxBytesPerStream, sharedBudget, request.StandardOutputSinkPath);
+            request.MaxBytesPerStream, sharedBudget, request.StandardOutputSinkPath is { } outputSink ? _openSink(outputSink) : null);
         await using var standardError = new BoundedOutputCapture(
-            request.MaxBytesPerStream, sharedBudget, request.StandardErrorSinkPath);
+            request.MaxBytesPerStream, sharedBudget, request.StandardErrorSinkPath is { } errorSink ? _openSink(errorSink) : null);
 
         var stopwatch = Stopwatch.StartNew();
         process.Start();
 
-        var standardOutputDrain = standardOutput.DrainAsync(process.StandardOutput.BaseStream);
-        var standardErrorDrain = standardError.DrainAsync(process.StandardError.BaseStream);
+        // ADR-0072: one cancellation for the actual reads and the input write, used only once the bounded I/O completion
+        // window below has expired.
+        using var ioCancellation = new CancellationTokenSource();
+        var standardOutputDrain = standardOutput.DrainAsync(process.StandardOutput.BaseStream, ioCancellation.Token);
+        var standardErrorDrain = standardError.DrainAsync(process.StandardError.BaseStream, ioCancellation.Token);
 
         using var timeoutSource = new CancellationTokenSource(request.Timeout);
         using var linkedSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutSource.Token);
+        using var inputSource = CancellationTokenSource.CreateLinkedTokenSource(linkedSource.Token, ioCancellation.Token);
 
-        var standardInputWrite = WriteStandardInputAsync(process, request.StandardInput, linkedSource.Token);
+        var standardInputWrite = WriteStandardInputAsync(process, request.StandardInput, inputSource.Token);
 
         ProcessExecutionOutcome outcome;
         int? exitCode;
@@ -109,7 +134,9 @@ public sealed class ChildProcessExecutionAdapter : IProcessExecutionAdapter
         }
 
         stopwatch.Stop();
-        await Task.WhenAll(standardOutputDrain, standardErrorDrain, standardInputWrite).ConfigureAwait(false);
+        var ioCompletion = await CompleteIoAsync(
+            process, standardOutput, standardOutputDrain, standardError, standardErrorDrain, standardInputWrite, ioCancellation)
+            .ConfigureAwait(false);
 
         return new ProcessExecutionResult
         {
@@ -121,7 +148,91 @@ public sealed class ChildProcessExecutionAdapter : IProcessExecutionAdapter
             StandardErrorTruncated = standardError.Truncated,
             Duration = stopwatch.Elapsed,
             Termination = termination,
+            IoCompletion = ioCompletion,
         };
+    }
+
+    /// <summary>
+    /// ADR-0072: bounds I/O completion after the process outcome is known (after a normal exit, or after the existing bounded
+    /// post-kill wait). The streams normally end at once; a descendant that inherited a pipe can keep one open indefinitely, so
+    /// the host waits at most <see cref="IoCompletionWindow"/> for every read and the input write, then cancels the actual I/O,
+    /// closes its own pipe ends and allows at most <see cref="IoReleaseWindow"/> for cancellation and writer release. Each
+    /// stream's output is frozen when its closure is requested and its sink I/O cancelled; a writer is reported closed only when
+    /// its gate and its sink's disposal finished within the release window, otherwise its stream is Unknown. These are
+    /// managed deadlines: they assume a responsive operating system and thread pool, and an expired window never proves that a
+    /// descendant stopped. The execution timeout and the post-kill wait are unchanged and are not part of these windows.
+    /// </summary>
+    private static async Task<ProcessIoCompletion> CompleteIoAsync(
+        Process process,
+        BoundedOutputCapture standardOutput,
+        Task standardOutputDrain,
+        BoundedOutputCapture standardError,
+        Task standardErrorDrain,
+        Task<InputDeliveryCompletion> standardInputWrite,
+        CancellationTokenSource ioCancellation)
+    {
+        var allIo = Task.WhenAll(standardOutputDrain, standardErrorDrain, standardInputWrite);
+        var expired = !await CompletesWithinAsync(allIo, IoCompletionWindow).ConfigureAwait(false);
+        Task<bool> standardOutputClose;
+        Task<bool> standardErrorClose;
+        if (expired)
+        {
+            standardOutput.MarkDeadlineExceeded();
+            standardError.MarkDeadlineExceeded();
+            await ioCancellation.CancelAsync().ConfigureAwait(false);
+
+            // A synchronous pipe read may not observe the token, so the host's own read ends are closed as well; the child's write
+            // ends are unaffected.
+            ClosePipeEnd(() => process.StandardOutput.BaseStream);
+            ClosePipeEnd(() => process.StandardError.BaseStream);
+
+            // Both closures are requested now, together with the read cancellation: the returned output is frozen at this instant
+            // and each writer's sink I/O is cancelled, everything within the one release window.
+            standardOutputClose = standardOutput.CloseAsync(IoReleaseWindow);
+            standardErrorClose = standardError.CloseAsync(IoReleaseWindow);
+            await CompletesWithinAsync(allIo, IoReleaseWindow).ConfigureAwait(false);
+        }
+        else
+        {
+            standardOutputClose = standardOutput.CloseAsync(IoReleaseWindow);
+            standardErrorClose = standardError.CloseAsync(IoReleaseWindow);
+        }
+
+        var standardOutputClosed = await standardOutputClose.ConfigureAwait(false);
+        var standardErrorClosed = await standardErrorClose.ConfigureAwait(false);
+
+        var standardInput = standardInputWrite.IsCompletedSuccessfully
+            ? standardInputWrite.Result
+            : standardInputWrite.IsCompleted
+                ? InputDeliveryCompletion.Faulted
+                : expired ? InputDeliveryCompletion.DeadlineExceeded : InputDeliveryCompletion.Unknown;
+
+        return new ProcessIoCompletion(
+            standardOutput.GetCompletion(standardOutputClosed),
+            standardError.GetCompletion(standardErrorClosed),
+            standardInput);
+    }
+
+    private static async Task<bool> CompletesWithinAsync(Task task, TimeSpan window)
+    {
+        if (task.IsCompleted)
+        {
+            return true;
+        }
+
+        var winner = await Task.WhenAny(task, Task.Delay(window)).ConfigureAwait(false);
+        return winner == task;
+    }
+
+    private static void ClosePipeEnd(Func<Stream> stream)
+    {
+        try
+        {
+            stream().Dispose();
+        }
+        catch (Exception exception) when (exception is IOException or InvalidOperationException or ObjectDisposedException)
+        {
+        }
     }
 
     /// <summary>
@@ -144,27 +255,33 @@ public sealed class ChildProcessExecutionAdapter : IProcessExecutionAdapter
     /// <summary>
     /// Writes the caller's exact stdin bytes and closes the input stream, signaling EOF to the
     /// child — never appended to <see cref="ProcessStartInfo.ArgumentList"/> or any command
-    /// line. A no-op when <paramref name="standardInput"/> is <see langword="null"/>: standard
-    /// input was never redirected in that case (see <see cref="ExecuteAsync"/>), so there is
-    /// nothing to write or close. Tolerates the child exiting, or the process tree being killed
-    /// for cancellation/timeout, while this write is still in flight — a stuck or refused write
-    /// is not itself a new execution failure to report; the process's own exit classification
-    /// already tells the real story.
+    /// line. <see cref="InputDeliveryCompletion.NotRedirected"/> when <paramref name="standardInput"/> is
+    /// <see langword="null"/>: standard input was never redirected in that case (see <see cref="ExecuteAsync"/>), so there is
+    /// nothing to write or close. A refused write (the child exited or closed its end) is <see cref="InputDeliveryCompletion.Faulted"/>
+    /// and a write cut off by the execution deadline, a cancellation or the I/O completion window is
+    /// <see cref="InputDeliveryCompletion.DeadlineExceeded"/> (ADR-0072); neither changes the process outcome.
     /// </summary>
-    private static async Task WriteStandardInputAsync(Process process, byte[]? standardInput, CancellationToken cancellationToken)
+    private static async Task<InputDeliveryCompletion> WriteStandardInputAsync(
+        Process process, byte[]? standardInput, CancellationToken cancellationToken)
     {
         if (standardInput is null)
         {
-            return;
+            return InputDeliveryCompletion.NotRedirected;
         }
 
+        var delivery = InputDeliveryCompletion.Complete;
         try
         {
             await process.StandardInput.BaseStream.WriteAsync(standardInput, cancellationToken).ConfigureAwait(false);
             await process.StandardInput.BaseStream.FlushAsync(cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception exception) when (exception is IOException or ObjectDisposedException or OperationCanceledException)
+        catch (OperationCanceledException)
         {
+            delivery = InputDeliveryCompletion.DeadlineExceeded;
+        }
+        catch (Exception exception) when (exception is IOException or ObjectDisposedException)
+        {
+            delivery = InputDeliveryCompletion.Faulted;
         }
         finally
         {
@@ -174,8 +291,14 @@ public sealed class ChildProcessExecutionAdapter : IProcessExecutionAdapter
             }
             catch (Exception exception) when (exception is IOException or ObjectDisposedException)
             {
+                if (delivery == InputDeliveryCompletion.Complete)
+                {
+                    delivery = InputDeliveryCompletion.Faulted;
+                }
             }
         }
+
+        return delivery;
     }
 
     /// <summary>

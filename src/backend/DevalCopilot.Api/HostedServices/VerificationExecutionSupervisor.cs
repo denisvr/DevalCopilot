@@ -7,6 +7,7 @@ using DevalCopilot.Application.Features.Projects.Commands.RecordVerificationExec
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Projects.Queries.GetEligibleVerificationExecutions;
 using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Domain.Features.Projects;
 
 namespace DevalCopilot.Api.HostedServices;
@@ -18,12 +19,20 @@ namespace DevalCopilot.Api.HostedServices;
 /// the durable execution and its ownership and requires agreement with the snapshot carried from the feed, so a refused decision
 /// launches nothing and leaves the execution pending. A host restart leaves any unrecorded execution for startup reconciliation.
 /// The filesystem is not frozen between the physical observation, the marker commit and the process start.
+///
+/// ADR-0072: after the dispatch commit, every execution receives the one fixed Windows verification environment profile from
+/// <see cref="IVerificationEnvironmentProvider"/>; an unavailable prerequisite completes the execution as Failed with
+/// <see cref="VerificationExecutionDiagnostic.EnvironmentUnavailable"/> and no process, instead of leaving it pending. The result
+/// records the profile version and the adapter's I/O completion facts: an exit code zero with incomplete I/O is recorded unchanged and
+/// fails. A stream whose writer was not proved closed is never sealed, and the owned scratch is removed only after a proved exit with
+/// complete I/O.
 /// </summary>
 public sealed class VerificationExecutionSupervisor(
     IServiceScopeFactory scopeFactory,
     IProcessExecutionAdapter processAdapter,
     IGitWorkspaceEvidenceReader evidenceReader,
     IVerificationOutputArtifactStore artifactStore,
+    IVerificationEnvironmentProvider environmentProvider,
     ILogger<VerificationExecutionSupervisor> logger) : BackgroundService
 {
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(250);
@@ -89,6 +98,52 @@ public sealed class VerificationExecutionSupervisor(
         // execution verification (null for every unlinked execution). It is carried unchanged to the ordinary result recorder.
         var ticket = dispatched.Value.Ticket;
 
+        // ADR-0072 (review WEP-R5): the dispatch marker is already durable, so a preparation that throws is recorded like an
+        // unavailable environment — once, terminal, with the closed diagnostic and no process — instead of escaping the iteration and
+        // leaving the execution Running. No profile was prepared, so none is recorded; no process ran, so the execution's own scratch
+        // is released. Nothing is redispatched.
+        VerificationEnvironmentPreparation environment;
+        try
+        {
+            environment = environmentProvider.Prepare(execution.VerificationExecutionId, execution.ExecutablePath, execution.Arguments);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogError("verification_execution_environment_preparation_failed ExecutionId={ExecutionId}", execution.VerificationExecutionId);
+            environmentProvider.ReleaseScratch(execution.VerificationExecutionId);
+            await RecordResultAsync(
+                execution,
+                ticket,
+                VerificationExecutionOutcome.Failed,
+                null,
+                false,
+                false,
+                false,
+                null,
+                CancellationToken.None,
+                null,
+                VerificationExecutionDiagnostic.EnvironmentUnavailable);
+            return;
+        }
+
+        if (!environment.IsAvailable)
+        {
+            logger.LogError("verification_execution_environment_unavailable ExecutionId={ExecutionId}", execution.VerificationExecutionId);
+            await RecordResultAsync(
+                execution,
+                ticket,
+                VerificationExecutionOutcome.Failed,
+                null,
+                false,
+                false,
+                false,
+                null,
+                CancellationToken.None,
+                environment.ProfileVersion,
+                VerificationExecutionDiagnostic.EnvironmentUnavailable);
+            return;
+        }
+
         ProcessExecutionResult result;
         try
         {
@@ -99,16 +154,16 @@ public sealed class VerificationExecutionSupervisor(
                 WorkingDirectory = execution.WorkspacePath,
                 ApprovedRoot = execution.WorkspacePath,
                 Timeout = TimeSpan.FromSeconds(execution.TimeoutSeconds),
-                EnvironmentVariables = new Dictionary<string, string>(),
+                EnvironmentVariables = environment.EnvironmentVariables,
                 StandardOutputSinkPath = artifactStore.GetPartialPath(execution.VerificationExecutionId, VerificationOutputPurpose.StandardOutput),
                 StandardErrorSinkPath = artifactStore.GetPartialPath(execution.VerificationExecutionId, VerificationOutputPurpose.StandardError),
             }, stoppingToken);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
+            // ADR-0072: the adapter returned no I/O facts, so no writer was proved closed; any partial file is neither sealed nor
+            // deleted here.
             logger.LogError("verification_execution_process_failed ExecutionId={ExecutionId}", execution.VerificationExecutionId);
-            artifactStore.DeletePartialFile(execution.VerificationExecutionId, VerificationOutputPurpose.StandardOutput);
-            artifactStore.DeletePartialFile(execution.VerificationExecutionId, VerificationOutputPurpose.StandardError);
             await RecordResultAsync(
                 execution,
                 ticket,
@@ -118,7 +173,9 @@ public sealed class VerificationExecutionSupervisor(
                 false,
                 false,
                 null,
-                CancellationToken.None);
+                CancellationToken.None,
+                environment.ProfileVersion,
+                VerificationExecutionDiagnostic.InvocationUnavailable);
             return;
         }
 
@@ -138,7 +195,19 @@ public sealed class VerificationExecutionSupervisor(
             result.StandardOutputTruncated,
             result.StandardErrorTruncated,
             result,
-            CancellationToken.None);
+            CancellationToken.None,
+            environment.ProfileVersion,
+            result.IoCompletion.IsComplete
+                ? null
+                : result.IoCompletion.DeadlineExceeded
+                    ? VerificationExecutionDiagnostic.CaptureDeadlineExceeded
+                    : VerificationExecutionDiagnostic.CaptureFault);
+
+        // Only a proved exit with complete I/O releases the owned scratch; anything unresolved keeps it (ADR-0072).
+        if (result.Outcome == ProcessExecutionOutcome.Exited && result.Termination is not null && result.IoCompletion.IsComplete)
+        {
+            environmentProvider.ReleaseScratch(execution.VerificationExecutionId);
+        }
     }
 
     private async Task RecordResultAsync(
@@ -150,7 +219,9 @@ public sealed class VerificationExecutionSupervisor(
         bool standardOutputTruncated,
         bool standardErrorTruncated,
         ProcessExecutionResult? processResult,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? environmentProfileVersion = null,
+        VerificationExecutionDiagnostic? diagnostic = null)
     {
         var evidence = await evidenceReader.CaptureAsync(execution.WorkspacePath, CancellationToken.None);
         if (evidence.Outcome != GitWorkspaceEvidenceOutcome.Success || evidence.FingerprintSha256 is null)
@@ -160,7 +231,8 @@ public sealed class VerificationExecutionSupervisor(
         }
 
         var sealedArtifacts = captureOutputArtifacts
-            ? await SealArtifactsAsync(execution.VerificationExecutionId, standardOutputTruncated, standardErrorTruncated)
+            ? await SealArtifactsAsync(
+                execution.VerificationExecutionId, standardOutputTruncated, standardErrorTruncated, processResult?.IoCompletion)
             : [];
         await DispatchAsync(
             new RecordVerificationExecutionResultCommand(
@@ -173,20 +245,29 @@ public sealed class VerificationExecutionSupervisor(
                 DispatchTicket = ticket,
                 Termination = processResult?.Termination,
                 ProcessDuration = processResult?.Duration,
+                IoCompletion = processResult?.IoCompletion,
+                EnvironmentProfileVersion = environmentProfileVersion,
+                Diagnostic = diagnostic,
             },
             cancellationToken);
     }
 
     private async Task<IReadOnlyList<SealedVerificationOutputArtifact>> SealArtifactsAsync(
-        Guid verificationExecutionId, bool standardOutputTruncated, bool standardErrorTruncated)
+        Guid verificationExecutionId, bool standardOutputTruncated, bool standardErrorTruncated, ProcessIoCompletion? ioCompletion)
     {
         var results = new List<SealedVerificationOutputArtifact>();
-        foreach (var (purpose, truncated) in new[]
+        foreach (var (purpose, truncated, completion) in new[]
                  {
-                     (VerificationOutputPurpose.StandardOutput, standardOutputTruncated),
-                     (VerificationOutputPurpose.StandardError, standardErrorTruncated),
+                     (VerificationOutputPurpose.StandardOutput, standardOutputTruncated, ioCompletion?.StandardOutput),
+                     (VerificationOutputPurpose.StandardError, standardErrorTruncated, ioCompletion?.StandardError),
                  })
         {
+            if (!ProcessIoCompletion.ProvesWriterClosed(completion))
+            {
+                // The writer was not proved closed: the partial file is neither sealed nor deleted (ADR-0072).
+                continue;
+            }
+
             var sealedFile = await artifactStore.SealAsync(verificationExecutionId, purpose, CancellationToken.None);
             if (sealedFile is not null)
             {

@@ -54,6 +54,9 @@ public sealed class PlanningSequenceMigrationTests : IAsyncLifetime
     private DevalCopilotDbContext CreateContext() =>
         new(new DbContextOptionsBuilder<DevalCopilotDbContext>().UseSqlite($"Data Source={databasePath}").Options);
 
+    /// <summary>ADR-0072: seeds and reads at a schema older than AddWindowsExecutionProfileEvidence.</summary>
+    private DevalCopilotDbContext CreatePriorSchemaContext() => BeforeExecutionProfileContext.Create($"Data Source={databasePath}");
+
     private async Task MigrateToAsync(string? target)
     {
         await using var context = CreateContext();
@@ -120,7 +123,7 @@ public sealed class PlanningSequenceMigrationTests : IAsyncLifetime
     {
         await MigrateToAsync(PriorMigration);
         Guid runId;
-        await using (var seed = CreateContext())
+        await using (var seed = CreatePriorSchemaContext())
         {
             var scene = await SeedSceneAsync(seed);
             runId = scene.Run.Id;
@@ -134,7 +137,7 @@ public sealed class PlanningSequenceMigrationTests : IAsyncLifetime
 
         Assert.Equal(["planning_sequence_steps", "planning_sequences"], await ReadNamesAsync("table", "planning_sequence%"));
         Assert.Equal(TriggerNames, await ReadNamesAsync("trigger", "trg_planning_sequence%"));
-        await using var verify = CreateContext();
+        await using var verify = CreatePriorSchemaContext();
         Assert.Empty(await verify.PlanningSequences.AsNoTracking().ToListAsync());
         Assert.Empty(await verify.PlanningSequenceSteps.AsNoTracking().ToListAsync());
         Assert.Single(await verify.Attempts.AsNoTracking().Where(attempt => attempt.RunId == runId).ToListAsync());

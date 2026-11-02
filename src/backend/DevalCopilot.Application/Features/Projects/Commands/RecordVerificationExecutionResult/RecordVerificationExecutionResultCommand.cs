@@ -2,6 +2,7 @@ using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Runs.Policies.LocalExecutionSequences;
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Domain.Features.Projects;
 
 namespace DevalCopilot.Application.Features.Projects.Commands.RecordVerificationExecutionResult;
@@ -25,4 +26,13 @@ public sealed record RecordVerificationExecutionResultCommand(
     /// <summary>The returned process result's duration, supplied with <see cref="Termination"/> so the observation can retain the matching
     /// process tuple. It is not otherwise stored or interpreted.</summary>
     public TimeSpan? ProcessDuration { get; init; }
+
+    /// <summary>ADR-0072: the adapter's I/O completion facts; null when no process result exists.</summary>
+    public ProcessIoCompletion? IoCompletion { get; init; }
+
+    /// <summary>ADR-0072: the fixed environment profile version the host built for this execution.</summary>
+    public string? EnvironmentProfileVersion { get; init; }
+
+    /// <summary>ADR-0072: the closed reason of a failure its exit code does not explain.</summary>
+    public VerificationExecutionDiagnostic? Diagnostic { get; init; }
 }

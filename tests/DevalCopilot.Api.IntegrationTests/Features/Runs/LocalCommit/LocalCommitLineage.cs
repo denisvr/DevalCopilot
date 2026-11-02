@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -206,7 +207,7 @@ internal static class LocalCommitLineage
             var execution = VerificationExecution.Claim(
                 Guid.NewGuid(), project.Id, project.ReserveVerificationExecutionNumber(), trackedWorkspace, trackedCheckpoint, command, now);
             execution.MarkDispatched(now);
-            execution.Complete(VerificationExecutionOutcome.Exited, 0, checkpoint.FingerprintSha256, now);
+            execution.Complete(VerificationExecutionOutcome.Exited, 0, checkpoint.FingerprintSha256, now, ProcessIoCompletion.CompleteWithoutInput);
             dbContext.VerificationExecutions.Add(execution);
             await dbContext.SaveChangesAsync();
             allExecutions.Add(execution.Id);
@@ -227,7 +228,7 @@ internal static class LocalCommitLineage
             var rerun = VerificationExecution.Claim(
                 Guid.NewGuid(), project.Id, project.ReserveVerificationExecutionNumber(), trackedWorkspace, trackedCheckpoint, firstRecipe, now);
             rerun.MarkDispatched(now);
-            rerun.Complete(VerificationExecutionOutcome.Exited, 0, checkpoint.FingerprintSha256, now);
+            rerun.Complete(VerificationExecutionOutcome.Exited, 0, checkpoint.FingerprintSha256, now, ProcessIoCompletion.CompleteWithoutInput);
             dbContext.VerificationExecutions.Add(rerun);
             await dbContext.SaveChangesAsync();
             firstExecution = rerun.Id;

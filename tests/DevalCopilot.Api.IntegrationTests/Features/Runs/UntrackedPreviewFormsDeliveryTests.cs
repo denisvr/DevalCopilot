@@ -199,7 +199,7 @@ public sealed class UntrackedPreviewFormsDeliveryTests : IDisposable
         var manifest = Build(form, result);
         var delivery = await SealAndDeliverAsync(
             manifest, contract, provider, form.StartsWith("implementation-authorized", StringComparison.Ordinal) ? Authorization : null,
-            AdapterVersion(form, contract), IsDirectlyGuided(form) ? DirectGuidance : null);
+            AdapterVersion(contract), IsDirectlyGuided(form) ? DirectGuidance : null);
 
         // The unsafe files really are the outside file under a second name: the parent reader would have returned its bytes.
         Assert.Equal(UntrackedPreviewScene.Sentinel, File.ReadAllText(Path.Combine(_scene.Repository, "linked.txt")));
@@ -227,7 +227,7 @@ public sealed class UntrackedPreviewFormsDeliveryTests : IDisposable
         var manifest = Build(form, result);
         var delivery = await SealAndDeliverAsync(
             manifest, contract, provider, form.StartsWith("implementation-authorized", StringComparison.Ordinal) ? Authorization : null,
-            AdapterVersion(form, contract), IsDirectlyGuided(form) ? DirectGuidance : null);
+            AdapterVersion(contract), IsDirectlyGuided(form) ? DirectGuidance : null);
 
         // The parent defect's precondition: ordinary raw observation reads the outside bytes through the named tracked paths.
         Assert.Contains(UntrackedPreviewScene.Sentinel, ordinary.CompleteDiff!, StringComparison.Ordinal);
@@ -350,22 +350,27 @@ public sealed class UntrackedPreviewFormsDeliveryTests : IDisposable
         await File.WriteAllTextAsync(partial, manifest, new UTF8Encoding(false));
         var sealedFile = await _store.SealAsync(run, attempt, ArtifactPurpose.AgentContextManifest, CancellationToken.None);
         Assert.NotNull(sealedFile);
+
+        // A critical review is claimed under its current contract (ADR-0072); the adapter refuses any other before starting a process.
+        var version = adapterContractVersion
+            ?? (contract == AgentResponseContract.CriticalReview ? ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion : null);
         return await DeliverAsync(
             new Subject(
-                contract, provider, run, attempt, AdapterContractVersion: adapterContractVersion, DirectHumanGuidance: directHumanGuidance), sealedFile!.RelativeStoragePath, sealedFile.ByteLength, sealedFile.ContentHash,
+                contract, provider, run, attempt, AdapterContractVersion: version, DirectHumanGuidance: directHumanGuidance), sealedFile!.RelativeStoragePath, sealedFile.ByteLength, sealedFile.ContentHash,
             _scene.Repository, _store, _launch, authorization);
     }
 
     private static bool IsDirectlyGuided(string form) =>
         form.Contains("guided", StringComparison.Ordinal) || form.Contains("direct-guidance", StringComparison.Ordinal);
 
-    /// <summary>The direct-guidance forms exist only under the Claude mutation contracts' second version; the others keep the first.</summary>
-    private static string? AdapterVersion(string form, AgentResponseContract contract) =>
-        IsDirectlyGuided(form)
-            ? contract == AgentResponseContract.ImplementationReport
-                ? ClaudeMutationAdapterContract.ImplementationV2
-                : ClaudeMutationAdapterContract.ReviewCorrectionV2
-            : null;
+    /// <summary>ADR-0072: every new mutation claim, guided or not, records its path's current contract, the only one the real adapter
+    /// dispatches; direct guidance is carried by the current version exactly as by version 2.</summary>
+    private static string? AdapterVersion(AgentResponseContract contract) => contract switch
+    {
+        AgentResponseContract.ImplementationReport => ClaudeMutationAdapterContract.CurrentImplementation,
+        AgentResponseContract.ReviewCorrection => ClaudeMutationAdapterContract.CurrentReviewCorrection,
+        _ => null,
+    };
 
     private static int Occurrences(string text, string value) => text.Split(value).Length - 1;
 }

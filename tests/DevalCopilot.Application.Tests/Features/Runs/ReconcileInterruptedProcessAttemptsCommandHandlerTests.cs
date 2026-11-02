@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Application.Features.Runs.Commands.ReconcileInterruptedProcessAttempts;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
@@ -82,7 +83,7 @@ public sealed class ReconcileInterruptedProcessAttemptsCommandHandlerTests : IAs
         var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Already completed", Now);
         run.Claim(Now);
         var attempt = Attempt.ClaimProcess(Guid.NewGuid(), run.Id, 1, CreateIntent(), Now);
-        attempt.CompleteProcess(ProcessOutcome.Exited, 0, Now);
+        attempt.CompleteProcess(ProcessOutcome.Exited, 0, Now, ProcessIoCompletion.CompleteWithoutInput);
         run.Complete(Now);
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);

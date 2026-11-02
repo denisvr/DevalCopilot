@@ -34,4 +34,5 @@ public sealed record GetAgentAttemptEvidenceQueryResult(
     DirectHumanGuidanceFact? DirectGuidance = null,
     AgentModelContextLimitsEvidence? ModelContextLimits = null,
     CodexAccountUsageStopFact? AccountUsageStop = null,
-    CodexAccountUsageDecisionFact? AccountUsageDecision = null);
+    CodexAccountUsageDecisionFact? AccountUsageDecision = null,
+    AgentInvocationDiagnosticFact? InvocationDiagnostic = null);

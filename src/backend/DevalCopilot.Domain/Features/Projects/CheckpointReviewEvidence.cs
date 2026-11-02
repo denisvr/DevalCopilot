@@ -98,11 +98,13 @@ public sealed class CheckpointReviewEvidence
             throw new ArgumentException("Cancelled evidence must snapshot a cancelled process outcome.", nameof(verificationExecutionOutcome));
         }
 
+        // ADR-0072: an execution can also fail with an actual Exited/0 tuple when its I/O never completed; the snapshot keeps that
+        // physical fact unchanged instead of refusing it.
         if (verificationExecutionStatus == VerificationExecutionStatus.Failed
             && verificationExecutionOutcome is not global::DevalCopilot.Domain.Features.Projects.VerificationExecutionOutcome.Failed
-            && (verificationExecutionOutcome != global::DevalCopilot.Domain.Features.Projects.VerificationExecutionOutcome.Exited || verificationExecutionExitCode == 0))
+            && (verificationExecutionOutcome != global::DevalCopilot.Domain.Features.Projects.VerificationExecutionOutcome.Exited || verificationExecutionExitCode is null))
         {
-            throw new ArgumentException("Failed evidence must snapshot a failed process or a non-zero exit.", nameof(verificationExecutionOutcome));
+            throw new ArgumentException("Failed evidence must snapshot a failed process or an exit.", nameof(verificationExecutionOutcome));
         }
 
         if (verificationExecutionStatus == VerificationExecutionStatus.Passed

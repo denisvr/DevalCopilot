@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Infrastructure.Persistence;
 
@@ -131,23 +132,23 @@ internal sealed class ProjectVerificationInspectionSeed(SqliteDatabaseFixture fi
                 break;
             case ExecutionShape.Passed:
                 execution.MarkDispatched(dispatched);
-                execution.Complete(VerificationExecutionOutcome.Exited, 0, fingerprint, completed);
+                execution.Complete(VerificationExecutionOutcome.Exited, 0, fingerprint, completed, ProcessIoCompletion.CompleteWithoutInput);
                 break;
             case ExecutionShape.FailedExited:
                 execution.MarkDispatched(dispatched);
-                execution.Complete(VerificationExecutionOutcome.Exited, exitCode, fingerprint, completed);
+                execution.Complete(VerificationExecutionOutcome.Exited, exitCode, fingerprint, completed, ProcessIoCompletion.CompleteWithoutInput);
                 break;
             case ExecutionShape.FailedOutcome:
                 execution.MarkDispatched(dispatched);
-                execution.Complete(VerificationExecutionOutcome.Failed, null, fingerprint, completed);
+                execution.Complete(VerificationExecutionOutcome.Failed, null, fingerprint, completed, ProcessIoCompletion.CompleteWithoutInput);
                 break;
             case ExecutionShape.TimedOut:
                 execution.MarkDispatched(dispatched);
-                execution.Complete(VerificationExecutionOutcome.TimedOut, null, fingerprint, completed);
+                execution.Complete(VerificationExecutionOutcome.TimedOut, null, fingerprint, completed, ProcessIoCompletion.CompleteWithoutInput);
                 break;
             case ExecutionShape.Cancelled:
                 execution.MarkDispatched(dispatched);
-                execution.Complete(VerificationExecutionOutcome.Cancelled, null, fingerprint, completed);
+                execution.Complete(VerificationExecutionOutcome.Cancelled, null, fingerprint, completed, ProcessIoCompletion.CompleteWithoutInput);
                 break;
             case ExecutionShape.Interrupted:
                 execution.Interrupt(completed);
@@ -161,11 +162,11 @@ internal sealed class ProjectVerificationInspectionSeed(SqliteDatabaseFixture fi
                 break;
             case ExecutionShape.SourceChangedExited:
                 execution.MarkDispatched(dispatched);
-                execution.Complete(VerificationExecutionOutcome.Exited, exitCode, OtherFingerprint, completed);
+                execution.Complete(VerificationExecutionOutcome.Exited, exitCode, OtherFingerprint, completed, ProcessIoCompletion.CompleteWithoutInput);
                 break;
             case ExecutionShape.SourceChangedTimedOut:
                 execution.MarkDispatched(dispatched);
-                execution.Complete(VerificationExecutionOutcome.TimedOut, null, OtherFingerprint, completed);
+                execution.Complete(VerificationExecutionOutcome.TimedOut, null, OtherFingerprint, completed, ProcessIoCompletion.CompleteWithoutInput);
                 break;
             case ExecutionShape.DispatchRefused:
                 execution.MarkLocalExecutionSequenceDispatchRefused(dispatched);

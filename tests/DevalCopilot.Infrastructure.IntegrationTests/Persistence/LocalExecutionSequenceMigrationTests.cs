@@ -31,7 +31,7 @@ public sealed class LocalExecutionSequenceMigrationTests : LocalExecutionSequenc
     {
         await MigrateToAsync(PriorMigration);
         Guid runId;
-        await using (var seed = CreateContext())
+        await using (var seed = CreatePriorSchemaContext())
         {
             var scene = await SeedSceneAsync(seed);
             runId = scene.Run.Id;
@@ -47,7 +47,7 @@ public sealed class LocalExecutionSequenceMigrationTests : LocalExecutionSequenc
         Assert.Equal(TableNames, await ReadNamesAsync("table", "local_execution%"));
         Assert.Equal(TriggerNames, await ReadNamesAsync("trigger", "trg_local_execution%"));
         Assert.Equal(22, TriggerNames.Length);
-        await using var verify = CreateContext();
+        await using var verify = CreatePriorSchemaContext();
         Assert.Empty(await verify.LocalExecutionSequences.AsNoTracking().ToListAsync());
         Assert.Empty(await verify.LocalExecutionSequenceRecipes.AsNoTracking().ToListAsync());
         Assert.Empty(await verify.LocalExecutionSequenceSteps.AsNoTracking().ToListAsync());
@@ -64,7 +64,7 @@ public sealed class LocalExecutionSequenceMigrationTests : LocalExecutionSequenc
         var tablesBefore = await ReadNamesAsync("table");
         var triggersBefore = await ReadNamesAsync("trigger");
         Guid runId;
-        await using (var seed = CreateContext())
+        await using (var seed = CreatePriorSchemaContext())
         {
             var scene = await SeedSceneAsync(seed);
             runId = scene.Run.Id;
@@ -80,7 +80,7 @@ public sealed class LocalExecutionSequenceMigrationTests : LocalExecutionSequenc
         Assert.Equal(triggersBefore.Except(TriggerNames).OrderBy(name => name), await ReadNamesAsync("trigger"));
         Assert.NotEmpty(await ReadNamesAsync("trigger", "trg_local_commit%"));
         Assert.NotEmpty(await ReadNamesAsync("trigger", "trg_planning_sequence%"));
-        await using (var verify = CreateContext())
+        await using (var verify = CreatePriorSchemaContext())
         {
             Assert.True(await verify.Runs.AsNoTracking().AnyAsync(candidate => candidate.Id == runId));
             Assert.Equal(2, await verify.VerificationCommands.AsNoTracking().CountAsync());

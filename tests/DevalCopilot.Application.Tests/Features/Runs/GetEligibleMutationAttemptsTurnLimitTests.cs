@@ -67,7 +67,7 @@ public sealed class GetEligibleMutationAttemptsTurnLimitTests : IAsyncLifetime
     [InlineData(1)]
     [InlineData(37)]
     [InlineData(100)]
-    public async Task The_review_correction_feed_projects_the_claimed_limit_and_its_v2_version(int? limit)
+    public async Task The_review_correction_feed_projects_the_claimed_limit_and_its_current_version(int? limit)
     {
         await using var dbContext = _fixture.CreateContext();
         await SeedAsync(dbContext, (runId, workspaceId, checkpointId, manifestId) =>
@@ -80,7 +80,7 @@ public sealed class GetEligibleMutationAttemptsTurnLimitTests : IAsyncLifetime
 
         var candidate = Assert.Single(result);
         Assert.Equal(limit, candidate.RequestedMaxTurns);
-        Assert.Equal("claude-review-correction-v2", candidate.AdapterContractVersion);
+        Assert.Equal("claude-review-correction-v3", candidate.AdapterContractVersion);
         Assert.Equal("sonnet", candidate.RequestedClaudeModel);
         Assert.Equal("low", candidate.RequestedClaudeEffort);
     }

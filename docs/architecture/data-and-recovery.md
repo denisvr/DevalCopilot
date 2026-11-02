@@ -155,6 +155,33 @@ Startup performs these steps before scheduling new work:
 9. expose required recovery choices;
 10. schedule only work proven safe to continue.
 
+Since [ADR-0072](../decisions/0072-adopt-one-windows-execution-profile.md) the implemented
+recovery steps run in their unchanged order through one checked runner. A database, schema,
+query, transaction or commit fault, a failed or incoherent safety-critical reconciliation, or any
+unclassified exception is fatal: no later step, API, Ready line or hosted dispatch follows, and
+the host writes the bounded frame
+`DEVALCOPILOT_SIDECAR_FAILED {"version":1,"stage":…,"reason":…,"action":…}` on its stdout
+protocol channel and the safe diagnostic `DCSF1-<stage>-<reason>-<action>` on stderr, then exits
+with code 3. A coherent success that records NeedsAttention, Interrupted or held ownership is the
+existing state, not a failure. Only per-item optional historical output that could not be sealed
+or imported, deferred removal of a proved-redundant partial and unclosed earlier supervision
+observations are warnings; they travel as closed names on the Ready line and create no evidence,
+readiness or release. The same typed rule applies to the Agent, Process and verification output
+families: only a file-system fault on one existing output item is an optional-output warning (its
+files stay in place), an absent file is nothing to import, and every database query and commit and
+any other exception stay fatal. Startup removes a partial output file only when an artifact of the
+same purpose is already recorded for that attempt or execution, so an unsealed or failed-import
+partial survives every later restart; verification partials are never promoted or deleted. A
+captured stream is sealed at all only when the host proved its writer closed. Nothing in this path
+repairs, deletes or resets state.
+
+The same decision adds nullable facts in one additive migration: stdout, stderr and stdin I/O
+completion and a closed invocation diagnostic with its version on attempts; the same I/O facts,
+the environment profile version and a closed diagnostic on verification executions; and a
+capture-completion classification on Agent, Process and verification output artifacts.
+Historical rows keep null, which is never read as complete. A downgrade is refused, before any
+change, once any of these facts was recorded.
+
 ### Explicit local commit recovery
 
 An explicit local commit ([ADR-0029](../decisions/0029-deliver-an-explicit-local-commit-before-closing-provider-contract-gaps.md))

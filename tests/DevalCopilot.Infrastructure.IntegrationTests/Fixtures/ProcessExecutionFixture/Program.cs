@@ -86,6 +86,12 @@ switch (args[0])
     case "spawn-tree":
         return SpawnTree(int.Parse(args[1]));
 
+    case "orphan-holds-pipes":
+        // ADR-0072: writes a marker line, starts a descendant that inherits the selected redirected output handle(s) and sleeps,
+        // records the descendant's process id in a file, then exits zero at once. The parent's exit is observed normally while the
+        // inherited pipe never reaches end-of-file, so only a bounded I/O completion window can end the capture.
+        return OrphanHoldsPipes(args[1], args[2], int.Parse(args[3]));
+
     case "append-marker":
         // One line appended per invocation — lets a test count real executions rather than
         // inferring it from state that a single run could also produce.
@@ -317,8 +323,40 @@ static int SpawnTree(int sleepMilliseconds)
     return 0;
 }
 
+static int OrphanHoldsPipes(string heldStreams, string descendantPidFile, int sleepMilliseconds)
+{
+    Console.Out.Write("parent-marker\n");
+    Console.Out.Flush();
+    Console.Error.Write("parent-error-marker\n");
+    Console.Error.Flush();
+
+    if (heldStreams == "stdout")
+    {
+        NativeHandles.DisableInheritance(NativeHandles.StandardErrorHandle);
+    }
+    else if (heldStreams == "stderr")
+    {
+        NativeHandles.DisableInheritance(NativeHandles.StandardOutputHandle);
+    }
+
+    var startInfo = new ProcessStartInfo
+    {
+        FileName = Environment.ProcessPath!,
+        UseShellExecute = false,
+        CreateNoWindow = true,
+    };
+    startInfo.ArgumentList.Add("sleep-ms");
+    startInfo.ArgumentList.Add(sleepMilliseconds.ToString());
+
+    using var descendant = Process.Start(startInfo)!;
+    File.WriteAllText(descendantPidFile, descendant.Id.ToString());
+    return 0;
+}
+
 internal static class NativeHandles
 {
+    internal const int StandardOutputHandle = -11;
+
     internal const int StandardErrorHandle = -12;
 
     private const uint HandleFlagInherit = 1;

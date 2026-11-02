@@ -272,6 +272,9 @@ public sealed class GitRepositoryInspector(IProcessExecutionAdapter processExecu
         Exited,
         TimedOut,
         LaunchFailed,
+
+        /// <summary>ADR-0072: the process exited but its output or input never demonstrably completed; never parsed.</summary>
+        IoIncomplete,
     }
 
     /// <summary><paramref name="ExitCode"/> is only meaningful when <paramref name="Outcome"/>
@@ -321,6 +324,11 @@ public sealed class GitRepositoryInspector(IProcessExecutionAdapter processExecu
                 throw new OperationCanceledException(cancellationToken);
             case ProcessExecutionOutcome.TimedOut:
                 return new GitCommandResult(GitCommandOutcome.TimedOut, 0, string.Empty);
+        }
+
+        if (!result.IoCompletion.IsComplete)
+        {
+            return new GitCommandResult(GitCommandOutcome.IoIncomplete, -1, string.Empty);
         }
 
         return new GitCommandResult(GitCommandOutcome.Exited, result.ExitCode!.Value, result.StandardOutput.Trim());

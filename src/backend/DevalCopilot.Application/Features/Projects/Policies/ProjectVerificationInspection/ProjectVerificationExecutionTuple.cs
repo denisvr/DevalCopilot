@@ -51,11 +51,13 @@ internal static class ProjectVerificationExecutionTuple
             VerificationExecutionStatus.Running =>
                 !completedAt && outcome is null && exitCode is null && !row.CompletionFingerprintPresent,
             VerificationExecutionStatus.Passed =>
-                dispatchedAt && completedAt && sameFingerprint && outcome == VerificationExecutionOutcome.Exited && exitCode == 0,
+                dispatchedAt && completedAt && sameFingerprint && outcome == VerificationExecutionOutcome.Exited && exitCode == 0
+                && VerificationIoCode.AllowsPassed(row.IoCode),
             VerificationExecutionStatus.Failed =>
                 dispatchedAt && completedAt && sameFingerprint
                 && ((outcome == VerificationExecutionOutcome.Exited && exitCode is not null && exitCode != 0)
-                    || (outcome == VerificationExecutionOutcome.Failed && exitCode is null)),
+                    || (outcome == VerificationExecutionOutcome.Failed && exitCode is null)
+                    || (outcome == VerificationExecutionOutcome.Exited && exitCode == 0 && VerificationIoCode.ExplainsFailedZeroExit(row.IoCode))),
             VerificationExecutionStatus.TimedOut =>
                 dispatchedAt && completedAt && sameFingerprint && outcome == VerificationExecutionOutcome.TimedOut && exitCode is null,
             VerificationExecutionStatus.Cancelled =>

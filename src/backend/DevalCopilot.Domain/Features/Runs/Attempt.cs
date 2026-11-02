@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 namespace DevalCopilot.Domain.Features.Runs;
 
 /// <summary>
@@ -670,14 +671,11 @@ public sealed class Attempt
         ValidateAssignmentIdentifier(requestedModel, nameof(requestedModel));
         ValidateAssignmentIdentifier(requestedEffort, nameof(requestedEffort));
         ValidateClaudeModelRequest(requestedModel, requestedEffort);
-        ValidateMutationTurnLimit(
-            requestedMaxTurns,
-            adapterContractVersion == ClaudeMutationAdapterContract.ImplementationV2
-                && permissionProfile == Runs.AgentPermissionProfile.WorkspaceEditOnly);
-        ValidateDirectHumanGuidance(
-            directHumanGuidance,
-            adapterContractVersion == ClaudeMutationAdapterContract.ImplementationV2
-                && permissionProfile == Runs.AgentPermissionProfile.WorkspaceEditOnly);
+        var carriesMutationOptions =
+            adapterContractVersion is ClaudeMutationAdapterContract.ImplementationV2 or ClaudeMutationAdapterContract.ImplementationV3
+            && permissionProfile == Runs.AgentPermissionProfile.WorkspaceEditOnly;
+        ValidateMutationTurnLimit(requestedMaxTurns, carriesMutationOptions);
+        ValidateDirectHumanGuidance(directHumanGuidance, carriesMutationOptions);
 
         return new Attempt
         {
@@ -753,7 +751,7 @@ public sealed class Attempt
         if (requestedMaxTurns is not null && !contractCarriesTurnLimit)
         {
             throw new ArgumentException(
-                "A requested Claude turn limit requires the version 2 mutation contract with the workspace-edit profile.",
+                "A requested Claude turn limit requires the version 2 or 3 mutation contract with the workspace-edit profile.",
                 nameof(requestedMaxTurns));
         }
     }
@@ -776,7 +774,7 @@ public sealed class Attempt
         if (!contractCarriesGuidance)
         {
             throw new ArgumentException(
-                "Direct human guidance requires the version 2 mutation contract with the workspace-edit profile.",
+                "Direct human guidance requires the version 2 or 3 mutation contract with the workspace-edit profile.",
                 nameof(directHumanGuidance));
         }
     }
@@ -858,7 +856,7 @@ public sealed class Attempt
             id, runId, attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256,
             contextManifestArtifactId, timeout, maxBytesPerStream, maxTotalCapturedBytes, claimedAtUtc,
             requestedClaudeModel, requestedClaudeEffort, agentBudgetSlot,
-            ClaudeMutationAdapterContract.ReviewCorrectionV2, requestedMaxTurns, directHumanGuidance);
+            ClaudeMutationAdapterContract.CurrentReviewCorrection, requestedMaxTurns, directHumanGuidance);
 
     private static Attempt ClaimReviewCorrection(
         Guid id,
@@ -884,9 +882,9 @@ public sealed class Attempt
             timeout, maxBytesPerStream, maxTotalCapturedBytes, agentBudgetSlot);
         ValidateClaudeModelRequest(requestedClaudeModel, requestedClaudeEffort);
         ValidateMutationTurnLimit(
-            requestedMaxTurns, adapterContractVersion == ClaudeMutationAdapterContract.ReviewCorrectionV2);
+            requestedMaxTurns, adapterContractVersion is ClaudeMutationAdapterContract.ReviewCorrectionV2 or ClaudeMutationAdapterContract.ReviewCorrectionV3);
         ValidateDirectHumanGuidance(
-            directHumanGuidance, adapterContractVersion == ClaudeMutationAdapterContract.ReviewCorrectionV2);
+            directHumanGuidance, adapterContractVersion is ClaudeMutationAdapterContract.ReviewCorrectionV2 or ClaudeMutationAdapterContract.ReviewCorrectionV3);
 
         var contract = AgentAttemptContract.For(Runs.AgentResponseContract.ReviewCorrection);
 
@@ -1020,6 +1018,15 @@ public sealed class Attempt
     /// result — never set for a Process attempt that failed without one (see
     /// <see cref="Fail"/>) or for a Simulated attempt.</summary>
     public ProcessOutcome? ProcessOutcome { get; private set; }
+
+    /// <summary>ADR-0072: the stdout completion fact of a Process attempt; <see langword="null"/> means not recorded.</summary>
+    public OutputCaptureCompletion? ProcessStandardOutputCompletion { get; private set; }
+
+    /// <summary>ADR-0072: the stderr completion fact of a Process attempt; <see langword="null"/> means not recorded.</summary>
+    public OutputCaptureCompletion? ProcessStandardErrorCompletion { get; private set; }
+
+    /// <summary>ADR-0072: the standard-input fact of a Process attempt; <see langword="null"/> means not recorded.</summary>
+    public InputDeliveryCompletion? ProcessStandardInputDelivery { get; private set; }
 
     /// <summary>Only set when <see cref="ProcessOutcome"/> is
     /// <see cref="Runs.ProcessOutcome.Exited"/> — a killed process's exit code is not a
@@ -1314,6 +1321,80 @@ public sealed class Attempt
     /// with <see cref="AgentProcessOutcome"/>, never independently.</summary>
     public TimeSpan? AgentProcessDuration { get; private set; }
 
+    /// <summary>ADR-0072: the host's stdout completion fact for the provider process, set together with
+    /// <see cref="AgentProcessOutcome"/> when the result carried I/O facts. <see langword="null"/> means not recorded, as for every
+    /// attempt recorded before this evidence existed; it is never read as complete.</summary>
+    public OutputCaptureCompletion? AgentStandardOutputCompletion { get; private set; }
+
+    /// <summary>ADR-0072: the stderr counterpart of <see cref="AgentStandardOutputCompletion"/>.</summary>
+    public OutputCaptureCompletion? AgentStandardErrorCompletion { get; private set; }
+
+    /// <summary>ADR-0072: the standard-input delivery fact of the provider process, set together with the two stream facts.</summary>
+    public InputDeliveryCompletion? AgentStandardInputDelivery { get; private set; }
+
+    /// <summary>ADR-0072: the closed category of why a dispatched Claude invocation did not produce semantic success, recorded once,
+    /// atomically with its failed result. <see langword="null"/> means not recorded (including every earlier attempt).</summary>
+    public AgentInvocationDiagnostic? AgentInvocationDiagnostic { get; private set; }
+
+    /// <summary>ADR-0072: the vocabulary version recorded with <see cref="AgentInvocationDiagnostic"/>; set together with it.</summary>
+    public string? AgentInvocationDiagnosticVersion { get; private set; }
+
+    /// <summary>ADR-0072: the recorded I/O facts, or <see langword="null"/> unless all three were recorded together.</summary>
+    public ProcessIoCompletion? GetAgentProcessIoCompletion() =>
+        AgentStandardOutputCompletion is { } standardOutput
+        && AgentStandardErrorCompletion is { } standardError
+        && AgentStandardInputDelivery is { } standardInput
+        && Enum.IsDefined(standardOutput) && Enum.IsDefined(standardError) && Enum.IsDefined(standardInput)
+            ? new ProcessIoCompletion(standardOutput, standardError, standardInput)
+            : null;
+
+    /// <summary>ADR-0072: the recorded diagnostic when its category and version are a known pair; otherwise null, which a reader
+    /// distinguishes from absence through the raw columns.</summary>
+    public AgentInvocationDiagnostic? GetKnownAgentInvocationDiagnostic() =>
+        AgentInvocationDiagnosticContract.IsKnown(AgentInvocationDiagnosticVersion, AgentInvocationDiagnostic)
+            ? AgentInvocationDiagnostic
+            : null;
+
+    /// <summary>
+    /// ADR-0072: records the closed diagnostic of a dispatched, still-running Claude Agent attempt immediately before its failed
+    /// completion transition, in the same unit of work, so the category and the failed result commit together. Write-once; the
+    /// completion transitions refuse a semantic success beside a recorded diagnostic.
+    /// </summary>
+    public void RecordAgentInvocationDiagnostic(AgentInvocationDiagnostic diagnostic)
+    {
+        if (Kind != AttemptKind.Agent || AgentProvider != Runs.AgentProvider.ClaudeCode)
+        {
+            throw new InvalidOperationException("Only a Claude Agent attempt can record an invocation diagnostic.");
+        }
+
+        if (Status != AttemptStatus.Running || !AgentDispatchedAtUtc.HasValue)
+        {
+            throw new InvalidOperationException("An invocation diagnostic is recorded only for a dispatched, running attempt.");
+        }
+
+        if (!Enum.IsDefined(diagnostic))
+        {
+            throw new ArgumentOutOfRangeException(nameof(diagnostic), diagnostic, "Not a defined invocation diagnostic.");
+        }
+
+        if (AgentInvocationDiagnostic.HasValue || AgentInvocationDiagnosticVersion is not null)
+        {
+            throw new InvalidOperationException("An invocation diagnostic is write-once.");
+        }
+
+        AgentInvocationDiagnostic = diagnostic;
+        AgentInvocationDiagnosticVersion = AgentInvocationDiagnosticContract.CurrentVersion;
+    }
+
+    /// <summary>A semantic success is never recorded beside a diagnostic.</summary>
+    private void EnsureNoDiagnosticBesideSuccess(AttemptStatus resultingStatus)
+    {
+        if (resultingStatus == AttemptStatus.Completed && (AgentInvocationDiagnostic.HasValue || AgentInvocationDiagnosticVersion is not null))
+        {
+            throw new InvalidOperationException("A semantic success cannot be recorded beside an invocation diagnostic.");
+        }
+    }
+
     /// <summary>Returns the recorded host-measured process evidence, or <see langword="null"/> when
     /// it is absent, its persisted shape is not valid evidence — an inconsistent row is reported
     /// as unknown rather than partially trusted — or the attempt has not yet concluded. A still-
@@ -1335,7 +1416,7 @@ public sealed class Attempt
             return null;
         }
 
-        return AgentProcessExecutionEvidence.Create(outcome, AgentProcessExitCode, duration);
+        return AgentProcessExecutionEvidence.Create(outcome, AgentProcessExitCode, duration, GetAgentProcessIoCompletion());
     }
 
     /// <summary>Provider-reported input token count for this Agent attempt's invocation —
@@ -1552,7 +1633,10 @@ public sealed class Attempt
     /// <see cref="AttemptStatus"/> in one step — a Process attempt is never observable holding
     /// a recorded outcome while still <see cref="AttemptStatus.Running"/>.
     /// </summary>
-    public void CompleteProcess(ProcessOutcome outcome, int? exitCode, DateTimeOffset nowUtc)
+    /// <remarks>ADR-0072: <paramref name="ioCompletion"/> is the host's I/O completion fact; only an exit code zero with
+    /// complete I/O completes successfully. <see langword="null"/> (not established, including a launch fault) never does, and the
+    /// observed physical outcome and exit code are recorded unchanged either way.</remarks>
+    public void CompleteProcess(ProcessOutcome outcome, int? exitCode, DateTimeOffset nowUtc, ProcessIoCompletion? ioCompletion)
     {
         if (Kind != AttemptKind.Process)
         {
@@ -1577,7 +1661,10 @@ public sealed class Attempt
 
         ProcessOutcome = outcome;
         ProcessExitCode = exitCode;
-        Status = outcome == Runs.ProcessOutcome.Exited && exitCode == 0
+        ProcessStandardOutputCompletion = ioCompletion?.StandardOutput;
+        ProcessStandardErrorCompletion = ioCompletion?.StandardError;
+        ProcessStandardInputDelivery = ioCompletion?.StandardInput;
+        Status = outcome == Runs.ProcessOutcome.Exited && exitCode == 0 && ioCompletion is { IsComplete: true }
             ? AttemptStatus.Completed
             : AttemptStatus.Failed;
         CompletedAtUtc = nowUtc;
@@ -1789,6 +1876,8 @@ public sealed class Attempt
         EnsureAgentTokenUsageCanBeRecorded(outcome, tokenUsage);
         EnsureAgentModelContextLimitsCanBeRecorded(outcome, modelContextLimits);
 
+        EnsureNoDiagnosticBesideSuccess(isRecognizedSuccessOutcome ? AttemptStatus.Completed : AttemptStatus.Failed);
+
         AgentOutcome = effectiveOutcome;
         ApplyAgentProcessEvidence(processEvidence);
         ApplyAgentTokenUsage(tokenUsage);
@@ -1835,6 +1924,9 @@ public sealed class Attempt
         AgentProcessOutcome = processEvidence.Outcome;
         AgentProcessExitCode = processEvidence.ExitCode;
         AgentProcessDuration = processEvidence.Duration;
+        AgentStandardOutputCompletion = processEvidence.IoCompletion?.StandardOutput;
+        AgentStandardErrorCompletion = processEvidence.IoCompletion?.StandardError;
+        AgentStandardInputDelivery = processEvidence.IoCompletion?.StandardInput;
     }
 
     /// <summary>
@@ -1982,6 +2074,7 @@ public sealed class Attempt
         EnsureAgentProcessEvidenceCanBeRecorded(outcome, processEvidence);
         EnsureAgentTokenUsageCanBeRecorded(outcome, tokenUsage);
         EnsureAgentModelContextLimitsCanBeRecorded(outcome, modelContextLimits);
+        EnsureNoDiagnosticBesideSuccess(isSuccess ? AttemptStatus.Completed : AttemptStatus.Failed);
 
         AgentOutcome = outcome;
         ApplyAgentProcessEvidence(processEvidence);
@@ -2083,6 +2176,7 @@ public sealed class Attempt
         EnsureAgentProcessEvidenceCanBeRecorded(outcome, processEvidence);
         EnsureAgentTokenUsageCanBeRecorded(outcome, tokenUsage);
         EnsureAgentModelContextLimitsCanBeRecorded(outcome, modelContextLimits);
+        EnsureNoDiagnosticBesideSuccess(isSuccess ? AttemptStatus.Completed : AttemptStatus.Failed);
 
         AgentOutcome = outcome;
         ApplyAgentProcessEvidence(processEvidence);

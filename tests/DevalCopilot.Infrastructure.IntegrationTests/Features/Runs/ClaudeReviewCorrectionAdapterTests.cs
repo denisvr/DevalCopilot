@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using System.Diagnostics;
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.Runs;
@@ -44,7 +45,9 @@ public sealed class ClaudeReviewCorrectionAdapterTests : IDisposable
         Assert.Equal(ImplementationInvocationOutcome.Exited, result.Outcome);
         Assert.NotNull(fake.Request);
         var request = fake.Request!;
-        Assert.Equal(23, request.Arguments.Count);
+        // ADR-0072: the prompt-suggestion flag and its value are no longer passed.
+        Assert.Equal(21, request.Arguments.Count);
+        Assert.DoesNotContain("--prompt-suggestions", request.Arguments);
         // These fixed flags are exactly the arguments GetReviewCorrectionAttemptStatusQueryHandler
         // discloses as configured facts (permission prompts, built-in tools, permission mode, and
         // provider-session persistence/resume eligibility) for a coherent current ReviewCorrection
@@ -52,11 +55,11 @@ public sealed class ClaudeReviewCorrectionAdapterTests : IDisposable
         // match what the adapter actually passes.
         Assert.Equal("--permission-prompts", request.Arguments[11]);
         Assert.Equal("none", request.Arguments[12]);
-        Assert.Equal("--tools", request.Arguments[15]);
-        Assert.Equal("Read,Edit,Write,Glob,Grep", request.Arguments[16]);
-        Assert.Equal("--permission-mode", request.Arguments[18]);
-        Assert.Equal("acceptEdits", request.Arguments[19]);
-        Assert.Equal("--no-session-persistence", request.Arguments[20]);
+        Assert.Equal("--tools", request.Arguments[13]);
+        Assert.Equal("Read,Edit,Write,Glob,Grep", request.Arguments[14]);
+        Assert.Equal("--permission-mode", request.Arguments[16]);
+        Assert.Equal("acceptEdits", request.Arguments[17]);
+        Assert.Equal("--no-session-persistence", request.Arguments[18]);
         Assert.DoesNotContain("--max-turns", request.Arguments);
         Assert.Equal(manifest.Text, Encoding.UTF8.GetString(request.StandardInput!));
         Assert.DoesNotContain("PATH", request.EnvironmentVariables.Keys, StringComparer.OrdinalIgnoreCase);
@@ -72,7 +75,7 @@ public sealed class ClaudeReviewCorrectionAdapterTests : IDisposable
         var manifest = await SeedManifestAsync(runId, attemptId, "{\"objective\":\"manifest\"}");
         var fake = new FakeProcessExecutionAdapter
         {
-            Output = JsonSerializer.Serialize(new { is_error = false, result = "{\"ok\":true}", session_id = (string?)null }),
+            Output = ClaudeDocumentedEnvelope.SuccessText("{\"ok\":true}", (string?)null),
         };
         var adapter = new ClaudeReviewCorrectionAdapter(fake, artifactStore);
 
@@ -95,7 +98,7 @@ public sealed class ClaudeReviewCorrectionAdapterTests : IDisposable
             var manifest = await SeedManifestAsync(runId, attemptId, "{\"objective\":\"manifest\"}");
             var fake = new FakeProcessExecutionAdapter
             {
-                Output = JsonSerializer.Serialize(new { is_error = false, result = "{}", session_id = sessionId }),
+                Output = ClaudeDocumentedEnvelope.SuccessText("{}", sessionId),
             };
 
             var result = await new ClaudeReviewCorrectionAdapter(fake, artifactStore)
@@ -134,6 +137,7 @@ public sealed class ClaudeReviewCorrectionAdapterTests : IDisposable
         {
             Result = new ProcessExecutionResult
             {
+                IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                 Outcome = ProcessExecutionOutcome.Exited,
                 ExitCode = 1,
                 StandardOutput = "{}",
@@ -291,7 +295,8 @@ public sealed class ClaudeReviewCorrectionAdapterTests : IDisposable
 
     private ReviewCorrectionInvocationRequest CreateRequest(Guid runId, Guid attemptId, SeededManifest manifest) =>
         new(runId, attemptId, workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
-            CreateLaunchFile(), TimeSpan.FromMinutes(5), 65536, 131072);
+            CreateLaunchFile(), TimeSpan.FromMinutes(5), 65536, 131072,
+            AdapterContractVersion: ClaudeMutationAdapterContract.CurrentReviewCorrection);
 
     private string CreateLaunchFile()
     {
@@ -345,7 +350,7 @@ public sealed class ClaudeReviewCorrectionAdapterTests : IDisposable
     private sealed class FakeProcessExecutionAdapter : IProcessExecutionAdapter
     {
         public ProcessExecutionRequest? Request { get; private set; }
-        public string Output { get; set; } = JsonSerializer.Serialize(new { is_error = false, result = "{}", session_id = (string?)null });
+        public string Output { get; set; } = ClaudeDocumentedEnvelope.SuccessText("{}", (string?)null);
         public ProcessExecutionResult? Result { get; set; }
         public bool ThrowCancellation { get; set; }
 
@@ -355,6 +360,7 @@ public sealed class ClaudeReviewCorrectionAdapterTests : IDisposable
             if (ThrowCancellation) throw new OperationCanceledException();
             return Task.FromResult(Result ?? new ProcessExecutionResult
             {
+                IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                 Outcome = ProcessExecutionOutcome.Exited,
                 ExitCode = 0,
                 StandardOutput = Output,

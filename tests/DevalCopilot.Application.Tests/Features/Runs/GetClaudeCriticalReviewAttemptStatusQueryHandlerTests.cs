@@ -153,7 +153,7 @@ public sealed class GetClaudeCriticalReviewAttemptStatusQueryHandlerTests(Sqlite
         dbContext.AttemptInputMessages.Add(inputMessage);
         await dbContext.SaveChangesAsync(CancellationToken.None);
         await dbContext.Database.ExecuteSqlInterpolatedAsync($"""
-            UPDATE attempts SET AgentAdapterContractVersion = 'claude-critical-review-v2' WHERE Id = {attempt.Id}
+            UPDATE attempts SET AgentAdapterContractVersion = 'claude-critical-review-v3' WHERE Id = {attempt.Id}
             """);
 
         await using var readContext = fixture.CreateContext();

@@ -157,7 +157,7 @@ public sealed class LocalExecutionOwnershipReleaseMigrationTests : LocalExecutio
     {
         await MigrateToAsync(QueueMigration);
         Guid operationId;
-        await using (var seed = CreateContext())
+        await using (var seed = CreatePriorSchemaContext())
         {
             var scene = await SeedSceneAsync(seed);
             var sequence = AddArmed(seed, scene);
@@ -633,6 +633,10 @@ public sealed class LocalExecutionOwnershipReleaseMigrationTests : LocalExecutio
                 "CREATE TRIGGER trg_local_execution_termination_observations_no_delete BEFORE DELETE ON local_execution_termination_observations "
                 + $"BEGIN SELECT RAISE(ABORT, '{ImmutableMessage}'); END;");
         }
+
+        // ADR-0072: the later, unused AddWindowsExecutionProfileEvidence is reversed first, so the refusal is attempted from exactly the
+        // release schema it protects.
+        await MigrateToAsync(ReleaseMigration);
 
         var tablesBefore = await ReadNamesAsync("table");
         var triggersBefore = await ReadTriggerSqlAsync("trg_%");

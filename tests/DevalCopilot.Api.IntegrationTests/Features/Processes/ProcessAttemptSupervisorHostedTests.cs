@@ -11,6 +11,7 @@ using DevalCopilot.Application.Features.Runs.Commands.MarkProcessAttemptDispatch
 using DevalCopilot.Application.Features.Runs.Commands.ReconcileInterruptedProcessAttempts;
 using DevalCopilot.Application.Features.Runs.Commands.RecordProcessAttemptResult;
 using DevalCopilot.Application.Features.Runs.Queries.GetProcessAttemptOutput;
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using DevalCopilot.Infrastructure.Features.Processes;
@@ -668,6 +669,70 @@ public sealed class ProcessAttemptSupervisorHostedTests : IDisposable
         var sealedPath = Path.Combine(_artifactRoot, stdoutArtifact.RelativeStoragePath);
         Assert.True(File.Exists(sealedPath));
         Assert.Contains("recovery-test-content", await File.ReadAllTextAsync(sealedPath));
+    }
+
+    [Fact]
+    public async Task An_unproved_stdout_writer_is_neither_sealed_nor_deleted_and_the_exit_zero_is_not_a_completion()
+    {
+        // ADR-0072 (review WEP-R1): the stdout writer was not proved closed; stderr was.
+        var adapter = new UnprovedStdoutAdapter();
+        await using var provider = BuildServiceProvider(services =>
+        {
+            services.RemoveAll<IProcessExecutionAdapter>();
+            services.AddSingleton<IProcessExecutionAdapter>(adapter);
+        });
+        var (runId, attemptId) = await ClaimAttemptAsync(provider, ["exit-code", "0"], TimeSpan.FromSeconds(10));
+
+        var supervisor = CreateSupervisor(provider);
+        await supervisor.StartAsync(CancellationToken.None);
+        try
+        {
+            Assert.Equal(AttemptStatus.Failed, await PollForTerminalStatusAsync(provider, attemptId));
+        }
+        finally
+        {
+            using var stopCancellation = new CancellationTokenSource(PollTimeout);
+            await supervisor.StopAsync(stopCancellation.Token);
+        }
+
+        await using var scope = provider.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        var attempt = await dbContext.Attempts.AsNoTracking().SingleAsync(candidate => candidate.Id == attemptId);
+        Assert.Equal(0, attempt.ProcessExitCode);
+        Assert.Equal(OutputCaptureCompletion.Unknown, attempt.ProcessStandardOutputCompletion);
+        var purposes = await dbContext.Artifacts.AsNoTracking()
+            .Where(artifact => artifact.AttemptId == attemptId)
+            .Select(artifact => artifact.Purpose)
+            .ToListAsync();
+        Assert.Equal([ArtifactPurpose.ProcessStandardError], purposes);
+        var store = provider.GetRequiredService<IArtifactStore>();
+        Assert.True(File.Exists(store.GetPartialPath(runId, attemptId, ArtifactPurpose.ProcessStandardOutput)));
+    }
+
+    /// <summary>Writes both partial sink files like the real adapter and reports a stdout writer it did not prove closed.</summary>
+    private sealed class UnprovedStdoutAdapter : IProcessExecutionAdapter
+    {
+        public async Task<ProcessExecutionResult> ExecuteAsync(ProcessExecutionRequest request, CancellationToken cancellationToken)
+        {
+            foreach (var (path, text) in new[] { (request.StandardOutputSinkPath, "unproved stdout"), (request.StandardErrorSinkPath, "proved stderr") })
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(path!)!);
+                await File.WriteAllTextAsync(path!, text, cancellationToken);
+            }
+
+            return new ProcessExecutionResult
+            {
+                IoCompletion = new ProcessIoCompletion(
+                    OutputCaptureCompletion.Unknown, OutputCaptureCompletion.Complete, InputDeliveryCompletion.NotRedirected),
+                Outcome = ProcessExecutionOutcome.Exited,
+                ExitCode = 0,
+                StandardOutput = "unproved stdout",
+                StandardOutputTruncated = false,
+                StandardError = "proved stderr",
+                StandardErrorTruncated = false,
+                Duration = TimeSpan.FromMilliseconds(5),
+            };
+        }
     }
 
     private ServiceProvider BuildServiceProvider(Action<ServiceCollection>? configureAdditionalServices = null)

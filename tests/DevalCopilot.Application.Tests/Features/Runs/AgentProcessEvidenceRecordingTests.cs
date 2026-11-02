@@ -1,4 +1,5 @@
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.Runs;
@@ -9,10 +10,11 @@ namespace DevalCopilot.Application.Tests.Features.Runs;
 public sealed class AgentProcessEvidenceRecordingTests
 {
     [Fact]
-    public void FromProcessExecutionResult_preserves_outcome_exit_code_and_host_measured_duration_only()
+    public void FromProcessExecutionResult_preserves_outcome_exit_code_host_measured_duration_and_io_completion_only()
     {
         var result = new ProcessExecutionResult
         {
+            IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
             Outcome = ProcessExecutionOutcome.Exited,
             ExitCode = 3,
             StandardOutput = "raw provider output that must never cross into evidence",
@@ -24,7 +26,9 @@ public sealed class AgentProcessEvidenceRecordingTests
 
         var evidence = AgentProcessEvidence.FromProcessExecutionResult(result);
 
-        Assert.Equal(new AgentProcessEvidence(ProcessExecutionOutcome.Exited, 3, TimeSpan.FromMilliseconds(4321)), evidence);
+        Assert.Equal(
+            new AgentProcessEvidence(ProcessExecutionOutcome.Exited, 3, TimeSpan.FromMilliseconds(4321)) { IoCompletion = ProcessIoCompletion.CompleteWithoutInput },
+            evidence);
         Assert.False(evidence.IsCleanExit);
     }
 

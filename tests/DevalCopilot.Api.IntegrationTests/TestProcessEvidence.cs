@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.Runs;
@@ -10,9 +11,9 @@ internal static class TestProcessEvidence
 {
     /// <summary>Domain evidence passed directly to an Agent completion transition.</summary>
     public static AgentProcessExecutionEvidence CleanExit { get; } =
-        AgentProcessExecutionEvidence.Create(ProcessOutcome.Exited, 0, TimeSpan.FromMilliseconds(1250));
+        AgentProcessExecutionEvidence.Create(ProcessOutcome.Exited, 0, TimeSpan.FromMilliseconds(1250), ProcessIoCompletion.CompleteWithInput);
 
     /// <summary>The same evidence as an adapter reports it through the provider-neutral port.</summary>
     public static AgentProcessEvidence ReportedCleanExit { get; } =
-        new(ProcessExecutionOutcome.Exited, 0, TimeSpan.FromMilliseconds(1250));
+        new(ProcessExecutionOutcome.Exited, 0, TimeSpan.FromMilliseconds(1250)) { IoCompletion = ProcessIoCompletion.CompleteWithInput };
 }

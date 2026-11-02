@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Application.Features.Runs.Commands.MarkAgentAttemptDispatched;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
@@ -664,7 +665,7 @@ public sealed class MarkAgentAttemptDispatchedCommandHandlerTests(SqliteDatabase
                 Guid.NewGuid(), project.Id, index + 1, $"Command {index + 1}", @"C:\dotnet.exe", ["test"], 300, true, Now);
             var execution = VerificationExecution.Claim(allExecutionIds[index], project.Id, index + 1, workspace, checkpoint, command, Now);
             execution.MarkDispatched(Now);
-            execution.Complete(VerificationExecutionOutcome.Exited, 0, checkpoint.FingerprintSha256, Now);
+            execution.Complete(VerificationExecutionOutcome.Exited, 0, checkpoint.FingerprintSha256, Now, ProcessIoCompletion.CompleteWithoutInput);
             commandIdByExecutionId[allExecutionIds[index]] = command.Id;
             commands.Add(command);
             executions.Add(execution);

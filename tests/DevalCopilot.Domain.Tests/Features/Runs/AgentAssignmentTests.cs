@@ -132,7 +132,7 @@ public sealed class AgentAssignmentTests
         Assert.Null(assignment.RequestedEffort);
         Assert.Null(assignment.ObservedEffort);
         Assert.Equal(AgentPermissionProfile.ReadOnly, assignment.PermissionProfile);
-        Assert.Equal("claude-critical-review-v1", assignment.AdapterContractVersion);
+        Assert.Equal("claude-critical-review-v2", assignment.AdapterContractVersion);
     }
 
     [Fact]

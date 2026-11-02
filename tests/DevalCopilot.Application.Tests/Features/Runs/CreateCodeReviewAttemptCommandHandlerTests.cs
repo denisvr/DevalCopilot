@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using System.Security.Cryptography;
 using System.Text.Json;
 using DevalCopilot.Application.Data;
@@ -255,11 +256,11 @@ public sealed partial class CreateCodeReviewAttemptCommandHandlerTests : IAsyncL
         execution.MarkDispatched(occurredAtUtc);
         if (status == VerificationExecutionStatus.Passed)
         {
-            execution.Complete(VerificationExecutionOutcome.Exited, 0, checkpoint.FingerprintSha256, occurredAtUtc);
+            execution.Complete(VerificationExecutionOutcome.Exited, 0, checkpoint.FingerprintSha256, occurredAtUtc, ProcessIoCompletion.CompleteWithoutInput);
         }
         else if (status == VerificationExecutionStatus.Failed)
         {
-            execution.Complete(VerificationExecutionOutcome.Exited, 1, checkpoint.FingerprintSha256, occurredAtUtc);
+            execution.Complete(VerificationExecutionOutcome.Exited, 1, checkpoint.FingerprintSha256, occurredAtUtc, ProcessIoCompletion.CompleteWithoutInput);
         }
         else
         {

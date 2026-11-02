@@ -1,5 +1,6 @@
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Domain.Features.Runs;
 
 namespace DevalCopilot.Application.Features.Runs.Commands.RecordProcessAttemptResult;
@@ -18,5 +19,10 @@ namespace DevalCopilot.Application.Features.Runs.Commands.RecordProcessAttemptRe
 /// absent from this list; that never blocks or alters the attempt's own terminal recording.
 /// </summary>
 public sealed record RecordProcessAttemptResultCommand(
-    Guid RunId, Guid AttemptId, ProcessOutcome? Outcome, int? ExitCode, IReadOnlyList<SealedOutputArtifact> SealedArtifacts)
+    Guid RunId,
+    Guid AttemptId,
+    ProcessOutcome? Outcome,
+    int? ExitCode,
+    IReadOnlyList<SealedOutputArtifact> SealedArtifacts,
+    ProcessIoCompletion? IoCompletion = null)
     : ICommand<Result<AttemptStatus>>;

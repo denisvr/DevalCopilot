@@ -43,6 +43,11 @@ outside the 32-bit range; a missing or malformed `usage` never rejects an
 otherwise valid review, report, or correction. A single unambiguous `usage`
 object is required: duplicate `usage` members or duplicate
 required count members make usage unknown without rejecting the business result.
+Since [ADR-0072](../decisions/0072-adopt-one-windows-execution-profile.md) a
+duplicated root `usage` (or `modelUsage`) member is a duplicated envelope
+property, so the shared envelope reader rejects the whole envelope
+(InvalidEnvelope) and no usage is kept; duplicate members inside one `usage`
+object still make only usage unknown.
 The Domain accepts this evidence only for the exact provider/schema pair
 `ClaudeCode` + `claude-cli-usage-v1`; even a well-formed persisted row with
 a mismatched provider or schema projects as unknown, not as known usage.

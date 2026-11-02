@@ -1,4 +1,5 @@
 using Devalente.Shared.Cqrs;
+using DevalCopilot.Domain.Features.Runs;
 
 namespace DevalCopilot.Application.Features.Runs.Queries.GetTerminalProcessAttempts;
 
@@ -10,4 +11,4 @@ namespace DevalCopilot.Application.Features.Runs.Queries.GetTerminalProcessAttem
 /// </summary>
 public sealed record GetTerminalProcessAttemptsQuery : IQuery<IReadOnlyList<TerminalProcessAttempt>>;
 
-public sealed record TerminalProcessAttempt(Guid RunId, Guid AttemptId);
+public sealed record TerminalProcessAttempt(Guid RunId, Guid AttemptId, IReadOnlyList<ArtifactPurpose>? RecordedPurposes = null);

@@ -192,6 +192,15 @@ under [Proposed decisions](#proposed-decisions).
 - [ADR-0071: Inspect recorded run abandonment in history](0071-inspect-recorded-run-abandonment-in-history.md)
   (accepted, implemented in RUN-ABANDON-INSPECT-01, reviewed GO after RABI-R1/RABI-V1 correction; reconcile publication with Git and the planner handoff; one bounded protected recorded read and one explicit historical region for the Human reason/time and supporting event of an abandoned run, reusing the unchanged coherence rule; no live eligibility, intake, recovery, execution or publication authority)
 
+- [ADR-0072: Adopt one Windows execution profile](0072-adopt-one-windows-execution-profile.md)
+  (accepted, planner-selected WIN-EXEC-PROFILE-01 implemented for review; versioned Claude contracts read only the documented structured output, closed persisted invocation diagnostics, bounded process I/O completion required for every success, one fixed Windows verification environment, checked fatal startup with a closed shell frame and fixed guidance; narrowly extends ADR-0002, ADR-0004, ADR-0006, ADR-0009, ADR-0023, ADR-0055, ADR-0056, ADR-0060, ADR-0061 and ADR-0069; ADR-0065/0066 release semantics unchanged; no recovery, retry, release or publication authority)
+
+- [ADR-0073: Add an owned NuGet base to the Windows verification profile](0073-add-an-owned-nuget-base-to-the-windows-verification-profile.md)
+  (accepted, planner-authorized WIN-EXEC-PROFILE-01 correction for review; narrowly extends ADR-0072: new executions record `windows-verification-v2`, which gives only `dotnet.exe` an owned, empty `ProgramFiles(x86)` as NuGet's machine-settings base; no ambient Program Files value, fallback or other key change; recorded v1/null history unchanged; configuration scoping, not isolation; current version since extended by ADR-0074)
+
+- [ADR-0074: Disable SDK first-run persistent side effects in the Windows verification profile](0074-disable-sdk-first-run-persistent-side-effects-in-the-windows-verification-profile.md)
+  (accepted, planner-authorized WIN-EXEC-PROFILE-01 correction for review of WEP-F6; extends ADR-0073: new executions record `windows-verification-v3`, which gives only `dotnet.exe` the literal `DOTNET_ADD_GLOBAL_TOOLS_TO_PATH=false` and `DOTNET_GENERATE_ASPNET_CERTIFICATE=false` so the SDK's first run no longer appends to the persistent user `PATH` or generates a development certificate; every other key and rule unchanged; recorded v1/v2/null history unchanged with no migration; disables two named side effects, not isolation)
+
 ## Partially superseded decisions
 
 - [ADR-0001: Build a local-first supervised orchestrator](0001-build-a-local-first-supervised-orchestrator.md)

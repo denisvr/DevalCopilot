@@ -150,7 +150,7 @@ public sealed class CheckpointReviewTests
         {
             (VerificationExecutionStatus.TimedOut, VerificationExecutionOutcome.Exited, (int?)1),
             (VerificationExecutionStatus.Cancelled, VerificationExecutionOutcome.Exited, (int?)1),
-            (VerificationExecutionStatus.Failed, VerificationExecutionOutcome.Exited, (int?)0),
+            (VerificationExecutionStatus.Failed, VerificationExecutionOutcome.Exited, (int?)null),
             (VerificationExecutionStatus.Failed, VerificationExecutionOutcome.TimedOut, (int?)null),
             (VerificationExecutionStatus.Passed, VerificationExecutionOutcome.Exited, (int?)1),
         };
@@ -161,6 +161,18 @@ public sealed class CheckpointReviewTests
                 Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), 1,
                 Fingerprint, status, outcome, exitCode));
         }
+    }
+
+    [Fact]
+    public void A_failed_execution_with_an_actual_exit_zero_tuple_is_snapshot_unchanged()
+    {
+        // ADR-0072: an execution whose I/O never completed fails even with an observed exit code zero; the snapshot keeps that fact.
+        var evidence = CheckpointReviewEvidence.Observe(
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), 1,
+            Fingerprint, VerificationExecutionStatus.Failed, VerificationExecutionOutcome.Exited, 0);
+
+        Assert.Equal(VerificationExecutionStatus.Failed, evidence.VerificationExecutionStatus);
+        Assert.Equal(0, evidence.VerificationExecutionExitCode);
     }
 
     [Fact]

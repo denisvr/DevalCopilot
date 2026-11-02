@@ -15,6 +15,10 @@ public interface IVerificationOutputArtifactStore
         VerificationOutputPurpose purpose,
         CancellationToken cancellationToken);
 
+    /// <summary>Whether a sealed file exists at the deterministic path, independently of whether it can be read (ADR-0072: an
+    /// existing file that cannot be described is a read fault, not an absence).</summary>
+    bool HasSealedFile(Guid verificationExecutionId, VerificationOutputPurpose purpose);
+
     Task<SealedVerificationOutputFile?> DescribeSealedFileAsync(
         Guid verificationExecutionId,
         VerificationOutputPurpose purpose,

@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.Runs;
@@ -57,12 +58,12 @@ public sealed class ClaudeMutationTurnLimitAdapterTests : IDisposable
         : ClaudeMutationAdapterContract.ReviewCorrectionV1;
 
     private static string V2(MutationPath path) => path == MutationPath.Implementation
-        ? ClaudeMutationAdapterContract.ImplementationV2
-        : ClaudeMutationAdapterContract.ReviewCorrectionV2;
+        ? ClaudeMutationAdapterContract.CurrentImplementation
+        : ClaudeMutationAdapterContract.CurrentReviewCorrection;
 
     private static string OtherPathV2(MutationPath path) => path == MutationPath.Implementation
-        ? ClaudeMutationAdapterContract.ReviewCorrectionV2
-        : ClaudeMutationAdapterContract.ImplementationV2;
+        ? ClaudeMutationAdapterContract.CurrentReviewCorrection
+        : ClaudeMutationAdapterContract.CurrentImplementation;
 
     private async Task<Invocation> InvokeAsync(
         MutationPath path,
@@ -211,16 +212,11 @@ public sealed class ClaudeMutationTurnLimitAdapterTests : IDisposable
     }
 
     [Theory]
-    [InlineData(MutationPath.Implementation, false)]
-    [InlineData(MutationPath.Implementation, true)]
-    [InlineData(MutationPath.ReviewCorrection, false)]
-    [InlineData(MutationPath.ReviewCorrection, true)]
-    public async Task A_null_request_keeps_the_exact_historical_argument_list_for_both_contract_versions(
-        MutationPath path, bool v2)
+    [InlineData(MutationPath.Implementation)]
+    [InlineData(MutationPath.ReviewCorrection)]
+    public async Task A_null_request_under_the_current_contract_passes_exactly_the_fixed_arguments(MutationPath path)
     {
-        var version = v2 ? V2(path) : V1(path);
-
-        var result = await InvokeAsync(path, null, version);
+        var result = await InvokeAsync(path, null, V2(path));
 
         Assert.False(result.Failed);
         Assert.Equal(1, result.Starts);
@@ -229,33 +225,48 @@ public sealed class ClaudeMutationTurnLimitAdapterTests : IDisposable
             ? JsonSerializer.Serialize(ImplementationReportOutputSchema.BuildSchemaDocument())
             : JsonSerializer.Serialize(ReviewCorrectionOutputSchema.BuildSchemaDocument());
         var arguments = result.Arguments;
-        Assert.Equal(23, arguments.Count);
+
+        // ADR-0072: the prompt-suggestion flag is no longer passed; every other argument is unchanged.
+        Assert.Equal(21, arguments.Count);
         Assert.Equal(
             [
                 "--print", "--input-format", "text", "--output-format", "json",
                 "--json-schema", schemaJson,
                 "--safe-mode", "--restricted", "--disable-slash-commands", "--no-chrome",
-                "--permission-prompts", "none", "--prompt-suggestions", "false",
+                "--permission-prompts", "none",
                 "--tools", "Read,Edit,Write,Glob,Grep", "--strict-mcp-config",
                 "--permission-mode", "acceptEdits", "--no-session-persistence",
                 "--session-id",
             ],
-            arguments.Take(22));
-        Assert.True(Guid.TryParse(arguments[22], out _));
+            arguments.Take(20));
+        Assert.True(Guid.TryParse(arguments[20], out _));
+        Assert.DoesNotContain("--prompt-suggestions", arguments);
     }
 
     [Theory]
-    [InlineData(MutationPath.Implementation)]
-    [InlineData(MutationPath.ReviewCorrection)]
-    public async Task A_null_request_with_no_recorded_version_keeps_the_historical_argument_list(MutationPath path)
+    [InlineData(MutationPath.Implementation, "v1")]
+    [InlineData(MutationPath.Implementation, "v2")]
+    [InlineData(MutationPath.Implementation, null)]
+    [InlineData(MutationPath.ReviewCorrection, "v1")]
+    [InlineData(MutationPath.ReviewCorrection, "v2")]
+    [InlineData(MutationPath.ReviewCorrection, null)]
+    public async Task A_historical_or_unrecorded_contract_is_never_dispatched_by_the_current_adapter(MutationPath path, string? historical)
     {
-        var baseline = await InvokeAsync(path, null, V1(path));
+        // ADR-0072: an attempt claimed under an earlier contract is never upgraded or redispatched.
+        var version = historical switch
+        {
+            "v1" => V1(path),
+            "v2" => path == MutationPath.Implementation
+                ? ClaudeMutationAdapterContract.ImplementationV2
+                : ClaudeMutationAdapterContract.ReviewCorrectionV2,
+            _ => null,
+        };
 
-        var unversioned = await InvokeAsync(path, null, null);
+        var result = await InvokeAsync(path, null, version);
 
-        Assert.False(unversioned.Failed);
-        Assert.DoesNotContain("--max-turns", unversioned.Arguments);
-        AssertEqualExceptSessionId(baseline.Arguments, unversioned.Arguments);
+        Assert.True(result.Failed);
+        Assert.Equal(0, result.Starts);
+        Assert.Null(result.Request);
     }
 
     [Theory]
@@ -286,7 +297,8 @@ public sealed class ClaudeMutationTurnLimitAdapterTests : IDisposable
         var incoherentVersions = new string?[]
         {
             V1(path),
-            path == MutationPath.Implementation ? "claude-implementation-v3" : "claude-review-correction-v3",
+            path == MutationPath.Implementation ? "claude-implementation-v4" : "claude-review-correction-v4",
+            path == MutationPath.Implementation ? ClaudeMutationAdapterContract.ImplementationV2 : ClaudeMutationAdapterContract.ReviewCorrectionV2,
             V2(path).ToUpperInvariant(),
             V2(path) + " ",
             null,
@@ -317,6 +329,7 @@ public sealed class ClaudeMutationTurnLimitAdapterTests : IDisposable
             V2(path),
             onExecute: _ => new ProcessExecutionResult
             {
+                IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                 Outcome = ProcessExecutionOutcome.Exited,
                 ExitCode = 1,
                 StandardOutput = string.Empty,
@@ -359,7 +372,7 @@ public sealed class ClaudeMutationTurnLimitAdapterTests : IDisposable
             await new ClaudeCriticalReviewAdapter(fake, _artifactStore).InvokeAsync(
                 new CriticalReviewInvocationRequest(
                     runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
-                    executablePath, TimeSpan.FromMinutes(10), 65536, 131072, model, effort),
+                    executablePath, TimeSpan.FromMinutes(10), 65536, 131072, model, effort, AdapterContractVersion: ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion),
                 CancellationToken.None);
 
             var arguments = fake.Request!.Arguments.ToList();
@@ -403,9 +416,10 @@ public sealed class ClaudeMutationTurnLimitAdapterTests : IDisposable
 
             return Task.FromResult(OnExecute?.Invoke(request) ?? new ProcessExecutionResult
             {
+                IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                 Outcome = ProcessExecutionOutcome.Exited,
                 ExitCode = 0,
-                StandardOutput = JsonSerializer.Serialize(new { is_error = false, result = "{}", session_id = (string?)null }),
+                StandardOutput = ClaudeDocumentedEnvelope.SuccessText("{}", (string?)null),
                 StandardOutputTruncated = false,
                 StandardError = string.Empty,
                 StandardErrorTruncated = false,

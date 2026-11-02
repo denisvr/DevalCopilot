@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Features.Projects.Commands.RecordCheckpointReview;
 using DevalCopilot.Application.Features.Projects.Ports;
@@ -816,7 +817,7 @@ public sealed class RecordCheckpointReviewCompleteSetTests : IAsyncLifetime
     {
         var execution = VerificationExecution.Claim(Guid.NewGuid(), project.Id, number, workspace, checkpoint, command, Now);
         execution.MarkDispatched(Now);
-        execution.Complete(VerificationExecutionOutcome.Exited, status == VerificationExecutionStatus.Passed ? 0 : 1, checkpoint.FingerprintSha256, Now);
+        execution.Complete(VerificationExecutionOutcome.Exited, status == VerificationExecutionStatus.Passed ? 0 : 1, checkpoint.FingerprintSha256, Now, ProcessIoCompletion.CompleteWithoutInput);
         return execution;
     }
 

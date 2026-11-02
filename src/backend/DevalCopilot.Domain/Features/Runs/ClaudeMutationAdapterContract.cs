@@ -3,9 +3,12 @@ namespace DevalCopilot.Domain.Features.Runs;
 /// <summary>
 /// The exact adapter contract versions of the two mutating Claude paths and what each can carry.
 /// Version 1 is the historical invocation with no turn-limit override; version 2 is the same
-/// invocation plus one optional, immutable agentic-turn limit. Every newly claimed attempt uses
-/// version 2 even when the limit is null, and a non-null limit is only ever coherent with the exact
-/// version 2 of its own path, so a request can never be silently dispatched without its flag.
+/// invocation plus one optional, immutable agentic-turn limit. Version 3 (ADR-0072) carries exactly what
+/// version 2 carries but reads only the schema-validated <c>structured_output</c> of the documented result
+/// envelope, never the narrative result, and no longer passes the prompt-suggestion flag. Every newly
+/// claimed attempt uses version 3 even when the limit is null; versions 1 and 2 remain historical,
+/// classifiable facts that the current adapters never dispatch. A non-null limit is only ever coherent with
+/// version 2 or 3 of its own path, so a request can never be silently dispatched without its flag.
 /// </summary>
 public static class ClaudeMutationAdapterContract
 {
@@ -13,19 +16,40 @@ public static class ClaudeMutationAdapterContract
 
     public const string ImplementationV2 = "claude-implementation-v2";
 
+    public const string ImplementationV3 = "claude-implementation-v3";
+
     public const string ReviewCorrectionV1 = "claude-review-correction-v1";
 
     public const string ReviewCorrectionV2 = "claude-review-correction-v2";
 
-    /// <summary>Whether <paramref name="version"/> is the exact version 2 that carries the turn-limit option.</summary>
-    public static bool CarriesTurnLimit(string? version) => version is ImplementationV2 or ReviewCorrectionV2;
+    public const string ReviewCorrectionV3 = "claude-review-correction-v3";
 
-    /// <summary>Whether <paramref name="version"/> is the exact version 1 or 2 of the path that owns
+    /// <summary>The current version a new initial implementation attempt is claimed with.</summary>
+    public const string CurrentImplementation = ImplementationV3;
+
+    /// <summary>The current version a new review or diagnosis correction attempt is claimed with.</summary>
+    public const string CurrentReviewCorrection = ReviewCorrectionV3;
+
+    /// <summary>Whether <paramref name="version"/> is an exact version 2 or 3 that carries the turn-limit option.</summary>
+    public static bool CarriesTurnLimit(string? version) =>
+        version is ImplementationV2 or ImplementationV3 or ReviewCorrectionV2 or ReviewCorrectionV3;
+
+    /// <summary>Whether <paramref name="version"/> is the exact version 1, 2 or 3 of the path that owns
     /// <paramref name="responseContract"/> (an initial implementation report or a review correction).</summary>
     public static bool IsKnownVersionFor(AgentResponseContract? responseContract, string? version) => responseContract switch
     {
-        AgentResponseContract.ImplementationReport => version is ImplementationV1 or ImplementationV2,
-        AgentResponseContract.ReviewCorrection => version is ReviewCorrectionV1 or ReviewCorrectionV2,
+        AgentResponseContract.ImplementationReport => version is ImplementationV1 or ImplementationV2 or ImplementationV3,
+        AgentResponseContract.ReviewCorrection => version is ReviewCorrectionV1 or ReviewCorrectionV2 or ReviewCorrectionV3,
+        _ => false,
+    };
+
+    /// <summary>Whether <paramref name="version"/> is the exact current version of the path that owns
+    /// <paramref name="responseContract"/>: the only version the current adapters may dispatch. A historical version
+    /// is never upgraded or redispatched.</summary>
+    public static bool IsCurrentVersionFor(AgentResponseContract? responseContract, string? version) => responseContract switch
+    {
+        AgentResponseContract.ImplementationReport => version == CurrentImplementation,
+        AgentResponseContract.ReviewCorrection => version == CurrentReviewCorrection,
         _ => false,
     };
 
@@ -84,11 +108,11 @@ public static class ClaudeMutationAdapterContract
             return DirectHumanGuidanceEvidence.Unknown;
         }
 
-        var (first, second) = responseContract switch
+        var (first, second, third) = responseContract switch
         {
-            AgentResponseContract.ImplementationReport => (ImplementationV1, ImplementationV2),
-            AgentResponseContract.ReviewCorrection => (ReviewCorrectionV1, ReviewCorrectionV2),
-            _ => (null, null),
+            AgentResponseContract.ImplementationReport => (ImplementationV1, ImplementationV2, ImplementationV3),
+            AgentResponseContract.ReviewCorrection => (ReviewCorrectionV1, ReviewCorrectionV2, ReviewCorrectionV3),
+            _ => (null, null, null),
         };
 
         if (first is null)
@@ -108,7 +132,8 @@ public static class ClaudeMutationAdapterContract
             return reading.Text is null ? DirectHumanGuidanceEvidence.NotRecorded : DirectHumanGuidanceEvidence.Unknown;
         }
 
-        if (string.Equals(adapterContractVersion, second, StringComparison.Ordinal))
+        if (string.Equals(adapterContractVersion, second, StringComparison.Ordinal)
+            || string.Equals(adapterContractVersion, third, StringComparison.Ordinal))
         {
             return reading.Text is null ? DirectHumanGuidanceEvidence.NotRecorded : DirectHumanGuidanceEvidence.Provided;
         }
@@ -149,11 +174,11 @@ public static class ClaudeMutationAdapterContract
 
         var requestedMaxTurns = reading.Value;
 
-        var (first, second) = responseContract switch
+        var (first, second, third) = responseContract switch
         {
-            AgentResponseContract.ImplementationReport => (ImplementationV1, ImplementationV2),
-            AgentResponseContract.ReviewCorrection => (ReviewCorrectionV1, ReviewCorrectionV2),
-            _ => (null, null),
+            AgentResponseContract.ImplementationReport => (ImplementationV1, ImplementationV2, ImplementationV3),
+            AgentResponseContract.ReviewCorrection => (ReviewCorrectionV1, ReviewCorrectionV2, ReviewCorrectionV3),
+            _ => (null, null, null),
         };
 
         if (first is null)
@@ -177,7 +202,8 @@ public static class ClaudeMutationAdapterContract
                 : ClaudeMutationTurnLimitEvidence.Unknown;
         }
 
-        if (string.Equals(adapterContractVersion, second, StringComparison.Ordinal))
+        if (string.Equals(adapterContractVersion, second, StringComparison.Ordinal)
+            || string.Equals(adapterContractVersion, third, StringComparison.Ordinal))
         {
             return requestedMaxTurns is null
                 ? ClaudeMutationTurnLimitEvidence.NotRequested

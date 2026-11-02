@@ -45,6 +45,9 @@ public sealed class AgentSupervisionMigrationTests : IAsyncLifetime
     private DevalCopilotDbContext CreateContext() =>
         new(new DbContextOptionsBuilder<DevalCopilotDbContext>().UseSqlite($"Data Source={databasePath}").Options);
 
+    /// <summary>ADR-0072: seeds and reads at a schema older than AddWindowsExecutionProfileEvidence.</summary>
+    private DevalCopilotDbContext CreatePriorSchemaContext() => BeforeExecutionProfileContext.Create($"Data Source={databasePath}");
+
     private async Task MigrateToAsync(string? target)
     {
         await using var context = CreateContext();
@@ -126,7 +129,7 @@ public sealed class AgentSupervisionMigrationTests : IAsyncLifetime
     {
         await MigrateToAsync(PriorMigration);
         Guid attemptId;
-        await using (var seed = CreateContext())
+        await using (var seed = CreatePriorSchemaContext())
         {
             attemptId = (await SeedAsync(seed)).Attempt.Id;
         }
@@ -140,7 +143,7 @@ public sealed class AgentSupervisionMigrationTests : IAsyncLifetime
         Assert.Contains("ix_agent_supervisions_attempt", await ReadNamesAsync("index", "ix_agent_supervisions%"));
         Assert.Contains("ix_agent_supervisions_open", await ReadNamesAsync("index", "ix_agent_supervisions%"));
         Assert.Contains("ix_agent_supervisions_run", await ReadNamesAsync("index", "ix_agent_supervisions%"));
-        await using var verify = CreateContext();
+        await using var verify = CreatePriorSchemaContext();
         Assert.Empty(await verify.AgentSupervisions.AsNoTracking().ToListAsync());
         Assert.Equal(AttemptStatus.Running, (await verify.Attempts.AsNoTracking().SingleAsync(attempt => attempt.Id == attemptId)).Status);
     }

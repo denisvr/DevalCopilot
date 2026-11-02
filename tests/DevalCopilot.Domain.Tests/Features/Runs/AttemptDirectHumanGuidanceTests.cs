@@ -113,7 +113,9 @@ public sealed class AttemptDirectHumanGuidanceTests
     [InlineData(AgentResponseContract.ImplementationReport, AgentRole.Implementer, AgentProvider.Codex, AgentPermissionProfile.WorkspaceEditOnly, ClaudeMutationAdapterContract.ImplementationV2, "t", DirectHumanGuidanceEvidence.Unknown, false)]
     [InlineData(AgentResponseContract.ImplementationReport, AgentRole.CodeReviewer, AgentProvider.ClaudeCode, AgentPermissionProfile.WorkspaceEditOnly, ClaudeMutationAdapterContract.ImplementationV2, "t", DirectHumanGuidanceEvidence.Unknown, false)]
     [InlineData(AgentResponseContract.ImplementationReport, AgentRole.Implementer, AgentProvider.ClaudeCode, AgentPermissionProfile.ReadOnly, ClaudeMutationAdapterContract.ImplementationV2, "t", DirectHumanGuidanceEvidence.Unknown, false)]
-    [InlineData(AgentResponseContract.ImplementationReport, AgentRole.Implementer, AgentProvider.ClaudeCode, AgentPermissionProfile.WorkspaceEditOnly, "claude-implementation-v3", "t", DirectHumanGuidanceEvidence.Unknown, false)]
+    [InlineData(AgentResponseContract.ImplementationReport, AgentRole.Implementer, AgentProvider.ClaudeCode, AgentPermissionProfile.WorkspaceEditOnly, "claude-implementation-v3", "t", DirectHumanGuidanceEvidence.Provided, true)]
+    [InlineData(AgentResponseContract.ReviewCorrection, AgentRole.Implementer, AgentProvider.ClaudeCode, AgentPermissionProfile.WorkspaceEditOnly, "claude-review-correction-v3", "t", DirectHumanGuidanceEvidence.Provided, true)]
+    [InlineData(AgentResponseContract.ImplementationReport, AgentRole.Implementer, AgentProvider.ClaudeCode, AgentPermissionProfile.WorkspaceEditOnly, "claude-implementation-v4", "t", DirectHumanGuidanceEvidence.Unknown, false)]
     [InlineData(AgentResponseContract.Proposal, AgentRole.Planner, AgentProvider.Codex, AgentPermissionProfile.ReadOnly, "codex-planning-v1", "t", DirectHumanGuidanceEvidence.Unknown, false)]
     [InlineData(AgentResponseContract.Proposal, AgentRole.Planner, AgentProvider.Codex, AgentPermissionProfile.ReadOnly, "codex-planning-v1", null, DirectHumanGuidanceEvidence.NotRecorded, true)]
     public void The_exact_version_aware_classification_and_dispatch_coherence(

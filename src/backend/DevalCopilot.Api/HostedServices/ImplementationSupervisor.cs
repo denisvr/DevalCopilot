@@ -1,4 +1,5 @@
 using Devalente.Shared.Cqrs;
+using DevalCopilot.Domain.Features.Processes;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Projects.Ports;
@@ -150,7 +151,8 @@ public sealed class ImplementationSupervisor(
             await observation.EnterRecordingResultAsync();
             await RecordResultAsync(attempt, ticket, processSucceeded: false, standardOutputTruncated: false,
                 standardErrorTruncated: false, providerSessionId: null, observedModel: null,
-                observedEffort: null, processEvidence: null, tokenUsage: null, modelLimits: null, CancellationToken.None);
+                observedEffort: null, processEvidence: null, tokenUsage: null, modelLimits: null, CancellationToken.None,
+                AgentInvocationDiagnostic.InvocationUnavailable);
             return;
         }
 
@@ -188,14 +190,17 @@ public sealed class ImplementationSupervisor(
             await observation.EnterRecordingResultAsync();
             await RecordResultAsync(attempt, ticket, processSucceeded: false, standardOutputTruncated: false,
                 standardErrorTruncated: false, providerSessionId: null, observedModel: null,
-                observedEffort: null, processEvidence: null, tokenUsage: null, modelLimits: null, CancellationToken.None);
+                observedEffort: null, processEvidence: null, tokenUsage: null, modelLimits: null, CancellationToken.None,
+                AgentInvocationDiagnostic.InvocationUnavailable);
             return;
         }
 
         // An Exited classification is trusted only when the host-measured evidence independently
         // confirms a clean exit; contradictory or missing evidence never becomes a success.
+        // ADR-0072: and only with complete I/O and no diagnostic.
         var processSucceeded = invocationResult.Outcome == ImplementationInvocationOutcome.Exited
-            && invocationResult.ProcessEvidence is { IsCleanExit: true };
+            && invocationResult.ProcessEvidence is { IsCleanExit: true, IoCompletion.IsComplete: true }
+            && invocationResult.Diagnostic is null;
         await observation.EnterRecordingResultAsync();
         await RecordResultAsync(
             attempt,
@@ -209,7 +214,8 @@ public sealed class ImplementationSupervisor(
             invocationResult.ProcessEvidence,
             invocationResult.TokenUsage,
             invocationResult.ModelContextLimits,
-            CancellationToken.None);
+            CancellationToken.None,
+            processSucceeded ? null : invocationResult.Diagnostic ?? AgentInvocationDiagnostic.InvalidEnvelope);
     }
 
     private async Task RecordResultAsync(
@@ -224,7 +230,8 @@ public sealed class ImplementationSupervisor(
         AgentProcessEvidence? processEvidence,
         AgentTokenUsage? tokenUsage,
         AgentModelContextLimits? modelLimits,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        AgentInvocationDiagnostic? diagnostic = null)
     {
         // Always captured, regardless of processSucceeded: this is the one role whose
         // invocation can mutate the worktree even when the process itself failed or was
@@ -239,7 +246,7 @@ public sealed class ImplementationSupervisor(
             logger.LogError("implementation_completion_evidence_failed AttemptId={AttemptId}", attempt.AttemptId);
         }
 
-        var sealedArtifacts = await SealArtifactsAsync(attempt, standardOutputTruncated, standardErrorTruncated);
+        var sealedArtifacts = await SealArtifactsAsync(attempt, standardOutputTruncated, standardErrorTruncated, processEvidence?.IoCompletion);
 
         ValidatedImplementationReport? report = null;
         if (processSucceeded)
@@ -275,7 +282,8 @@ public sealed class ImplementationSupervisor(
                     observedEffort,
                     processEvidence,
                     tokenUsage,
-                    modelLimits)
+                    modelLimits,
+                    processSucceeded ? null : diagnostic)
                 { DispatchTicket = ticket },
                 recordingTimeoutSource.Token);
         }
@@ -302,7 +310,7 @@ public sealed class ImplementationSupervisor(
     }
 
     private async Task<IReadOnlyList<SealedImplementationArtifact>> SealArtifactsAsync(
-        EligibleImplementationAttempt attempt, bool standardOutputTruncated, bool standardErrorTruncated)
+        EligibleImplementationAttempt attempt, bool standardOutputTruncated, bool standardErrorTruncated, ProcessIoCompletion? ioCompletion)
     {
         var results = new List<SealedImplementationArtifact>();
         foreach (var (purpose, truncated) in new[]
@@ -312,6 +320,12 @@ public sealed class ImplementationSupervisor(
                      (ArtifactPurpose.AgentFinalResponse, false),
                  })
         {
+            if (!CapturedOutputSealing.MaySealAgentArtifact(purpose, ioCompletion))
+            {
+                // ADR-0072: the captured stream's writer was not proved closed; its partial file is neither sealed nor deleted.
+                continue;
+            }
+
             var sealedFile = await artifactStore.SealAsync(attempt.RunId, attempt.AttemptId, purpose, CancellationToken.None);
             if (sealedFile is not null)
             {

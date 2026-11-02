@@ -53,6 +53,7 @@ public sealed class GetAgentAttemptEvidenceEndpoint(
             DirectHumanGuidanceResponse.FromDomain(value.DirectGuidance),
             AgentModelContextLimitsResponse.FromDomain(value.ModelContextLimits),
             CodexAccountUsageStopResponse.FromDomain(value.AccountUsageStop),
-            CodexAccountUsageDecisionResponse.FromDomain(value.AccountUsageDecision)));
+            CodexAccountUsageDecisionResponse.FromDomain(value.AccountUsageDecision),
+            AgentInvocationDiagnosticResponse.FromFact(value.InvocationDiagnostic)));
     }
 }

@@ -4,6 +4,7 @@ using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Runs.Errors;
 using DevalCopilot.Application.Features.Runs.Policies;
+using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
@@ -242,6 +243,12 @@ public sealed class RecordImplementationResultCommandHandler(IDevalCopilotDbCont
             return Result<RecordImplementationResultCommandResult>.Failure(processEvidenceError);
         }
 
+        // ADR-0072: a closed invocation diagnostic is only ever recorded beside a failure of a dispatched attempt.
+        if (AgentInvocationDiagnosticRecording.Validate(command.InvocationDiagnostic, attempt, outcome) is { } diagnosticError)
+        {
+            return Result<RecordImplementationResultCommandResult>.Failure(diagnosticError);
+        }
+
         // Provider-reported token usage is best-effort and never required, but when supplied it is
         // validated before any mutation: bound to a dispatched attempt and never attached to a
         // pre-invocation outcome. Recorded atomically with the outcome and process evidence below.
@@ -315,6 +322,11 @@ public sealed class RecordImplementationResultCommandHandler(IDevalCopilotDbCont
             resultCheckpointId = checkpoint.Id;
         }
 
+        if (command.InvocationDiagnostic is { } diagnostic)
+        {
+            attempt.RecordAgentInvocationDiagnostic(diagnostic);
+        }
+
         attempt.CompleteImplementation(outcome, resultCheckpointId, nowUtc, processEvidence, tokenUsage, modelLimits);
 
         if (mutationSuspected)
@@ -324,7 +336,7 @@ public sealed class RecordImplementationResultCommandHandler(IDevalCopilotDbCont
 
         foreach (var sealedArtifact in command.SealedArtifacts)
         {
-            RecordArtifact(command.RunId, command.AttemptId, sealedArtifact, nowUtc);
+            RecordArtifact(command.RunId, command.AttemptId, sealedArtifact, nowUtc, command.ProcessEvidence);
         }
 
         RunEvent latestEvent;
@@ -466,7 +478,8 @@ public sealed class RecordImplementationResultCommandHandler(IDevalCopilotDbCont
         return runEvent;
     }
 
-    private void RecordArtifact(Guid runId, Guid attemptId, SealedImplementationArtifact sealedArtifact, DateTimeOffset nowUtc)
+    private void RecordArtifact(Guid runId, Guid attemptId, SealedImplementationArtifact sealedArtifact, DateTimeOffset nowUtc,
+        AgentProcessEvidence? processEvidence)
     {
         var mediaType = sealedArtifact.Purpose == ArtifactPurpose.AgentFinalResponse
             ? "application/json"
@@ -485,7 +498,8 @@ public sealed class RecordImplementationResultCommandHandler(IDevalCopilotDbCont
             ArtifactCaptureOutcome.Captured,
             ArtifactSensitivity.RedactedBestEffort,
             ArtifactRetentionPolicy.RetainUntilRunDeleted,
-            nowUtc);
+            nowUtc,
+            AgentProcessEvidenceRecording.CaptureCompletionFor(sealedArtifact.Purpose, processEvidence));
         dbContext.Artifacts.Add(artifact);
     }
 }

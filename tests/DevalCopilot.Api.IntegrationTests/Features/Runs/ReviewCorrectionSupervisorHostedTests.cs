@@ -370,11 +370,11 @@ public sealed partial class ReviewCorrectionSupervisorHostedTests : IDisposable
         }
 
         Assert.Equal(12, adapter.LastRequest!.RequestedMaxTurns);
-        Assert.Equal(ClaudeMutationAdapterContract.ReviewCorrectionV2, adapter.LastRequest.AdapterContractVersion);
+        Assert.Equal(ClaudeMutationAdapterContract.CurrentReviewCorrection, adapter.LastRequest.AdapterContractVersion);
     }
 
     [Fact]
-    public async Task A_correction_claimed_without_a_turn_limit_dispatches_none_under_the_v2_contract()
+    public async Task A_correction_claimed_without_a_turn_limit_dispatches_none_under_the_current_contract()
     {
         var evidence = new SequencedEvidence(call => call == 1 ? Matching() : Changed());
         var adapter = new GatedAdapter(_artifactStore);
@@ -395,7 +395,7 @@ public sealed partial class ReviewCorrectionSupervisorHostedTests : IDisposable
         }
 
         Assert.Null(adapter.LastRequest!.RequestedMaxTurns);
-        Assert.Equal(ClaudeMutationAdapterContract.ReviewCorrectionV2, adapter.LastRequest.AdapterContractVersion);
+        Assert.Equal(ClaudeMutationAdapterContract.CurrentReviewCorrection, adapter.LastRequest.AdapterContractVersion);
     }
 
     [Fact]

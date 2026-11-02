@@ -4,6 +4,7 @@ using Devalente.Shared.Cqrs;
 using DevalCopilot.Api.HostedServices;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs.Commands.AuthorizeReviewCorrection;
 using DevalCopilot.Application.Features.Runs.Commands.CreateClaudeCriticalReviewAttempt;
@@ -123,9 +124,10 @@ public sealed class DirectHumanGuidanceHostedTests : IDisposable
             evidence.Mutated = true;
             return Task.FromResult(new ProcessExecutionResult
             {
+                IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                 Outcome = ProcessExecutionOutcome.Exited,
                 ExitCode = 0,
-                StandardOutput = JsonSerializer.Serialize(new { is_error = false, result = FinalResponse, session_id = (string?)null }),
+                StandardOutput = ClaudeEnvelopeProcessDouble.Documented(FinalResponse),
                 StandardOutputTruncated = false,
                 StandardError = string.Empty,
                 StandardErrorTruncated = false,

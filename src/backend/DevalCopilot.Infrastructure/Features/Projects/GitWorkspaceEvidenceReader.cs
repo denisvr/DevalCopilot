@@ -301,6 +301,7 @@ public sealed partial class GitWorkspaceEvidenceReader : IGitWorkspaceEvidenceRe
         {
             ProcessExecutionOutcome.Cancelled => throw new OperationCanceledException(cancellationToken),
             ProcessExecutionOutcome.TimedOut => new GitCommandResult(GitCommandOutcome.TimedOut, 0, string.Empty, false),
+            _ when !result.IoCompletion.IsComplete => new GitCommandResult(GitCommandOutcome.IoIncomplete, -1, string.Empty, false),
             _ => new GitCommandResult(
                 GitCommandOutcome.Exited,
                 result.ExitCode!.Value,
@@ -397,6 +398,9 @@ public sealed partial class GitWorkspaceEvidenceReader : IGitWorkspaceEvidenceRe
         Exited,
         TimedOut,
         LaunchFailed,
+
+        /// <summary>ADR-0072: the process exited but its output or input never demonstrably completed; never parsed.</summary>
+        IoIncomplete,
     }
 
     private readonly record struct GitCommandResult(GitCommandOutcome Outcome, int ExitCode, string Output, bool Truncated);

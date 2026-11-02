@@ -150,6 +150,15 @@ run and project and the run's exact stored-key events, reusing the unchanged sha
 as Recorded, NotRecorded or Unavailable (present damaged evidence is never absent). It is independent of present eligibility, reads only on an
 explicit open or reload, writes nothing, mounts no abandon, cancel, repair, release, intake or recovery action and adds no table, migration,
 event, worker or dependency; the live abandonment status, command and panel are unchanged. Increments 4 to 6 stay incomplete.
+ADR-0072 / WIN-EXEC-PROFILE-01 (implemented for review, unpublished until its own GO) adopts one Windows execution profile: new Claude
+attempts use `claude-critical-review-v2`, `claude-implementation-v3` and `claude-review-correction-v3`, read only the documented result
+envelope's `structured_output` object through one shared reader and record one closed invocation diagnostic beside every failed invocation;
+the shared child-process adapter bounds and records stdout, stderr and stdin I/O completion, which every success, Passed and Process
+completion now requires; verification runs under one fixed environment (`windows-verification-v3` for new executions since ADR-0074, which adds only two literal-`false` flags for `dotnet.exe` so the SDK's first
+run neither appends to the persistent user `PATH` nor generates a development certificate, on top of ADR-0073's owned, empty
+`ProgramFiles(x86)` as NuGet's settings base; recorded v1/v2 history is unchanged); startup recovery is checked and a fatal
+failure produces a closed shell frame and fixed guidance. One additive migration records the new facts. It adds no endpoint, retry,
+recovery, release or publication authority and leaves ADR-0050 Proposed. Increments 4 to 6 stay incomplete.
 ADR-0056 adds only operational evidence for all seven Agent response contracts: a
 durable observation of what the host's own observer last reported (phase, last
 report, absolute deadline, first attention) for the current attempt, an independent

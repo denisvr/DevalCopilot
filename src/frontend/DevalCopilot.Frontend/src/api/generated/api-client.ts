@@ -10294,6 +10294,9 @@ export class AgentProcessExecutionResponse implements IAgentProcessExecutionResp
     exitCode?: number | undefined;
     durationMilliseconds?: number | undefined;
     timeoutMilliseconds?: number | undefined;
+    standardOutputCompletion?: string | undefined;
+    standardErrorCompletion?: string | undefined;
+    standardInputDelivery?: string | undefined;
 
     constructor(data?: IAgentProcessExecutionResponse) {
         if (data) {
@@ -10310,6 +10313,9 @@ export class AgentProcessExecutionResponse implements IAgentProcessExecutionResp
             this.exitCode = _data["exitCode"];
             this.durationMilliseconds = _data["durationMilliseconds"];
             this.timeoutMilliseconds = _data["timeoutMilliseconds"];
+            this.standardOutputCompletion = _data["standardOutputCompletion"];
+            this.standardErrorCompletion = _data["standardErrorCompletion"];
+            this.standardInputDelivery = _data["standardInputDelivery"];
         }
     }
 
@@ -10326,6 +10332,9 @@ export class AgentProcessExecutionResponse implements IAgentProcessExecutionResp
         data["exitCode"] = this.exitCode;
         data["durationMilliseconds"] = this.durationMilliseconds;
         data["timeoutMilliseconds"] = this.timeoutMilliseconds;
+        data["standardOutputCompletion"] = this.standardOutputCompletion;
+        data["standardErrorCompletion"] = this.standardErrorCompletion;
+        data["standardInputDelivery"] = this.standardInputDelivery;
         return data;
     }
 }
@@ -10335,6 +10344,9 @@ export interface IAgentProcessExecutionResponse {
     exitCode?: number | undefined;
     durationMilliseconds?: number | undefined;
     timeoutMilliseconds?: number | undefined;
+    standardOutputCompletion?: string | undefined;
+    standardErrorCompletion?: string | undefined;
+    standardInputDelivery?: string | undefined;
 }
 
 export class AgentTokenUsageResponse implements IAgentTokenUsageResponse {
@@ -19263,6 +19275,7 @@ export class AgentAttemptEvidenceResponse implements IAgentAttemptEvidenceRespon
     modelContextLimits?: AgentModelContextLimitsResponse | undefined;
     accountUsageStop?: CodexAccountUsageStopResponse | undefined;
     accountUsageDecision?: CodexAccountUsageDecisionResponse | undefined;
+    invocationDiagnostic?: AgentInvocationDiagnosticResponse | undefined;
 
     constructor(data?: IAgentAttemptEvidenceResponse) {
         if (data) {
@@ -19300,6 +19313,7 @@ export class AgentAttemptEvidenceResponse implements IAgentAttemptEvidenceRespon
             this.modelContextLimits = _data["modelContextLimits"] ? AgentModelContextLimitsResponse.fromJS(_data["modelContextLimits"]) : undefined as any;
             this.accountUsageStop = _data["accountUsageStop"] ? CodexAccountUsageStopResponse.fromJS(_data["accountUsageStop"]) : undefined as any;
             this.accountUsageDecision = _data["accountUsageDecision"] ? CodexAccountUsageDecisionResponse.fromJS(_data["accountUsageDecision"]) : undefined as any;
+            this.invocationDiagnostic = _data["invocationDiagnostic"] ? AgentInvocationDiagnosticResponse.fromJS(_data["invocationDiagnostic"]) : undefined as any;
         }
     }
 
@@ -19337,6 +19351,7 @@ export class AgentAttemptEvidenceResponse implements IAgentAttemptEvidenceRespon
         data["modelContextLimits"] = this.modelContextLimits ? this.modelContextLimits.toJSON() : undefined as any;
         data["accountUsageStop"] = this.accountUsageStop ? this.accountUsageStop.toJSON() : undefined as any;
         data["accountUsageDecision"] = this.accountUsageDecision ? this.accountUsageDecision.toJSON() : undefined as any;
+        data["invocationDiagnostic"] = this.invocationDiagnostic ? this.invocationDiagnostic.toJSON() : undefined as any;
         return data;
     }
 }
@@ -19363,6 +19378,7 @@ export interface IAgentAttemptEvidenceResponse {
     modelContextLimits?: AgentModelContextLimitsResponse | undefined;
     accountUsageStop?: CodexAccountUsageStopResponse | undefined;
     accountUsageDecision?: CodexAccountUsageDecisionResponse | undefined;
+    invocationDiagnostic?: AgentInvocationDiagnosticResponse | undefined;
 }
 
 export class AgentModelContextLimitsResponse implements IAgentModelContextLimitsResponse {
@@ -19559,6 +19575,50 @@ export interface ICodexAccountUsageWindowResponse {
     bucketId?: string | undefined;
     window?: string;
     usedPercent?: number;
+}
+
+export class AgentInvocationDiagnosticResponse implements IAgentInvocationDiagnosticResponse {
+    state?: string;
+    category?: string | undefined;
+    version?: string | undefined;
+
+    constructor(data?: IAgentInvocationDiagnosticResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.state = _data["state"];
+            this.category = _data["category"];
+            this.version = _data["version"];
+        }
+    }
+
+    static fromJS(data: any): AgentInvocationDiagnosticResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new AgentInvocationDiagnosticResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["state"] = this.state;
+        data["category"] = this.category;
+        data["version"] = this.version;
+        return data;
+    }
+}
+
+export interface IAgentInvocationDiagnosticResponse {
+    state?: string;
+    category?: string | undefined;
+    version?: string | undefined;
 }
 
 export class CreateManualRunResponse implements ICreateManualRunResponse {

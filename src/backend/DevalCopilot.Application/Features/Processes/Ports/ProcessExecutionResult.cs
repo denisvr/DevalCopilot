@@ -1,3 +1,5 @@
+using DevalCopilot.Domain.Features.Processes;
+
 namespace DevalCopilot.Application.Features.Processes.Ports;
 
 /// <summary>
@@ -15,6 +17,8 @@ public sealed record ProcessExecutionResult
     /// meaningful signal and is never reported.</summary>
     public int? ExitCode { get; init; }
 
+    /// <summary>Accepted, redacted stdout text. Partial when <see cref="IoCompletion"/> says the stream did not complete; an
+    /// incomplete stream's held-back redaction tail is discarded, never released.</summary>
     public required string StandardOutput { get; init; }
 
     /// <summary>True when captured stdout was cut off by either the per-stream or the
@@ -28,6 +32,12 @@ public sealed record ProcessExecutionResult
     public required bool StandardErrorTruncated { get; init; }
 
     public required TimeSpan Duration { get; init; }
+
+    /// <summary>ADR-0072: whether each redirected stream reached its end and standard input was delivered, established by the
+    /// adapter separately from <see cref="Outcome"/>, <see cref="ExitCode"/>, <see cref="Termination"/>, <see cref="Duration"/>
+    /// and the truncation flags. A consumer that parses output or accepts exit code zero also requires
+    /// <see cref="ProcessIoCompletion.IsComplete"/>; required, so no adapter or test double can omit it.</summary>
+    public required ProcessIoCompletion IoCompletion { get; init; }
 
     /// <summary>ADR-0065: optional host-produced physical termination evidence, present only when the adapter's actual owned process
     /// instance was waited to completion successfully and its exit code obtained (normally, or within the existing bounded wait after a

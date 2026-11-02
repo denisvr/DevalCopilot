@@ -14,7 +14,13 @@ public sealed class GetTerminalProcessAttemptsQueryHandler(IDevalCopilotDbContex
         return await dbContext.Attempts
             .AsNoTracking()
             .Where(attempt => attempt.Kind == AttemptKind.Process && attempt.Status != AttemptStatus.Running)
-            .Select(attempt => new TerminalProcessAttempt(attempt.RunId, attempt.Id))
+            .Select(attempt => new TerminalProcessAttempt(
+                attempt.RunId,
+                attempt.Id,
+                dbContext.Artifacts
+                    .Where(artifact => artifact.AttemptId == attempt.Id && artifact.RunId == attempt.RunId)
+                    .Select(artifact => artifact.Purpose)
+                    .ToList()))
             .ToListAsync(cancellationToken);
     }
 }

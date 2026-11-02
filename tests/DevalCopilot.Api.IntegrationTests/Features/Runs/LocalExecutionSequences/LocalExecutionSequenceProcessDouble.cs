@@ -1,5 +1,6 @@
 using System.Text.Json;
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Domain.Features.Runs;
 using DevalCopilot.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -110,6 +111,7 @@ internal sealed class LocalExecutionSequenceProcessDouble(
 
         return new ProcessExecutionResult
         {
+            IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
             Outcome = behavior.Outcome,
             ExitCode = behavior.ExitCode,
             StandardOutput = string.Empty,
@@ -132,6 +134,7 @@ internal sealed class LocalExecutionSequenceProcessDouble(
             // A process that ended without a result changed nothing the staged Git evidence would show.
             return new ProcessExecutionResult
             {
+                IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                 Outcome = ended.Outcome,
                 ExitCode = null,
                 StandardOutput = string.Empty,
@@ -153,9 +156,10 @@ internal sealed class LocalExecutionSequenceProcessDouble(
         evidence.Stage++;
         return new ProcessExecutionResult
         {
+            IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
             Outcome = ProcessExecutionOutcome.Exited,
             ExitCode = 0,
-            StandardOutput = JsonSerializer.Serialize(new { is_error = false, result = finalResponse, session_id = (string?)null }),
+            StandardOutput = ClaudeEnvelopeProcessDouble.Documented(finalResponse),
             StandardOutputTruncated = false,
             StandardError = string.Empty,
             StandardErrorTruncated = false,

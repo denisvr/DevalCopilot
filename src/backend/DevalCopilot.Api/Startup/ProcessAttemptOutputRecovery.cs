@@ -18,16 +18,22 @@ namespace DevalCopilot.Api.Startup;
 /// mid-way, because every import first checks whether the artifact already exists.
 ///
 /// Afterward, sweeps the one narrow, documented cleanup this slice performs: a ".partial" file
-/// left behind by an attempt that is already terminal through some other path can never
-/// legitimately still be written to (only a <c>Running</c> attempt is ever actively captured
-/// to) and nothing durable will ever reference it, so it is safe to delete.
+/// left behind by an attempt that is already terminal is deleted only when that attempt already
+/// recorded an artifact of the same purpose, so the partial is independently proved redundant
+/// (ADR-0072); every other terminal partial is preserved.
 /// </summary>
 public static class ProcessAttemptOutputRecovery
 {
     private static readonly ArtifactPurpose[] Purposes = [ArtifactPurpose.ProcessStandardOutput, ArtifactPurpose.ProcessStandardError];
 
-    public static async Task RunAsync(IServiceProvider services, ILogger logger, CancellationToken cancellationToken)
+    /// <remarks>ADR-0072: a per-item file-system seal failure or rejected import is an optional-output warning and leaves the files
+    /// in place; a database fault from a query or an import, or any unclassified exception, escapes as fatal. A terminal attempt's partial file is removed only when that attempt
+    /// already recorded an artifact of the same purpose (independently proved redundant); any other partial, including one left by a
+    /// deferred import on an earlier launch or by a writer that was never proved closed, is preserved.</remarks>
+    public static async Task<OutputRecoveryOutcome> RunAsync(IServiceProvider services, ILogger logger, CancellationToken cancellationToken)
     {
+        var optionalOutputDeferred = false;
+        var redundantCleanupDeferred = false;
         await using var scope = services.CreateAsyncScope();
         var mediator = scope.ServiceProvider.GetRequiredService<IApplicationMediator>();
         var artifactStore = scope.ServiceProvider.GetRequiredService<IArtifactStore>();
@@ -37,7 +43,8 @@ public static class ProcessAttemptOutputRecovery
         {
             foreach (var purpose in Purposes)
             {
-                await RecoverOneAsync(mediator, artifactStore, logger, attempt.RunId, attempt.AttemptId, purpose, cancellationToken);
+                optionalOutputDeferred |= !await RecoverOneAsync(
+                    mediator, artifactStore, logger, attempt.RunId, attempt.AttemptId, purpose, cancellationToken);
             }
         }
 
@@ -46,15 +53,21 @@ public static class ProcessAttemptOutputRecovery
         {
             foreach (var purpose in Purposes)
             {
-                if (artifactStore.HasPartialFile(attempt.RunId, attempt.AttemptId, purpose))
+                if (artifactStore.HasPartialFile(attempt.RunId, attempt.AttemptId, purpose)
+                    && attempt.RecordedPurposes?.Contains(purpose) == true)
                 {
                     artifactStore.DeleteOrphanedPartialFile(attempt.RunId, attempt.AttemptId, purpose);
+                    redundantCleanupDeferred |= artifactStore.HasPartialFile(attempt.RunId, attempt.AttemptId, purpose);
                 }
             }
         }
+
+        return new OutputRecoveryOutcome(optionalOutputDeferred, redundantCleanupDeferred);
     }
 
-    private static async Task RecoverOneAsync(
+    /// <summary>Returns false when this item's output could not be sealed or its import was rejected (an optional-output
+    /// warning); a database fault propagates.</summary>
+    private static async Task<bool> RecoverOneAsync(
         IApplicationMediator mediator,
         IArtifactStore artifactStore,
         ILogger logger,
@@ -63,6 +76,10 @@ public static class ProcessAttemptOutputRecovery
         ArtifactPurpose purpose,
         CancellationToken cancellationToken)
     {
+        // ADR-0072 (review WEP-R2): existence is read first, so a file that exists but cannot be described or sealed is a deferred
+        // optional output (its files stay in place), never mistaken for an absence.
+        var hadSealedFile = artifactStore.HasSealedFile(runId, attemptId, purpose);
+        var hadPartialFile = !hadSealedFile && artifactStore.HasPartialFile(runId, attemptId, purpose);
         SealedOutputFile? sealedFile;
         try
         {
@@ -70,22 +87,30 @@ public static class ProcessAttemptOutputRecovery
             // is described, never re-sealed — a sealed file is renamed exactly once, ever. A
             // still-partial file is safe to seal now precisely because the host that owned its
             // only write handle is gone; no other process ever had it open.
-            sealedFile = artifactStore.HasSealedFile(runId, attemptId, purpose)
+            sealedFile = hadSealedFile
                 ? await artifactStore.DescribeSealedFileAsync(runId, attemptId, purpose, cancellationToken)
                 : await artifactStore.SealAsync(runId, attemptId, purpose, cancellationToken);
         }
-        catch (Exception)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
+            // ADR-0072 (review WEP-R2): only a file-system fault on this one historical output item is optional; its files stay in
+            // place. Any other exception is unclassified and escapes as fatal.
             logger.LogError(
                 "process_attempt_output_recovery_seal_failed AttemptId={AttemptId} Purpose={Purpose}", attemptId, purpose);
-            return;
+            return false;
         }
 
         if (sealedFile is null)
         {
-            // Nothing was ever captured for this stream, or the seal itself failed — either
-            // way, safely nothing to import.
-            return;
+            if (hadSealedFile || hadPartialFile)
+            {
+                logger.LogError(
+                    "process_attempt_output_recovery_unreadable AttemptId={AttemptId} Purpose={Purpose}", attemptId, purpose);
+                return false;
+            }
+
+            // Nothing was ever captured for this stream: nothing to import.
+            return true;
         }
 
         try
@@ -100,12 +125,16 @@ public static class ProcessAttemptOutputRecovery
                 logger.LogError(
                     "process_attempt_output_recovery_import_rejected AttemptId={AttemptId} Purpose={Purpose} ErrorCode={ErrorCode}",
                     attemptId, purpose, result.Errors[0].Code);
+                return false;
             }
         }
         catch (Exception)
         {
             logger.LogError(
                 "process_attempt_output_recovery_import_failed AttemptId={AttemptId} Purpose={Purpose}", attemptId, purpose);
+            throw;
         }
+
+        return true;
     }
 }

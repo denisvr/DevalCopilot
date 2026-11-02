@@ -40,7 +40,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
     /// <summary>Hard ceiling on the sealed context-manifest artifact — a bounded reference
     /// document, never a transcript or repository copy.</summary>
     private const int MaxContextManifestBytes = 32 * 1024;
-    private const string AdapterContractVersion = ClaudeMutationAdapterContract.ImplementationV2;
+    private const string AdapterContractVersion = ClaudeMutationAdapterContract.CurrentImplementation;
     private const string PlanChallengedCode = "agent_attempts.plan_challenged";
 
     /// <summary>Implementation is inherently multi-step (read, edit, re-read, verify its own

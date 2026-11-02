@@ -31,6 +31,9 @@ public sealed class AttemptConfiguration : IEntityTypeConfiguration<Attempt>
         builder.Property(attempt => attempt.ProcessWorkingDirectory).HasMaxLength(1024);
         builder.Property(attempt => attempt.ProcessApprovedRoot).HasMaxLength(1024);
         builder.Property(attempt => attempt.ProcessOutcome).HasConversion<string>().HasMaxLength(32);
+        builder.Property(attempt => attempt.ProcessStandardOutputCompletion).HasConversion<string>().HasMaxLength(32);
+        builder.Property(attempt => attempt.ProcessStandardErrorCompletion).HasConversion<string>().HasMaxLength(32);
+        builder.Property(attempt => attempt.ProcessStandardInputDelivery).HasConversion<string>().HasMaxLength(32);
 
         // JSON is purely an Infrastructure/EF storage detail: Attempt.ProcessArguments is a
         // plain typed IReadOnlyList<string> to every Domain and Application caller.
@@ -97,6 +100,11 @@ public sealed class AttemptConfiguration : IEntityTypeConfiguration<Attempt>
         // process and is persisted as its exact tick count so it round-trips losslessly even when
         // the measured duration is not a whole number of milliseconds.
         builder.Property(attempt => attempt.AgentProcessOutcome).HasConversion<string>().HasMaxLength(32);
+        builder.Property(attempt => attempt.AgentStandardOutputCompletion).HasConversion<string>().HasMaxLength(32);
+        builder.Property(attempt => attempt.AgentStandardErrorCompletion).HasConversion<string>().HasMaxLength(32);
+        builder.Property(attempt => attempt.AgentStandardInputDelivery).HasConversion<string>().HasMaxLength(32);
+        builder.Property(attempt => attempt.AgentInvocationDiagnostic).HasConversion<string>().HasMaxLength(64);
+        builder.Property(attempt => attempt.AgentInvocationDiagnosticVersion).HasMaxLength(64);
         builder.Property(attempt => attempt.AgentProcessDuration)
             .HasConversion(
                 duration => duration.HasValue ? (long?)duration.Value.Ticks : null,

@@ -6,6 +6,7 @@ using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Infrastructure.Features.Processes;
 using DevalCopilot.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Xunit;
 
 namespace DevalCopilot.Application.Tests.Features.Projects;
@@ -67,8 +68,9 @@ public sealed class RecoverInterruptedVerificationOutputArtifactsCommandHandlerT
     }
 
     [Fact]
-    public async Task Partial_only_files_are_cleaned_up_and_never_exposed_as_sealed_output()
+    public async Task Partial_only_files_are_preserved_across_repeated_starts_and_never_exposed_as_sealed_output()
     {
+        // ADR-0072 (review WEP-R2): an unsealed, unrecorded partial is not proved redundant, so it is never deleted.
         var (projectId, executionId) = await AddRunningExecutionAsyncWithProject();
         var artifactStore = new FilesystemArtifactStore(_artifactRoot);
         var partialPath = artifactStore.GetPartialPath(executionId, VerificationOutputPurpose.StandardOutput);
@@ -76,10 +78,11 @@ public sealed class RecoverInterruptedVerificationOutputArtifactsCommandHandlerT
         await File.WriteAllTextAsync(partialPath, "partial after crash");
 
         Assert.Equal(0, await RecoverAsync(artifactStore));
+        Assert.Equal(0, await RecoverAsync(artifactStore));
 
         await using var dbContext = _fixture.CreateContext();
         Assert.Empty(dbContext.VerificationOutputArtifacts);
-        Assert.False(File.Exists(partialPath));
+        Assert.Equal("partial after crash", await File.ReadAllTextAsync(partialPath));
         var output = new GetVerificationExecutionOutputQueryHandler(dbContext, artifactStore);
         var result = await output.HandleAsync(
             new GetVerificationExecutionOutputQuery(
@@ -135,7 +138,68 @@ public sealed class RecoverInterruptedVerificationOutputArtifactsCommandHandlerT
         Assert.Equal(VerificationOutputCaptureOutcome.CapturedWithKnownTruncation, artifact.CaptureOutcome);
     }
 
-    private async Task<int> RecoverAsync(FilesystemArtifactStore artifactStore)
+    [Fact]
+    public async Task An_unreadable_historical_output_file_is_an_optional_deferral_that_keeps_its_files_and_imports_the_rest()
+    {
+        // ADR-0072 (review WEP-R2): a real file-system fault on one item, while every other item and every database step proceeds.
+        var blockedExecution = await AddRunningExecutionAsync();
+        var otherExecution = await AddRunningExecutionAsync();
+        var artifactStore = new FilesystemArtifactStore(_artifactRoot);
+        await WriteAndSealAsync(artifactStore, blockedExecution, VerificationOutputPurpose.StandardOutput, "blocked output");
+        await WriteAndSealAsync(artifactStore, otherExecution, VerificationOutputPurpose.StandardOutput, "other output");
+        var blockedSealed = Path.Combine(
+            _artifactRoot, (await artifactStore.DescribeSealedFileAsync(
+                blockedExecution, VerificationOutputPurpose.StandardOutput, CancellationToken.None))!.RelativeStoragePath);
+
+        RecoverInterruptedVerificationOutputArtifactsCommandResult first;
+        await using (new FileStream(blockedSealed, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+        {
+            first = await RecoverResultAsync(artifactStore);
+        }
+
+        Assert.True(first.OptionalOutputDeferred);
+        Assert.Equal(1, first.ImportedCount);
+        Assert.True(File.Exists(blockedSealed));
+        await using (var dbContext = _fixture.CreateContext())
+        {
+            Assert.Equal([otherExecution], dbContext.VerificationOutputArtifacts.Select(artifact => artifact.VerificationExecutionId).ToArray());
+        }
+
+        // A later start, once the file is readable again, imports it exactly once and reports nothing deferred.
+        var second = await RecoverResultAsync(artifactStore);
+        Assert.False(second.OptionalOutputDeferred);
+        Assert.Equal(1, second.ImportedCount);
+        await using var verify = _fixture.CreateContext();
+        Assert.Equal(2, verify.VerificationOutputArtifacts.Count());
+    }
+
+    [Fact]
+    public async Task A_commit_failure_propagates_and_is_never_an_optional_deferral()
+    {
+        // ADR-0072 (review WEP-R2): the database step stays outside the optional-output handling.
+        var executionId = await AddRunningExecutionAsync();
+        var artifactStore = new FilesystemArtifactStore(_artifactRoot);
+        await WriteAndSealAsync(artifactStore, executionId, VerificationOutputPurpose.StandardOutput, "sealed output");
+
+        await using var dbContext = _fixture.CreateContext(new FailingCommitInterceptor());
+        var handler = new RecoverInterruptedVerificationOutputArtifactsCommandHandler(dbContext, artifactStore, new FixedTimeProvider(Now));
+
+        await Assert.ThrowsAsync<DbUpdateException>(() => handler.HandleAsync(
+            new RecoverInterruptedVerificationOutputArtifactsCommand(), CancellationToken.None));
+        await using var verify = _fixture.CreateContext();
+        Assert.Empty(verify.VerificationOutputArtifacts);
+    }
+
+    private async Task<int> RecoverAsync(FilesystemArtifactStore artifactStore) => (await RecoverResultAsync(artifactStore)).ImportedCount;
+
+    private sealed class FailingCommitInterceptor : SaveChangesInterceptor
+    {
+        public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
+            DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default) =>
+            throw new DbUpdateException("Scripted commit failure.");
+    }
+
+    private async Task<RecoverInterruptedVerificationOutputArtifactsCommandResult> RecoverResultAsync(FilesystemArtifactStore artifactStore)
     {
         await using var dbContext = _fixture.CreateContext();
         var handler = new RecoverInterruptedVerificationOutputArtifactsCommandHandler(

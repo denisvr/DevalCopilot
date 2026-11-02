@@ -515,7 +515,15 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Diagnostic")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTimeOffset?>("DispatchedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EnvironmentProfileVersion")
+                        .HasMaxLength(128)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("ExecutablePath")
@@ -540,6 +548,18 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<Guid>("ProjectId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("StandardErrorCompletion")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("StandardInputDelivery")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("StandardOutputCompletion")
+                        .HasMaxLength(32)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Status")
@@ -580,6 +600,10 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
 
                     b.Property<long>("ByteLength")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("CaptureCompletion")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("CaptureOutcome")
                         .IsRequired()
@@ -710,6 +734,10 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                     b.Property<long>("ByteLength")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("CaptureCompletion")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("CaptureOutcome")
                         .IsRequired()
                         .HasMaxLength(32)
@@ -807,6 +835,14 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                     b.Property<int?>("AgentInputTokens")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("AgentInvocationDiagnostic")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AgentInvocationDiagnosticVersion")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
                     b.Property<int?>("AgentMaxBytesPerStream")
                         .HasColumnType("INTEGER");
 
@@ -879,6 +915,18 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("AgentStandardErrorCompletion")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AgentStandardInputDelivery")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AgentStandardOutputCompletion")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
                     b.Property<long?>("AgentTimeout")
                         .HasColumnType("INTEGER");
 
@@ -927,6 +975,18 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("ProcessOutcome")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProcessStandardErrorCompletion")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProcessStandardInputDelivery")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProcessStandardOutputCompletion")
                         .HasMaxLength(32)
                         .HasColumnType("TEXT");
 

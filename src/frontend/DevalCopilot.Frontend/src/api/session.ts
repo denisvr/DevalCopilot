@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
+import { toStartupFailure, toStartupWarnings, type StartupFailureView } from './startupDiagnostics'
 
 /**
  * The launch-session bootstrap context: the loopback API base URL and the per-launch
@@ -16,6 +17,8 @@ import { listen } from '@tauri-apps/api/event'
 export interface LaunchSession {
   readonly baseUrl: string
   readonly secret: string
+  /** ADR-0072: closed, nonfatal startup warning categories reported with readiness; never authority or readiness of evidence. */
+  readonly startupWarnings?: readonly string[]
 }
 
 /**
@@ -26,7 +29,9 @@ export interface LaunchSession {
  * - ready: a session was obtained and is currently valid.
  * - failed: no session could be obtained (no Tauri and no test harness present, or the
  *   Tauri bootstrap command itself failed/returned nothing — the sidecar never became
- *   ready). This never falls back to the test-harness channel.
+ *   ready). This never falls back to the test-harness channel. ADR-0072: when the shell
+ *   reported the host's closed startup failure, `getStartupFailure` describes it; the
+ *   failure is terminal for this launch and nothing ever becomes ready afterwards.
  * - disconnected: a session was ready, but the shell reported the sidecar is gone. The
  *   retained session is discarded; a previous session is never reused.
  */
@@ -42,9 +47,11 @@ declare global {
 interface TauriLaunchSessionResponse {
   baseUrl: string
   secret: string
+  startupWarnings?: unknown
 }
 
 let cachedSession: LaunchSession | null | undefined
+let startupFailure: StartupFailureView | null = null
 let status: SessionStatus = 'idle'
 let initialized: Promise<void> | undefined
 const statusListeners = new Set<() => void>()
@@ -69,6 +76,11 @@ export function getLaunchSession(): LaunchSession | null {
 
 export function getSessionStatus(): SessionStatus {
   return status
+}
+
+/** ADR-0072: the validated closed startup failure of this launch, when the shell reported one. */
+export function getStartupFailure(): StartupFailureView | null {
+  return startupFailure
 }
 
 export function subscribeToSessionStatus(listener: () => void): () => void {
@@ -107,9 +119,19 @@ async function resolveTauriSession(): Promise<void> {
       return
     }
 
-    cachedSession = { baseUrl: session.baseUrl, secret: session.secret }
+    const startupWarnings = toStartupWarnings(session.startupWarnings)
+    if (startupWarnings === null) {
+      // A malformed metadata field is never half-trusted: the launch fails closed.
+      cachedSession = null
+      setStatus('failed')
+      return
+    }
+
+    cachedSession = { baseUrl: session.baseUrl, secret: session.secret, startupWarnings }
     setStatus('ready')
-  } catch {
+  } catch (error) {
+    // ADR-0072: only the shell's closed startup-failed value is kept; any other rejection is an ordinary failure.
+    startupFailure = toStartupFailure(error)
     // Covers both a failed `listen` registration and a failed `invoke`: either way this
     // fails closed rather than proceeding without disconnect observation. A failed Tauri
     // bootstrap never falls back to the test-harness channel: outside a real Tauri runtime

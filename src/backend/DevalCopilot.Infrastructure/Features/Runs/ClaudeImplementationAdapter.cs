@@ -13,7 +13,7 @@ namespace DevalCopilot.Infrastructure.Features.Runs;
 /// the locally observed contract:
 /// <c>--print --input-format text --output-format json --json-schema &lt;inline schema&gt;
 /// --safe-mode --restricted --disable-slash-commands --no-chrome --permission-prompts none
-/// --prompt-suggestions false --tools "Read,Edit,Write,Glob,Grep" --strict-mcp-config
+/// --tools "Read,Edit,Write,Glob,Grep" --strict-mcp-config
 /// --permission-mode acceptEdits --no-session-persistence --session-id &lt;fresh GUID&gt;</c>, with
 /// the context manifest written to stdin and stdin then closed. A dedicated adapter, never the
 /// critical-review adapter reused by changing flags: this role's tool allowlist and permission
@@ -48,7 +48,7 @@ namespace DevalCopilot.Infrastructure.Features.Runs;
 /// </list>
 /// Every other hardening decision — <c>--safe-mode</c>, <c>--restricted</c>,
 /// <c>--disable-slash-commands</c>, <c>--no-chrome</c>, <c>--permission-prompts none</c>,
-/// <c>--prompt-suggestions false</c>, <c>--strict-mcp-config</c>, <c>--no-session-persistence</c>,
+/// <c>--strict-mcp-config</c>, <c>--no-session-persistence</c>,
 /// never <c>--bare</c>/<c>--continue</c>/<c>--resume</c>/<c>--fork-session</c>/
 /// <c>--dangerously-skip-permissions</c>/<c>--mcp-config</c>/<c>--add-dir</c>/an unrequested model flag/
 /// <c>--settings</c>/<c>--plugin-dir</c>/<c>--plugin-url</c>/<c>--agents</c>/a system prompt
@@ -56,12 +56,16 @@ namespace DevalCopilot.Infrastructure.Features.Runs;
 /// adapter never runs Git, a verification command, a commit, a push, a package install, or any
 /// network operation on Claude's behalf: the tool allowlist above is the only capability granted,
 /// and none of those actions are reachable through it.
+///
+/// ADR-0072 (contract <c>claude-implementation-v3</c>): only the current contract is dispatched, and the shared
+/// <see cref="ClaudeResultEnvelope"/> returns the schema-bound <c>structured_output</c> object only for semantic
+/// success, never the narrative <c>result</c> text; every failure carries one closed
+/// <see cref="AgentInvocationDiagnostic"/>.
 /// </summary>
 public sealed class ClaudeImplementationAdapter(IProcessExecutionAdapter processExecutionAdapter, IArtifactStore artifactStore)
     : IClaudeImplementationAdapter
 {
     private const int MaxContextManifestReadBytes = 32 * 1024;
-    private const int MaxSessionIdLength = 256;
 
     private readonly ClaudeProcessEnvironmentInputs _environmentInputs = ClaudeProcessEnvironmentInputs.Current;
 
@@ -79,12 +83,18 @@ public sealed class ClaudeImplementationAdapter(IProcessExecutionAdapter process
     public async Task<ImplementationInvocationResult> InvokeAsync(
         ImplementationInvocationRequest request, CancellationToken cancellationToken)
     {
+        if (!ClaudeMutationAdapterContract.IsCurrentVersionFor(AgentResponseContract.ImplementationReport, request.AdapterContractVersion))
+        {
+            // ADR-0072: only the current contract is dispatched; a historical attempt is never upgraded or redispatched.
+            return Failed(AgentInvocationDiagnostic.InvocationUnavailable);
+        }
+
         if (!IsAcceptableLaunchComponent(request.LaunchExecutablePath))
         {
             // Revalidation only — never a new search through PATH or a private install
             // location. A component that no longer exists or no longer has its accepted shape
             // fails this invocation closed before any process starts.
-            return Failed();
+            return Failed(AgentInvocationDiagnostic.InvocationUnavailable);
         }
 
         // Mirrors ClaudeCriticalReviewAdapter: a cancelled request is never masked as an environment refusal.
@@ -94,7 +104,7 @@ public sealed class ClaudeImplementationAdapter(IProcessExecutionAdapter process
         {
             // Mirrors ClaudeCriticalReviewAdapter: refused before the manifest is read, any sink is
             // requested, any artifact is written or a process starts — never retried with the smaller map.
-            return Failed();
+            return Failed(AgentInvocationDiagnostic.EnvironmentUnavailable);
         }
 
         var manifestWindow = await artifactStore.VerifyAndReadSealedAsync(
@@ -109,7 +119,7 @@ public sealed class ClaudeImplementationAdapter(IProcessExecutionAdapter process
         if (manifestWindow.Status != SealedReadStatus.Ok
             || !DirectHumanGuidanceManifest.Agrees(manifestWindow.Text, request.DirectHumanGuidance))
         {
-            return Failed();
+            return Failed(AgentInvocationDiagnostic.InvocationUnavailable);
         }
 
         // The same agreement for the human plan authorization (ADR-0016): a sealed manifest that carries the authorized
@@ -117,7 +127,7 @@ public sealed class ClaudeImplementationAdapter(IProcessExecutionAdapter process
         // ordinary attempt's manifest must carry none. No process starts on a disagreement and nothing is reconstructed.
         if (!PlanningImplementationAuthorizationManifest.Agrees(manifestWindow.Text, request.PlanningAuthorization))
         {
-            return Failed();
+            return Failed(AgentInvocationDiagnostic.InvocationUnavailable);
         }
 
         var arguments = new List<string>
@@ -131,7 +141,6 @@ public sealed class ClaudeImplementationAdapter(IProcessExecutionAdapter process
             "--disable-slash-commands",
             "--no-chrome",
             "--permission-prompts", "none",
-            "--prompt-suggestions", "false",
             "--tools", "Read,Edit,Write,Glob,Grep",
             "--strict-mcp-config",
             "--permission-mode", "acceptEdits",
@@ -142,14 +151,14 @@ public sealed class ClaudeImplementationAdapter(IProcessExecutionAdapter process
         if (!ClaudeModelRequestArguments.TryAppend(
                 arguments, request.RequestedClaudeModel, request.RequestedClaudeEffort))
         {
-            return Failed();
+            return Failed(AgentInvocationDiagnostic.InvocationUnavailable);
         }
 
         if (!ClaudeMutationTurnLimitArguments.TryAppend(
                 arguments, request.RequestedMaxTurns, request.AdapterContractVersion,
-                ClaudeMutationAdapterContract.ImplementationV2))
+                ClaudeMutationAdapterContract.CurrentImplementation))
         {
-            return Failed();
+            return Failed(AgentInvocationDiagnostic.InvocationUnavailable);
         }
 
         var executionRequest = new ProcessExecutionRequest
@@ -178,50 +187,40 @@ public sealed class ClaudeImplementationAdapter(IProcessExecutionAdapter process
         }
         catch (Exception)
         {
-            return Failed();
+            return Failed(AgentInvocationDiagnostic.InvocationUnavailable);
         }
 
         // Preserved for every real result, never collapsed into the closed Exited/Failed
-        // classification alone — mirrors ClaudeCriticalReviewAdapter.
+        // classification alone — mirrors ClaudeCriticalReviewAdapter. A failure deliberately never
+        // short-circuits the caller's own fresh Git evidence read: the worktree may already have been
+        // mutated before this failure occurred.
         var processEvidence = AgentProcessEvidence.FromProcessExecutionResult(result);
-        if (result.Outcome != ProcessExecutionOutcome.Exited || result.ExitCode != 0)
+        var reading = ClaudeResultEnvelope.Classify(result);
+        if (!reading.IsSuccess)
         {
-            // Deliberately never short-circuits without capturing whatever partial
-            // stdout/stderr the process produced — the caller always independently re-reads
-            // fresh Git evidence after this returns, regardless of this outcome, since the
-            // worktree may already have been mutated before this failure occurred.
-            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence);
-        }
-
-        var envelope = TryParseEnvelope(result.StandardOutput);
-        var tokenUsage = ClaudeCliTokenUsage.UnlessTruncated(envelope?.Usage, result.StandardOutputTruncated);
-        var modelLimits = ClaudeCliModelContextLimits.UnlessTruncated(envelope?.ModelLimits, result.StandardOutputTruncated);
-        if (envelope is null || envelope.IsError || envelope.FinalResponseJson is null)
-        {
-            // Provider-reported usage is still preserved when the envelope itself was structurally
-            // valid (for example is_error: true) — mirrors ClaudeCriticalReviewAdapter.
-            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence, tokenUsage, modelLimits);
+            return Failed(reading.Diagnostic!.Value, result, processEvidence, reading.TokenUsage, reading.ModelContextLimits);
         }
 
         try
         {
             var resultPath = artifactStore.GetPartialPath(request.RunId, request.AttemptId, ArtifactPurpose.AgentFinalResponse);
             Directory.CreateDirectory(Path.GetDirectoryName(resultPath)!);
-            await File.WriteAllTextAsync(resultPath, envelope.FinalResponseJson, cancellationToken).ConfigureAwait(false);
+            await File.WriteAllTextAsync(resultPath, reading.StructuredOutputJson, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence, tokenUsage, modelLimits);
+            return Failed(
+                AgentInvocationDiagnostic.CaptureFault, result, processEvidence, reading.TokenUsage, reading.ModelContextLimits);
         }
 
         return new ImplementationInvocationResult(
             ImplementationInvocationOutcome.Exited,
             result.StandardOutputTruncated,
             result.StandardErrorTruncated,
-            envelope.SessionId,
+            reading.SessionId,
             ProcessEvidence: processEvidence,
-            TokenUsage: tokenUsage,
-            ModelContextLimits: modelLimits);
+            TokenUsage: reading.TokenUsage,
+            ModelContextLimits: reading.ModelContextLimits);
     }
 
     /// <summary>Mirrors <c>ClaudeCriticalReviewAdapter.IsAcceptableLaunchComponent</c>
@@ -231,81 +230,14 @@ public sealed class ClaudeImplementationAdapter(IProcessExecutionAdapter process
         && File.Exists(path)
         && !AgentInvocationScratchDirectory.PathOrAnyAncestorHasReparsePoint(path);
 
-    /// <summary>Mirrors <c>ClaudeCriticalReviewAdapter.TryParseEnvelope</c> exactly — its own
-    /// copy, not a shared helper, per this slice's explicit instruction not to reuse the
-    /// critical-review adapter.</summary>
-    private static ClaudeEnvelope? TryParseEnvelope(string standardOutput)
-    {
-        JsonDocument document;
-        try
-        {
-            document = JsonDocument.Parse(standardOutput);
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
-
-        using (document)
-        {
-            var root = document.RootElement;
-            if (root.ValueKind != JsonValueKind.Object)
-            {
-                return null;
-            }
-
-            if (!root.TryGetProperty("is_error", out var isErrorElement)
-                || (isErrorElement.ValueKind != JsonValueKind.True && isErrorElement.ValueKind != JsonValueKind.False))
-            {
-                return null;
-            }
-
-            var isError = isErrorElement.ValueKind == JsonValueKind.True;
-
-            if (!root.TryGetProperty("result", out var resultElement))
-            {
-                return null;
-            }
-
-            var finalResponseJson = resultElement.ValueKind == JsonValueKind.String
-                ? resultElement.GetString()
-                : resultElement.GetRawText();
-
-            string? sessionId = null;
-            if (root.TryGetProperty("session_id", out var sessionIdElement) && sessionIdElement.ValueKind != JsonValueKind.Null)
-            {
-                if (sessionIdElement.ValueKind != JsonValueKind.String)
-                {
-                    return null;
-                }
-
-                var value = sessionIdElement.GetString();
-                if (string.IsNullOrWhiteSpace(value) || value.Length > MaxSessionIdLength)
-                {
-                    return null;
-                }
-
-                sessionId = value;
-            }
-
-            // A missing or malformed usage object never rejects the envelope — see ClaudeCliTokenUsage.
-            return new ClaudeEnvelope(
-                isError, finalResponseJson, sessionId, ClaudeCliTokenUsage.TryRead(root), ClaudeCliModelContextLimits.TryRead(root));
-        }
-    }
-
-    private sealed record ClaudeEnvelope(
-        bool IsError, string? FinalResponseJson, string? SessionId, AgentTokenUsage? Usage, AgentModelContextLimits? ModelLimits);
-
-    /// <summary><paramref name="processEvidence"/> is null only when no process result exists;
-    /// <paramref name="tokenUsage"/> and <paramref name="modelLimits"/> are null whenever no structurally valid envelope reported
-    /// well-shaped usage or limits, each judged independently.</summary>
+    /// <summary>Mirrors <c>ClaudeCriticalReviewAdapter.Failed</c>.</summary>
     private static ImplementationInvocationResult Failed(
-        bool standardOutputTruncated = false,
-        bool standardErrorTruncated = false,
+        AgentInvocationDiagnostic diagnostic,
+        ProcessExecutionResult? result = null,
         AgentProcessEvidence? processEvidence = null,
         AgentTokenUsage? tokenUsage = null,
         AgentModelContextLimits? modelLimits = null) =>
-        new(ImplementationInvocationOutcome.Failed, standardOutputTruncated, standardErrorTruncated, ProviderSessionId: null,
-            ProcessEvidence: processEvidence, TokenUsage: tokenUsage, ModelContextLimits: modelLimits);
+        new(ImplementationInvocationOutcome.Failed, result?.StandardOutputTruncated ?? false, result?.StandardErrorTruncated ?? false,
+            ProviderSessionId: null, ProcessEvidence: processEvidence, TokenUsage: tokenUsage, ModelContextLimits: modelLimits,
+            Diagnostic: diagnostic);
 }

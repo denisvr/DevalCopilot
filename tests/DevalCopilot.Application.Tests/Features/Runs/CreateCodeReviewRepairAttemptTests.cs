@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using System.Text.Json;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
@@ -369,7 +370,7 @@ public sealed class CreateCodeReviewRepairAttemptTests : IAsyncLifetime
                 var workspace = await context.GitWorkspaces.SingleAsync(w => w.Id == setup.Scene.Workspace.Id);
                 var rerun = VerificationExecution.Claim(Guid.NewGuid(), setup.Scene.Project.Id, 3, workspace, checkpoint, command, RepairTestScene.Now);
                 rerun.MarkDispatched(RepairTestScene.Now);
-                rerun.Complete(VerificationExecutionOutcome.Exited, 0, checkpoint.FingerprintSha256, RepairTestScene.Now);
+                rerun.Complete(VerificationExecutionOutcome.Exited, 0, checkpoint.FingerprintSha256, RepairTestScene.Now, ProcessIoCompletion.CompleteWithoutInput);
                 context.VerificationExecutions.Add(rerun);
                 await context.SaveChangesAsync();
             },
@@ -389,7 +390,7 @@ public sealed class CreateCodeReviewRepairAttemptTests : IAsyncLifetime
                 var workspace = await context.GitWorkspaces.SingleAsync(w => w.Id == setup.Scene.Workspace.Id);
                 var rerun = VerificationExecution.Claim(Guid.NewGuid(), setup.Scene.Project.Id, 3, workspace, checkpoint, command, RepairTestScene.Now);
                 rerun.MarkDispatched(RepairTestScene.Now);
-                rerun.Complete(VerificationExecutionOutcome.Exited, 1, checkpoint.FingerprintSha256, RepairTestScene.Now);
+                rerun.Complete(VerificationExecutionOutcome.Exited, 1, checkpoint.FingerprintSha256, RepairTestScene.Now, ProcessIoCompletion.CompleteWithoutInput);
                 context.VerificationExecutions.Add(rerun);
                 await context.SaveChangesAsync();
             },
@@ -427,7 +428,7 @@ public sealed class CreateCodeReviewRepairAttemptTests : IAsyncLifetime
                 await context.SaveChangesAsync();
                 var execution = VerificationExecution.Claim(Guid.NewGuid(), setup.Scene.Project.Id, 3, workspace, checkpoint, added, RepairTestScene.Now);
                 execution.MarkDispatched(RepairTestScene.Now);
-                execution.Complete(VerificationExecutionOutcome.Exited, 0, checkpoint.FingerprintSha256, RepairTestScene.Now);
+                execution.Complete(VerificationExecutionOutcome.Exited, 0, checkpoint.FingerprintSha256, RepairTestScene.Now, ProcessIoCompletion.CompleteWithoutInput);
                 context.VerificationExecutions.Add(execution);
                 await context.SaveChangesAsync();
             },
@@ -690,7 +691,7 @@ public sealed class CreateCodeReviewRepairAttemptTests : IAsyncLifetime
                 var workspace = await seam.Racing.GitWorkspaces.SingleAsync(w => w.Id == seam.Scene.Workspace.Id);
                 var rerun = VerificationExecution.Claim(Guid.NewGuid(), seam.Scene.Project.Id, 3, workspace, checkpoint, command, RepairTestScene.Now);
                 rerun.MarkDispatched(RepairTestScene.Now);
-                rerun.Complete(VerificationExecutionOutcome.Exited, 0, checkpoint.FingerprintSha256, RepairTestScene.Now);
+                rerun.Complete(VerificationExecutionOutcome.Exited, 0, checkpoint.FingerprintSha256, RepairTestScene.Now, ProcessIoCompletion.CompleteWithoutInput);
                 seam.Racing.VerificationExecutions.Add(rerun);
             },
             InputsMismatch);

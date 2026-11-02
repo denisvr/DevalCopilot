@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Domain.Features.Projects;
 using Xunit;
 
@@ -23,7 +24,7 @@ public sealed class VerificationExecutionTests
             Guid.NewGuid(), project.Id, project.ReserveVerificationExecutionNumber(), workspace, checkpoint, command, DateTimeOffset.UtcNow);
         arguments.Add("--tampered");
         execution.MarkDispatched(DateTimeOffset.UtcNow);
-        execution.Complete(VerificationExecutionOutcome.Exited, 0, checkpoint.FingerprintSha256, DateTimeOffset.UtcNow);
+        execution.Complete(VerificationExecutionOutcome.Exited, 0, checkpoint.FingerprintSha256, DateTimeOffset.UtcNow, ProcessIoCompletion.CompleteWithoutInput);
 
         Assert.Equal(VerificationExecutionStatus.Passed, execution.Status);
         Assert.Equal(["test"], execution.Arguments);
@@ -46,7 +47,7 @@ public sealed class VerificationExecutionTests
             Guid.NewGuid(), project.Id, 1, workspace, checkpoint, command, DateTimeOffset.UtcNow);
 
         execution.MarkDispatched(DateTimeOffset.UtcNow);
-        execution.Complete(VerificationExecutionOutcome.Exited, 0, new string('c', 64), DateTimeOffset.UtcNow);
+        execution.Complete(VerificationExecutionOutcome.Exited, 0, new string('c', 64), DateTimeOffset.UtcNow, ProcessIoCompletion.CompleteWithoutInput);
 
         Assert.Equal(VerificationExecutionStatus.SourceChanged, execution.Status);
     }
@@ -69,7 +70,7 @@ public sealed class VerificationExecutionTests
         execution.MarkDispatched(DateTimeOffset.UtcNow);
 
         Assert.Throws<ArgumentException>(
-            () => execution.Complete(VerificationExecutionOutcome.TimedOut, 1, checkpoint.FingerprintSha256, DateTimeOffset.UtcNow));
+            () => execution.Complete(VerificationExecutionOutcome.TimedOut, 1, checkpoint.FingerprintSha256, DateTimeOffset.UtcNow, ProcessIoCompletion.CompleteWithoutInput));
     }
 
     [Fact]
@@ -87,7 +88,7 @@ public sealed class VerificationExecutionTests
             Guid.NewGuid(), project.Id, 1, workspace, checkpoint, command, DateTimeOffset.UtcNow);
 
         execution.MarkDispatched(DateTimeOffset.UtcNow);
-        execution.Complete(VerificationExecutionOutcome.Failed, null, checkpoint.FingerprintSha256, DateTimeOffset.UtcNow);
+        execution.Complete(VerificationExecutionOutcome.Failed, null, checkpoint.FingerprintSha256, DateTimeOffset.UtcNow, ProcessIoCompletion.CompleteWithoutInput);
 
         Assert.Equal(VerificationExecutionStatus.Failed, execution.Status);
     }

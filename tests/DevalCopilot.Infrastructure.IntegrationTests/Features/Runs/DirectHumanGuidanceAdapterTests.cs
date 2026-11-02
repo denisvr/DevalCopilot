@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Domain.Features.Processes;
 using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Application.Features.Runs.Ports;
@@ -56,8 +57,8 @@ public sealed class DirectHumanGuidanceAdapterTests : IDisposable
     private sealed record Invocation(bool Failed, int Starts, ProcessExecutionRequest? Request);
 
     private static string V2(MutationPath path) => path == MutationPath.Implementation
-        ? ClaudeMutationAdapterContract.ImplementationV2
-        : ClaudeMutationAdapterContract.ReviewCorrectionV2;
+        ? ClaudeMutationAdapterContract.CurrentImplementation
+        : ClaudeMutationAdapterContract.CurrentReviewCorrection;
 
     private static string Manifest(string? guidance, Action<Dictionary<string, object?>>? tamper = null)
     {
@@ -310,9 +311,10 @@ public sealed class DirectHumanGuidanceAdapterTests : IDisposable
             Starts++;
             return Task.FromResult(new ProcessExecutionResult
             {
+                IoCompletion = ProcessIoCompletion.CompleteWithoutInput,
                 Outcome = ProcessExecutionOutcome.Exited,
                 ExitCode = 0,
-                StandardOutput = JsonSerializer.Serialize(new { is_error = false, result = "{}", session_id = (string?)null }),
+                StandardOutput = ClaudeDocumentedEnvelope.SuccessText("{}", (string?)null),
                 StandardOutputTruncated = false,
                 StandardError = string.Empty,
                 StandardErrorTruncated = false,

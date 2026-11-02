@@ -92,6 +92,10 @@ public sealed class ToolDiscoveryAdapter(IProcessExecutionAdapter processExecuti
             case ProcessExecutionOutcome.TimedOut:
                 return ToolDiscoveryResult.Failed(CapabilityProbeReason.ProbeTimedOut);
 
+            case ProcessExecutionOutcome.Exited when !result.IoCompletion.IsComplete:
+                // ADR-0072: an exit whose output never demonstrably ended is never parsed for a version.
+                return ToolDiscoveryResult.Failed(CapabilityProbeReason.ExecutableInaccessible);
+
             case ProcessExecutionOutcome.Exited when result.ExitCode != 0:
                 // An unexpected non-zero exit from a fixed "--version" probe — never invents a
                 // version from it, and never persists the captured output.

@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.Processes;
 using System.Data.Common;
 using System.Text;
 using System.Text.Json;
@@ -419,7 +420,7 @@ public sealed class GetAgentAttemptVerificationEvidenceQueryHandlerTests : IAsyn
                 var execution = VerificationExecution.Claim(
                     Guid.NewGuid(), scene.ProjectId, 100 + index, scene.Workspace, newer, command, RecordedVerificationSeed.Now.AddHours(2));
                 execution.MarkDispatched(RecordedVerificationSeed.Now.AddHours(2).AddSeconds(1));
-                execution.Complete(VerificationExecutionOutcome.Exited, 1, newer.FingerprintSha256, RecordedVerificationSeed.Now.AddHours(2).AddSeconds(2));
+                execution.Complete(VerificationExecutionOutcome.Exited, 1, newer.FingerprintSha256, RecordedVerificationSeed.Now.AddHours(2).AddSeconds(2), ProcessIoCompletion.CompleteWithoutInput);
                 dbContext.VerificationExecutions.Add(execution);
                 command.Update("Renamed after the fact", @"C:\tools\other.exe", ["--changed"], 30, false, RecordedVerificationSeed.Now.AddHours(3));
             }

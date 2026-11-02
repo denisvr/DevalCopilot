@@ -1,4 +1,5 @@
 using Devalente.Shared.Cqrs;
+using DevalCopilot.Domain.Features.Processes;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Projects.Ports;
@@ -248,7 +249,7 @@ public sealed class AgentAttemptSupervisor(
             logger.LogError("agent_attempt_completion_evidence_failed AttemptId={AttemptId}", attempt.AttemptId);
         }
 
-        var sealedArtifacts = await SealArtifactsAsync(attempt, standardOutputTruncated, standardErrorTruncated);
+        var sealedArtifacts = await SealArtifactsAsync(attempt, standardOutputTruncated, standardErrorTruncated, processEvidence?.IoCompletion);
 
         // A null fingerprint means fresh evidence could not be captured at all — CompleteAgent's
         // own mismatch override never fires for a null fingerprint, so without this check a
@@ -313,7 +314,7 @@ public sealed class AgentAttemptSupervisor(
     }
 
     private async Task<IReadOnlyList<SealedAgentArtifact>> SealArtifactsAsync(
-        EligibleAgentAttempt attempt, bool standardOutputTruncated, bool standardErrorTruncated)
+        EligibleAgentAttempt attempt, bool standardOutputTruncated, bool standardErrorTruncated, ProcessIoCompletion? ioCompletion)
     {
         var results = new List<SealedAgentArtifact>();
         foreach (var (purpose, truncated) in new[]
@@ -323,6 +324,12 @@ public sealed class AgentAttemptSupervisor(
                      (ArtifactPurpose.AgentFinalResponse, false),
                  })
         {
+            if (!CapturedOutputSealing.MaySealAgentArtifact(purpose, ioCompletion))
+            {
+                // ADR-0072: the captured stream's writer was not proved closed; its partial file is neither sealed nor deleted.
+                continue;
+            }
+
             var sealedFile = await artifactStore.SealAsync(attempt.RunId, attempt.AttemptId, purpose, CancellationToken.None);
             if (sealedFile is not null)
             {

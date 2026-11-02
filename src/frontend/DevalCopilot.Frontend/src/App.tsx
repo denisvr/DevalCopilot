@@ -23,6 +23,9 @@ import { ExecutionCapacityLimitControl } from './features/cockpit/components/Exe
 import { LocalExecutionQueueInspectionRegion } from './features/cockpit/components/LocalExecutionQueueInspectionRegion'
 import type { PlanningSequenceControl } from './features/cockpit/planningSequence'
 import { describePlanningSequenceWithholding } from './features/cockpit/planningSequenceCopy'
+import { StartupFailureGuidance } from './features/cockpit/components/StartupFailureGuidance'
+import { StartupWarningSummary } from './features/cockpit/components/StartupWarningSummary'
+import { getLaunchSession, getStartupFailure } from './api/session'
 import './features/cockpit/cockpit.css'
 
 function StartingState() {
@@ -34,6 +37,16 @@ function StartingState() {
 }
 
 function SidecarFailedState() {
+  // ADR-0072: a closed startup failure the shell reported for this launch is shown with fixed guidance, without any API or session.
+  const startupFailure = getStartupFailure()
+  if (startupFailure) {
+    return (
+      <div className="dc-app">
+        <StartupFailureGuidance failure={startupFailure} />
+      </div>
+    )
+  }
+
   return (
     <div className="dc-app">
       <p className="dc-empty-state">
@@ -139,6 +152,9 @@ export default function App() {
           {theme === 'dark-navy' ? '☾ Dark Navy' : '☀ Light'}
         </button>
       </header>
+
+      {/* ADR-0072: the one summary of nonfatal startup warnings carried with readiness. */}
+      <StartupWarningSummary warnings={getLaunchSession()?.startupWarnings} />
 
       {/* ADR-0059: the one global recorded-execution limit control, independent of any selected project. */}
       <ExecutionCapacityLimitControl capacity={executionCapacity} />
