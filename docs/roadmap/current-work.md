@@ -6,7 +6,578 @@ was prepared ([recovery](development-workflow.md#recovery)). Git and code
 prevail; compare branch, `HEAD`, `origin/main` and staged/unstaged/untracked
 state first.
 
-## Active slice: WIN-EXEC-PROFILE-01 one Windows execution profile (ADR-0072/0073/0074; reviewed, publication pending)
+## Active slice: QUALIFICATION-PROFILE-01 offline preparation of the two-lot real-provider qualification (first return plus correction 1 after review 1 NO-GO; returned for review; not authorized for execution)
+
+This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review
+decision and [real-provider-qualification-plan.md](real-provider-qualification-plan.md) for the proposed contract. This record alone
+grants no execution or publication authority: lot A and lot B each need a separate concrete execution approval after independent
+preparation review, and nothing is committed or pushed. The sections up to and including "Evidence classes and Git state" are the
+**first return**, preserved as recorded (several statements there, for instance that the launcher's own Git resolves through `PATH` and
+that lot B pins no hash, were superseded by the correction); "Correction 1" below records what changed after review 1 and its fresh
+evidence.
+
+**Delivery phase: first return of the Claude executor chat's offline preparation, authorized by the owner ("Yes, begin") after the
+dispatch's ACTIVATION PENDING gate.** Preflight (verified once before acting): branch `main`; `HEAD` and local `origin/main`
+`38fc3847f347599430cc036849044d75d6e8bb8a` (the planner's live-remote read was not repeated by the executor); an empty index; exactly
+one unstaged tracked change, the planner-owned planner-handoff.md, which the executor did not edit; exactly one untracked file before the
+work, the planner's real-provider-qualification-plan.md, also not edited. Only `tests/` and `docs/roadmap/manual-provider-qualification-playbook.md`
+and this file changed; no `src/` file, production adapter, provider contract, authentication policy, model default, safety flag,
+ownership or release semantic, or discovery behavior changed.
+
+### What exists
+
+- **Lot A launcher mode** (`--run-claude-auth-status-comparison --claude-executable <path> --claude-sha256 <digest>`): a bounded identity
+  check of the one owner-approved `claude.exe`, then at most two serial `claude auth status` starts through the shared
+  `ChildProcessExecutionAdapter` (direct typed arguments, no shell, TTY or input, one disposable working directory): the launching
+  terminal's own environment, then the map built by the production `ClaudeProcessEnvironment` itself (one narrow reflective call, pinned by
+  a test; no duplicate map, no new internal access, no production change). A closed projector (`loggedIn` agreeing with the documented
+  exit code, a closed method token, a one-way configuration-directory fingerprint) and a closed summary (`statusSchemaVersion` 1).
+- **Fresh authorizations.** `InvocationLedger.Authorization` and `DirectoryName` now name lot B's fresh authorization and directory; the
+  earlier directory name survives only as a refused name at construction (no read, enumeration, reset or archive anywhere). Lot A has its
+  own authorization and directory. Process slots (`AdmissionLedger`) are durable create-new files consumed before each process; any slot or
+  allowance makes the lot spent. The earlier flag and phrase are no longer recognized; lots have distinct flags and phrases.
+- **Process admission** (`ProcessAdmission`, `Profile01Inventory`, `JudgedTargets`, `AdmittingProcessExecutionAdapter`,
+  `AdmissionRefusingCodexObservers`): the closed inventory of 179 starts around the host's one production process adapter and the
+  launcher's own Git, with the Codex `app-server` observers answered by counted refusals. Unlisted, ambiguous or exhausted requests are
+  refused before process creation, counted, and stop the session at its next step (the first closed code wins; a host failure that follows
+  a refusal is reported as `ProcessAdmissionRefused`).
+- **Evidence and summary.** `StageReading`/`StageEvidenceReader`/`StageVerifier`/`SafeSummary` now carry the recorded adapter contract
+  version (pinned `codex-planning-v1`, `claude-critical-review-v2`), the three recorded I/O facts with derived required completion, the
+  closed invocation diagnostic with its version and the attempt-evidence-route comparison (read for every terminal attempt, including a
+  failed one with no message); schema 3; created-exclusively summary files; the process-admission counts; an outer 35-minute bound
+  (exit 8) that reports an unproven session and touches nothing.
+- **Docs.** The playbook's QUALIFICATION-PROFILE-01 section holds the exact proposed entries, identities, counts, deadlines, reads and
+  writes, stop actions and the remaining decisions.
+
+### Resolved process counts (offline, unchanged production flow against the journey's doubles)
+
+The complete lot B flow issues 56 discovery probes at most (7 capabilities x 8: first probe plus a refresh every five minutes inside 35
+minutes), 2 role starts, 41 launcher Git starts (5 fixture, 36 in nine snapshots) and 80 host Git starts (22 registration, identity and
+worktree reads; 58 evidence reads), **179** in all. Evidence: `Profile01RehearsalTests` (three consecutive identical 8/8 runs, then the
+final complete filter), which asserts each class's exact count, zero refusals and that the closed inventory admits the whole flow; the
+per-class ceilings are pinned in `Profile01InventoryTests`. The counts carry no headroom.
+
+### Validation (fresh unless stated)
+
+- Builds with warnings as errors and analyzers, `DOTNET_ADD_GLOBAL_TOOLS_TO_PATH=false` and `DOTNET_GENERATE_ASPNET_CERTIFICATE=false`:
+  `dotnet build tests/DevalCopilot.Api.IntegrationTests -warnaserror --no-restore` and the launcher project: 0 warnings, 0 errors. The very
+  first build failed once with CS2012 (VBCSCompiler holding `Domain.dll`) and passed on the one retry with `-p:UseSharedCompilation=false`
+  (as in the recorded pattern); the first Architecture.Tests build ran the NSwag step, which failed with MSB3073 exit 9009 (not
+  investigated), and was rebuilt with `-p:SkipNSwag=True` (passed; no frontend or `src/` file changed).
+- Focused and rehearsal tests passed during preparation; the **complete** `Features.ManualQualification` filter ran once at the end:
+  **526 tests, 524 passed, 2 failed**. The two failures are `ChildProcessWatchTests.A_helper_launched_through_a_shell_is_a_leftover_even_after_its_shell_ended`
+  and `...A_new_process_under_a_pre_existing_parent_with_a_readable_identity_is_not_ours_and_is_left_alone`: untouched files that observe
+  the native process table (they failed identically before any new test existed). They were **not** compared against a clean baseline
+  checkout (that needs a restore), so they are reported, not explained.
+- `ClaudeProcessEnvironmentTests`: 29/29 (Infrastructure.IntegrationTests). `Architecture.Tests`: 232/232. `dotnet format --verify-no-changes`
+  over the two changed folders: 0 of 453 files changed, exit 0.
+- Not run, by design: any real provider, real `claude.exe`, version/help/status or discovery of the installed tools; the launcher's lot
+  flows against real tools; the solution build, frontend, Rust or journeys (launcher-only change).
+
+### Findings and challenges for Codex
+
+1. **The plan's process inventory omitted the Codex `app-server` path.** Three production observers launch `app-server --stdio` through their
+   own process boundary, never the shared adapter; a decorator alone would not have seen them. They are answered by counted refusals in the
+   qualification host only. The usage-stop guard calls its observer only when a usage stop is configured; the rehearsal with the production
+   composition shows zero calls. Please confirm this qualification-only service substitution (no provider or discovery behavior changes).
+2. **Defect found and fixed in this change.** The first version read the admission facts before the session's final Git observation, so
+   the summary missed the last eight commands; the rehearsal exposed it.
+3. **The launcher's own Git still resolves `git` by `PATH` search** (unchanged); only the host's Git is pinned to the judged executable.
+   Lot B also pins no hash of Codex or Claude (production discovery and the judge select them). Both are open decisions, not
+   preparation defects.
+4. **One reflective call** reaches the internal production environment builder, instead of widening `InternalsVisibleTo` in a production
+   assembly; alternatively a reviewed internal grant is possible. A test fails if the builder's shape changes.
+5. **Counts without headroom, a spent lot on any slot, and removal of the earlier flag/phrase** are deliberate. Any variance stops the run.
+6. **Periodic discovery is bounded, not demonstrated over time.** The rehearsal observes one probe per capability (the refresh interval is a
+   production five-minute constant, unchanged). The ceiling of 8 per capability follows from that interval inside 35 minutes, and the
+   ninth probe's refusal is proven at the admission boundary only. A longer real run is the first evidence of the refresh count.
+7. Not enforceable here: a monetary, token or provider-internal request ceiling. Windows Sandbox stays enabled; all historical allowances
+   remain consumed; no ledger, root, credential or evidence store was inspected.
+
+### Evidence classes and Git state
+
+All validation above is fresh controlled evidence with fabricated inputs and owned doubles; none is a provider result. The diff is
+unstaged, uncommitted and unpushed: modified `tests/DevalCopilot.Api.IntegrationTests/ManualQualification/Launcher` (reused types) and
+`.../Features/ManualQualification` (existing tests updated for the new schema, flag and phrase), the new launcher and test files, the
+playbook and this file. `docs/roadmap/planner-handoff.md` and `docs/roadmap/real-provider-qualification-plan.md` are the planner's
+and were not edited. No next slice is selected.
+
+### Correction 1 (planner review 1 NO-GO: QP-R1 to QP-R4, QP-V1; returned for review, not accepted)
+
+Authorized by the planner's review in [planner-handoff.md](planner-handoff.md) for this same slice and executor chat; neither real lot
+nor commit/push is authorized. Preflight verified once before editing: branch `main`; `HEAD`, local `origin/main` and a live
+`git ls-remote origin refs/heads/main` read all `38fc3847f347599430cc036849044d75d6e8bb8a`; an empty index; 25 modified tracked paths
+and 43 untracked files; no `src/` change. The planner-owned handoff (which now contains review 1) and qualification plan were not
+edited, and the reviewer's ignored evidence directory was read only for its `reviewer-controls.cs`. The first-return record above
+(524/526, the two native-watch failures, SkipNSwag after the unexplained exit 9009) is preserved unchanged. Only `tests/` and the two
+docs changed again; no `src/` file, production adapter, policy, discovery or provider contract changed, and nothing real was run.
+
+- **QP-R1: one monotonic whole-entry deadline** (`EntryDeadline`). Started as the entry's first statement in both lots; it covers argument
+  handling, the identity verification or manifest load, the environment's creation and preparation, the observations or session, the
+  final observations, the closure, the summary and its save. The waiter (`Task.WhenAny` against the remaining time) never runs the work it
+  waits for: the work runs on its own task, so a synchronous filtered-map preparation (lot A), a synchronous first source snapshot or
+  environment factory (lot B), a held report sink or a held disposal can no longer hold the entry past its bound. Exactly one of the work's
+  report claim and the waiter's expiry claim can win. After expiry, `ProcessAdmission` reads the deadline from the clock at every
+  decision (so no start can follow it whatever thread asks), a `DeadlineGatedEnvironment` stops every effect of a detached session
+  (preparation, host start, readiness, registration, submission, reads, snapshots; the stop is reported unproven, the root's removal is
+  refused with its reason and disposal does nothing), the session consumes no further allowance, and lot A's continuation removes
+  nothing and rewrites nothing. An observation whose slot was consumed is reported `StartedUnproven`, never `NotStarted`. If the report
+  was already being written, the entry returns exit 8 with a fixed line that report and closure are unproven. **Limits:** the bound is
+  a decision point of the launcher under a responsive OS; it does not pre-empt a blocked OS call, a detached continuation that is
+  already inside such a call continues until it returns, and nothing here proves a descendant stopped.
+- **QP-R2: terminal admission.** `ProcessAdmission` closes its gate atomically with the first refusal (unlisted, ambiguous, drifted or
+  exhausted), with the deadline, or with an explicit `Close`. The first reason is preserved (`closedBy` in both summaries), consumed
+  slots are never refunded, and every later request of any producer (including a background refresh, a Git command or an unexpected
+  `app-server` observer call) is refused as `AdmissionClosed` and starts nothing. The session treats a closed gate as a refusal, requires
+  the final source inspection even when nothing was submitted, and, because every later Git command is refused too, reports the
+  inspection as unproven (`SourceUnreadable`, `proven: false`) and preserves the root (`InspectionRequired`); a closed gate also
+  disqualifies an otherwise complete result. Interleavings are covered by deterministic sequences and a concurrent-producer test.
+- **QP-R3: reviewed request and executable identities.** The inventory now classifies the **whole request** (`ProcessShape`: executable,
+  arguments, working directory, approved root, environment variable names only, deadline, both sinks, standard-input presence). The two
+  role vectors are exact (no member added, removed or changed; only the schema or result path, workspace, session GUID, branch and commit
+  are constrained dynamic members), destinations must lie inside the one owned root, environment names and deadlines are bounded, and
+  discovery probes are bound to owner-approved launch tuples (`ApprovedLaunchSet`: Git, Codex, Claude required; Node when a script
+  launch is approved; dotnet, gh and docker only if approved) instead of filenames or package substrings. A closed, strict
+  approved-launch manifest (`--approved-launches <absolute path>`) supplies each file's absolute path and SHA-256; every file is verified
+  when loaded and again immediately before every start that launches it (executable and script), with closed drift codes. The launcher's
+  own Git and the host's Git are the same approved absolute file (never `PATH`), and the host's readiness evidence must name exactly the
+  approved tuples or no Git or role shape is ever listed. The reviewer's two admitted vectors and the PATH-name and package-substring
+  discovery counterexamples are permanent refusals. **Corrected in correction 2 (this sentence originally claimed that no installed
+  tool was hashed, which contradicted the evidence below):** the unit and manifest tests use owned stand-in files only, but the
+  controlled production-composition rehearsal reads, in memory, the exact regular files of the machine's real Git, .NET, Node and
+  Docker that its existing local-tool resolution selects, to build its approvals (real tool boundaries; Codex, Claude and `gh` are
+  owned doubles). No installed Codex or Claude identity was read, and the owner's actual identities remain a future approved
+  preflight. No claim of protection against a malicious but approved executable or a same-user replacement between the check and the
+  launch.
+- **QP-R4: typed status projection.** A recognized member (`authMethod`, `configDirectory`) present with any other type (number, null,
+  boolean, array, object) or duplicated makes the whole observation `Unknown`; only an absent optional member stays distinct. The
+  reviewer's two `ReportedAuthenticated` counterexamples are permanent cases, and a mistyped first observation is proven to prevent the
+  second start.
+- **Planner decisions applied.** Counted refusal of all three `app-server` observers is kept (any call now closes the gate); the single
+  reflective builder call is kept; the per-class ceilings keep no headroom (the total stays 179 when all seven capabilities are
+  approved); executable identity binding is implemented as engineering work, not left as an owner decision about `PATH`.
+
+### Correction 1 validation (context: the Claude executor chat's own Windows shell; times UTC on 2026-11-02)
+
+All commands used `DOTNET_ADD_GLOBAL_TOOLS_TO_PATH=false` and `DOTNET_GENERATE_ASPNET_CERTIFICATE=false`, `--no-restore`, `-m:1`,
+`-p:UseSharedCompilation=false` and `-p:SkipNSwag=True` (the support/test projects' existing API references request it; no API, schema
+or client input changed; the failed default NSwag invocation is **not** claimed to have passed and its exit 9009 stays unexplained).
+Warnings and analyzers are errors by project configuration.
+
+- **Fresh builds.** `dotnet build tests/DevalCopilot.Api.IntegrationTests ...`: 0 warnings, 0 errors on the final source (7 to 10 s,
+  incremental). Earlier builds during this correction stopped on my own compile errors and on two xUnit1031 analyzer errors (blocking
+  `.Result` in tests), all fixed. `dotnet build tests/DevalCopilot.Api.IntegrationTests/ManualQualification/Launcher/ManualQualification.csproj ...`:
+  0 warnings, 0 errors (3.3 s).
+- **Fresh focused regressions (run first).** The twelve affected classes (inventory, terminal admission, entry deadline, manifest, status
+  projector, status runner, status entry, outer deadline, opt-in, admission session, admission ledger, fresh authorization): the first run
+  was 278 of 291 and **exposed a defect of my own** (`Approved?.Revalidate(shape) ?? "IdentityUnapproved"` turned every successful
+  verification into a refusal; fixed to an explicit conditional); the next run was 290 of 291 (one reflection test became ambiguous with the
+  new `RunAsync` overload; fixed). The production-composition rehearsal and the fresh-authorization test then passed 15 of 15 (39 s), with
+  the same exact per-class counts (no refusal, 56 discovery maximum, 2 role, 41 launcher Git, 80 host Git).
+- **Fresh complete filter, once, on the final stable binaries.** `dotnet test tests/DevalCopilot.Api.IntegrationTests --no-build --filter
+  "FullyQualifiedName~Features.ManualQualification" --logger "trx;LogFileName=full-filter.trx"`: **639 tests, 637 passed, 2 failed**, 1 m 22 s
+  (21:29:23Z to 21:30:47Z). The two failures are the same two `ChildProcessWatchTests` as in the first return
+  (`A_helper_launched_through_a_shell_is_a_leftover_even_after_its_shell_ended`: `Assert.False` expected False, actual True, 1 s;
+  `A_new_process_under_a_pre_existing_parent_with_a_readable_identity_is_not_ours_and_is_left_alone`: `Assert.NotNull` on null, 11 s). They
+  are in untouched code that reads the native process table, they were **not** compared against a clean baseline, and the reviewer's six
+  passes in another execution context do not explain or erase them: reported, neither attributed nor suppressed, no blind retry. The first
+  return's 526 tests (524 passed, 2 failed) are preserved above; the suite grew by 113 test cases. Output and TRX are in the ignored
+  `logs/executor/qualification-profile-01-correction-01/`.
+- **Retained, not rerun (inputs unchanged: no `src/` file changed).** `Architecture.Tests` 232 of 232 (built with `SkipNSwag`, from the
+  first return) and `ClaudeProcessEnvironmentTests` 29 of 29. The reflective builder call and its fail-closed resolution are exercised
+  again by the complete filter above.
+- **Fresh static checks.** `dotnet format ... --verify-no-changes` over the two changed folders: exit 0. Byte counts: no CR byte and no new
+  non-ASCII byte in any changed file (the pre-existing 544 non-ASCII bytes of this file are unchanged). Every documentation link target
+  exists. A sensitive-data pattern scan of the changed files (excluding the planner's two records) found nothing; the only credential-looking
+  strings are fabricated fixture literals (`sk-secret`, `example.invalid`, `hunter2`).
+- **Not run, by design.** Any real provider, `claude.exe`, version, help, authentication or account call; installed-provider or Node/script
+  identity inspection; login; credential or preserved-evidence access; old-ledger access; installation or download; a new guest or cache
+  proof; the solution build, frontend, Rust, journeys or default NSwag generation. Windows Sandbox stays enabled.
+
+### Correction 1 findings, limits and risks for Codex
+
+1. **Rehearsal reads real tool bytes.** To build the rehearsal's approvals the test hashes, in memory, the machine's real Git, dotnet,
+   Node and Docker files (the same files the unchanged production discovery already ran in the first-return rehearsal; Codex, Claude and
+   `gh` are the owned doubles). No provider is inspected, and the owner's actual manifest values are not known or invented.
+2. **The launcher's own Git inherits the launching terminal's ambient environment** (its environment is not bound; the host's Git and both
+   role environments are bound by name). Its executable, destination, arguments and bound are bound.
+3. **Not every destination is bound.** The Codex schema file is constrained to an absolute path named `schema.json`, not to the owned
+   root, and the discovery working directory (the host's scratch directory) is not bound; both are unchanged production locations.
+4. **A detached continuation already inside an OS call continues** until the call returns; it then reaches only gated effects. Nothing
+   here pre-empts such a call or proves a descendant stopped.
+5. **A manifest value that the host cannot match is a blocker**: a tool the production resolver finds that the owner did not list is
+   refused on its first probe and stops the lot (fail closed), so the owner must list every installed `dotnet`, `gh` and `docker`.
+6. **Hashing before every start has a cost** (each Git command rehashes the approved Git file; the largest approved files are the
+   providers, hashed once per probe and once per role). It is bounded by the 179-start ceiling and was not measured against real files.
+7. The first reason that closes the gate is the only one reported as `closedBy`; later refusals are counted as `AdmissionClosed`, so a
+   report cannot attribute a later failure to a different cause.
+
+### Correction 2 (planner review 2 NO-GO: QP-R1, QP-R2, QP-R3 and QP-V1 open; QP-R4 closed; returned for review, not accepted)
+
+Authorized by the planner's review 2 in [planner-handoff.md](planner-handoff.md) for this same slice and executor chat; neither real
+lot, an installed-provider identity preflight nor commit/push is authorized. Preflight verified once before editing: branch `main`;
+`HEAD`, local `origin/main` and a live `git ls-remote` read all `38fc3847f347599430cc036849044d75d6e8bb8a`; an empty index; 25
+modified tracked paths and 55 untracked files; no `src/` change. The planner-owned records were not edited; the reviewer's ignored
+directory was read only for `reviewer-controls.cs`. The correction-1 record and the original 524/526 and 637/639 results (with their
+two native-watch failures) are preserved above. Only `tests/` and the two docs changed again; no production file, policy, discovery
+behavior or provider contract changed, and nothing real was run.
+
+- **QP-R1: snapshot, finalization and the budget.**
+  - **Progress snapshot.** `ProcessAdmission` publishes an immutable progress snapshot after every state change (admitted, refused,
+    first closing reason, and the classes of requests **pending** in flight, visible before they block). `Facts` and `IsClosed` read it
+    without the admission lock (the deadline is applied from the clock), so the waiter no longer waits for hashing or marker I/O. A
+    control holding the validator showed the previous read did not return; the new one returns at once while the request is pending.
+  - **Finalization order.** A normal end is now: session finishes, the entry claims its report, the environment is **closed**
+    (disposed), the summary (which states `closure.environmentDisposed`) is **printed**, the entry **commits**, and only then the
+    summary is **persisted**. A failed closure disqualifies a qualified result. `EntryDeadline` is a four-state machine (running,
+    reporting, committed, expired): a report is never persisted after the deadline decided otherwise, and a committed one is never
+    contradicted. The reviewer's late-success and disposal-held-while-`Qualified` controls cannot occur.
+  - **Sink semantics.** Permanent tests use a writer that **really appends** after its release (the old `HeldWriter` only waited). An
+    already-entered sink call cannot be revoked: its bytes are non-final and unproven, the entry returns exit 8 at the budget with a
+    fixed error-stream line, persists the unproven verdict (`expiredDuring`, `finalizationComplete: false`), writes nothing else to
+    that sink, and the detached continuation initiates no save or disposal. No physical suppression is claimed.
+  - **One budget.** The stated outer budget (35 minutes; 120 s for lot A) includes a reserve of `min(5 s, a quarter)` for the verdict
+    and for every refusal or error report; the work and its closure are decided at budget minus reserve and every emission is
+    bounded by the time left in the whole budget, replacing the two post-budget 3 s waits.
+- **QP-R2: expiry during validation.** The deadline is rechecked after the identity verification, after the durable marker, and at the
+  dispatch handoff (`ConfirmOpen`, called by the process adapter and by the launcher's own Git immediately before a process would be
+  created). The reviewer's 40 ms deadline with a 200 ms successful validator is refused (nothing consumed); expiry during marker work
+  or at the handoff keeps the consumed marker, starts nothing and counts `ExpiredBeforeStart`. Interleavings and concurrent progress
+  reads are tested.
+- **QP-R3: finish binding the reviewed request.**
+  - **Ten minutes.** Both roles are bound to the reviewed 10-minute invocation limit (`AgentClaimPathPolicy`); 15- and 20-minute
+    requests are refused (the 20-minute run setting is a different, unchanged value).
+  - **Schema bound to the attempt.** The Codex schema must be `agent-scratch\<run>\<attempt>\schema.json` of this session's pinned run
+    in the exact existing production scratch location, for the same attempt as the result and both sinks (artifact layout
+    `artifacts\runs\<run>\attempts\<attempt>\*.partial`), and its **raw bytes**, read at admission, must equal the serialized
+    production proposal contract. An arbitrary `schema.json`, another run or attempt, a byte-order mark or any other difference
+    is refused. The Claude sinks are bound to one attempt of the run too.
+  - **Exact scratch boundary.** Discovery probes require the exact production tool-discovery scratch directory as working directory and
+    approved root; roles require a workspace inside the owned workspaces directory. No production file is moved.
+  - **Launcher Git.** Its child now starts from an empty environment and pins its effective configuration through the Git
+    configuration-count variables (global and system files ignored, hooks disabled, fsmonitor and untracked cache off, no protocol
+    allowed) without changing any counted argument; the admission requires those names. Tests cover ambient `GIT_DIR` and a real
+    repository hook that does not run. No hostile-executable isolation is claimed.
+  - **Retained.** Approved executable and script identities, complete argument vectors, the shared absolute Git, and every
+    earlier refusal remain.
+- **QP-R4** is closed; its typed-rejection and second-start regressions are retained and pass.
+- **QP-V1 synopsis corrected.** Correction 1 said no installed Git, Node or other tool was hashed and then reported hashing the real
+  Git, .NET, Node and Docker. Both statements are now reconciled in the record above: the unit and manifest tests use owned stand-in
+  files, while the controlled production-composition rehearsal performs bounded regular-file identity reads, in memory, of the exact
+  local Git, .NET, Node and Docker files its existing resolution selects (a real tool boundary, prospectively permitted by review 2 as
+  a validation-scope revision, not a claim that the earlier wording was followed). Codex, Claude and `gh` remain owned doubles; no
+  installed provider identity was read, and no new machine or profile search, credential or live qualification occurred.
+
+### Correction 2 validation (context: the Claude executor chat's own Windows shell; times UTC on 2026-11-02)
+
+Every command used `DOTNET_ADD_GLOBAL_TOOLS_TO_PATH=false`, `DOTNET_GENERATE_ASPNET_CERTIFICATE=false`, `--no-restore`, `-m:1`,
+`-p:UseSharedCompilation=false` and `-p:SkipNSwag=True` (the failed default NSwag invocation and its exit 9009 stay unexplained and are
+not claimed to have passed); warnings and analyzers are errors by project configuration.
+
+- **Fresh builds.** The test project and the launcher project: 0 warnings, 0 errors (11 s and 4 s on the final source). Earlier builds
+  of this correction stopped on my own compile errors (a changed method signature in tests) only.
+- **Fresh focused regressions (run first).** The fourteen affected classes (inventory, terminal admission, entry deadline, manifest,
+  status projector, status runner, status entry, outer deadline, opt-in, admission session, admission ledger, fresh authorization,
+  and the two new classes `ReviewedBindingTests` and `WholeEntryFinalizationTests`): the first run was 318 of 323 and failed only on
+  tests that encoded superseded semantics (three held-sink and held-disposal expectations of correction 1, replaced by the new
+  finalization tests) and on two defects in my own new tests (a shared admission closed by its first refusal; a Git scene whose
+  read-only object files the cleanup could not delete); the rerun of the affected classes was 73 of 73. The production-composition
+  rehearsal (`Profile01RehearsalTests`) then passed 10 of 10 (43 s) against the unchanged production flow: the ten-minute role limit,
+  the attempt-bound schema, the exact scratch boundary, the attempt-bound sinks, the handoff recheck and the constrained Git
+  environment all match what production really issues, with the same exact per-class counts and no refusal.
+- **Fresh complete filter, once.** `dotnet test tests/DevalCopilot.Api.IntegrationTests --no-build --filter
+  "FullyQualifiedName~Features.ManualQualification" --logger "trx;LogFileName=full-filter.trx"`: **670 tests, 668 passed, 2 failed**,
+  1 m 28 s (22:39:14Z to 22:40:43Z). The two failures are again exactly the two `ChildProcessWatchTests`
+  (`A_helper_launched_through_a_shell_is_a_leftover_even_after_its_shell_ended`, 1 s; `A_new_process_under_a_pre_existing_parent_with_a_readable_identity_is_not_ours_and_is_left_alone`,
+  10 s): untouched code that reads the native process table, **not** compared against a clean baseline, not explained by the reviewer's
+  passes in another context, neither attributed nor suppressed and not blindly retried. The earlier results are preserved: first
+  return 526 tests (524 passed, 2 failed); correction 1 639 tests (637 passed, 2 failed). Output and TRX are in the ignored
+  `logs/executor/qualification-profile-01-correction-02/`. After that run, one test source literal (a byte-order-mark character that
+  the file writer had turned into a raw non-ASCII byte) was replaced by an explicit `(char)0xFEFF` expression; the project was rebuilt
+  and `ReviewedBindingTests` reran fresh (15 of 15), a proportional recheck rather than a second full matrix.
+- **Retained, not rerun (inputs unchanged: no `src/` file changed).** `Architecture.Tests` 232 of 232 (first return, `SkipNSwag`) and
+  `ClaudeProcessEnvironmentTests` 29 of 29.
+- **Fresh static checks.** `dotnet format ... --verify-no-changes` over the two changed folders: exit 0. No CR byte and no new
+  non-ASCII byte in any changed file (this file's pre-existing 544 non-ASCII bytes are unchanged). The sensitive-data pattern scan of
+  the changed files (excluding the planner's records) found nothing; credential-looking strings remain fabricated fixtures. All
+  documentation link targets exist.
+- **Real local-tool boundary (disclosed, not hidden).** The rehearsal ran the real Git, which also executed under the new empty
+  environment, and read the exact real Git, .NET, Node and Docker files its existing resolution selects. The new ReviewedBindingTests
+  also run real Git (init, add, commit in a temporary directory with an ambient `GIT_DIR` and a repository hook). Nothing else real.
+- **Not run, by design.** Any real provider, `claude.exe`, version, help, authentication or account call; installed Codex or Claude
+  identity reads; login; credentials; old-ledger access; preserved evidence; installation or download; a guest or cache proof; the
+  solution build, frontend, Rust, journeys or default NSwag generation. Windows Sandbox stays enabled.
+
+### Correction 2 findings, limits and risks for Codex
+
+1. **The schema must exist when the role is admitted.** Production writes the Codex schema before dispatching the process, so the
+   admission reads it then (raw bytes, at most 64 KiB, regular non-alias file); the rehearsal proves this order against the real flow.
+   Claude has no schema file; its schema is a command-line member compared to the production contract text.
+2. **A slot consumed when the gate closes is not a start.** `ExpiredBeforeStart` leaves the marker consumed (the ledger is
+   authoritative) while `admitted` excludes it, so a summary's `admitted` can be smaller than the ledger's markers by exactly that
+   count; the reason is reported.
+3. **Launcher Git's `GIT_CONFIG_GLOBAL=NUL` and the configuration-count variables need a Git new enough to honor them** (2.31 and
+   2.32); the tests ran the real Git of this machine only, and no version is asserted. An older Git would ignore them silently; the
+   approved-file digest, not a version, is what the owner pins.
+4. **The reserve changes where the decision falls.** The work is decided at the budget minus the reserve (34 min 55 s of 35; 115 s of
+   120). The reserve is 5 s or a quarter of the budget, whichever is smaller; the test budgets of a few hundred milliseconds therefore
+   use proportionally small reserves.
+5. **Sink bytes in flight remain possible.** A caller-supplied writer that ignores cancellation may append its bytes after the entry
+   returned; they are non-final and the entry's exit code, error line and persisted verdict say so. Nothing here can revoke them.
+6. The discovery working directory is now the exact production scratch directory; a machine on which production would place it
+   elsewhere is a blocker, not an accepted variance.
+
+### Correction 3 (planner review 3 NO-GO: QP-R1 persistence outcome and QP-R3 Git prerequisite open; QP-R2 and QP-R4 closed; QP-V1 closed for the existing matrix; returned for review, not accepted)
+
+Authorized by the planner's review 3 in [planner-handoff.md](planner-handoff.md) for this same slice and executor chat; neither real
+lot nor commit/push is authorized. Preflight verified once before editing: branch `main`; `HEAD`, local `origin/main` and a live
+`git ls-remote` read all `38fc3847f347599430cc036849044d75d6e8bb8a`; an empty index; 25 modified tracked paths and 57 untracked files;
+no `src/` change. The planner-owned records were not edited; the reviewer's ignored directory was read only for
+`reviewer-controls.cs`. The earlier results are preserved: executor 524/526 (first return), 637/639 (correction 1) and 668/670
+(correction 2), each with the same two native-watch failures, none attributed or erased; the reviewer's independent 670/670 pass
+(including all six native-watch tests) is independent evidence, not an explanation of the executor's. Only `tests/` and the two docs
+changed again, in a deliberately small way (no generic reporting framework); no production file changed and nothing real was run.
+
+- **QP-R1: checked authoritative persistence (both lots).** Both entries' save helpers swallowed `IOException` and
+  `UnauthorizedAccessException`, logged, and still allowed exit 0 (the reviewer's owned-directory-at-the-filename control). Persistence
+  is now one typed helper, `SummaryPersistence.SaveAsync`, that creates the file exclusively, writes the bytes, flushes the stream and
+  to the device, and disposes it in one guarded scope, returning `false` for any failure (never overwriting, never retrying). Each
+  entry's closing step returns a typed outcome (exit code plus whether it committed): a committed finalization whose save failed
+  prints a fixed error-stream line and turns a successful (0) or attention-only (6) exit into the new closed **exit 9** (a more
+  specific non-success exit such as 3, 4, 5 or 8 is kept); the printed exchange or authentication facts, the spent allowances, the
+  slots and every existing file are untouched. A finalization that did **not** commit (the deadline decided during the print, or
+  expired before it) can no longer return its own exit code at all: it takes the unproven-verdict path (exit 8), closing the
+  previously possible branch where an uncommitted finalization could return success. Create-new, bounded return and the treatment of
+  in-flight sink bytes are unchanged.
+- **QP-R3: Git prerequisite before the first fixture mutation.** A digest identifies a file but proves no flag support, and
+  `GIT_CONFIG_GLOBAL` (2.32.0) and the configuration-count variables are what the constrained launcher Git relies on. New
+  `GitVersionGate` asks the exact approved Git for `--version` once, **before** `git init`, through the already budgeted
+  `discovery.git` class (the exact scratch working directory, an environment of at most `SystemRoot`, 5 s, at most 512 bytes), and
+  requires one coherent line of at least **2.32.0**. Unknown, older, failed, timed-out, non-zero, truncated, oversized or incomplete
+  observations refuse as Blocked before any fixture Git command with closed codes (`GitVersionUnknown`, `GitVersionTooOld`,
+  `GitVersionObservationFailed`, `GitVersionIncomplete`; nothing is spent, no fallback, retry or ignored flag). The class keeps its
+  eight-start ceiling and the total stays 179; the launcher's observation is one of the eight, so a normal run shows at least two
+  `discovery.git` starts (the host's own probe plus this one), and the host's refreshes (first probe plus one per five minutes before
+  the 34 min 55 s work deadline: seven) still fit. The minimum is a syntax prerequisite for this profile, not universal compatibility
+  or security qualification. Real probing is not part of the unit tests; the observer is an interface with doubles.
+- **Retained.** QP-R2 and QP-R4 evidence stays valid (their inputs are unchanged); approved identities, vectors, scratch, sinks,
+  ten-minute limits and the constrained Git environment remain.
+
+### Correction 3 validation (context: the Claude executor chat's own Windows shell; times UTC on 2026-11-02)
+
+Every command used `DOTNET_ADD_GLOBAL_TOOLS_TO_PATH=false`, `DOTNET_GENERATE_ASPNET_CERTIFICATE=false`, `--no-restore`, `-m:1`,
+`-p:UseSharedCompilation=false` and `-p:SkipNSwag=True` (the failed default NSwag invocation and its exit 9009 remain unexplained and
+are not claimed to have passed); warnings and analyzers are errors by project configuration.
+
+- **Fresh builds.** The test project and the launcher project: 0 warnings, 0 errors on the final source.
+- **Fresh focused regressions.** Thirteen affected classes (the two new ones `CheckedPersistenceTests` and `GitVersionGateTests`, the
+  production-composition rehearsal, the whole-entry finalization, outer-deadline, status-entry, entry-deadline, opt-in, session,
+  admission-session, terminal-admission, inventory and reviewed-binding suites): **302 of 302 passed** (58 s) on the first run of the
+  final source. They include the reviewer's two save-failure controls for both lots, existing-file no-overwrite, exit-code
+  preservation, the Git version table (compatible, too old, unknown, failed or incomplete), the single admitted observation through
+  `discovery.git` with the ceiling and shape checks, and the rehearsal against the real flow with a double observer
+  (too old and unknown block before any `launcher.git.*` start; a compatible one qualifies). The default rehearsal now also shows at
+  least two `discovery.git` starts.
+- **Not repeated, by the planner's instruction.** The full `Features.ManualQualification` matrix (no new dependency, failure or
+  uncertainty: executor 668/670 and the reviewer's independent 670/670 are retained with their scopes), `Architecture.Tests` 232/232
+  and `ClaudeProcessEnvironmentTests` 29/29 (no `src/` change).
+- **Real local-tool boundary (disclosed).** The default rehearsal now runs the real approved Git once more (`git --version`, in the
+  empty environment) as the launcher's own version observation, in addition to the host's probe and the real Git commands it already
+  ran; Codex, Claude and `gh` remain owned doubles, and no installed Codex or Claude identity or any credential was read.
+- **Not run, by design.** Any real provider, `claude.exe`, authentication or account call; installed-provider identity reads; old
+  ledgers; preserved evidence; installation or download; a guest or cache proof; the solution build, frontend, Rust, journeys or
+  default NSwag generation. Windows Sandbox stays enabled.
+
+### Correction 3 findings, limits and risks for Codex
+
+1. **Exit 9 is new.** It is documented in the playbook's exit table and in lot A's exit list; automation that keyed on 0 alone now
+   sees 9 when a summary could not be kept, while the printed result still stands.
+2. **The version gate creates the scratch directory if absent** (`%LOCALAPPDATA%\DevalCopilot\tool-discovery-scratch`), the same
+   directory production creates for its own probes; the observation needs it as its working directory.
+3. **A persisted verdict can still fail on the expiry path** (the unproven verdict save is attempted within the budget but its outcome
+   does not change exit 8). The exit is already non-success; only the file is missing.
+4. **The version regex accepts one line only** (`git version M.m.p` with an optional dotted suffix and one trailing newline) and
+   at most four digits per component; vendor-formatted strings outside that shape are refused as unknown rather than guessed.
+5. **A very chatty `--version`** (more than the pipe buffer) would stall and time out as a failed observation; it is refused, not read.
+
+### Correction 4 (planner review 4 NO-GO: QP-R3 open only for the real Git observer's bounded observation and file layout; QP-R1, QP-R2 and QP-R4 closed, QP-V1 closed at its scope; returned for review, not accepted)
+
+Authorized by the planner's review 4 in [planner-handoff.md](planner-handoff.md) for this same slice and executor chat; neither real lot
+nor commit/push is authorized. Preflight verified once before editing: branch `main`; `HEAD`, local `origin/main` and a live
+`git ls-remote` read all `38fc3847f347599430cc036849044d75d6e8bb8a`; an empty index; 25 modified tracked paths and 62 untracked files;
+no `src/` change. The planner-owned records were not edited; the reviewer's ignored directory was read only for
+`reviewer-controls.cs` and its helper source. Earlier results are preserved with their contexts: executor 524/526, 637/639 and 668/670
+(each with the same two native-watch failures, unexplained) and the reviewer's independent 670/670 and 302/302. Only `tests/` and the
+two docs changed again; no `src/` file, production adapter or provider contract changed.
+
+- **The observer now enforces its stated bounds.** `ProcessGitVersionObserver` (the reviewer's valid version plus 4,096 stderr bytes was
+  accepted, standard error was an unbounded unawaited read, standard output was capped in characters with a second full wait after
+  exit): one `Stopwatch` deadline now covers the child's exit and the completion of **both** redirected streams, with no second wait.
+  Each stream is read in 256-byte blocks and at most 512 **bytes** of it are kept; the first byte beyond the cap on either stream makes the
+  observation oversized (`Truncated`) and stops it, so nothing is buffered without bound; standard error is counted and discarded and
+  nothing is persisted or logged (a refused observation returns no text). A stream that has not ended at the deadline makes it
+  `IoComplete: false`; a child still running at the deadline is `TimedOut` and killed once. Cleanup confirms a kill for at most 250 ms
+  (inside the cleanup only) and reports `TerminationUnproven` when it cannot, and also when the process exited but a pipe never ended
+  (a descendant may still hold it). The gate maps these to closed codes: `GitVersionIncomplete` (oversized or incomplete I/O),
+  `GitVersionObservationFailed` (failed, non-zero or timed out) and the new `GitVersionTerminationUnproven` (takes precedence).
+- **Unchanged.** The exact approved executable, reviewed environment and scratch directory, the single `discovery.git` admission, the
+  eight-start ceiling and the 179 maximum, the minimum Git 2.32.0, the refusal before any fixture Git command, and exit codes.
+- **File layout.** `GitVersionObservation`, `IGitVersionObserver` and `GitCompatibilityException` are now in their own named files;
+  `GitVersionGate` keeps its own. `GitVersionObservation` gained two optional members (`IoComplete`, `TerminationUnproven`) with defaults, so
+  the earlier constructions are unaffected.
+- **Test double.** The permanent regressions use owned copies of the existing deterministic `ProcessExecutionFixture` executable. A new
+  mode answers exactly `--version` only when a script file sits beside the copy (the copy's name with `.observation`); without it the
+  argument is the unknown mode exactly as before. Modes: normal, extra standard output bytes, extra standard error bytes, a delayed
+  exit, a non-zero exit, and a descendant that holds only standard output or only standard error. The fixture's other modes are
+  unchanged. `QualificationTestBase.Dispose` became virtual so the new tests can first kill the recorded descendants.
+
+### Correction 4 validation (context: the Claude executor chat's own Windows shell; times UTC on 2026-11-02)
+
+Every command used `DOTNET_ADD_GLOBAL_TOOLS_TO_PATH=false`, `DOTNET_GENERATE_ASPNET_CERTIFICATE=false`, `--no-restore`, `-m:1`,
+`-p:UseSharedCompilation=false` and `-p:SkipNSwag=True` (the failed default NSwag invocation and its exit 9009 stay unexplained and are not
+claimed to have passed); warnings and analyzers are errors by project configuration.
+
+- **Fresh builds.** The test project (which builds the fixture executable) and the launcher project: 0 warnings, 0 errors.
+- **New observer tests first.** `GitVersionObserverTests` (14 cases against the real observer): normal and late-but-in-time exit;
+  non-zero exit; unstartable file; oversized standard output and standard error (4,096 and 1,000,000 bytes), the exact byte boundary on each
+  stream (512 accepted, 513 refused), a delayed exit stopped at the one deadline, standard output and standard error held open
+  independently by a descendant (refused as incomplete and termination-unproven, no second wait), and the gate's mapping of the new
+  members. First run after fixing one test-harness defect of my own (re-copying the double while an earlier descendant still held it):
+  14 of 14, repeated three times, 5 s each. No owned double process was left running afterwards.
+- **One final affected set, once, on the final source.** `GitVersionObserverTests`, `GitVersionGateTests`, `Profile01RehearsalTests`,
+  `Profile01InventoryTests`, `TerminalAdmissionTests`, `ReviewedBindingTests`, `ProcessAdmissionSessionTests` and `AdmissionLedgerTests`:
+  **200 of 200 passed** (56 s). The rehearsal runs the real observer, so it performed the real approved `git --version` once more under
+  the existing disclosed local-tool boundary, with the same exact per-class counts and no refusal.
+- **Retained, not rerun.** Persistence and entry finalization (302 of 302 in correction 3, the reviewer's independent 302/302),
+  `Architecture.Tests` 232/232, `ClaudeProcessEnvironmentTests` 29/29, the broad 668/670 and the reviewer's 670/670: no dependency of
+  them changed.
+- **Not run, by design.** Any real provider, authentication or account call; installed-provider inspection; old ledgers; installation or
+  download; a guest or cache proof; the broad matrix; default NSwag generation. Windows Sandbox stays enabled.
+
+### Correction 4 findings, limits and risks for Codex
+
+1. **Unproven termination is a real outcome, not an error.** After a stream fails to end, a descendant may still be running; the
+   observer cannot reach it and says so. The test cleanup kills the recorded descendants by process id.
+2. **The 250 ms termination confirmation is outside the 5 s observation deadline** by design and applies only after the deadline or an
+   oversized stream; a child that does not die within it is reported unproven.
+3. **Tolerated standard error.** Up to 512 bytes of standard error beside a valid version are accepted and discarded (a real Git prints
+   none); more than that refuses. The reviewer's contract was the 512-byte cap, not an empty stream.
+4. **The fixture change is test-only** (`tests/DevalCopilot.Infrastructure.IntegrationTests/Fixtures/ProcessExecutionFixture`); the
+   Infrastructure integration tests that use that fixture were not rerun because the new mode requires both the exact `--version`
+   argument and a script file beside the executable, which no existing test supplies.
+
+### Correction 5 (planner review 5: the two remaining QP-R3 observer paths; all other findings closed at their recorded scopes; returned for review, not accepted)
+
+Authorized by the planner's review 5 in [planner-handoff.md](planner-handoff.md); correction 4 is present and was not replayed; neither real
+lot nor commit/push is authorized. Preflight verified once before editing: branch `main`; `HEAD`, local `origin/main` and a live
+`git ls-remote` read all `38fc3847f347599430cc036849044d75d6e8bb8a`; an empty index; 27 modified tracked paths and 66 untracked files; no
+`src/` change. The planner-owned records were not edited; the reviewer's ignored directory was read only for `reviewer-control.cs` and its
+helper source. Only `tests/` and the two docs changed again; no `src/` file, production adapter or provider contract changed.
+
+- **Expiry is terminal.** The result of the single wait was discarded, so a timed-out wait (or no time left to start it) could still be
+  accepted from the status reads after it if everything had finished meanwhile. The wait's own answer now decides: the observation is accepted
+  only when the wait reported, before the deadline, that the completion task finished first, with no overflow and both readers having
+  successfully reached the end of their stream. An expired wait is `TimedOut` and refused whatever the later reads show. The one wait is an
+  internal seam of the observer so a regression can be deterministic (it lets everything finish and then reports the elapse); nothing else
+  is replaceable.
+- **Independent failure facts.** The guard that suppressed unproven termination whenever an overflow occurred is gone. An overflowing stream is
+  now signalled once, kept at the cap, and the rest is read and **discarded** (never stored) until it ends, so whether it reaches its end is
+  knowable apart from the overflow. `IoComplete` is true only when both readers successfully reached the end (a read failure, a stream still
+  open, or a cleanup that ran out of time all leave it false). The process facts (`Exited`, exit code) are those at the decision; the
+  closure facts come after the one cleanup, whose 250 ms budget is shared by the kill confirmation and the readers' last chance to finish
+  (still outside the five-second acceptance deadline, still best effort). When the root exited and a pipe never ended, termination is
+  unproven in addition to any overflow; the gate maps unproven first, and `Truncated` stays set.
+- **Unchanged.** The 512-byte cap per stream, the five-second acceptance deadline, the 250 ms best-effort confirmation, the closed refusal
+  codes, the 2.32.0 minimum, the exact executable, the reviewed environment and scratch, the single `discovery.git` admission, the 8/179
+  ceilings, the refusal before fixture Git, the separated types and every earlier finding.
+- **Test double.** A new `overflow-held` mode of the owned fixture copy (test-only, selected only by `--version` plus the sidecar): the root
+  prints the version line and exits; a descendant that inherited both redirected streams writes 4 KiB to standard error shortly after and keeps
+  holding both (the reviewer's scenario, in the fixture rather than a separately compiled helper). It needed one `WriteFile` import beside the
+  fixture's existing handle helpers.
+
+### Correction 5 validation (context: the Claude executor chat's own Windows shell; times UTC on 2026-11-03)
+
+Every command used `DOTNET_ADD_GLOBAL_TOOLS_TO_PATH=false`, `DOTNET_GENERATE_ASPNET_CERTIFICATE=false`, `--no-restore`, `-m:1`,
+`-p:UseSharedCompilation=false` and `-p:SkipNSwag=True` (the failed default NSwag invocation and its exit 9009 stay unexplained and are not
+claimed to have passed); warnings and analyzers are errors by project configuration.
+
+- **Fresh builds.** The test project and the launcher project: 0 warnings, 0 errors.
+- **New regressions first.** `GitVersionObserverTests` grew from 14 to 21 cases: timeout followed by completion at the decision point
+  (deterministic through the seam), no time left before the wait, an accepting wait control, an oversize signal that wins the wait, the
+  combined overflow plus held other pipe after the root exited (reviewer's scenario: truncated, I/O incomplete, termination unproven, descendant
+  confirmed alive, then cleaned up by process id), a plain overflow that stays truncated without unproven termination, and the I/O
+  completion semantics. The first run after the source change showed six failures that were my own regressions of the new logic, all
+  fixed before any acceptance: a plain overflow was treated as unproven because the overflowing reader stopped without reaching its end (it now
+  drains and discards), and the process-state facts were taken after the kill (now at the decision); the tests that assumed an
+  overflow leaves `IoComplete` false were corrected to the stated rule. Final: **21 of 21, three consecutive runs**, 9 s each.
+- **Final affected set, once, on the final source.** `GitVersionObserverTests`, `GitVersionGateTests`, `Profile01RehearsalTests`,
+  `Profile01InventoryTests`, `TerminalAdmissionTests`, `ReviewedBindingTests`, `ProcessAdmissionSessionTests` and `AdmissionLedgerTests`:
+  **207 of 207 passed** (57 s). The rehearsal runs the real observer under the existing disclosed local-tool boundary (the real approved
+  `git --version`, as before). No owned double process was left running afterwards.
+- **Retained, not rerun.** The reviewer's independent 200/200 of correction 4, persistence and entry finalization, `Architecture.Tests`
+  232/232, `ClaudeProcessEnvironmentTests` 29/29, executor 524/526, 637/639 and 668/670 and the reviewer's 670/670, with their two
+  unexplained native-watch failures and differing contexts preserved; no dependency of them changed.
+- **Not run, by design.** Any real provider, authentication or account call; installed-provider inspection; old ledgers; installation or
+  download; a guest or cache proof; the broad matrix; default NSwag generation. Windows Sandbox stays enabled.
+
+### Correction 5 findings, limits and risks for Codex
+
+1. **Discarded overflow is read, not stored.** A very chatty stream keeps being read (and thrown away) until the kill ends it or the cleanup
+   budget runs out; memory stays at the 512-byte cap per stream plus one 256-byte block.
+2. **Cleanup can add up to 250 ms** after an expired or refused observation (kill confirmation plus readers' last chance share that
+   budget); it is outside the acceptance deadline and never a second observation.
+3. **The seam is test-only in intent** (an internal constructor) but compiled into the launcher; it changes no behavior when unused.
+4. **`TimedOut` now means the acceptance deadline elapsed**, including when the process had in fact exited by the next read; the process
+   facts still say whether it had exited at the decision.
+
+### Correction 6 (planner review 6: the two remaining QP-R3 findings; all other findings closed at their recorded scopes; returned for review, not accepted)
+
+Authorized by the planner's review 6 in [planner-handoff.md](planner-handoff.md); neither real lot nor publication is authorized.
+Preflight verified once before editing: branch `main`; `HEAD`, local `origin/main` and a live `git ls-remote` read all
+`38fc3847f347599430cc036849044d75d6e8bb8a`; an empty index; 27 modified tracked paths and 66 untracked files; no `src/` change. The
+planner-owned records were not edited; the reviewer's ignored directory was read only for `reviewer-controls.cs`. Only `tests/` and the two
+docs changed again, and only the observer, its record comments and its regressions.
+
+- **Absolute deadline on the success branch.** The wait receives a relative timeout computed before the call, so a caller descheduled between
+  that computation and the wait could receive a success index outside the acceptance deadline and be accepted. The expiry decision is now
+  `wait result < 0` **or** `the monotonic clock has reached the bound` when the result is read; a success is accepted only with the absolute
+  deadline still open, and an expired observation stays terminal whatever the tasks then do. The reviewer's control (the existing seam sleeps
+  past the supplied remaining time, lets the tasks finish and returns the completed index) now reports `TimedOut` and refuses.
+- **Failed-start I/O evidence.** Both fallback constructions (no process returned; a start or I/O exception) now say `IoComplete: false`
+  explicitly instead of inheriting the default `true`. The comments of `GitVersionObservation` and the observer now state which facts are
+  sampled at the decision (exit and code) and which are measured after the one cleanup (`IoComplete`, `TerminationUnproven`).
+- **Kept as accepted.** The terminal timeout result of the wait, the skipped wait at zero remaining time, the overflow plus held-pipe behavior,
+  the 512-byte cap per stream, the five-second acceptance deadline, the separate 250 ms best-effort cleanup, the admission, identity and
+  refusal rules, and every earlier finding.
+
+### Correction 6 validation (context: the Claude executor chat's own Windows shell; times UTC on 2026-11-03)
+
+Every command used `DOTNET_ADD_GLOBAL_TOOLS_TO_PATH=false`, `DOTNET_GENERATE_ASPNET_CERTIFICATE=false`, `--no-restore`, `-m:1`,
+`-p:UseSharedCompilation=false` and `-p:SkipNSwag=True` (the failed default NSwag invocation and its exit 9009 stay unexplained and are not
+claimed to have passed); warnings and analyzers are errors by project configuration.
+
+- **Fresh builds.** The test project and the launcher project: 0 warnings, 0 errors.
+- **Observer regressions first.** `GitVersionObserverTests` is now 23 cases: the late success index (deterministic through the seam), its
+  in-time control, and the failed-start test extended to assert `IoComplete` false (plus no timeout and no unproven termination). **23 of 23,
+  three consecutive runs**, 10 s each.
+- **Final affected set, once, on the final source.** `GitVersionObserverTests`, `GitVersionGateTests`, `Profile01RehearsalTests`,
+  `Profile01InventoryTests`, `TerminalAdmissionTests`, `ReviewedBindingTests`, `ProcessAdmissionSessionTests` and `AdmissionLedgerTests`:
+  **209 of 209 passed** (56 s). The rehearsal runs the real observer under the existing disclosed local-tool boundary (the real approved
+  `git --version`). No owned double process was left running.
+- **Retained, not rerun.** The executor's 207/207 of correction 5, the reviewer's 21/21 observer baseline, persistence and entry
+  finalization, `Architecture.Tests` 232/232, `ClaudeProcessEnvironmentTests` 29/29, executor 524/526, 637/639 and 668/670 and the reviewer's
+  670/670, with the two unexplained native-watch failures and differing contexts preserved; no dependency of them changed.
+- **Not run, by design.** Any real provider, authentication or account call; installed-provider inspection; old ledgers; installation or
+  download; a guest or cache proof; the broad matrix; default NSwag generation. Windows Sandbox stays enabled.
+
+### Correction 6 findings, limits and risks for Codex
+
+1. **The deadline predicate is a clock read, not a guarantee.** It narrows the descheduling window to the instructions between that read and
+   the success branch; an operating-system pre-emption inside that window is not claimed to be prevented.
+2. **`TimedOut` can now be true with the process exited and I/O complete**; the other facts still say what had happened, and the gate refuses it.
+3. **A failed start reports nothing about termination or timing**: only `Exited: false` and `IoComplete: false`.
+
+## Previous slice (published as 38fc384; historical record): WIN-EXEC-PROFILE-01 one Windows execution profile (ADR-0072/0073/0074; reviewed, publication pending)
 
 This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
 This record alone grants no publication authority.

@@ -12,12 +12,12 @@ public static class GitSourceReader
         IgnoreInaccessible = false,
     };
 
-    public static SourceSnapshot Read(string directory)
+    public static SourceSnapshot Read(string directory, ProcessAdmission? admission = null)
     {
-        var head = GitProcess.Run(directory, "rev-parse", "HEAD").Trim();
-        var headReference = GitProcess.Run(directory, "rev-parse", "--symbolic-full-name", "HEAD").Trim();
-        var references = GitProcess.Run(directory, "for-each-ref", "--format=%(refname) %(objectname)");
-        var index = GitProcess.Run(directory, "-c", "core.quotepath=false", "ls-files", "--stage");
+        var head = GitProcess.Run(admission, directory, "rev-parse", "HEAD").Trim();
+        var headReference = GitProcess.Run(admission, directory, "rev-parse", "--symbolic-full-name", "HEAD").Trim();
+        var references = GitProcess.Run(admission, directory, "for-each-ref", "--format=%(refname) %(objectname)");
+        var index = GitProcess.Run(admission, directory, "-c", "core.quotepath=false", "ls-files", "--stage");
         return new SourceSnapshot(
             head,
             headReference,

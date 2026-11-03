@@ -1,3 +1,5 @@
+using DevalCopilot.Api.Features.Runs.GetAgentAttemptEvidence;
+using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Domain.Features.Runs;
 using DevalCopilot.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -52,6 +54,13 @@ public sealed class StageEvidenceReader(
             Status = status,
             Outcome = outcome,
             Dispatched = stored.AgentDispatchedAtUtc is not null,
+            AdapterContractVersion = stored.AgentAdapterContractVersion ?? string.Empty,
+            StandardOutputCompletion = stored.AgentStandardOutputCompletion?.ToString(),
+            StandardErrorCompletion = stored.AgentStandardErrorCompletion?.ToString(),
+            StandardInputDelivery = stored.AgentStandardInputDelivery?.ToString(),
+            InvocationDiagnosticState = Diagnostic(stored).State.ToString(),
+            InvocationDiagnosticCategory = Diagnostic(stored).Category?.ToString(),
+            InvocationDiagnosticVersion = Diagnostic(stored).Version,
             ProcessOutcome = stored.AgentProcessOutcome?.ToString(),
             ExitCode = stored.AgentProcessExitCode,
             DurationMilliseconds = stored.AgentProcessDuration is { } time ? (long)time.TotalMilliseconds : null,
@@ -88,6 +97,8 @@ public sealed class StageEvidenceReader(
         Guid runId,
         CancellationToken cancellationToken)
     {
+        var attemptEvidence = await api.GetAttemptEvidenceAsync(runId, stored.Id, cancellationToken);
+        reading = reading with { AttemptEvidenceRouteComparison = CompareAttemptEvidence(attemptEvidence, stored, reading) };
         var timeline = await api.GetTimelineAsync(runId, cancellationToken);
         var produced = timeline.Where(message => message.AttemptId == stored.Id).ToArray();
         var message = produced.Length == 1 ? produced[0] : null;
@@ -137,6 +148,38 @@ public sealed class StageEvidenceReader(
             ArtifactCount = artifacts.Count,
             ArtifactsAgreeing = artifacts.Count(artifact => ReadSealedBytes(artifact) is not null),
         };
+    }
+
+    private static AgentInvocationDiagnosticFact Diagnostic(Attempt stored) => AgentInvocationDiagnosticFact.ForAttempt(stored);
+
+    /// <summary>Compares the public attempt-evidence route with the stored attempt on identity, status, outcome, process outcome and
+    /// exit code, the three recorded I/O facts and the closed diagnostic. The route is read for every terminal attempt, whether or
+    /// not it produced a message; any difference, and an incoherent identity, is a disagreement.</summary>
+    private static EvidenceRouteComparisonStatus CompareAttemptEvidence(
+        AgentAttemptEvidenceResponse route,
+        Attempt stored,
+        StageReading reading)
+    {
+        var process = route.ProcessExecution;
+        var diagnostic = Diagnostic(stored);
+        var agrees = route.IdentityValid
+            && route.AttemptId == stored.Id
+            && route.AttemptStatus == reading.Status
+            && route.Provider == reading.Provider
+            && route.Role == reading.Role
+            && route.ResponseContract == reading.Contract
+            && route.Outcome == reading.Outcome
+            && process is not null
+            && process.Outcome == reading.ProcessOutcome
+            && process.ExitCode == reading.ExitCode
+            && process.StandardOutputCompletion == reading.StandardOutputCompletion
+            && process.StandardErrorCompletion == reading.StandardErrorCompletion
+            && process.StandardInputDelivery == reading.StandardInputDelivery
+            && route.InvocationDiagnostic is { } routeDiagnostic
+            && routeDiagnostic.State == diagnostic.State.ToString()
+            && routeDiagnostic.Category == diagnostic.Category?.ToString()
+            && routeDiagnostic.Version == diagnostic.Version;
+        return agrees ? EvidenceRouteComparisonStatus.Agrees : EvidenceRouteComparisonStatus.Disagrees;
     }
 
     private byte[]? ReadSealedBytes(Artifact artifact) => SealedArtifactFile.ReadVerified(

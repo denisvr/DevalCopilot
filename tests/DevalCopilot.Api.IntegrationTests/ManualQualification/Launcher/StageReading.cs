@@ -40,6 +40,39 @@ public sealed record StageReading
 
     public Guid? ReviewedProposalMessageId { get; init; }
 
+    /// <summary>The adapter contract version recorded on the stored attempt (ADR-0072), or empty when none was recorded. The public
+    /// attempt-evidence route never carries it, so it comes from the disposable row only.</summary>
+    public string AdapterContractVersion { get; init; } = string.Empty;
+
+    /// <summary>The recorded I/O completion facts of the provider process, closed enum names, or null when not recorded together.</summary>
+    public string? StandardOutputCompletion { get; init; }
+
+    public string? StandardErrorCompletion { get; init; }
+
+    public string? StandardInputDelivery { get; init; }
+
+    /// <summary>Required I/O completion: both output streams complete and standard input delivered (or not redirected), all recorded.
+    /// Derived, so it can never disagree with the three recorded facts; false also covers unrecorded.</summary>
+    public bool RequiredIoComplete =>
+        StandardOutputCompletion == "Complete"
+        && StandardErrorCompletion == "Complete"
+        && StandardInputDelivery is "Complete" or "NotRedirected";
+
+    /// <summary>The closed invocation-diagnostic state of the stored attempt: NotRecorded, Recorded or Unknown.</summary>
+    public string InvocationDiagnosticState { get; init; } = "NotRecorded";
+
+    /// <summary>The recorded closed category, only when the state is Recorded. A category is what was observed or reported, never a
+    /// verified cause.</summary>
+    public string? InvocationDiagnosticCategory { get; init; }
+
+    public string? InvocationDiagnosticVersion { get; init; }
+
+    /// <summary>Whether the public attempt-evidence route was compared with the stored attempt on status, outcome, process, I/O
+    /// completion and diagnostic, and with what result. Independent of any message, so a failed attempt with no message still has it.</summary>
+    public EvidenceRouteComparisonStatus AttemptEvidenceRouteComparison { get; init; }
+
+    public bool AttemptEvidenceRouteAgrees => AttemptEvidenceRouteComparison == EvidenceRouteComparisonStatus.Agrees;
+
     /// <summary>The number of produced messages the timeline actually listed for the attempt, or null when it was not enumerated
     /// (no attempt, or a still running one). An unobserved count is never zero.</summary>
     public int? MessageCount { get; init; }

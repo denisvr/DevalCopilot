@@ -11,10 +11,11 @@ namespace DevalCopilot.Api.IntegrationTests.ManualQualification;
 /// <summary>
 /// The real environment of the acceptance session: a new owned disposable root under the temp directory, the tiny
 /// fictitious repository, the production host on loopback with an in-memory launch secret, the authenticated HTTP routes,
-/// read-only evidence and Git snapshots. The judge factory, the preparation hook and the process-table seam exist so the offline
+/// read-only evidence and Git snapshots. The judge factory, the preparation hook, the process-table seam and the fixture objective exist so the offline
 /// rehearsal can run this very composition against the owned doubles, with a native or a scripted read-only process table; the
-/// launcher itself always supplies the real-installed-provider judge, no preparation and the native process table (the seam has
-/// no command-line or configuration route).
+/// launcher itself always supplies the real-installed-provider judge, no preparation, the native process table and the fixed
+/// objective (the seam has no command-line or configuration route). The admission boundary and the judged-target pins are supplied
+/// only through <see cref="Profile01Composition"/>.
 /// </summary>
 public sealed class ProductionQualificationEnvironment(
     QualificationLimits limits,
@@ -22,7 +23,11 @@ public sealed class ProductionQualificationEnvironment(
     Func<string, string, Func<IReadOnlyList<ProviderTargetFact>, TargetJudgement>> createJudge,
     Action<OwnedRootGuard>? prepareProviders = null,
     IProcessTable? processTable = null,
-    int? launcherProcessId = null) : IQualificationEnvironment
+    int? launcherProcessId = null,
+    ProcessAdmission? admission = null,
+    JudgedTargets? judgedTargets = null,
+    string? objective = null,
+    IGitVersionObserver? gitVersions = null) : IQualificationEnvironment
 {
     private const int MaximumAgentAttempts = 2;
     private const int MaximumAgentInvocationMinutes = 20;
@@ -41,6 +46,8 @@ public sealed class ProductionQualificationEnvironment(
 
     /// <summary>The exact root this environment created and its token, set when the root is created; null before that.</summary>
     public OwnedRootReference? OwnedRoot { get; private set; }
+
+    public ProcessAdmissionFacts AdmissionFacts => admission?.Facts ?? ProcessAdmissionFacts.None;
 
     public IReadOnlyList<string> ForbiddenFragments => new[]
     {
@@ -65,24 +72,33 @@ public sealed class ProductionQualificationEnvironment(
         _root = OwnedRootGuard.Verify(path, _ownerToken);
         OwnedRoot = new OwnedRootReference(_root.Root, _ownerToken);
         _root.CreateLayout();
+        // Every working directory, sink and destination a reviewed class admits must lie inside this one root.
+        judgedTargets?.Destinations.Pin(_root.Root, _root.Workspaces, _root.Artifacts);
         prepareProviders?.Invoke(_root);
         _sourcePath = Path.Combine(_root.Root, "repos", "manual-qualification-source");
         Directory.CreateDirectory(_sourcePath);
-        FixtureRepository.Create(_sourcePath);
+        if (admission is not null && judgedTargets is not null)
+        {
+            // The first fixture mutation is the next call: the approved Git must first be observed, once, as new enough for the
+            // constrained configuration its launcher commands rely on. Unknown, older or incomplete refuses; nothing falls back.
+            GitVersionGate.Require(admission, gitVersions ?? new ProcessGitVersionObserver(), judgedTargets.Destinations.DiscoveryScratch);
+        }
+
+        FixtureRepository.Create(_sourcePath, admission);
         _judge = createJudge(_root.Root, AppContext.BaseDirectory);
         return Task.CompletedTask;
     }
 
-    public SourceSnapshot SnapshotSource() => GitSourceReader.Read(_sourcePath);
+    public SourceSnapshot SnapshotSource() => GitSourceReader.Read(_sourcePath, admission);
 
-    public SourceSnapshot SnapshotWorkspace() => GitSourceReader.Read(_workspacePath);
+    public SourceSnapshot SnapshotWorkspace() => GitSourceReader.Read(_workspacePath, admission);
 
     public Task StartHostAsync(CancellationToken cancellationToken)
     {
         var api = ProductionHost.ReserveLoopbackAddress();
         _watch = ChildProcessWatch.Begin(processTable, launcherProcessId);
         _watch.StartSampling(TimeSpan.FromMilliseconds(250));
-        _host = new ProductionHost(_root!, api, _launchSecret);
+        _host = new ProductionHost(_root!, api, _launchSecret, admission);
         _host.Start();
         _api = new QualificationApiClient(api, _launchSecret, limits);
         return Task.CompletedTask;
@@ -116,7 +132,20 @@ public sealed class ProductionQualificationEnvironment(
         var gitCode = git is null ? "NotObserved" : git.Reason.ToString();
         var gitReport = new TargetReport("git", git?.Reason == CapabilityProbeReason.None, gitCode, null, git?.Version);
         var judgement = _judge!(facts);
-        return new TargetJudgement(judgement.Accepted && gitReport.Real, [.. judgement.Targets, gitReport]);
+        var accepted = judgement.Accepted && gitReport.Real;
+        var codex = facts.FirstOrDefault(fact => fact.Capability == Capability.CodexCli);
+        var claude = facts.FirstOrDefault(fact => fact.Capability == Capability.ClaudeCli);
+        var reports = judgement.Targets.ToList();
+        if (accepted && git is not null && codex is not null && claude is not null && judgedTargets is not null
+            && !judgedTargets.Pin(git, codex, claude))
+        {
+            // The host resolved something other than the exact tuple the owner approved: nothing of it is ever launched.
+            accepted = false;
+            reports = [.. reports.Select(report => report with { Real = false, Code = "NotTheApprovedIdentity" })];
+            gitReport = gitReport with { Real = false, Code = "NotTheApprovedIdentity" };
+        }
+
+        return new TargetJudgement(accepted, [.. reports, gitReport]);
     }
 
     public async Task<SetupFacts> RegisterAndPrepareAsync(CancellationToken cancellationToken)
@@ -128,11 +157,13 @@ public sealed class ProductionQualificationEnvironment(
         await _api.CaptureCheckpointAsync(projectId, cancellationToken);
         _runId = await _api.CreateManualRunAsync(
             projectId,
-            FixtureRepository.Objective,
+            objective ?? FixtureRepository.Objective,
             MaximumAgentAttempts,
             MaximumAgentInvocationMinutes,
             cancellationToken);
-        _evidence = new StageEvidenceReader(_host!.Services, _api, _root!.Artifacts, FixtureRepository.Objective);
+        // Attempt-bound destinations (artifact files and the Codex schema) must belong to this one run.
+        judgedTargets?.Destinations.PinRun(_runId);
+        _evidence = new StageEvidenceReader(_host!.Services, _api, _root!.Artifacts, objective ?? FixtureRepository.Objective);
         return new SetupFacts(projectId, _runId, "refs/heads/" + prepared.BranchName);
     }
 

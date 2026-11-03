@@ -13,8 +13,10 @@ obedience, general reliability, account capacity or increment completion. Three 
   build step, with no reset and no launch. The third ended `Failed` (exit 5) at the CriticalReviewer invocation again. It spent
   both new allowances and qualified nothing.
 
-No further sequence is authorized. See [the recorded outcomes](#recorded-outcome-of-the-only-launch) below. See [AGENTS.md](../../AGENTS.md) for the planner/executor
-roles.
+No further sequence under those authorizations is possible. See [the recorded outcomes](#recorded-outcome-of-the-only-launch) below.
+A new, separately authorized procedure, [QUALIFICATION-PROFILE-01](#qualification-profile-01-prepared-offline-not-authorized-for-execution),
+has been prepared offline only: it is not authorized for execution, and the launcher no longer starts the earlier session. See
+[AGENTS.md](../../AGENTS.md) for the planner/executor roles.
 
 ## Recorded outcome of the only launch
 
@@ -104,6 +106,285 @@ reproduce the session-03 child environment, prove a credential or quota state, o
 unqualified, and any authentication action or further real session needs its own authority. See the
 CLAUDE-AUTHENTICATION-STATUS-01 record in [current-work.md](current-work.md).
 
+## QUALIFICATION-PROFILE-01 (prepared offline; not authorized for execution)
+
+This section is the complete proposed procedure for one bounded, diagnosable first real Codex Planner / Claude CriticalReviewer
+exchange, in two lots that each need a **separate concrete execution approval** after independent preparation review. Offline
+preparation ran no real provider, version, help, authentication or account call, login, credential or preserved-evidence
+inspection, and accessed no old ledger. Every historical allowance remains consumed. The plan is
+[real-provider-qualification-plan.md](real-provider-qualification-plan.md); the implementation record is in
+[current-work.md](current-work.md). The text below describes the preparation **after correction 2** of the planner's reviews 1 and 2
+(QP-R1 whole-entry deadlines and finalization, QP-R2 terminal admission and expiry during validation, QP-R3 reviewed request and
+executable identities, QP-R4 typed status projection); the correction is returned for review and is not accepted.
+
+### Fresh authorization identities and allowance locations
+
+| Lot | Authorization identity | Exclusive directory (under the OS temp directory) | Opt-in |
+| --- | --- | --- | --- |
+| A: two `claude auth status` observations | `owner-qualification-profile-01-lot-a-two-claude-auth-status-observations` | `devalcopilot-qualification-profile-01-lot-a-ledger` | `--run-claude-auth-status-comparison --claude-executable <absolute path> --claude-sha256 <digest>` and `DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM=qualification-profile-01-two-claude-auth-status-observations` |
+| B: one Planner and one CriticalReviewer | `owner-qualification-profile-01-lot-b-one-planner-one-critical-reviewer` | `devalcopilot-qualification-profile-01-lot-b-ledger` | `--run-qualification-profile-01-exchange --approved-launches <absolute path of the owner's approved-launch manifest>` (nothing else) and `DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM=qualification-profile-01-one-codex-planner-and-one-claude-critical-review` |
+
+Each directory is created by its own lot and holds that authorization's durable slot files only. The launcher never names, reads,
+enumerates, resets or archives the earlier ledger directory, except to refuse it at construction; no argument or switch selects an
+authorization or a directory, and the earlier session flag and phrase are no longer recognized. Every slot (each process start and
+each of the two role allowances) is one file created exclusively and flushed **before** its process or POST. Any existing slot makes
+the lot spent: there is no restart, refund, archive or rearm, and a second entry starts nothing. The earlier phrase, the other lot's
+phrase and the other lot's flag are each refused.
+
+### Lot A: two status observations (proposed entry)
+
+Run by the owner in an **ordinary Windows terminal** (a helper started inside an executor does not establish equivalence with it):
+
+```powershell
+$env:DOTNET_ADD_GLOBAL_TOOLS_TO_PATH = 'false'; $env:DOTNET_GENERATE_ASPNET_CERTIFICATE = 'false'
+dotnet build tests\DevalCopilot.Api.IntegrationTests\ManualQualification\Launcher\ManualQualification.csproj -warnaserror -p:UseSharedCompilation=false -m:1
+$env:DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM = 'qualification-profile-01-two-claude-auth-status-observations'
+& .\tests\DevalCopilot.Api.IntegrationTests\ManualQualification\Launcher\bin\Debug\net10.0\ManualQualification.exe --run-claude-auth-status-comparison --claude-executable '<owner-approved absolute path of claude.exe>' --claude-sha256 '<64 hex digits>'
+Remove-Item Env:\DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM
+```
+
+- **Identity.** One executable, named `claude.exe`, an absolute normalized path to a real file (no alias), at most 1 GiB, whose
+  SHA-256 equals the digest the owner supplies. The last recorded native identity (235,169,440 bytes, SHA-256
+  `A863895D829A246D97C1B881FAE85593AAB97B5B7EA5436AD964798F5F48A022`) is retained history and was **not** re-verified here; the owner
+  confirms the path and digest at approval. Nothing is searched, resolved through a profile or cache, or substituted. The identity
+  check reads only that file's bytes.
+- **Processes.** At most **2** child starts, serial: first `auth status` with the launching terminal's own environment (every
+  variable except the operator's confirmation variable), then `auth status` with the map built by the **production** Claude environment
+  builder itself (reached by one narrow reflective call pinned by a test; nothing is duplicated). Direct typed arguments, no shell, no
+  terminal, no input, the shared bounded process adapter, one new disposable working directory. No model, version, help, login,
+  logout, setup or other command exists in the inventory. If the production builder refuses, nothing starts and the stop is reported.
+- **Deadlines.** 30 s execution per child, plus the adapter's unchanged 5 s post-kill wait, 5 s I/O window and 1 s release window;
+  100 s for the serial sequence (a running child is then cancelled). One monotonic 120 s budget starts as the entry's first
+  statement and covers the binary verification, the root, the filtered-map preparation, both observations, the closure of the root,
+  the summary, its save and the reporting of any refusal, error or expiry. The last 5 s of it are a reserve held back for that
+  reporting, so the work and its report are decided at 115 s and the entry returns no later than 120 s: no wait is added after the
+  budget. The waiter never runs the work it waits for, and it reads the admission progress from a snapshot that never waits for work
+  in flight, so a blocking preparation, a held output sink or a slow identity check cannot keep the entry from returning. At the
+  decision instant the entry prints a fixed unproven verdict (exit 8) and starts nothing more: the admission gate closes by the
+  clock at its next decision, after every blocking step and at the dispatch handoff, no continuation removes the root or rewrites
+  the report, and an observation whose slot was consumed or is being consumed is reported `StartedUnproven`, never `NotStarted`.
+  The summary is printed first, then committed, and only then saved, so a summary is never persisted after the bound decided
+  otherwise. A sink call already in progress cannot be revoked: its bytes are non-final and unproven (the exit code and a fixed error
+  line say so) and no physical suppression of that call is claimed. The bound is a decision point of the launcher under a responsive
+  operating system: it does not pre-empt a blocked operating-system call and proves nothing about a descendant process.
+- **Bound request and identity.** The status inventory binds the exact executable and `auth status`, the entry's own working
+  directory and its approved root, the deadline (at most 30 s), no standard input and no sink. The filtered context may carry only
+  `USERPROFILE`, `CLAUDE_CONFIG_DIR` and `SystemRoot`; the ordinary context is the launching terminal's own environment by design
+  (its names are not constrained and its values are never read or kept). The claude.exe digest is verified again immediately before
+  each of the two starts, so a replaced file is refused with a closed drift code.
+- **Reads and writes.** Reads: the one claude.exe file (identity only); the launcher's own environment in memory. Writes: two
+  slot files, one `status-summary-<session>.json` (created exclusively), one owned `devalcopilot-e2e-status-*` directory under the
+  temp directory, removed only when every started child exited with complete I/O.
+- **Closed projection.** Parsed in memory from at most 16 KiB per stream: the boolean `loggedIn` (it must agree with the documented
+  exit code, 0 authenticated and 1 logged out), the method name mapped to `none`, `claudeAi`, `console`, `other` or `unreported`, and
+  `configDirectory` reduced to a one-way fingerprint used only to derive `Equal`, `Different` or `Unknown`. A recognized member that
+  is present with any other type (a number, `null`, a boolean, an array or an object) or duplicated makes the whole observation
+  `Unknown`, so it cannot be reported as authenticated; only an absent optional member is distinct (`unreported`, fingerprint
+  `Unknown`). Anything else, including other exit codes, truncation or incomplete I/O, is `Unknown`. Physical outcome, exit code,
+  duration, I/O completion and the comparison flags are retained; raw output, e-mail, account or organization data, paths and
+  environment names or values are never printed or stored. The summary reports only four closed booleans and a count per context
+  (user profile, configuration-directory variable, any `ANTHROPIC_` variable, any `CLAUDE` variable).
+- **Decision** (exactly the plan's table; none activates anything or claims matching credentials or model access): both authenticated
+  supports preparing B; ordinary authenticated with filtered logged out is a context discrepancy to review before B; both logged out
+  stops (owner-managed prerequisite); the reverse discrepancy, unknown, malformed, timeout or incomplete I/O stops with no second
+  comparison. The sequence stops at the first observation that is not coherent.
+- **Exit codes.** 0 both authenticated and root removed; 2 refused (opt-in, argument or binary identity; nothing created); 3 spent;
+  5 any other completed or stopped observation; 7 unexpected; 8 outer deadline; 9 the observations completed and were printed but the
+  summary could not be persisted (see the summary paragraph below).
+
+### Lot B: one read-only exchange (proposed entry)
+
+```powershell
+$env:DOTNET_ADD_GLOBAL_TOOLS_TO_PATH = 'false'; $env:DOTNET_GENERATE_ASPNET_CERTIFICATE = 'false'
+dotnet build tests\DevalCopilot.Api.IntegrationTests\ManualQualification\Launcher\ManualQualification.csproj -warnaserror -p:UseSharedCompilation=false -m:1
+$env:DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM = 'qualification-profile-01-one-codex-planner-and-one-claude-critical-review'
+& .\tests\DevalCopilot.Api.IntegrationTests\ManualQualification\Launcher\bin\Debug\net10.0\ManualQualification.exe --run-qualification-profile-01-exchange --approved-launches '<absolute path of the owner-prepared approved-launch manifest>'
+Remove-Item Env:\DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM
+```
+
+**Approved-launch manifest.** Without it the entry refuses (`Refused: ApprovedLaunchesRequired.`, exit 2) before a host, directory,
+ledger entry or process exists. It is a closed JSON document, at most 32 KiB, at an absolute normalized path:
+`{"approvedLaunches":[{"capability":"git","path":"<absolute file>","sha256":"<64 lowercase hex>"}, ...]}`. Each entry names exactly
+`capability`, `path` and `sha256`, plus `scriptPath` and `scriptSha256` together for a Node-hosted script launch; an unknown, missing,
+duplicated or mistyped member, a relative or non-normalized path, an uppercase digest or an alias file is refused with a closed code.
+`git`, `codex` and `claude` are required; `node` is required exactly when Codex or Claude is a script launch (and then Codex's or
+Claude's executable must be that same Node file and digest); `dotnet`, `gh` and `docker` are listed only if the owner approves them,
+and an installed tool that is not listed is never probed (the first probe is refused and stops the lot). Each listed file must be a
+regular, non-alias file of at most 1 GiB whose SHA-256 equals its pin when the manifest is loaded, and again **immediately before
+every start that launches it** (executable and script alike); a replaced or removed file is refused with a closed drift or
+not-a-file code and stops the lot. The same approved absolute Git file is used by the launcher's own Git commands and by the host
+(never a name searched through `PATH`). The host's own readiness evidence for Git, Codex and Claude must name exactly these approved
+tuples, or the target judgement fails and no Git or role shape is ever listed. The manifest grants launch identities only, never a
+command, argument or capability. It protects against a file that differs from what the owner pinned; it is no protection against a
+malicious but approved executable, or against a file the same user alters between the check and the launch. The format's unit
+tests use owned stand-in files only; the controlled rehearsal of the production composition additionally reads, in memory, the exact
+regular files of the machine's real Git, .NET, Node and Docker that its existing local-tool resolution selects (real tool
+boundaries; Codex, Claude and `gh` are owned doubles). **No installed Codex or Claude identity was read or hashed**, and the owner's
+actual paths and digests remain a future approved preflight.
+
+The session is the one described under [What one session does](#what-one-session-does), with these preparation changes. Its adapter
+contracts are pinned as `codex-planning-v1` and `claude-critical-review-v2` (the latter keeps its complete restrictions and
+`max-turns=1`); `maximumAgentAttempts=2` and `maximumAgentInvocationMinutes=20` are unchanged. Model defaults, permission profiles,
+safety flags and the allowlist are untouched, and no model-catalog call is made.
+
+**Process inventory.** Every process request of the host (through its one production process adapter) and of the launcher passes a
+qualification-only admission boundary. A class matches the **whole request**, not a name or a first argument: the approved
+executable (and script), the complete argument vector with only the reviewed dynamic members constrained, the environment variable
+**names** (never values), the deadline and every working directory, approved root, output sink and fixture or worktree destination,
+which must lie inside the session's one owned root. It must match exactly one listed class; every approved file it launches must still
+be exactly its pinned identity; and the class and the authorization total must still have a durable slot, which is consumed before the
+process exists. An unlisted, ambiguous, drifted or exhausted request is refused with a closed code and creates no process.
+**The gate is terminal.** The first refusal, or the whole-entry deadline, closes it atomically with the decision that caused it: the
+first reason is kept (`closedBy` in the summary), consumed slots stay consumed, and no later request of any producer, including a
+background refresh or a detached continuation, is ever admitted (they are counted as `AdmissionClosed`). The deadline is rechecked
+after the identity verification, after the durable marker is written and at the dispatch handoff immediately before the process
+would be created; a request whose marker was already consumed when the gate closed keeps the marker, never starts, and is counted as
+`ExpiredBeforeStart`. Progress (`pending` classes in flight, admitted, refused, `closedBy`) is read from a snapshot that never takes
+the admission lock. Because every later Git
+command is then refused too, the final source inspection becomes unavailable, which is reported as unproven (`SourceUnreadable`) and
+preserves the root; a closed gate always requires that inspection, even before any allowance was spent.
+The three production observers that start a Codex `app-server` through their own process boundary (account allowance, model catalog,
+account-usage dispatch guard) are answered as unavailable observations after a counted refusal: the guard calls its observer only
+when a usage stop is configured, which this run never configures. Any call to one of them is itself an unlisted launch that closes the
+gate; no production observer is ever silently restored. Git and role shapes are listed only after the target judgement has accepted
+the host's readiness evidence as exactly the approved tuples.
+
+**Reviewed role vectors.** Codex: the approved launch (a Node script, if approved, as the first argument) followed by exactly
+`exec --json --output-schema <schema> --output-last-message <result> --sandbox read-only --cd <workspace> --ephemeral
+--ignore-user-config -`, with the working directory and approved root equal to `<workspace>` (inside the owned workspaces
+directory), standard input supplied, environment names within `USERPROFILE`, `CODEX_HOME` and `SystemRoot`, and a finite deadline of
+at most **10 minutes** (the reviewed invocation limit of both roles, `AgentClaimPathPolicy`; the run's 20-minute
+`maximumAgentInvocationMinutes` is a different, unchanged setting). `<result>` and both output sinks must be the
+`final-response`, `stdout` and `stderr` files of ONE attempt of this session's run in the artifact layout
+(`artifacts\runs\<run>\attempts\<attempt>\...partial`), and `<schema>` must be that same run's and attempt's file
+`%LOCALAPPDATA%\DevalCopilot\agent-scratch\<run>\<attempt>\schema.json`, the exact existing production scratch location, whose raw
+bytes are read at admission and must equal the serialized production proposal contract (a byte-order mark or any other difference
+is a different contract). An arbitrary absolute file named `schema.json` never qualifies, and no production file is moved. There is
+no model, effort, bypass, full-auto, sandbox or other member. Claude: the approved launch followed by exactly the production critical-review vector (`--print --input-format text
+--output-format json --json-schema <the production critical-review schema> --safe-mode --restricted --disable-slash-commands
+--no-chrome --permission-prompts none --tools "" --strict-mcp-config --permission-mode plan --no-session-persistence --session-id
+<GUID> --max-turns 1`), with the same workspace, attempt-bound sink, input and ten-minute deadline rules and environment names within `USERPROFILE`,
+`CLAUDE_CONFIG_DIR` and `SystemRoot`. Any added, removed or changed member (for example `--tools Bash --max-turns 99` or
+`--dangerously-bypass-approvals-and-sandbox`) is unlisted. Host Git additionally requires the hardening prefix, environment names
+within `GIT_TERMINAL_PROMPT`, `GIT_OPTIONAL_LOCKS` and `GIT_CONFIG_NOSYSTEM`, a deadline of at most 30 s and destinations inside the
+owned root (the worktree path, a plain branch name and a 40-hex commit); the launcher's own Git requires a working directory inside the
+owned root, a 60 s bound and its constrained environment. Discovery probes are `--version` of an approved tuple only, with at most
+`SystemRoot` in the environment, a 5 s deadline, and the exact production tool-discovery scratch directory
+(`%LOCALAPPDATA%\DevalCopilot\tool-discovery-scratch`) as both working directory and approved root; no other directory qualifies.
+
+**The launcher's own Git environment.** Its child starts from an empty environment: no ambient Git variable (`GIT_DIR`,
+`GIT_WORK_TREE`, `GIT_EXEC_PATH`, `GIT_ASKPASS`, `GIT_SSH_COMMAND`, `GIT_CONFIG_PARAMETERS`, ...), `HOME` or `PATH` reaches it. Only
+`SystemRoot`, `GIT_OPTIONAL_LOCKS=0`, `GIT_TERMINAL_PROMPT=0`, `GIT_CONFIG_NOSYSTEM=1`, `GIT_CONFIG_GLOBAL=NUL` and the Git
+configuration-count variables are set, pinning `core.hooksPath=NUL`, `core.fsmonitor=false`, `core.untrackedCache=false` and
+`protocol.allow=never`; no argument of any counted command changes. The admission requires exactly those pinned variable names in the
+launcher Git shape, so a hook, helper, global or system configuration cannot add behavior outside the counted procedure. The host's Git
+environment is bound by name as before. No isolation from a hostile Git executable is claimed.
+
+**Git version prerequisite.** `GIT_CONFIG_GLOBAL` and the configuration-count variables are honored from Git 2.32.0 (2.31 added the
+environment-fed configuration mechanisms but does not handle `GIT_CONFIG_GLOBAL`), and a file digest identifies a file without proving
+any flag support. So, **before the launcher's first fixture mutation** (`git init`), the launcher makes **one** bounded request of the
+exact approved Git file: `--version`, no shell, an environment of at most `SystemRoot`, the exact production tool-discovery scratch
+directory as working directory and approved root, **one monotonic 5 s deadline** covering the child's exit and the completion of
+**both** redirected streams, and at most **512 bytes on each stream** (enforced while reading, in small blocks, with no unbounded
+buffering: the first byte beyond the cap on either stream makes the observation oversized and stops it; standard output is returned to
+the gate, standard error is only counted and discarded, and neither is persisted or logged). It is admitted as the already budgeted
+`discovery.git` class (so it is one of that class' eight starts and counts toward the 179 maximum; with the host's own probes the class
+is expected to show at least two starts in a normal run, and the five-minute refresh timeline still fits inside the ceiling). The
+observation must be one coherent line `git version <major>.<minor>.<patch>[.suffix]` of **at least 2.32.0**. An unknown or malformed,
+older, failed, timed-out, non-zero, truncated or incomplete observation refuses the session as Blocked before any fixture Git
+command (closed codes `GitVersionUnknown`, `GitVersionTooOld`, `GitVersionObservationFailed`, `GitVersionIncomplete`,
+`GitVersionTerminationUnproven`), with no fallback, retry or ignored flag, and spends nothing. A stream that has not ended when the
+one deadline arrives (a pipe held open by a descendant, for instance) is refused as incomplete and, because cleanup cannot prove that
+the descendant ended, as termination-unproven; a child that outlives the deadline is killed once and confirmed for at most 250 ms
+(inside the cleanup only, never a second observation wait), and a child that cannot be confirmed is reported as unproven. Expiry is
+terminal: the observation is accepted only when the one wait established that the child exited and both streams reached their end
+without overflow **and** the absolute monotonic deadline was still open when that result was read, so a wait that timed out, had no
+time left to start, or returned a success index after the deadline (a caller descheduled between computing the relative timeout and
+waiting) refuses even if everything happened to finish before the next status read. A child that could not be started, or no process
+returned, reports no completed I/O (it already refuses as a failed observation). The process facts (exit, code) are sampled at the
+decision; the I/O and termination facts are measured after the one cleanup. The failure facts are independent: overflow (the excess is read and discarded,
+never stored), unfinished I/O (true "I/O complete" only when both readers successfully reached the end of their stream) and
+unproven termination (kill unconfirmed, or the root exited while a pipe never ended) are each reported on their own, so an overflow
+on one stream does not hide a descendant still holding the other. The minimum is a syntax prerequisite for this profile only: it is neither
+universal Git compatibility nor a security qualification, and the observer creates the production scratch directory if it does not
+yet exist (the same directory production creates for its own probes). The preparation tested this only with doubles, plus the real
+`git --version` the controlled rehearsal now performs as one more local-tool boundary.
+
+| Class | Most starts | Exact shape |
+| --- | ---: | --- |
+| `discovery.git`, `.dotnet`, `.node`, `.gh`, `.docker`, `.codex`, `.claude` | 8 each, 56 in all | the `--version` probe of the owner-approved tuple of that capability (for an approved script launch the Node executable, the approved script, then `--version`); a capability the owner did not approve matches nothing; first probe plus one refresh every five minutes inside the 35-minute bound |
+| `role.codex.exec`, `role.claude.print` | 1 each, 2 in all | the approved launch followed by exactly the reviewed vector above; no retry, repair, Resolver, fallback, resume or compaction |
+| `launcher.git.init`, `.config`, `.add`, `.commit` | 1 each | the five-command fixture creation (its final `rev-parse HEAD` is counted in `.head`) |
+| `launcher.git.head`, `.headref`, `.refs`, `.index` | 10, 9, 9, 9 | the nine complete read-only snapshots (original, baseline pair, three observations of the source and the worktree) |
+| `git.revparse.gitdir`, `.bare`, `.toplevel`, `.commondir`, `git.symbolicref`, `git.revparse.head`, `git.status.porcelain` | 3, 2, 2, 4, 4, 4, 2 | registration, identity recheck and workspace preparation (read-only) |
+| `git.worktree.add` | 1 | the one worktree creation |
+| `git.evidence.revparse`, `.status`, `.diff` | 14 each | the bounded evidence capture around each role |
+| `git.evidence.hashobject`, `.lsfiles.tracked`, `.lsfiles.others` | 8, 4, 4 | the root instruction files `AGENTS.md` and `CLAUDE.md` only |
+
+That is 56 discovery, 2 role, 41 launcher Git and 80 host Git starts: **179** in total (a maximum inventory, not the number the short
+rehearsal issued; discovery refreshes are bounded by the per-capability ceiling but the five-minute timeline was not run). These
+counts were resolved offline by running the unchanged production composition against the journey's provider doubles
+(Profile01RehearsalTests) and are pinned in a test; they carry no headroom, so any extra command stops the run, and a changed
+inventory needs a reviewed correction with fresh evidence. No remote Git, helper, credential, authentication, account or
+model-catalog command is listed, and none of them has any slot.
+
+**Time.** 90 s readiness, 120 s per setup step, 60 s per POST, 20 s per read, 12 minutes per stage (beside the unchanged 10-minute
+role deadlines), 32 minutes for the active session and 60 s host shutdown. One monotonic 35-minute deadline starts as the entry's
+first statement and covers the manifest load and verification, the environment's creation and preparation, the session, the final
+observations, the summary, its save and the closure. The waiter never runs the work it waits for, so a blocking preparation, a held
+report sink or a held disposal cannot keep the entry from returning at the bound. At 35 minutes the launcher prints a fixed unproven
+verdict (exit 8) and the admission gate closes by the clock at its next decision, so nothing more is started, no allowance is
+consumed, and the detached session stops, cleans and disposes nothing and rewrites no report; the session, host and any provider
+process it started are reported as unproven. The last 5 s of the 35 minutes are an emission reserve **inside** the budget for that
+verdict and for any refusal or error report: the work, its closure and its report are decided at 34 min 55 s, every emission is
+bounded by the time left in the 35 minutes, and nothing is waited for after them. A normal end is ordered: the session finishes, the
+entry claims its report, the environment is closed (disposed), the summary (which states `closure.environmentDisposed`) is printed,
+the entry commits, and only then is the summary saved, so authoritative success is never printed or kept before the required closure
+and a failed closure disqualifies a qualified result. Persistence is checked: the summary file is created exclusively, written,
+flushed to the device and closed in one guarded step, and a failure (an obstructed or existing destination, an I/O error) turns a
+successful or attention-only result into exit 9 with a fixed error-stream line; the printed facts, the spent allowances and every
+existing file stay as they are, with no retry, refund or overwrite, and a finalization that did not commit never returns its own exit
+code (it is the unproven verdict, exit 8). If the bound elapses while the closure or the print is still running, the
+entry returns exit 8, saves the unproven verdict (`expiredDuring: ReportOrClosure`, `finalizationComplete: false`) and writes a fixed
+line to the error stream; the report sink is not written by anyone else while a call of it is in flight. That call cannot be revoked:
+if it later appends, its bytes are non-final and unproven, and no physical suppression of it is claimed. The late continuation neither
+saves nor disposes again. The bound is a decision point of the launcher under a responsive operating system: it does not pre-empt a
+blocked operating-system call, expiry never proves a process stopped, and no outer timeout authorizes killing an unrelated process.
+
+**Evidence reads (read-only) and writes.** Reads: the public status, timeline, message-evidence and, new, **attempt-evidence** routes
+and the disposable rows, for each stage; the sealed artifacts' lengths and hashes; Git snapshots of the source and the worktree after
+every submitted stage and after shutdown. The attempt-evidence route is read for every terminal attempt, including a failed Claude
+attempt with no message, and compared with the stored attempt on status, outcome, process, the three recorded I/O facts and the
+closed diagnostic. Writes: two allowance files, at most 179 slot files, one `summary-<session>.json` (created exclusively), and the
+owned `devalcopilot-e2e-manual-*` root under the temp directory.
+
+**Acceptance and stop actions.** A stage qualifies only for the accepted attempt, with the pinned contract version, a clean exit 0,
+explicitly complete required I/O (both outputs complete and input delivered), a coherent role response, exactly one attributed
+message, exact ordered inputs and reply identity, agreeing protected evidence and sealed length and hash comparisons. A missing or
+foreign attempt, a historical or missing contract version, or absent I/O facts fails. On a failed Claude invocation the recorded
+closed diagnostic and its version are reported; an unknown or generic diagnosis is a valid failure report, never retried or
+relabelled. Source and worktree are compared after every submitted stage and after shutdown (unreadable is unproven). The first
+failed, refused, ambiguous, mismatched or expired step stops the lot: no second submission, context, model, binary or fallback.
+The conservative process proof is unchanged (`OriginUnresolved` preserves the root and yields an attention result, exit 6 when
+qualified); exchange compatibility, source integrity, invoked-process completion, descendant shutdown and cleanup stay separate
+facts. Provider usage is reported only if observed, otherwise unknown; this is not a monetary, token or provider-internal request cap.
+
+### Remaining decisions before either lot can be approved
+
+1. Approve, or replace, the two authorization identities and confirmation phrases above.
+2. Lot A: the owner supplies and confirms the `claude.exe` path and SHA-256.
+3. Lot B: the owner supplies, at a future approved preflight, the approved-launch manifest: exact absolute paths and SHA-256 digests of
+   Git, the Codex and Claude launches (and the Node and script components of a script launch) and any of `dotnet`, `gh` and `docker`
+   that are installed. This is launch-context information, not a decision about `PATH`, unsupported binaries or a new
+   authorization. The offline preparation reads no installed file; the actual identities are not known here.
+4. If a hard monetary or token ceiling is required, activation stays blocked: none can be enforced here.
+
+Decided by the planner at review 1 (recorded, not reopened): the qualification-only counted refusal of all three `app-server`
+observers is accepted for this run (any call closes the gate); the single fixed reflective call to the production Claude environment
+builder is accepted with fail-closed resolution; the per-class ceilings keep no headroom and are recalculated only when a reviewed
+correction changes the request inventory; and executable identity binding is required engineering work, now implemented as the
+approved-launch manifest above.
+
 ## It is not a test
 
 The launcher is a separate executable, `ManualQualification` (source under
@@ -119,9 +400,11 @@ The launcher is a separate executable, `ManualQualification` (source under
 - Each allowance is consumed, durably, **before** its single POST. A timeout, an ambiguous or refused answer, a crash, a restart
   or a second launch never makes it spendable again. The reviewer allowance can be taken only by the session that holds the
   planner allowance, and only after one coherent recorded Proposal and an unchanged source.
-- The ledger is the directory `devalcopilot-manual-qualification-ledger` directly under the OS temp directory (one
-  `planner.allowance` and one `reviewer.allowance` file, created exclusively and never rewritten). If either exists, the launcher
-  starts nothing. Resetting it is a manual act that needs a **new owner decision**; the launcher never does it.
+- The ledger of the current authorization is the directory `devalcopilot-qualification-profile-01-lot-b-ledger` directly under the OS
+  temp directory (one `planner.allowance` and one `reviewer.allowance` file, created exclusively and never rewritten, beside the
+  durable process slots of [QUALIFICATION-PROFILE-01](#qualification-profile-01-prepared-offline-not-authorized-for-execution)). If any
+  allowance or process slot exists, the launcher starts nothing. The earlier authorizations' directory is never named, read, reset or
+  archived by the launcher; a new authorization is the only way to a new ledger, and it needs a **new owner decision**.
 - A refusal before any POST (opt-in, readiness, targets, setup) spends nothing and is not proof of a provider invocation.
 
 ## Preconditions
@@ -131,7 +414,9 @@ copies credentials, edits user configuration or changes a model or effort defaul
 
 - Codex: a direct `codex.exe` on `PATH` or in `%APPDATA%\npm`, or the global npm package `@openai/codex` (run through Node).
 - Claude Code: a direct `claude.exe`, or the global npm package `@anthropic-ai/claude-code` (its native `bin/claude.exe`).
-- Both already authenticated for the Windows user. Git on `PATH`.
+- Both already authenticated for the Windows user. Git as an approved absolute file (the launcher never resolves it through `PATH`).
+- The host's discovery must name exactly the files of the owner's approved-launch manifest; anything else is a blocker, never a
+  substitution.
 
 If discovery reports either as not observed, or as anything but a real installed provider (inside the disposable root or the
 launcher output, a `ProviderFixture` file beside it, an unexpected name or package, an unparseable version), the session stops
@@ -139,17 +424,11 @@ as **Blocked** before anything is spent. Unsupported installed arguments or laun
 
 ## Run it once
 
-Build, then start the launcher from the repository root with both halves of the opt-in:
-
-```powershell
-dotnet build DevalCopilot.slnx -p:UseSharedCompilation=false -m:1
-$env:DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM = 'one-codex-planner-and-one-claude-critical-review'
-& .\tests\DevalCopilot.Api.IntegrationTests\ManualQualification\Launcher\bin\Debug\net10.0\ManualQualification.exe --run-real-provider-session
-Remove-Item Env:\DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM
-```
-
-Without the exact flag as the only argument and the exact phrase, it prints a refusal and exits 2 with no host, no provider, no
-directory and no ledger entry.
+The exact proposed entries of both lots, with their identities, counts and deadlines, are under
+[QUALIFICATION-PROFILE-01](#qualification-profile-01-prepared-offline-not-authorized-for-execution). Without the exact flag (lot B,
+optionally followed by exactly one `--approved-launches <path>`) and the exact phrase, the launcher prints a refusal and exits 2 with
+no host, no provider, no directory and no ledger entry; without a valid approved-launch manifest it refuses the same way after the
+opt-in. The earlier session flag (`--run-real-provider-session`) and its phrase are no longer recognized.
 
 This shows the opt-in shape, not current authority. Any further real sequence (reset, build and launch) follows only a separately
 reviewed procedure, a new explicit owner decision and a complete planner dispatch. The QUALIFICATION-REAL-SESSION-03 package used
@@ -233,7 +512,8 @@ recorded input and sealed manifest name that Proposal, sealed byte and hash agre
 cleanup facts. It never carries a user or executable path, a provider session identifier, a credential, a manifest or any
 provider output.
 
-The current summary is `schemaVersion` 2. For each available stage it adds `attemptsInRun` and `dispatchedAttemptsInRun` (the
+The exchange summary is now `schemaVersion` 3 (described after this paragraph); schema 2, the previous version, is described here and
+every schema-1 and schema-2 field is kept in schema 3. For each available stage it adds `attemptsInRun` and `dispatchedAttemptsInRun` (the
 run's attempt rows and those with a dispatch marker when the stage was read), `messageCount` and `evidenceRouteComparison`, and
 keeps every schema-1 field, including the derived `evidenceRouteAgrees` boolean. `messageCount` is `null` when the timeline was
 not enumerated (a still running attempt) and otherwise the actual number of messages the accepted attempt produced: 0, 1 or
@@ -247,6 +527,17 @@ Summaries written under schema 1, including the failed session's, are historical
 `evidenceRouteAgrees` with no selected message did not distinguish an absent comparison from a disagreement, and the count was
 not reported. Schema 2 reports only what the host recorded; it adds no provider output, failure classification or diagnosis.
 
+**Schema 3 (QUALIFICATION-PROFILE-01).** It records the authorization identity of the lot and, for each available stage,
+`adapterContractVersion` (the recorded ADR-0072 adapter contract), `ioCompletion` (the three recorded I/O facts and the derived
+`requiredComplete`), `invocationDiagnostic` (its state, closed category and vocabulary version, never a verified cause) and
+`attemptEvidenceRouteAgrees` with `attemptEvidenceRouteComparison`, read through the attempt-evidence route whether or not the attempt
+produced a message. A failed attempt with no message therefore still reports these facts. A top-level `processAdmission` section
+reports the closed counts of admitted starts per class and refused requests per closed code and, if the gate closed, its first reason
+(`closedBy`), never a path or an argument. The fixed
+refusal now carries `schemaVersion` 3, and the outer-deadline verdict (exit 8) carries only the identity, the admission counts and the
+unproven shutdown and cleanup facts. A summary is created exclusively and never overwrites another; schema-1 and schema-2 summaries
+are never read or rewritten. Lot A prints its own independent closed summary (`statusSchemaVersion` 1).
+
 | Exit | Meaning |
 | ---- | ------- |
 | 0 | Qualified: one Proposal and one Acceptance or Challenge replying to it, every control satisfied. |
@@ -256,6 +547,8 @@ not reported. Schema 2 reports only what the host recorded; it adds no provider 
 | 5 | An allowance was spent and the session did not reach a valid qualified result. |
 | 6 | Qualified, but shutdown or cleanup was unsafe, so the root was preserved for attention. |
 | 7 | The launcher stopped unexpectedly (only the exception type is printed). |
+| 8 | The entry's one monotonic bound (35 minutes for lot B, 5 s of it an emission reserve, from its first statement and covering preparation, the session, the final observations, the closure, the report and any refusal or error reporting) elapsed: a fixed unproven verdict was saved and printed (or, if the report or closure was already in flight, saved with a fixed error-stream line saying report and closure are unproven), the admission gate closed, nothing was stopped or cleaned and nothing later may start, consume or persist. Bytes of a sink call already in flight are non-final. |
+| 9 | The session's exchange or observation facts were printed (and, for an allowance, spent) but the summary file could not be created exclusively, written, flushed and closed, so a successful or attention-only result is replaced by this closed attention exit; a more specific non-success exit (3, 4, 5, 8) is kept. Nothing is retried, refunded or overwritten, and an existing file is never touched. |
 
 ## Inspecting or removing a preserved root
 

@@ -31,6 +31,15 @@ if (args.Length == 3 && args[1] == "app-server" && args[2] == "--stdio" && File.
     return await RunAppServerScriptAsync(args[0]);
 }
 
+// The launcher's Git version observation double: a copy of this executable that receives exactly "--version" and finds its scripted
+// behavior in a file beside it (the executable's own name with the ".observation" extension). Without that file the argument stays an
+// unknown mode, exactly as before.
+if (args.Length == 1 && args[0] == "--version" && Environment.ProcessPath is { } own
+    && File.Exists(Path.ChangeExtension(own, ".observation")))
+{
+    return RunVersionObservation(Path.ChangeExtension(own, ".observation"));
+}
+
 switch (args[0])
 {
     case "exit-code":
@@ -44,6 +53,14 @@ switch (args[0])
 
     case "sleep-ms":
         Thread.Sleep(int.Parse(args[1]));
+        return 0;
+
+    case "write-handle-then-sleep":
+        // Used only by the "overflow-held" version observation double: after a short pause this descendant writes the given number of
+        // bytes straight to an inherited handle (the numeric value its parent passed), then sleeps holding every inherited handle.
+        Thread.Sleep(300);
+        NativeHandles.WriteTo(new IntPtr(long.Parse(args[1])), int.Parse(args[2]));
+        Thread.Sleep(int.Parse(args[3]));
         return 0;
 
     case "sleep-after-marker":
@@ -118,6 +135,79 @@ switch (args[0])
     default:
         await Console.Error.WriteLineAsync($"Unknown mode: {args[0]}");
         return 64;
+}
+
+static int RunVersionObservation(string scriptPath)
+{
+    const string Version = "git version 2.50.0\n";
+    var parts = File.ReadAllText(scriptPath).Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    switch (parts[0])
+    {
+        case "normal":
+            Console.Out.Write(Version);
+            return 0;
+
+        case "stdout-bytes":
+            // A valid version line followed by that many further standard output bytes.
+            Console.Out.Write(Version);
+            Console.Out.Flush();
+            WriteBytes(Console.OpenStandardOutput(), int.Parse(parts[1]));
+            return 0;
+
+        case "stderr-bytes":
+            // A valid version line, then that many standard error bytes.
+            Console.Out.Write(Version);
+            Console.Out.Flush();
+            WriteBytes(Console.OpenStandardError(), int.Parse(parts[1]));
+            return 0;
+
+        case "delay-ms":
+            Thread.Sleep(int.Parse(parts[1]));
+            Console.Out.Write(Version);
+            return 0;
+
+        case "exit-code":
+            Console.Out.Write(Version);
+            return int.Parse(parts[1]);
+
+        case "overflow-held":
+            // The version line, then this process exits zero at once while a descendant that inherited BOTH redirected streams
+            // sleeps holding them and, shortly after, writes the given number of bytes to standard error: an overflow on one stream
+            // while the other stays open after the root exited (parts: pid file, bytes, sleep milliseconds).
+            Console.Out.Write(Version);
+            Console.Out.Flush();
+            var overflowStart = new ProcessStartInfo { FileName = Environment.ProcessPath!, UseShellExecute = false, CreateNoWindow = true };
+            overflowStart.ArgumentList.Add("write-handle-then-sleep");
+            overflowStart.ArgumentList.Add(NativeHandles.StandardHandleValue(NativeHandles.StandardErrorHandle).ToString());
+            overflowStart.ArgumentList.Add(parts[2]);
+            overflowStart.ArgumentList.Add(parts[3]);
+            using (var overflowing = Process.Start(overflowStart)!)
+            {
+                File.WriteAllText(parts[1], overflowing.Id.ToString());
+            }
+
+            return 0;
+
+        case "hold":
+            // The version line, then a descendant that inherits ONLY the named redirected stream (the other one is made
+            // non-inheritable first) and sleeps, its process id recorded; this process exits zero at once. The held stream never
+            // reaches end-of-file while the other one does, so each stream's completion is independently observable.
+            Console.Out.Write(Version);
+            Console.Out.Flush();
+            NativeHandles.DisableInheritance(parts[1] == "stdout" ? NativeHandles.StandardErrorHandle : NativeHandles.StandardOutputHandle);
+            var startInfo = new ProcessStartInfo { FileName = Environment.ProcessPath!, UseShellExecute = false, CreateNoWindow = true };
+            startInfo.ArgumentList.Add("sleep-ms");
+            startInfo.ArgumentList.Add(parts[3]);
+            using (var descendant = Process.Start(startInfo)!)
+            {
+                File.WriteAllText(parts[2], descendant.Id.ToString());
+            }
+
+            return 0;
+
+        default:
+            return 64;
+    }
 }
 
 static void WriteBytes(Stream stream, int count)
@@ -361,6 +451,15 @@ internal static class NativeHandles
 
     private const uint HandleFlagInherit = 1;
 
+    internal static long StandardHandleValue(int standardHandle) => GetStdHandle(standardHandle).ToInt64();
+
+    internal static void WriteTo(IntPtr handle, int count)
+    {
+        var bytes = new byte[count];
+        Array.Fill(bytes, (byte)'E');
+        _ = WriteFile(handle, bytes, count, out _, IntPtr.Zero);
+    }
+
     internal static void DisableInheritance(int standardHandle)
     {
         var handle = GetStdHandle(standardHandle);
@@ -378,6 +477,11 @@ internal static class NativeHandles
     [DllImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetHandleInformation(IntPtr handle, uint mask, uint flags);
+
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool WriteFile(IntPtr handle, byte[] buffer, int count, out int written, IntPtr overlapped);
 }
 
 /// <summary>One scripted App Server interaction, deserialized from a per-test JSON fixture file.

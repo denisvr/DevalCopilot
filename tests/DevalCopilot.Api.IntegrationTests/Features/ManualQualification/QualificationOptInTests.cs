@@ -16,11 +16,12 @@ public sealed class QualificationOptInTests : QualificationTestBase
     }
 
     [Theory]
-    [InlineData(false, "one-codex-planner-and-one-claude-critical-review")]
+    [InlineData(false, QualificationOptIn.ConfirmationPhrase)]
+    [InlineData(true, "one-codex-planner-and-one-claude-critical-review")]
     [InlineData(true, null)]
     [InlineData(true, "")]
     [InlineData(true, "yes")]
-    [InlineData(true, "ONE-CODEX-PLANNER-AND-ONE-CLAUDE-CRITICAL-REVIEW")]
+    [InlineData(true, "QUALIFICATION-PROFILE-01-ONE-CODEX-PLANNER-AND-ONE-CLAUDE-CRITICAL-REVIEW")]
     public void A_missing_or_inexact_half_of_the_opt_in_is_refused(bool flag, string? phrase)
     {
         string[] arguments = flag ? [QualificationOptIn.Flag] : [];
@@ -33,6 +34,7 @@ public sealed class QualificationOptInTests : QualificationTestBase
     {
         Assert.False(QualificationOptIn.IsGranted([QualificationOptIn.Flag, "--again"], Confirmed));
         Assert.False(QualificationOptIn.IsGranted(["--run-real-provider-sessions"], Confirmed));
+        Assert.False(QualificationOptIn.IsGranted(["--run-real-provider-session"], Confirmed));
         Assert.False(QualificationOptIn.IsGranted([QualificationOptIn.Flag.ToUpperInvariant()], Confirmed));
     }
 

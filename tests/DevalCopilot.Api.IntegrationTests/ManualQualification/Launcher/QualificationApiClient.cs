@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 using DevalCopilot.Api.Features.Projects.PrepareRepositoryWorkspace;
 using DevalCopilot.Api.Features.Projects.RegisterProject;
 using DevalCopilot.Api.Features.Runs.CreateManualRun;
+using DevalCopilot.Api.Features.Runs.GetAgentAttemptEvidence;
 using DevalCopilot.Api.Features.Runs.GetAgentAttemptStatus;
 using DevalCopilot.Api.Features.Runs.GetClaudeCriticalReviewAttemptStatus;
 using DevalCopilot.Api.Features.Runs.GetCollaborationMessageEvidence;
@@ -113,6 +114,15 @@ public sealed partial class QualificationApiClient : IDisposable
         CancellationToken cancellationToken) =>
         GetAsync<CollaborationMessageTimelineResponse[]>(
             $"api/runs/{runId}/collaboration-timeline",
+            cancellationToken);
+
+    /// <summary>The protected attempt-evidence metadata of one attempt of the run, whether or not it produced any message.</summary>
+    public Task<AgentAttemptEvidenceResponse> GetAttemptEvidenceAsync(
+        Guid runId,
+        Guid attemptId,
+        CancellationToken cancellationToken) =>
+        GetAsync<AgentAttemptEvidenceResponse>(
+            $"api/runs/{runId}/agent-attempts/{attemptId}/evidence",
             cancellationToken);
 
     public Task<CollaborationMessageEvidenceResponse> GetMessageEvidenceAsync(

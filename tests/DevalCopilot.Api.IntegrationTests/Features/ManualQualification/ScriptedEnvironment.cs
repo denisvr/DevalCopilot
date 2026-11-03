@@ -23,6 +23,12 @@ public sealed class ScriptedEnvironment : IQualificationEnvironment
 
     public TargetJudgement Targets { get; set; } = new(true, [new TargetReport("codex", true, "Real", "NodeScript", "1.0.0")]);
 
+    /// <summary>The admission facts as a function of the calls made so far, so a test can make a process request be refused at an
+    /// exact point of the sequence (for instance after the first submission).</summary>
+    public Func<IReadOnlyList<string>, ProcessAdmissionFacts>? AdmissionFor { get; set; }
+
+    public ProcessAdmissionFacts AdmissionFacts => AdmissionFor?.Invoke(Calls) ?? ProcessAdmissionFacts.None;
+
     public Func<AllowanceRole, Guid?, Task<SubmissionResult>>? OnSubmit { get; set; }
 
     public Func<AllowanceRole, int, StageReading>? OnRead { get; set; }
@@ -48,10 +54,12 @@ public sealed class ScriptedEnvironment : IQualificationEnvironment
 
     public int Count(string call) => Calls.Count(entry => entry == call);
 
+    public Exception? PrepareFailure { get; set; }
+
     public Task PrepareFixtureAsync(CancellationToken cancellationToken)
     {
         Note("prepare");
-        return Task.CompletedTask;
+        return PrepareFailure is null ? Task.CompletedTask : Task.FromException(PrepareFailure);
     }
 
     public SourceSnapshot SnapshotSource()
@@ -114,7 +122,14 @@ public sealed class ScriptedEnvironment : IQualificationEnvironment
         return Cleanup();
     }
 
-    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    /// <summary>What disposal does (for instance block until released); recorded as a call before it runs.</summary>
+    public Func<ValueTask>? OnDispose { get; set; }
+
+    public ValueTask DisposeAsync()
+    {
+        Note("dispose");
+        return OnDispose?.Invoke() ?? ValueTask.CompletedTask;
+    }
 
     private void Note(string call)
     {

@@ -25,7 +25,7 @@ public abstract class QualificationTestBase : IDisposable
 
     protected InvocationLedger Ledger { get; }
 
-    public void Dispose()
+    public virtual void Dispose()
     {
         if (Directory.Exists(LedgerDirectory))
         {

@@ -4,7 +4,7 @@ using System.Text.Json;
 namespace DevalCopilot.Api.IntegrationTests.ManualQualification;
 
 /// <summary>
-/// The small durable record of the owner's two provider allowances. An allowance is one file created exclusively (create-new,
+/// The small durable record of one authorization's two provider allowances. An allowance is one file created exclusively (create-new,
 /// flushed to disk) BEFORE its single POST, so a timeout, a crash, a restart or a second launcher can never find it unspent
 /// again; nothing here ever deletes or rewrites an entry. The reviewer allowance can be taken only by the session that holds the
 /// planner allowance. The ledger lives outside every disposable root and outside the repository, and a new authorization is the
@@ -12,19 +12,36 @@ namespace DevalCopilot.Api.IntegrationTests.ManualQualification;
 /// </summary>
 public sealed class InvocationLedger(string ledgerDirectory, TimeProvider clock)
 {
-    public const string DirectoryName = "devalcopilot-manual-qualification-ledger";
-    public const string Authorization = "owner-2026-10-09-one-planner-one-critical-reviewer";
+    public const string DirectoryName = "devalcopilot-qualification-profile-01-lot-b-ledger";
+    public const string Authorization = "owner-qualification-profile-01-lot-b-one-planner-one-critical-reviewer";
+
+    /// <summary>The directory of every earlier authorization's spent allowances. Named only so that it can be refused: this launcher
+    /// never reads, enumerates, resets or archives it, and no path or authorization switch exists that could point back to it.</summary>
+    private const string SpentLegacyDirectoryName = "devalcopilot-manual-qualification-ledger";
 
     private static readonly AllowanceRole[] Roles = [AllowanceRole.Planner, AllowanceRole.Reviewer];
 
-    public string LedgerDirectory { get; } = ledgerDirectory;
+    public string LedgerDirectory { get; } = GuardDirectory(ledgerDirectory);
 
     public static InvocationLedger CreateDefault() =>
         new(Path.Combine(Path.GetTempPath(), DirectoryName), TimeProvider.System);
 
     public bool IsConsumed(AllowanceRole role) => File.Exists(PathOf(role));
 
-    public bool IsSpent() => Roles.Any(IsConsumed);
+    /// <summary>True once either allowance or any process slot of this authorization was consumed. A restart after any consumption is
+    /// never supported: there is no refund, archive or re-arm.</summary>
+    public bool IsSpent() => Roles.Any(IsConsumed) || HasProcessSlots();
+
+    private static string GuardDirectory(string directory)
+    {
+        var name = Path.GetFileName(Path.TrimEndingDirectorySeparator(directory));
+        return string.Equals(name, SpentLegacyDirectoryName, StringComparison.OrdinalIgnoreCase)
+            ? throw new ArgumentException("The spent allowance directory of an earlier authorization is never used.", nameof(directory))
+            : directory;
+    }
+
+    private bool HasProcessSlots() =>
+        Directory.Exists(LedgerDirectory) && Directory.EnumerateFiles(LedgerDirectory, "admission-*.start").Any();
 
     public ConsumeOutcome Consume(AllowanceRole role, string sessionId)
     {

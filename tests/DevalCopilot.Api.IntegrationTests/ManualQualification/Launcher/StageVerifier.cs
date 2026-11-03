@@ -30,7 +30,8 @@ public static class StageVerifier
             return "NoAttempt";
         }
 
-        return CommonProblem(reading, "Codex", "Planner", "Proposal", expectedAttempts: 1)
+        return CommonProblem(
+                reading, "Codex", "Planner", "Proposal", QualificationContracts.PlannerAdapter, expectedAttempts: 1)
             ?? (reading.Outcome == "Proposed" ? null : $"Attempt{reading.Status}{reading.Outcome ?? "None"}")
             ?? ProcessProblem(reading)
             ?? (reading is { MessageType: "Proposal", InReplyToMessageId: null } ? null : "ProposalNotRecorded")
@@ -54,7 +55,13 @@ public static class StageVerifier
             "Challenged" => "Challenge",
             _ => null,
         };
-        return CommonProblem(reading, "ClaudeCode", "CriticalReviewer", "CriticalReview", expectedAttempts: 2)
+        return CommonProblem(
+                reading,
+                "ClaudeCode",
+                "CriticalReviewer",
+                "CriticalReview",
+                QualificationContracts.ReviewerAdapter,
+                expectedAttempts: 2)
             ?? (expectedType is not null ? null : $"Attempt{reading.Status}{reading.Outcome ?? "None"}")
             ?? ProcessProblem(reading)
             ?? (proposalMessageId is not null && reading.ReviewedProposalMessageId == proposalMessageId
@@ -75,11 +82,17 @@ public static class StageVerifier
         string provider,
         string role,
         string contract,
+        string adapterContractVersion,
         int expectedAttempts)
     {
         if (reading.Provider != provider || reading.Role != role || reading.Contract != contract)
         {
             return "WrongRoleOrProvider";
+        }
+
+        if (reading.AdapterContractVersion != adapterContractVersion)
+        {
+            return "AdapterContractNotCurrent";
         }
 
         if (reading.AttemptsInRun != expectedAttempts || reading.DispatchedAttemptsInRun > expectedAttempts)
@@ -97,9 +110,24 @@ public static class StageVerifier
             return "ProcessNotCleanExit";
         }
 
+        if (!reading.RequiredIoComplete)
+        {
+            return "RequiredIoIncomplete";
+        }
+
         if (!reading.StatusRouteAgrees)
         {
             return "StatusRouteDisagrees";
+        }
+
+        if (!reading.AttemptEvidenceRouteAgrees)
+        {
+            return "AttemptEvidenceRouteDisagrees";
+        }
+
+        if (reading.InvocationDiagnosticState != "NotRecorded")
+        {
+            return "UnexpectedInvocationDiagnostic";
         }
 
         var onlyItsOwnMessage = reading.MessageCount == 1

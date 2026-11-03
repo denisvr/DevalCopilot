@@ -6,12 +6,15 @@ namespace DevalCopilot.Api.IntegrationTests.ManualQualification;
 /// and a stage may qualify only from the attempt that POST was accepted for. The second stage starts only from one coherent
 /// recorded Proposal and an unchanged source. Any failure, ambiguity or deadline ends the session without another submission;
 /// the host and its children are stopped, both repositories are observed once more, and only then is the root handled.
+/// When the entry's deadline elapsed, or the process admission gate closed, the session consumes nothing further, and a gate that
+/// closed makes the final source inspection unavailable, which is reported as unproven with the root preserved, never as unchanged.
 /// </summary>
 public sealed class QualificationSession(
     InvocationLedger ledger,
     IQualificationEnvironment environment,
     QualificationLimits limits,
-    string sessionId)
+    string sessionId,
+    EntryDeadline? deadline = null)
 {
     private const int ConsecutiveReadFailureLimit = 3;
 
@@ -21,7 +24,7 @@ public sealed class QualificationSession(
     public async Task<QualificationReport> RunAsync(CancellationToken cancellationToken)
     {
         var report = new QualificationReport(sessionId);
-        using var overall = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        using var overall = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadline?.Token ?? CancellationToken.None);
         overall.CancelAfter(limits.Overall);
         try
         {
@@ -31,9 +34,22 @@ public sealed class QualificationSession(
         {
             report.Fail(FailureKind(report), "Cancelled");
         }
+        catch (ProcessAdmissionRefusedException)
+        {
+            report.Fail(FailureKind(report), "ProcessAdmissionRefused");
+        }
+        catch (GitCompatibilityException refused)
+        {
+            // The approved Git is not observably new enough for the constrained configuration: refused before any fixture mutation.
+            report.Fail(FailureKind(report), refused.Code);
+        }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
-            report.Fail(FailureKind(report), $"Unexpected{exception.GetType().Name}");
+            // A process the admission boundary refused makes the host fail its own step; the refusal is the closed cause, not the
+            // exception that followed it.
+            report.Fail(
+                FailureKind(report),
+                environment.AdmissionFacts.TotalRefused > 0 ? "ProcessAdmissionRefused" : $"Unexpected{exception.GetType().Name}");
         }
 
         await FinishAsync(report);
@@ -55,6 +71,11 @@ public sealed class QualificationSession(
         report.HostStarted = true;
         await environment.StartHostAsync(cancellationToken);
         report.Targets = await environment.ObserveTargetsAsync(limits.Readiness, cancellationToken);
+        if (AdmissionRefused(report))
+        {
+            return;
+        }
+
         if (!report.Targets.Accepted)
         {
             report.Fail(QualificationResult.Blocked, "TargetsNotReal");
@@ -62,6 +83,11 @@ public sealed class QualificationSession(
         }
 
         var setup = await environment.RegisterAndPrepareAsync(cancellationToken);
+        if (AdmissionRefused(report))
+        {
+            return;
+        }
+
         _sourceBaseline = environment.SnapshotSource();
         _workspaceBaseline = environment.SnapshotWorkspace();
         var setupDifferences = _sourceBaseline.DifferencesFrom(original, setup.WorkspaceBranchReference);
@@ -93,6 +119,18 @@ public sealed class QualificationSession(
         QualificationReport report,
         CancellationToken cancellationToken)
     {
+        if (AdmissionRefused(report))
+        {
+            return null;
+        }
+
+        // After the entry's deadline nothing further is consumed: the allowance stays whatever it was.
+        cancellationToken.ThrowIfCancellationRequested();
+        if (deadline?.IsExpired == true)
+        {
+            throw new OperationCanceledException("The entry deadline elapsed.");
+        }
+
         var consumed = ledger.Consume(role, sessionId);
         if (consumed != ConsumeOutcome.Consumed)
         {
@@ -107,6 +145,11 @@ public sealed class QualificationSession(
         SetSubmitted(report, role);
         var submission = await SubmitOnceAsync(role, proposalMessageId, cancellationToken);
         SetSubmission(report, role, submission.Outcome);
+        if (AdmissionRefused(report))
+        {
+            return null;
+        }
+
         if (submission.Outcome == SubmissionOutcome.Refused)
         {
             report.Fail(QualificationResult.Failed, $"{role}SubmissionRefused.{submission.Code ?? "Unspecified"}");
@@ -129,6 +172,11 @@ public sealed class QualificationSession(
 
         SetAccepted(report, role, accepted);
         var reading = await AwaitTerminalAsync(role, accepted, report, cancellationToken);
+        if (AdmissionRefused(report))
+        {
+            return null;
+        }
+
         if (reading is not { AttemptFound: true } || (!reading.IsTerminal && reading.AttemptId == accepted))
         {
             report.Fail(QualificationResult.Failed, $"{role}DeadlineBeforeTerminal");
@@ -181,7 +229,9 @@ public sealed class QualificationSession(
                     latest = await environment.ReadStageAsync(role, stage.Token);
                     SetReading(report, role, latest);
                     failures = 0;
-                    if (latest.IsTerminal || (latest.AttemptFound && latest.AttemptId != accepted))
+                    if (latest.IsTerminal
+                        || (latest.AttemptFound && latest.AttemptId != accepted)
+                        || environment.AdmissionFacts.TotalRefused > 0)
                     {
                         return latest;
                     }
@@ -227,7 +277,8 @@ public sealed class QualificationSession(
         var complete = true;
         try
         {
-            differences.AddRange(environment.SnapshotSource().DifferencesFrom(_sourceBaseline!));
+            differences.AddRange(environment.SnapshotSource().DifferencesFrom(
+                _sourceBaseline ?? throw new InvalidOperationException("No source baseline exists.")));
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
@@ -237,7 +288,8 @@ public sealed class QualificationSession(
 
         try
         {
-            var workspace = environment.SnapshotWorkspace().DifferencesFrom(_workspaceBaseline!);
+            var workspace = environment.SnapshotWorkspace().DifferencesFrom(
+                _workspaceBaseline ?? throw new InvalidOperationException("No workspace baseline exists."));
             differences.AddRange(workspace.Select(name => "Workspace" + name));
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
@@ -258,10 +310,33 @@ public sealed class QualificationSession(
 
     private bool Drifted(QualificationReport report) => Observe(report) is { } code && Fail(report, code);
 
+    /// <summary>True, after recording the closed failure if none exists yet, once the admission boundary refused any process request.
+    /// An extra, unlisted or exhausted process is a failed step: nothing proceeds, retries or relabels it.</summary>
+    private bool AdmissionRefused(QualificationReport report)
+    {
+        var facts = environment.AdmissionFacts;
+        if (facts.TotalRefused == 0 && facts.ClosedBy is null)
+        {
+            return false;
+        }
+
+        report.Fail(FailureKind(report), "ProcessAdmissionRefused");
+        return true;
+    }
+
     private async Task FinishAsync(QualificationReport report)
     {
         if (!report.FixtureCreated)
         {
+            return;
+        }
+
+        if (deadline?.IsExpired == true)
+        {
+            // The entry's bound already decided: no stop, no observation and no removal follow from this detached continuation.
+            report.Shutdown = ShutdownReport.Unproven;
+            report.Admission = environment.AdmissionFacts;
+            report.Cleanup = CleanupReport.Preserved("OuterDeadlineExceeded");
             return;
         }
 
@@ -277,15 +352,29 @@ public sealed class QualificationSession(
         }
 
         report.Shutdown = shutdown;
-        if (report.AnySubmitted && Observe(report) is { } code)
+
+        // A gate that closed (a refusal, or an unexpected observer call) also makes the final inspection required: with every later
+        // Git command refused it is unavailable, which is unproven and keeps the root, never an unchanged source.
+        var gateClosed = environment.AdmissionFacts.ClosedBy is not null;
+        if ((report.AnySubmitted || gateClosed) && Observe(report) is { } code)
         {
             Fail(report, code);
             report.Disqualify(code);
         }
 
-        var needsInspection = !report.Qualified && (report.ProviderMayHaveRun || report.SourceDifferences.Count > 0);
+        // Read last, so the counts include the final observation's own Git commands and any late process of the host.
+        report.Admission = environment.AdmissionFacts;
+        if ((report.Admission.TotalRefused > 0 || report.Admission.ClosedBy is not null) && report.Qualified)
+        {
+            report.Disqualify("ProcessAdmissionRefused");
+        }
+
+        var needsInspection = !report.Qualified
+            && (report.ProviderMayHaveRun || report.SourceDifferences.Count > 0 || report.Admission.ClosedBy is not null);
         var preserve = !shutdown.IsProven ? "ShutdownUnproven" : needsInspection ? "InspectionRequired" : null;
-        report.Cleanup = preserve is null ? RemoveRoot() : CleanupReport.Preserved(preserve);
+        report.Cleanup = deadline?.IsExpired == true
+            ? CleanupReport.Preserved("OuterDeadlineExceeded")
+            : preserve is null ? RemoveRoot() : CleanupReport.Preserved(preserve);
     }
 
     private CleanupReport RemoveRoot()

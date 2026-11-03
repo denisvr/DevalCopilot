@@ -1,8 +1,11 @@
 using System.Net;
 using System.Net.Sockets;
 using DevalCopilot.Api.IntegrationTests.BrowserJourney.Host;
+using DevalCopilot.Application.Features.EnvironmentReadiness.Queries.GetCodexAccountAllowance;
+using DevalCopilot.Application.Features.EnvironmentReadiness.Queries.GetCodexModelCatalog;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Projects.Ports;
+using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Infrastructure.Features.Processes;
 using DevalCopilot.Infrastructure.Features.Projects;
 using Microsoft.AspNetCore.Hosting;
@@ -30,7 +33,7 @@ public sealed class ProductionHost : IAsyncDisposable
     private readonly string? _previousUrls;
     private bool _disposed;
 
-    public ProductionHost(OwnedRootGuard root, Uri api, string launchSecret)
+    public ProductionHost(OwnedRootGuard root, Uri api, string launchSecret, ProcessAdmission? admission = null)
     {
         _database = root.Database;
         _previousUrls = Environment.GetEnvironmentVariable("ASPNETCORE_URLS");
@@ -57,12 +60,32 @@ public sealed class ProductionHost : IAsyncDisposable
                 services.RemoveAll<IVerificationOutputArtifactStore>();
                 services.AddSingleton<IArtifactStore>(artifacts);
                 services.AddSingleton<IVerificationOutputArtifactStore>(artifacts);
+                if (admission is not null)
+                {
+                    UseAdmission(services, admission);
+                }
             });
         });
         _factory.UseKestrel(api.Port);
     }
 
     public IServiceProvider Services => _factory.Services;
+
+    /// <summary>Puts the admission boundary around the one production process adapter, and answers the three observers that start
+    /// their own Codex app-server process as refused. Every production consumer keeps its own adapter, arguments and environment.</summary>
+    private static void UseAdmission(IServiceCollection services, ProcessAdmission admission)
+    {
+        services.RemoveAll<IProcessExecutionAdapter>();
+        services.AddSingleton<IProcessExecutionAdapter>(
+            new AdmittingProcessExecutionAdapter(new ChildProcessExecutionAdapter(), admission));
+        var observers = new AdmissionRefusingCodexObservers(admission);
+        services.RemoveAll<ICodexAccountAllowanceAdapter>();
+        services.RemoveAll<ICodexModelCatalogAdapter>();
+        services.RemoveAll<IAccountUsageObserver>();
+        services.AddSingleton<ICodexAccountAllowanceAdapter>(observers);
+        services.AddSingleton<ICodexModelCatalogAdapter>(observers);
+        services.AddSingleton<IAccountUsageObserver>(observers);
+    }
 
     public static Uri ReserveLoopbackAddress()
     {

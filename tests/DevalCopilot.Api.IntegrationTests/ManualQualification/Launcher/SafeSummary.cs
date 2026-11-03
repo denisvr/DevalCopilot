@@ -8,13 +8,16 @@ namespace DevalCopilot.Api.IntegrationTests.ManualQualification;
 /// The only text a session prints or keeps. It is composed field by field from closed names, numbers, flags, plain version tokens
 /// and opaque identities, so a path, a credential, a provider output, a manifest or an account identity has no way in. As a last
 /// guard the finished text is refused, and replaced by a fixed minimal verdict, if it carries a drive path or any forbidden value.
-/// Schema 2 adds each available stage's run attempt counts, its nullable produced-message count and its closed evidence-route
-/// comparison state; a stage reading that could not have been observed (an undefined state, a negative count, or a performed
-/// comparison without one known selected message) is refused the same way. Schema 1 summaries are historical and never rewritten.
+/// Schema 3 adds each available stage's recorded adapter contract version, its recorded I/O completion facts with the derived
+/// required-completion flag, its closed invocation diagnostic with its vocabulary version, the closed attempt-evidence route
+/// comparison (read even when no message exists) and the closed process-admission counts. Schema 2 added each available stage's
+/// run attempt counts, its nullable produced-message count and its closed evidence-route comparison state; a stage reading that
+/// could not have been observed (an undefined state, a negative count, or a performed comparison without one known selected
+/// message) is refused the same way. Schema 1 and 2 summaries are historical and never read or rewritten.
 /// </summary>
 public static partial class SafeSummary
 {
-    public const int SchemaVersion = 2;
+    public const int SchemaVersion = 3;
 
     public static string Render(QualificationReport report, IReadOnlyList<string> forbiddenFragments)
     {
@@ -28,6 +31,38 @@ public static partial class SafeSummary
             : text;
     }
 
+    /// <summary>The fixed verdict when the whole sequence's outer bound elapsed while the session was still running: nothing but
+    /// the identity, the closed admission counts and the statement that nothing was stopped or removed from here. It claims no
+    /// stage reading, no source integrity and no shutdown.</summary>
+    public static string RenderOuterDeadline(string sessionId, ProcessAdmissionFacts admission, string expiredDuring = "Session")
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
+        {
+            writer.WriteStartObject();
+            writer.WriteNumber("schemaVersion", SchemaVersion);
+            writer.WriteString("authorization", InvocationLedger.Authorization);
+            writer.WriteString("session", Token(sessionId));
+            writer.WriteString("result", QualificationResult.Failed.ToString());
+            writer.WriteString("code", "OuterDeadlineExceeded");
+            writer.WriteString("expiredDuring", Token(expiredDuring));
+            writer.WriteBoolean("finalizationComplete", false);
+            WriteAdmission(writer, admission);
+            writer.WriteStartObject("shutdown");
+            writer.WriteBoolean("hostStopped", false);
+            writer.WriteBoolean("childProcessesProvenStopped", false);
+            writer.WriteString("childProcessProof", "NotAttempted");
+            writer.WriteEndObject();
+            writer.WriteStartObject("cleanup");
+            writer.WriteBoolean("ownedRootRemoved", false);
+            writer.WriteString("reason", "OuterDeadlineExceeded");
+            writer.WriteEndObject();
+            writer.WriteEndObject();
+        }
+
+        return Encoding.UTF8.GetString(stream.ToArray());
+    }
+
     /// <summary>An unavailable reading is written as null and needs no check; an available one must carry only states the reader
     /// can produce.</summary>
     private static bool IsObservable(StageReading? reading)
@@ -38,6 +73,7 @@ public static partial class SafeSummary
         }
 
         if (!Enum.IsDefined(reading.EvidenceRouteComparison)
+            || !Enum.IsDefined(reading.AttemptEvidenceRouteComparison)
             || reading.AttemptsInRun < 0
             || reading.DispatchedAttemptsInRun < 0
             || reading.MessageCount < 0)
@@ -56,13 +92,14 @@ public static partial class SafeSummary
         {
             writer.WriteStartObject();
             writer.WriteNumber("schemaVersion", SchemaVersion);
-            writer.WriteString("authorization", InvocationLedger.Authorization);
+            writer.WriteString("authorization", Token(report.Authorization));
             writer.WriteString("session", Token(report.SessionId));
             writer.WriteString("result", report.Result.ToString());
             writer.WriteString("code", Token(report.Code));
             WriteNullable(writer, "verdict", report.Verdict);
             WriteTargets(writer, report.Targets);
             WriteAllowances(writer, report);
+            WriteAdmission(writer, report.Admission);
             WriteStage(writer, "planner", report.Planner, null, report.PlannerAcceptedAttemptId);
             var proposal = report.Planner?.MessageId;
             WriteStage(writer, "reviewer", report.Reviewer, proposal, report.ReviewerAcceptedAttemptId);
@@ -161,11 +198,23 @@ public static partial class SafeSummary
         writer.WriteString("contract", Token(reading.Contract));
         writer.WriteString("status", Token(reading.Status));
         WriteNullable(writer, "outcome", reading.Outcome);
+        writer.WriteString("adapterContractVersion", Token(reading.AdapterContractVersion));
         writer.WriteBoolean("dispatched", reading.Dispatched);
         writer.WriteStartObject("process");
         WriteNullable(writer, "outcome", reading.ProcessOutcome);
         WriteNullable(writer, "exitCode", reading.ExitCode);
         WriteNullable(writer, "durationMilliseconds", reading.DurationMilliseconds);
+        writer.WriteEndObject();
+        writer.WriteStartObject("ioCompletion");
+        WriteNullable(writer, "standardOutput", reading.StandardOutputCompletion);
+        WriteNullable(writer, "standardError", reading.StandardErrorCompletion);
+        WriteNullable(writer, "standardInput", reading.StandardInputDelivery);
+        writer.WriteBoolean("requiredComplete", reading.RequiredIoComplete);
+        writer.WriteEndObject();
+        writer.WriteStartObject("invocationDiagnostic");
+        writer.WriteString("state", Token(reading.InvocationDiagnosticState));
+        WriteNullable(writer, "category", reading.InvocationDiagnosticCategory);
+        WriteNullable(writer, "version", reading.InvocationDiagnosticVersion);
         writer.WriteEndObject();
         WriteNullable(writer, "messageCount", reading.MessageCount);
         writer.WriteStartObject("message");
@@ -197,6 +246,31 @@ public static partial class SafeSummary
         writer.WriteBoolean("statusRouteAgrees", reading.StatusRouteAgrees);
         writer.WriteBoolean("evidenceRouteAgrees", reading.EvidenceRouteAgrees);
         writer.WriteString("evidenceRouteComparison", reading.EvidenceRouteComparison.ToString());
+        writer.WriteBoolean("attemptEvidenceRouteAgrees", reading.AttemptEvidenceRouteAgrees);
+        writer.WriteString("attemptEvidenceRouteComparison", reading.AttemptEvidenceRouteComparison.ToString());
+        writer.WriteEndObject();
+    }
+
+    private static void WriteAdmission(Utf8JsonWriter writer, ProcessAdmissionFacts facts)
+    {
+        writer.WriteStartObject("processAdmission");
+        writer.WriteNumber("totalAdmitted", facts.TotalAdmitted);
+        writer.WriteNumber("totalRefused", facts.TotalRefused);
+        WriteNullable(writer, "closedBy", facts.ClosedBy);
+        WriteTokens(writer, "pending", facts.PendingClasses);
+        WriteCounts(writer, "admitted", facts.Admitted);
+        WriteCounts(writer, "refused", facts.Refused);
+        writer.WriteEndObject();
+    }
+
+    private static void WriteCounts(Utf8JsonWriter writer, string name, IReadOnlyDictionary<string, int> counts)
+    {
+        writer.WriteStartObject(name);
+        foreach (var (key, count) in counts.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+        {
+            writer.WriteNumber(Token(key), count);
+        }
+
         writer.WriteEndObject();
     }
 
@@ -210,6 +284,9 @@ public static partial class SafeSummary
         writer.WriteStartObject("cleanup");
         writer.WriteBoolean("ownedRootRemoved", report.Cleanup is { Removed: true });
         WriteNullable(writer, "reason", report.Cleanup is null ? null : Token(report.Cleanup.Reason));
+        writer.WriteEndObject();
+        writer.WriteStartObject("closure");
+        writer.WriteBoolean("environmentDisposed", report.EnvironmentDisposed == true);
         writer.WriteEndObject();
     }
 

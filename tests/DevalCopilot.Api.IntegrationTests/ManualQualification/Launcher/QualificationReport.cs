@@ -9,6 +9,12 @@ public sealed class QualificationReport(string sessionId)
 
     public string SessionId { get; } = sessionId;
 
+    /// <summary>The authorization this session ran under, recorded in the summary; never a path or a person.</summary>
+    public string Authorization { get; set; } = InvocationLedger.Authorization;
+
+    /// <summary>The closed counts of every process the admission boundary admitted or refused, observed after the host stopped.</summary>
+    public ProcessAdmissionFacts Admission { get; set; } = ProcessAdmissionFacts.None;
+
     public QualificationResult Result { get; private set; } = QualificationResult.Blocked;
 
     public string Code { get; private set; } = "NotStarted";
@@ -51,6 +57,10 @@ public sealed class QualificationReport(string sessionId)
     public ShutdownReport? Shutdown { get; set; }
 
     public CleanupReport? Cleanup { get; set; }
+
+    /// <summary>Whether the environment's own closure finished before this report was rendered: null while it has not been
+    /// attempted. A report is never presented as final success before it, and a failed closure disqualifies a qualified result.</summary>
+    public bool? EnvironmentDisposed { get; set; }
 
     /// <summary>Unchanged is claimed only from complete observations: an unreadable repository, or a submitted stage that was never
     /// observed afterwards, leaves the source unproven, which is never the same as unchanged.</summary>

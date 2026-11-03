@@ -21,7 +21,7 @@ public static class FixtureRepository
             + "    public static int Total(int left, int right)\n    {\n        return 0;\n    }\n}\n"),
     ];
 
-    public static string Create(string directory)
+    public static string Create(string directory, ProcessAdmission? admission = null)
     {
         foreach (var (relative, text) in Files)
         {
@@ -30,15 +30,16 @@ public static class FixtureRepository
             File.WriteAllBytes(path, new UTF8Encoding(false).GetBytes(text));
         }
 
-        GitProcess.Run(directory, "init", "--initial-branch", "main");
-        GitProcess.Run(directory, "config", "core.autocrlf", "false");
-        GitProcess.Run(directory, ["add", "--", .. Files.Select(file => file.Path)]);
+        GitProcess.Run(admission, directory, "init", "--initial-branch", "main");
+        GitProcess.Run(admission, directory, "config", "core.autocrlf", "false");
+        GitProcess.Run(admission, directory, ["add", "--", .. Files.Select(file => file.Path)]);
         GitProcess.Run(
+            admission,
             directory,
             "-c", "user.name=Fixture Author",
             "-c", "user.email=fixture@example.invalid",
             "-c", "commit.gpgsign=false",
             "commit", "--no-verify", "-m", "Initial commit");
-        return GitProcess.Run(directory, "rev-parse", "HEAD").Trim();
+        return GitProcess.Run(admission, directory, "rev-parse", "HEAD").Trim();
     }
 }

@@ -86,18 +86,18 @@ public sealed class SafeSummaryTests : QualificationTestBase
         Assert.Equal(RefusedSummary, text);
     }
 
-    private const string RefusedSummary = "{\"schemaVersion\":2,\"result\":\"Failed\",\"code\":\"SummaryRefused\"}";
+    private const string RefusedSummary = "{\"schemaVersion\":3,\"result\":\"Failed\",\"code\":\"SummaryRefused\"}";
 
     [Fact]
-    public async Task Schema_two_reports_each_stage_counts_and_its_performed_agreeing_comparison()
+    public async Task Schema_three_keeps_each_stage_counts_and_its_performed_agreeing_comparison()
     {
         var report = await RunAsync(new ScriptedEnvironment());
 
         using var summary = JsonDocument.Parse(SafeSummary.Render(report, NoForbiddenValues));
         var root = summary.RootElement;
 
-        Assert.Equal(2, SafeSummary.SchemaVersion);
-        Assert.Equal(2, root.GetProperty("schemaVersion").GetInt32());
+        Assert.Equal(3, SafeSummary.SchemaVersion);
+        Assert.Equal(3, root.GetProperty("schemaVersion").GetInt32());
         Assert.Equal("Qualified", root.GetProperty("result").GetString());
         foreach (var (name, attempts) in new[] { ("planner", 1), ("reviewer", 2) })
         {

@@ -10,6 +10,10 @@ public interface IQualificationEnvironment : IAsyncDisposable
     /// <summary>Values that must never appear in the printed summary (the launch secret and every local path prefix).</summary>
     IReadOnlyList<string> ForbiddenFragments { get; }
 
+    /// <summary>The closed counts of the process admission boundary around this environment's processes; none when the environment
+    /// has no such boundary (an offline double).</summary>
+    ProcessAdmissionFacts AdmissionFacts => ProcessAdmissionFacts.None;
+
     Task PrepareFixtureAsync(CancellationToken cancellationToken);
 
     SourceSnapshot SnapshotSource();
