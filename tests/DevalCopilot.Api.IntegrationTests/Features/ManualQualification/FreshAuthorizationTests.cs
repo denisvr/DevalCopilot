@@ -42,6 +42,28 @@ public sealed class FreshAuthorizationTests : QualificationTestBase
         Assert.False(Directory.Exists(LedgerDirectory));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void A_ledger_pointed_at_the_spent_first_lot_b_directory_is_refused_at_construction_with_no_file_access(bool trailingSeparator)
+    {
+        var path = Path.Combine(LedgerDirectory, InvocationLedger.RetiredDirectoryName)
+            + (trailingSeparator ? Path.DirectorySeparatorChar : string.Empty);
+
+        Assert.Throws<ArgumentException>(() => new InvocationLedger(path, TimeProvider.System));
+        Assert.Throws<ArgumentException>(() => new InvocationLedger(path.ToUpperInvariant(), TimeProvider.System));
+        Assert.False(Directory.Exists(LedgerDirectory));
+    }
+
+    [Fact]
+    public void The_replacement_ledger_is_a_different_directory_and_authorization_from_the_spent_first_lot_b_one()
+    {
+        Assert.Equal("devalcopilot-qualification-profile-01-lot-b-ledger", InvocationLedger.RetiredDirectoryName);
+        Assert.NotEqual(InvocationLedger.RetiredDirectoryName, InvocationLedger.DirectoryName);
+        Assert.NotEqual(InvocationLedger.RetiredDirectoryName, Path.GetFileName(InvocationLedger.CreateDefault().LedgerDirectory));
+        Assert.NotEqual("owner-qualification-profile-01-lot-b-one-planner-one-critical-reviewer", InvocationLedger.Authorization);
+    }
+
     [Fact]
     public void No_switch_exists_that_selects_an_authorization_or_directory_for_the_launcher()
     {

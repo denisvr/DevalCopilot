@@ -1,6 +1,73 @@
 # Planner/reviewer handoff
 
-## Current decision: QUALIFICATION-A-POST-LOGIN-01 review 3 accepted for exact-content publication
+## Current decision: QUALIFICATION-B-CONTEXT-01 accepted for exact-content publication
+
+Review 1 confirmed `main`, HEAD, local origin/main and live origin/main at
+`646b62e7d2f6bcec12c568c60858b38bab8131e1`. The index was empty, with
+12 modified tracked paths and eight untracked paths, all in the reviewed
+launcher, tests or roadmap documents.
+
+The context check uses the production resolver before any fixture, process
+or marker. Accept the narrow, fail-closed reflection binding and its shape
+sentinel. A resolved unapproved capability refuses before preparation because
+runtime admission would refuse its probe. An ambiguous resolution also
+refuses, as directed. Accept the retired opt-in, fixed replacement identity,
+and destination alias protection at the documented point-in-time scope.
+
+Independent launcher and test builds passed with zero warnings and errors.
+Eight focused classes passed 112/112 in isolated temp storage. This included
+the context and alias controls, persistence tests and the affected composition
+rehearsal with owned provider doubles and its disclosed local-tool boundaries.
+Evidence is in ignored `logs/planner-review/qualification-b-context-01-review-01/`.
+
+The broad executor evidence remains intermittent at its recorded scope.
+Its unchanged Lot B teardown failure reproduced on the baseline. For the
+Lot A exit-5 discrepancy, the reviewer verified the relevant Lot A source
+and tests match the baseline, then reproduced a specific mechanism in
+isolation. The existing shared-temp cleanup helper can remove another
+test's new status root, leaving two successful authentication observations
+but unproven cleanup and exit 5. The control used an isolated temp directory,
+owned doubles and exactly one owned root. This establishes a test isolation
+defect and does not identify the cause of every historical failure. The
+temporary control source was removed. Keep its source and TRX, the passing
+focused results, and all reported failures. The test-isolation issue does
+not block this Lot B change. Leave Lot A outside the approved diff.
+
+Publication authority is limited to the parent, tree and 20 paths in the
+separate exact-content GO. Independently verify publication before preparing
+the actual launch context and manifest for an owner decision. Real execution
+remains pending.
+
+## Offline preparation decision and evidence
+
+The published baseline is `646b62e7d2f6bcec12c568c60858b38bab8131e1` on
+`main`, confirmed against live origin/main. The post-login Lot A reported
+BothAuthenticated, complete I/O for both observations, and exit 0.
+
+The first Lot B stopped during discovery with ProcessAdmissionRefused.
+Its approved closed summary records Unlisted as the first refusal, 11 Git
+admissions, and neither role attempted. The later SessionSpent result reflects
+those existing process slots. Preserve this authorization's ledger and retained
+root. The summary does not identify the exact refused request.
+
+A read-only resolution control reproduced a difference between launch
+contexts. In the Codex shell the production resolver selected the direct
+Codex executable pinned in the manifest. With the configured Windows machine
+and user PATH, the same resolver selected a Node-hosted Codex script. This is
+sufficient to refuse against the direct pin, although the original process
+environment was not captured. Match the manifest against the actual launch
+context before the launcher creates a fixture, starts a child, or consumes a
+marker.
+
+Prepare one fixed replacement Lot B authorization offline. Retire the spent
+opt-in and preserve the existing admission inventory, deadlines, role vectors,
+evidence rules and production behavior. The existing runtime gates still
+check every request. Use the real production target resolver without running
+its probes. Keep this check inside bounded preparation. A mismatch needs a
+closed, capability-specific reason without printing paths or environment
+values. Real execution and publication require separate decisions.
+
+## QUALIFICATION-A-POST-LOGIN-01 review 3 accepted for exact-content publication
 
 Review preflight confirmed `main`, HEAD, local origin/main and live
 origin/main at `79e6b8f22347711261042a60ffd02600e6542099`, an empty index,

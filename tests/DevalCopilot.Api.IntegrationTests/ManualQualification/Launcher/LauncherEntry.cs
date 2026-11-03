@@ -16,6 +16,9 @@ public static class LauncherEntry
     public const int UnexpectedFailureExitCode = 7;
     public const int OuterDeadlineExitCode = 8;
 
+    /// <summary>The closed refusal of a ledger destination that is itself a junction, symbolic link or other reparse point.</summary>
+    public const string LedgerAliasedCode = "LedgerDestinationAliased";
+
     public static Task<int> RunAsync(
         IReadOnlyList<string> arguments,
         Func<string, string?> readEnvironment,
@@ -24,8 +27,9 @@ public static class LauncherEntry
         Func<IQualificationEnvironment> createEnvironment,
         TextWriter output,
         TextWriter error,
-        CancellationToken cancellationToken) =>
-        RunAsync(arguments, readEnvironment, ledger, limits, _ => createEnvironment(), output, error, cancellationToken);
+        CancellationToken cancellationToken,
+        Func<string, bool>? inspectLedger = null) =>
+        RunAsync(arguments, readEnvironment, ledger, limits, _ => createEnvironment(), output, error, cancellationToken, inspectLedger);
 
     public static async Task<int> RunAsync(
         IReadOnlyList<string> arguments,
@@ -35,14 +39,21 @@ public static class LauncherEntry
         Func<EntryDeadline, IQualificationEnvironment> createEnvironment,
         TextWriter output,
         TextWriter error,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Func<string, bool>? inspectLedger = null)
     {
+        // The only metadata read of the ledger destination: production uses the attribute check; an owned double may hold it. Every
+        // read runs inside the bounded worker or an emission, never on the waiter, and is followed by a clock decision.
+        var isAliased = inspectLedger ?? InvocationLedger.IsAliasedDestination;
         var deadline = limits.Outer is { } outer ? EntryDeadline.Start(outer) : EntryDeadline.Unbounded();
         if (!QualificationOptIn.IsGranted(arguments, readEnvironment))
         {
-            await deadline.EmitAsync(() => error.WriteLineAsync(
-                $"Refused: this launcher runs only with the argument {QualificationOptIn.Flag} and "
-                + $"{QualificationOptIn.ConfirmationVariable} set to the documented confirmation phrase."));
+            var retired = arguments.Count > 0 && string.Equals(arguments[0], QualificationOptIn.RetiredFlag, StringComparison.Ordinal);
+            await deadline.EmitAsync(() => error.WriteLineAsync(retired
+                ? $"Refused: {QualificationOptIn.RetiredFlag} is retired; its allowance and process slots were consumed. The "
+                    + $"replacement entry is {QualificationOptIn.Flag}."
+                : $"Refused: this launcher runs only with the argument {QualificationOptIn.Flag} and "
+                    + $"{QualificationOptIn.ConfirmationVariable} set to the documented confirmation phrase."));
             return RefusedExitCode;
         }
 
@@ -50,9 +61,20 @@ public static class LauncherEntry
         IQualificationEnvironment? environment = null;
         var preparing = Task.Run(async () =>
         {
+            var aliased = isAliased(ledger.LedgerDirectory);
+            if (deadline.IsExpired)
+            {
+                throw new OperationCanceledException("The entry deadline elapsed.");
+            }
+
+            if (aliased)
+            {
+                throw new EnvironmentRefusedException(LedgerAliasedCode);
+            }
+
             var gated = new DeadlineGatedEnvironment(createEnvironment(deadline), deadline);
             Volatile.Write(ref environment, gated);
-            var report = await new QualificationSession(ledger, gated, limits, sessionId, deadline).RunAsync(cancellationToken);
+            var report = await new QualificationSession(ledger, gated, limits, sessionId, deadline, isAliased).RunAsync(cancellationToken);
             return report;
         });
 
@@ -60,16 +82,17 @@ public static class LauncherEntry
         {
             if (!await deadline.WithinAsync(preparing))
             {
-                return await ExpireAsync(deadline, sessionId, Volatile.Read(ref environment), ledger, output, error, "Session");
+                return await ExpireAsync(deadline, sessionId, Volatile.Read(ref environment), ledger, isAliased, output, error, "Session");
             }
 
             var report = await preparing;
             if (!deadline.TryClaimReport())
             {
-                return await ExpireAsync(deadline, sessionId, Volatile.Read(ref environment), ledger, output, error, "Session");
+                return await ExpireAsync(deadline, sessionId, Volatile.Read(ref environment), ledger, isAliased, output, error, "Session");
             }
 
-            var closing = Task.Run(() => CloseAndReportAsync(deadline, report, Volatile.Read(ref environment)!, ledger, sessionId, output, error));
+            var closing = Task.Run(() => CloseAndReportAsync(
+                deadline, report, Volatile.Read(ref environment)!, ledger, isAliased, sessionId, output, error));
             if (await deadline.WithinAsync(closing))
             {
                 // Only a committed finalization may return its own exit code; an uncommitted one (the deadline decided first) is
@@ -77,18 +100,25 @@ public static class LauncherEntry
                 var finished = await closing;
                 return finished.Committed
                     ? finished.ExitCode
-                    : await ExpireAsync(deadline, sessionId, Volatile.Read(ref environment), ledger, output, error, "ReportOrClosure");
+                    : await ExpireAsync(
+                        deadline, sessionId, Volatile.Read(ref environment), ledger, isAliased, output, error, "ReportOrClosure");
             }
 
             // The deadline elapsed while the closure or the report was still running.
             return deadline.TryClaimExpiry(out _)
-                ? await ExpireAsync(deadline, sessionId, Volatile.Read(ref environment), ledger, output, error, "ReportOrClosure")
+                ? await ExpireAsync(
+                    deadline, sessionId, Volatile.Read(ref environment), ledger, isAliased, output, error, "ReportOrClosure")
                 : await FinishCommittedAsync(deadline, closing, error);
         }
         catch (EnvironmentRefusedException refused)
         {
             await deadline.EmitAsync(() => error.WriteLineAsync($"Refused: {refused.Code}."));
             return RefusedExitCode;
+        }
+        catch (OperationCanceledException) when (deadline.IsExpired)
+        {
+            // The preparation stopped at the deadline and won the race against the waiter: the bound decided, not a failure.
+            return await ExpireAsync(deadline, sessionId, Volatile.Read(ref environment), ledger, isAliased, output, error, "Session");
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
@@ -113,6 +143,7 @@ public static class LauncherEntry
         QualificationReport report,
         IQualificationEnvironment environment,
         InvocationLedger ledger,
+        Func<string, bool> isAliased,
         string sessionId,
         TextWriter output,
         TextWriter error)
@@ -140,7 +171,7 @@ public static class LauncherEntry
             return new Finalization(report.ExitCode, false);
         }
 
-        var persisted = await SummaryPersistence.SaveAsync(ledger.LedgerDirectory, $"summary-{sessionId}.json", summary);
+        var persisted = await SaveSummaryAsync(ledger, isAliased, $"summary-{sessionId}.json", summary);
         if (!persisted)
         {
             await deadline.EmitAsync(() => error.WriteLineAsync(
@@ -174,6 +205,7 @@ public static class LauncherEntry
         string sessionId,
         IQualificationEnvironment? environment,
         InvocationLedger ledger,
+        Func<string, bool> isAliased,
         TextWriter output,
         TextWriter error,
         string expiredDuring)
@@ -181,7 +213,8 @@ public static class LauncherEntry
         deadline.TryClaimExpiry(out _);
         var expired = SafeSummary.RenderOuterDeadline(
             sessionId, environment?.AdmissionFacts ?? ProcessAdmissionFacts.None, expiredDuring);
-        var emissions = new List<Task<bool>> { deadline.EmitAsync(() => SummaryPersistence.SaveAsync(ledger.LedgerDirectory, $"summary-{sessionId}.json", expired)) };
+        // The destination is judged inside the emission, never on the waiter: a held metadata read cannot keep the entry past its bound.
+        var emissions = new List<Task<bool>> { deadline.EmitAsync(() => SaveSummaryAsync(ledger, isAliased, $"summary-{sessionId}.json", expired)) };
         if (expiredDuring == "Session")
         {
             emissions.Add(deadline.EmitAsync(() => output.WriteLineAsync(expired)));
@@ -195,6 +228,13 @@ public static class LauncherEntry
         await Task.WhenAll(emissions);
         return OuterDeadlineExitCode;
     }
+
+    /// <summary>The summary is saved only to a destination that is still not an alias; otherwise nothing is created and the save is
+    /// reported as not persisted, which the normal path turns into the attention exit and the expiry path leaves unproven.</summary>
+    private static Task<bool> SaveSummaryAsync(InvocationLedger ledger, Func<string, bool> isAliased, string fileName, string text) =>
+        isAliased(ledger.LedgerDirectory)
+            ? Task.FromResult(false)
+            : SummaryPersistence.SaveAsync(ledger.LedgerDirectory, fileName, text);
 
     private static async Task DisposeAfterFailureAsync(EntryDeadline deadline, IQualificationEnvironment? environment)
     {

@@ -107,7 +107,7 @@ public sealed class ApprovedLaunchSet
     /// capability: the same executable and, for a script launch, the same script, and no other launch kind.</summary>
     public bool Matches(ProviderTargetFact fact)
     {
-        if (fact.Reason != CapabilityProbeReason.None || Name(fact.Capability) is not { } name || Find(name) is not { } approved)
+        if (fact.Reason != CapabilityProbeReason.None || NameOf(fact.Capability) is not { } name || Find(name) is not { } approved)
         {
             return false;
         }
@@ -156,7 +156,8 @@ public sealed class ApprovedLaunchSet
         && string.Equals(Path.GetFullPath(file.Path), file.Path, StringComparison.OrdinalIgnoreCase)
         && ApprovedFile.IsSha256(file.Sha256);
 
-    private static string? Name(Capability capability) => capability switch
+    /// <summary>The manifest name of a catalog capability, or null for one the manifest cannot name.</summary>
+    public static string? NameOf(Capability capability) => capability switch
     {
         Capability.Git => Git,
         Capability.DotNetSdk => DotNet,

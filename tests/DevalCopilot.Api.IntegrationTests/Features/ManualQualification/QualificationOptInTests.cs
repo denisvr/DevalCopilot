@@ -38,6 +38,62 @@ public sealed class QualificationOptInTests : QualificationTestBase
         Assert.False(QualificationOptIn.IsGranted([QualificationOptIn.Flag.ToUpperInvariant()], Confirmed));
     }
 
+    // The first lot B phrase, kept here only to prove that it is refused: its allowance and process slots were consumed.
+    private const string RetiredPhrase = "qualification-profile-01-one-codex-planner-and-one-claude-critical-review";
+
+    [Fact]
+    public void The_replacement_authorization_has_exactly_the_approved_flag_phrase_and_ledger_identity()
+    {
+        Assert.Equal("--run-qualification-profile-01-context-bound-exchange", QualificationOptIn.Flag);
+        Assert.Equal("qualification-profile-01-one-context-bound-codex-planner-and-claude-reviewer", QualificationOptIn.ConfirmationPhrase);
+        Assert.Equal("owner-qualification-profile-01-lot-b-context-bound", InvocationLedger.Authorization);
+        Assert.Equal("devalcopilot-qualification-profile-01-lot-b-context-bound-ledger", InvocationLedger.DirectoryName);
+    }
+
+    [Theory]
+    [InlineData(QualificationOptIn.RetiredFlag, QualificationOptIn.ConfirmationPhrase)]
+    [InlineData(QualificationOptIn.RetiredFlag, RetiredPhrase)]
+    [InlineData(QualificationOptIn.Flag, RetiredPhrase)]
+    public void The_retired_first_lot_b_opt_in_is_never_granted(string flag, string phrase)
+    {
+        string? Read(string name) => name == QualificationOptIn.ConfirmationVariable ? phrase : null;
+
+        Assert.False(QualificationOptIn.IsGranted([flag], Read));
+        Assert.False(QualificationOptIn.IsGranted([flag, ApprovedLaunchManifest.Option, @"C:\owner\approved.json"], Read));
+        Assert.NotEqual(QualificationOptIn.RetiredFlag, QualificationOptIn.Flag);
+        Assert.NotEqual(RetiredPhrase, QualificationOptIn.ConfirmationPhrase);
+    }
+
+    [Theory]
+    [InlineData(QualificationOptIn.ConfirmationPhrase)]
+    [InlineData(RetiredPhrase)]
+    [InlineData(null)]
+    public async Task The_retired_flag_is_refused_with_a_fixed_message_before_any_environment_directory_or_ledger_entry(string? phrase)
+    {
+        var created = 0;
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = await LauncherEntry.RunAsync(
+            [QualificationOptIn.RetiredFlag, ApprovedLaunchManifest.Option, @"C:\owner\approved.json"],
+            name => name == QualificationOptIn.ConfirmationVariable ? phrase : null,
+            Ledger,
+            Tiny,
+            () => { created++; return new ScriptedEnvironment(); },
+            output,
+            error,
+            CancellationToken.None);
+
+        Assert.Equal(LauncherEntry.RefusedExitCode, exitCode);
+        Assert.Equal(0, created);
+        Assert.False(Directory.Exists(LedgerDirectory));
+        Assert.Equal(string.Empty, output.ToString());
+        Assert.Equal(
+            $"Refused: {QualificationOptIn.RetiredFlag} is retired; its allowance and process slots were consumed. "
+            + $"The replacement entry is {QualificationOptIn.Flag}.{Environment.NewLine}",
+            error.ToString());
+    }
+
     [Fact]
     public async Task A_refused_launch_creates_no_environment_no_directory_and_no_ledger_entry()
     {

@@ -14,7 +14,8 @@ public sealed class QualificationSession(
     IQualificationEnvironment environment,
     QualificationLimits limits,
     string sessionId,
-    EntryDeadline? deadline = null)
+    EntryDeadline? deadline = null,
+    Func<string, bool>? isAliased = null)
 {
     private const int ConsecutiveReadFailureLimit = 3;
 
@@ -58,6 +59,20 @@ public sealed class QualificationSession(
 
     private async Task RunStagesAsync(QualificationReport report, CancellationToken cancellationToken)
     {
+        // Nothing of the ledger destination is enumerated before it is judged not to be an alias, and the clock decides again after
+        // that read: an alias that appears after the entry's own check still gets no read, no slot and no allowance.
+        var aliased = (isAliased ?? InvocationLedger.IsAliasedDestination)(ledger.LedgerDirectory);
+        if (deadline?.IsExpired == true)
+        {
+            throw new OperationCanceledException("The entry deadline elapsed.");
+        }
+
+        if (aliased)
+        {
+            report.Fail(QualificationResult.Blocked, LauncherEntry.LedgerAliasedCode);
+            return;
+        }
+
         if (ledger.IsSpent())
         {
             report.Fail(QualificationResult.SessionSpent, "AllowanceAlreadySpent");

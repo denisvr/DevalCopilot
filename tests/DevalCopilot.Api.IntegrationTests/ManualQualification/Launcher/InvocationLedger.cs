@@ -12,8 +12,12 @@ namespace DevalCopilot.Api.IntegrationTests.ManualQualification;
 /// </summary>
 public sealed class InvocationLedger(string ledgerDirectory, TimeProvider clock)
 {
-    public const string DirectoryName = "devalcopilot-qualification-profile-01-lot-b-ledger";
-    public const string Authorization = "owner-qualification-profile-01-lot-b-one-planner-one-critical-reviewer";
+    public const string DirectoryName = "devalcopilot-qualification-profile-01-lot-b-context-bound-ledger";
+    public const string Authorization = "owner-qualification-profile-01-lot-b-context-bound";
+
+    /// <summary>The directory of the first lot B authorization, whose process slots were spent by a refused discovery. Named only so
+    /// that it can be refused: this launcher never reads, enumerates, resets, archives or migrates it.</summary>
+    public const string RetiredDirectoryName = "devalcopilot-qualification-profile-01-lot-b-ledger";
 
     /// <summary>The directory of every earlier authorization's spent allowances. Named only so that it can be refused: this launcher
     /// never reads, enumerates, resets or archives it, and no path or authorization switch exists that could point back to it.</summary>
@@ -36,6 +40,7 @@ public sealed class InvocationLedger(string ledgerDirectory, TimeProvider clock)
     {
         var name = Path.GetFileName(Path.TrimEndingDirectorySeparator(directory));
         return string.Equals(name, SpentLegacyDirectoryName, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(name, RetiredDirectoryName, StringComparison.OrdinalIgnoreCase)
             ? throw new ArgumentException("The spent allowance directory of an earlier authorization is never used.", nameof(directory))
             : directory;
     }
@@ -47,7 +52,7 @@ public sealed class InvocationLedger(string ledgerDirectory, TimeProvider clock)
     {
         try
         {
-            if (IsAlias(LedgerDirectory))
+            if (IsAliasedDestination(LedgerDirectory))
             {
                 return ConsumeOutcome.Unwritable;
             }
@@ -94,8 +99,25 @@ public sealed class InvocationLedger(string ledgerDirectory, TimeProvider clock)
         }
     }
 
-    private static bool IsAlias(string directory) =>
-        Directory.Exists(directory) && File.GetAttributes(directory).HasFlag(FileAttributes.ReparsePoint);
+    /// <summary>A junction, symbolic link or other reparse point at the destination, judged from its own attributes and never
+    /// followed: it could lead to another authorization's ledger, so an alias must never read as spent or unspent. A destination whose
+    /// attributes cannot be read is not trusted either. The check covers the destination itself, not its ancestors, and is a decision
+    /// point immediately before each use, not a lock.</summary>
+    public static bool IsAliasedDestination(string directory)
+    {
+        try
+        {
+            return File.GetAttributes(Path.TrimEndingDirectorySeparator(directory)).HasFlag(FileAttributes.ReparsePoint);
+        }
+        catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException)
+        {
+            return false;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            return true;
+        }
+    }
 
     private string PathOf(AllowanceRole role) =>
         Path.Combine(LedgerDirectory, role.ToString().ToLowerInvariant() + ".allowance");

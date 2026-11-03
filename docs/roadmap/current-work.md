@@ -6,7 +6,129 @@ was prepared ([recovery](development-workflow.md#recovery)). Git and code
 prevail; compare branch, `HEAD`, `origin/main` and staged/unstaged/untracked
 state first.
 
-## Active slice: QUALIFICATION-A-POST-LOGIN-01 offline preparation of one fixed post-login lot A entry (first return plus corrections 1 and 2 after reviews 1 and 2 NO-GO; returned for review; not authorized for execution)
+## Active slice: QUALIFICATION-B-CONTEXT-01 offline preparation of one fixed context-bound lot B entry (first return; returned for review; not authorized for execution)
+
+This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the decision and
+scope. This record alone grants no execution or publication authority: any real session, provider call or publication needs its own
+decision, and nothing is committed or pushed.
+
+**Delivery phase: first return of the Claude executor chat's offline preparation (2026-11-03).** Preflight (verified once before
+editing): branch `main`; `HEAD`, local `origin/main` and a live `git ls-remote origin refs/heads/main` all
+`646b62e7d2f6bcec12c568c60858b38bab8131e1`; an empty index; no untracked path; the only working change was the planner-owned
+`docs/roadmap/planner-handoff.md`, which this chat did not edit. Only `tests/` (the launcher and its tests), the playbook and this file
+changed. No `src/` file, Lot A, production adapter, provider contract, authentication policy or discovery behavior changed, and nothing
+real was run: no provider, `codex`, `claude`, `git` of the owner's approved set, account, login or manifest of the owner was started, read
+or hashed, and neither the spent first lot B ledger nor the root that run retained was opened, enumerated, reset or migrated.
+
+### What changed
+
+- **One new fixed lot B entry** (`QualificationOptIn`, `InvocationLedger`): flag `--run-qualification-profile-01-context-bound-exchange`,
+  confirmation phrase `qualification-profile-01-one-context-bound-codex-planner-and-claude-reviewer`, authorization
+  `owner-qualification-profile-01-lot-b-context-bound`, ledger directory
+  `devalcopilot-qualification-profile-01-lot-b-context-bound-ledger`. The exchange, the 179-start inventory, the runtime admission
+  checks, the two role calls, the 35-minute outer bound and the evidence rules are untouched.
+- **The spent first lot B opt-in is retired.** `QualificationOptIn.RetiredFlag` and `InvocationLedger.RetiredDirectoryName` name the
+  first flag and directory only to refuse them: the flag is refused with a fixed message naming the replacement (exit 2) before any
+  environment, directory, ledger or process exists, the first phrase no longer confirms the new entry, and a ledger path whose leaf
+  name is the retired directory is refused at construction with no file access (case-insensitive, with or without a trailing
+  separator). Nothing reads, enumerates, resets, archives or migrates that ledger or the root the first run retained.
+- **A reparse point at the new ledger destination is refused** (`InvocationLedger.IsAliasedDestination`, from the destination's own
+  attributes, never followed; an unreadable destination is not trusted; a missing one is not an alias): as the first step inside the
+  bounded worker (`Refused: LedgerDestinationAliased.`, exit 2, before the manifest, any resolution or any environment), again in the
+  session immediately before the first marker enumeration (`Blocked`, `LedgerDestinationAliased`, no allowance), and before every
+  summary save, including the outer-deadline verdict. Every read runs in the worker or inside an emission, never on the deadline
+  waiter, and each is followed by a clock decision. One optional trailing parameter (`inspectLedger`) lets an owned double hold the read;
+  production passes none. Lot A's own entry and `SummaryPersistence` are untouched.
+- **The launch-context check** (`LaunchContextCheck`, `ProductionTargetResolver`, `Profile01Composition.CreateFromManifest`, wired from
+  `ManualQualificationProgram`). Inside bounded preparation, after the manifest verifies and before any fixture, Git probe, child
+  process, ledger entry or slot, the launcher calls the production resolution step (the private `ToolDiscoveryAdapter` resolution with
+  the catalog's own descriptor, in the current process environment) once per catalog capability, with no probe, and compares each result
+  with the manifest: a direct executable must be the approved executable with no approved script, a Node-hosted script must be the
+  approved Node executable **and** the approved script (both paths), so the direct-versus-script distinction cannot be crossed in
+  either direction. A missing, extra (installed but unlisted), ambiguous or different target refuses with a closed
+  `LaunchContext<Capability><Missing|Extra|Ambiguous|Mismatch>` code, and an unbindable or unanswerable resolver with
+  `LaunchContextResolverUnavailable`; no path or environment value is reported. The deadline is asked before every resolution and again
+  before its answer is used. `ApprovedLaunchSet.NameOf` is the one public capability-name mapping (it was private).
+- **Playbook** updated: the identity table, the retirement paragraph, the Lot B heading and command, a "Launch-context check" paragraph,
+  the manifest-extras sentence, the time paragraph, the ledger bullet, the exit-code table row 2 and the manifest decision item.
+
+### Validation (fresh; owned stand-in files and owned resolver answers only)
+
+Context: the Claude executor chat's own Windows shell (`DOTNET_ADD_GLOBAL_TOOLS_TO_PATH=false`, `DOTNET_GENERATE_ASPNET_CERTIFICATE=false`),
+2026-11-03.
+
+- **Builds.** `dotnet build .../Launcher/ManualQualification.csproj -warnaserror -p:UseSharedCompilation=false -m:1` and
+  `dotnet build tests/DevalCopilot.Api.IntegrationTests -warnaserror -p:UseSharedCompilation=false -m:1`: 0 warnings, 0 errors each,
+  on the final sources. `dotnet format --verify-no-changes --include <the 17 changed or new C# files>` against both projects: exit 0.
+  `git diff --check` clean; byte scan (`tr` counts) of every changed or new file other than the planner handoff: 0 CR, 0 NUL, no
+  trailing whitespace, final newline everywhere, and the 544 non-ASCII bytes of `current-work.md` are exactly the count at `HEAD`.
+- **New and affected tests** (focused filter over `LaunchContext*`, `LedgerAliasEntry*`, `ProductionTargetResolver*`,
+  `QualificationOptInTests`, `FreshAuthorizationTests`): 20 consecutive isolated runs and 8 runs with two busy-loop jobs per logical
+  core (16 cores), all passing. They prove, with owned stand-in files and owned resolver answers: a direct Codex pin against a
+  Node-script resolution refuses (and the reverse, and a differing node or script path), as a closed
+  `LaunchContext...` code with no path, before any fixture root, ledger directory, slot or environment; an exact match proceeds (direct
+  and script Codex) with every capability resolved once; missing, extra, ambiguous, mismatched and unavailable-resolver cases; a
+  manifest refusal precedes any resolution; the retired flag and phrase are never granted and the retired ledger name is refused with no
+  file access; a real NTFS junction (`mklink /J`, in the test's own temporary folder) at the ledger destination is refused before the
+  environment and its target stays empty; an alias appearing later gets no read, allowance or summary, including the outer-deadline
+  verdict; a held metadata read or a held resolution cannot keep the entry past its bound and a late release resolves, composes, starts
+  and consumes nothing more. `ProductionTargetResolverTests` bind to the real production resolver in this process with an owned
+  directory first on `PATH` (so no installed tool or application-data directory is read), prove the binding finds the reviewed shape (the
+  drift sentinel), agree on an exact approval and refuse a script pin, a different file and an unlisted tool.
+- **Mutation checks** (source hashed before and restored byte-identical after each; the build and the focused tests rerun per mutant): eight
+  mutants were each killed: direct resolution ignoring an approved script; script path not compared; no extra refusal; alias preflight
+  off; session alias check off; expiry save and normal save ignoring the alias; no clock decision after a resolution (first attempt
+  survived because the test could not tell it apart, so the test now makes the third answer a refusal that the deadline must pre-empt).
+- **Affected composition rehearsal and the whole class family** (`--filter FullyQualifiedName~Features.ManualQualification`, which
+  includes `Profile01RehearsalTests`, the admission, deadline, finalization, Lot A and rehearsal classes): **829 tests** (762 at
+  `HEAD`, 67 new). Passing full runs exist on the final sources, but the full run is not stable: see the first finding.
+- Not run, by design: any real provider, `codex`, `claude` or owner manifest; the rest of the solution, Architecture.Tests, the frontend
+  and journeys (launcher and its tests only; `src/` unchanged).
+
+### Findings, challenges and limits for Codex
+
+1. **The full `Features.ManualQualification` run is intermittently red on tests this slice did not change; one cause is reproduced at
+   `HEAD`, the others are unexplained.** Failures seen: `LauncherOuterDeadlineTests.A_synchronous_first_snapshot_inside_the_session_cannot_hold_the_entry_past_its_bound`
+   (teardown cannot delete a still-open summary file; reproduced 2 of 6 full runs on a byte-for-byte `git archive` of `HEAD`, built in
+   scratch, so it is pre-existing, and also seen on the candidate); Lot A `CheckedPersistenceTests` (exit 5 instead of 9 or 0) in 3 of the
+   first 7 candidate full runs, never in 6 `HEAD` runs, 5 candidate runs without the new classes, or the 16 candidate runs afterwards,
+   and never in isolation (6 of 6) or beside the new classes (12 of 12, and 8 of 8 under CPU load); `StatusComparisonEntryTests.An_admitted_observation_is_never_reported_not_started_because_the_bound_elapsed`
+   (the same teardown "file in use" signature) in an early truncated run and in the last final run; and
+   `ChildProcessWatchTests.A_descendant_is_a_leftover_...` once (already known in this shell). A diagnostic edit to the Lot A test
+   (temporary, restored byte-identical, SHA-256 verified) caught no failure in 8 further runs, so the Lot A cause is not isolated. I
+   cannot rule out that the added classes raise load enough to expose those timing windows; Lot A code and tests are unchanged. One
+   of my own tests was also flaky at first (it parsed the verdict before its bounded emission finished) and was fixed to read it after
+   a wait. Reported, not fixed (outside this slice); the planner decides how to treat the existing flakes.
+2. **The resolver binding is by reflection (a design challenge).** The production resolution step is a private method of an internal
+   type of `src/`, which stays outside this slice, and the test assembly has no `InternalsVisibleTo` to it. A reflective binding that
+   verifies the exact shape and refuses on any drift (`LaunchContextResolverUnavailable`, with a sentinel test) is the narrowest way
+   to run the production code itself without a copy of its rules; the alternative, a deliberate internal-visibility or port change in
+   `src/`, needs its own decision. A future rename of that private method will make the entry refuse, not misbehave.
+3. **Strictness choices to confirm.** An installed but unlisted `gh`, `dotnet` or `docker` now refuses at preparation as extra (the
+   runtime already refused its first probe as unlisted). An ambiguous resolution refuses even for an unapproved capability, which the
+   runtime would not have launched; this follows the instruction to refuse ambiguous targets and can be narrowed if wanted.
+4. **Limits.** The check is a decision in the launching process's environment at one moment, not a lock: the host resolves again at each
+   probe. A match proves agreement with the manifest, not that a tool works or is authenticated. The alias check covers the destination
+   itself, not its ancestors. Missing, ambiguous and script resolutions of the real resolver depend on the machine's application-data
+   layout and are therefore proved only with owned resolver answers; the real binding is tested for the direct case on an owned search
+   path. `ManualQualificationProgram.cs` is excluded from the test assembly; its one new composition call (`CreateProductionEnvironment`)
+   is built but not executed by a test, while everything it calls is.
+5. **Evidence classes.** Fresh: everything above. Retained: nothing from earlier slices. The original session facts about the first lot B
+   (first refusal `Unlisted`, 11 Git admissions, neither role attempted, the Node-versus-direct resolution control) come from the
+   planner's handoff and were not re-observed here. This preparation never opened the spent ledger or the root it retained.
+
+### Git state
+
+Unstaged, uncommitted and unpushed on `main` (`HEAD` `646b62e`): eleven modified tracked files (the playbook, this file, and under
+`tests/DevalCopilot.Api.IntegrationTests`: `ManualQualification/Launcher` `ApprovedLaunchSet`, `InvocationLedger`, `LauncherEntry`,
+`ManualQualificationProgram`, `Profile01Composition`, `QualificationOptIn`, `QualificationSession`; `Features/ManualQualification`
+`FreshAuthorizationTests`, `QualificationOptInTests`) plus the planner-owned `docs/roadmap/planner-handoff.md`, which was not edited
+(its diff stat is unchanged, SHA-256 `24656900...07c6`), and eight new files (launcher: `LaunchContextCheck`, `LaunchResolution`,
+`LaunchResolutionKind`, `ProductionTargetResolver`; tests: `LaunchContextCheckTests`, `LaunchContextEntryTests`,
+`LedgerAliasEntryTests`, `ProductionTargetResolverTests`). Scratch copies and logs live under the session scratchpad, outside the
+repository. No next slice is selected; real execution and publication remain pending.
+
+## Previous slice (published as 646b62e; historical record): QUALIFICATION-A-POST-LOGIN-01 offline preparation of one fixed post-login lot A entry (first return plus corrections 1 and 2 after reviews 1 and 2 NO-GO; returned for review; not authorized for execution)
 
 This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review
 decision. This record alone grants no execution or publication authority: any real comparison, provider call or publication needs its

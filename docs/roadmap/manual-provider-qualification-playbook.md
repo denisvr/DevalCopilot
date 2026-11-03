@@ -122,7 +122,7 @@ executable identities, QP-R4 typed status projection); the correction is returne
 | Lot | Authorization identity | Exclusive directory (under the OS temp directory) | Opt-in |
 | --- | --- | --- | --- |
 | A: two `claude auth status` observations after the owner's login | `owner-qualification-profile-01-lot-a-post-login` | `devalcopilot-qualification-profile-01-lot-a-post-login-ledger` | `--run-claude-auth-status-after-login --claude-executable <absolute path> --claude-sha256 <digest>` and `DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM=qualification-profile-01-two-claude-auth-status-observations-after-login` |
-| B: one Planner and one CriticalReviewer | `owner-qualification-profile-01-lot-b-one-planner-one-critical-reviewer` | `devalcopilot-qualification-profile-01-lot-b-ledger` | `--run-qualification-profile-01-exchange --approved-launches <absolute path of the owner's approved-launch manifest>` (nothing else) and `DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM=qualification-profile-01-one-codex-planner-and-one-claude-critical-review` |
+| B: one Planner and one CriticalReviewer, bound to the launch context | `owner-qualification-profile-01-lot-b-context-bound` | `devalcopilot-qualification-profile-01-lot-b-context-bound-ledger` | `--run-qualification-profile-01-context-bound-exchange --approved-launches <absolute path of the owner's approved-launch manifest>` (nothing else) and `DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM=qualification-profile-01-one-context-bound-codex-planner-and-claude-reviewer` |
 
 Each directory is created by its own lot and holds that authorization's durable slot files only. The launcher never names, reads,
 enumerates, resets or archives the earlier ledger directory, except to refuse it at construction; no argument or switch selects an
@@ -131,7 +131,19 @@ authorization or a directory, and the earlier session flag and phrase are no lon
 directory `devalcopilot-qualification-profile-01-lot-a-ledger`, phrase `qualification-profile-01-two-claude-auth-status-observations`)
 is retired the same way: its flag is refused with a fixed message and either phrase before any directory, ledger or process exists,
 its phrase no longer confirms the post-login entry, and a ledger path whose leaf name is its directory is refused with no file
-access. Its ledger and evidence are preserved and are never opened, reset, archived or migrated. The post-login entry also refuses,
+access. Its ledger and evidence are preserved and are never opened, reset, archived or migrated. The first lot B opt-in (flag
+`--run-qualification-profile-01-exchange`, authorization `owner-qualification-profile-01-lot-b-one-planner-one-critical-reviewer`,
+directory `devalcopilot-qualification-profile-01-lot-b-ledger`, phrase
+`qualification-profile-01-one-codex-planner-and-one-claude-critical-review`) is retired the same way: it stopped during discovery with
+`ProcessAdmissionRefused` (first refusal `Unlisted`, 11 Git admissions, neither role attempted; its closed summary does not identify
+the exact refused request), and the planner's later `SessionSpent` result reflects those existing process slots. Its flag is refused with a fixed message (naming the replacement flag) and exit 2 before any
+environment, directory, ledger or process exists, its phrase no longer confirms the replacement entry, and a ledger path whose leaf
+name is its directory is refused at construction with no file access. That ledger and the root that run retained are never read,
+enumerated, reset, archived, migrated or cleaned by the launcher. The replacement lot B entry refuses a ledger destination that is a
+reparse point the same way as the post-login entry (below): as its first step inside the bounded worker (fixed code
+`Refused: LedgerDestinationAliased.`, exit 2, nothing created), again before the session enumerates any marker, and before every summary
+save, including the outer-deadline verdict; each read of the destination runs in the worker or an emission, never on the deadline
+waiter, so a held read cannot keep the entry past its bound. The post-login entry also refuses,
 with a fixed message and exit 2 and before it enumerates markers or creates anything, a ledger destination that is itself a junction,
 symbolic link or other reparse point (judged from its own attributes, never followed, so an alias to the retired ledger can no longer
 read as "spent"); it checks the destination first thing in the bounded worker (before the binary verification), again immediately
@@ -212,13 +224,17 @@ Remove-Item Env:\DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM
   5 any other completed or stopped observation; 7 unexpected; 8 outer deadline; 9 the observations completed and were printed but the
   summary could not be persisted (see the summary paragraph below).
 
-### Lot B: one read-only exchange (proposed entry)
+### Lot B: one read-only exchange, bound to the launch context (proposed entry; QUALIFICATION-B-CONTEXT-01)
+
+The first lot B entry is spent (see the retirement paragraph above). This entry is its one fixed replacement: the same exchange, the
+same process inventory, role vectors, deadlines and evidence rules, plus the **launch-context check** described below in bounded
+preparation. It is prepared offline only and not authorized for execution.
 
 ```powershell
 $env:DOTNET_ADD_GLOBAL_TOOLS_TO_PATH = 'false'; $env:DOTNET_GENERATE_ASPNET_CERTIFICATE = 'false'
 dotnet build tests\DevalCopilot.Api.IntegrationTests\ManualQualification\Launcher\ManualQualification.csproj -warnaserror -p:UseSharedCompilation=false -m:1
-$env:DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM = 'qualification-profile-01-one-codex-planner-and-one-claude-critical-review'
-& .\tests\DevalCopilot.Api.IntegrationTests\ManualQualification\Launcher\bin\Debug\net10.0\ManualQualification.exe --run-qualification-profile-01-exchange --approved-launches '<absolute path of the owner-prepared approved-launch manifest>'
+$env:DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM = 'qualification-profile-01-one-context-bound-codex-planner-and-claude-reviewer'
+& .\tests\DevalCopilot.Api.IntegrationTests\ManualQualification\Launcher\bin\Debug\net10.0\ManualQualification.exe --run-qualification-profile-01-context-bound-exchange --approved-launches '<absolute path of the owner-prepared approved-launch manifest>'
 Remove-Item Env:\DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM
 ```
 
@@ -229,7 +245,8 @@ ledger entry or process exists. It is a closed JSON document, at most 32 KiB, at
 duplicated or mistyped member, a relative or non-normalized path, an uppercase digest or an alias file is refused with a closed code.
 `git`, `codex` and `claude` are required; `node` is required exactly when Codex or Claude is a script launch (and then Codex's or
 Claude's executable must be that same Node file and digest); `dotnet`, `gh` and `docker` are listed only if the owner approves them,
-and an installed tool that is not listed is never probed (the first probe is refused and stops the lot). Each listed file must be a
+and an installed tool that is not listed is never probed (the launch-context check below refuses it as extra before anything starts; the
+runtime admission refuses its first probe as unlisted if it ever got that far). Each listed file must be a
 regular, non-alias file of at most 1 GiB whose SHA-256 equals its pin when the manifest is loaded, and again **immediately before
 every start that launches it** (executable and script alike); a replaced or removed file is refused with a closed drift or
 not-a-file code and stops the lot. The same approved absolute Git file is used by the launcher's own Git commands and by the host
@@ -241,6 +258,35 @@ tests use owned stand-in files only; the controlled rehearsal of the production 
 regular files of the machine's real Git, .NET, Node and Docker that its existing local-tool resolution selects (real tool
 boundaries; Codex, Claude and `gh` are owned doubles). **No installed Codex or Claude identity was read or hashed**, and the owner's
 actual paths and digests remain a future approved preflight.
+
+**Launch-context check.** The first lot B stopped on an unlisted request, and a read-only control showed that the production target
+resolver selects different launches in different launch contexts: in one shell the direct Codex executable the manifest pinned, and
+with the configured Windows machine and user `PATH` a Node-hosted Codex script. So, **after the manifest verifies and before any
+fixture root, Git probe, child process, ledger entry or slot exists**, inside the entry's bounded preparation, the launcher runs the
+actual production resolution step (the private `ToolDiscoveryAdapter` resolution, with the catalog's own descriptor, in the current
+process environment) once for every catalog capability, without any probe, and compares each result with the manifest:
+
+- A direct executable must be the approved executable of a manifest entry with no script; a Node-hosted script must be the approved
+  Node executable **and** the approved script of an entry that lists both. So a direct pin never matches a script resolution, a script
+  pin never matches a direct one, and both paths of a script launch must agree (paths compare case-insensitively, exactly as the
+  runtime admission does).
+- A resolution that is **missing** for an approved tool, **extra** (an installed tool the owner did not list, which the host would
+  probe and the admission would refuse as unlisted), **ambiguous** (the production resolver found more than one distinct target, for
+  any capability) or **different** from the approval refuses with a closed code `LaunchContext<Capability><Missing|Extra|Ambiguous|Mismatch>`
+  (capability as the catalog names it, for example `LaunchContextCodexCliMismatch`), exit 2 and a single `Refused:` line. A resolver
+  that cannot be bound or answered refuses with `LaunchContextResolverUnavailable`. No path, digest, file name or environment value is
+  printed. The first refusal in the catalog's order (Git, Codex, Claude, GitHub, .NET, Node, Docker) is the answer.
+- The resolver is internal to the production Infrastructure assembly, whose source is outside this lot, so the binding is by
+  reflection against the exact expected shape (type names, parameter types, result members and the two target types). Any difference
+  is a refusal; the launcher never carries a copy of the resolver's rules. A test pins that the binding finds the production
+  resolver's shape.
+- The deadline is asked before every resolution and again before its answer is used; after the bound nothing further is resolved,
+  composed, probed or consumed. The resolution runs in the bounded worker, never on the deadline waiter.
+
+The check is a decision at one moment in the launching process's environment, not a lock: the host resolves again at each probe, and
+the **runtime admission checks, the 179-start inventory, the two role calls, the 35-minute outer bound and the evidence rules are
+unchanged** and still refuse every request as before. A mismatch it catches is a refusal of the entry, not a provider result; a
+match proves only that the launcher's resolution agrees with the approved manifest, not that any tool works or is authenticated.
 
 The session is the one described under [What one session does](#what-one-session-does), with these preparation changes. Its adapter
 contracts are pinned as `codex-planning-v1` and `claude-critical-review-v2` (the latter keeps its complete restrictions and
@@ -350,7 +396,7 @@ model-catalog command is listed, and none of them has any slot.
 
 **Time.** 90 s readiness, 120 s per setup step, 60 s per POST, 20 s per read, 12 minutes per stage (beside the unchanged 10-minute
 role deadlines), 32 minutes for the active session and 60 s host shutdown. One monotonic 35-minute deadline starts as the entry's
-first statement and covers the manifest load and verification, the environment's creation and preparation, the session, the final
+first statement and covers the manifest load and verification, the launch-context check, the environment's creation and preparation, the session, the final
 observations, the summary, its save and the closure. The waiter never runs the work it waits for, so a blocking preparation, a held
 report sink or a held disposal cannot keep the entry from returning at the bound. At 35 minutes the launcher prints a fixed unproven
 verdict (exit 8) and the admission gate closes by the clock at its next decision, so nothing more is started, no allowance is
@@ -396,7 +442,9 @@ facts. Provider usage is reported only if observed, otherwise unknown; this is n
 3. Lot B: the owner supplies, at a future approved preflight, the approved-launch manifest: exact absolute paths and SHA-256 digests of
    Git, the Codex and Claude launches (and the Node and script components of a script launch) and any of `dotnet`, `gh` and `docker`
    that are installed. This is launch-context information, not a decision about `PATH`, unsupported binaries or a new
-   authorization. The offline preparation reads no installed file; the actual identities are not known here.
+   authorization. The offline preparation reads no installed file; the actual identities are not known here. The manifest must
+   describe what the production resolver selects **in the shell, user and search-path context the entry is launched from**: the
+   launch-context check refuses a manifest from another context before anything starts.
 4. If a hard monetary or token ceiling is required, activation stays blocked: none can be enforced here.
 
 Decided by the planner at review 1 (recorded, not reopened): the qualification-only counted refusal of all three `app-server`
@@ -420,7 +468,7 @@ The launcher is a separate executable, `ManualQualification` (source under
 - Each allowance is consumed, durably, **before** its single POST. A timeout, an ambiguous or refused answer, a crash, a restart
   or a second launch never makes it spendable again. The reviewer allowance can be taken only by the session that holds the
   planner allowance, and only after one coherent recorded Proposal and an unchanged source.
-- The ledger of the current authorization is the directory `devalcopilot-qualification-profile-01-lot-b-ledger` directly under the OS
+- The ledger of the current authorization is the directory `devalcopilot-qualification-profile-01-lot-b-context-bound-ledger` directly under the OS
   temp directory (one `planner.allowance` and one `reviewer.allowance` file, created exclusively and never rewritten, beside the
   durable process slots of [QUALIFICATION-PROFILE-01](#qualification-profile-01-prepared-offline-not-authorized-for-execution)). If any
   allowance or process slot exists, the launcher starts nothing. The earlier authorizations' directory is never named, read, reset or
@@ -561,7 +609,7 @@ are never read or rewritten. Lot A prints its own independent closed summary (`s
 | Exit | Meaning |
 | ---- | ------- |
 | 0 | Qualified: one Proposal and one Acceptance or Challenge replying to it, every control satisfied. |
-| 2 | Refused: the opt-in is missing or inexact. Nothing started. |
+| 2 | Refused: the opt-in is missing or inexact (the retired first lot B flag included), the approved-launch manifest is missing or invalid, the launch context does not match it (`Refused: LaunchContext...`), or the ledger destination is an alias (`LedgerDestinationAliased`). Nothing started. |
 | 3 | The ledger shows a spent allowance. Nothing started. |
 | 4 | Blocked before any allowance was spent (readiness, targets, setup, source change during setup). |
 | 5 | An allowance was spent and the session did not reach a valid qualified result. |

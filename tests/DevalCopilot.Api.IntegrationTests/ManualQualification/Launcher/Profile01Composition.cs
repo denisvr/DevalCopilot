@@ -1,4 +1,5 @@
 using DevalCopilot.Api.IntegrationTests.BrowserJourney.Host;
+using DevalCopilot.Domain.Features.EnvironmentReadiness;
 
 namespace DevalCopilot.Api.IntegrationTests.ManualQualification;
 
@@ -29,6 +30,45 @@ public static class Profile01Composition
                 LauncherGit = () => judged.LauncherGitPath,
             },
             judged);
+    }
+
+    /// <summary>Composes lot B only from the owner's approved-launch manifest, inside the entry's bounded preparation: its absence, a
+    /// structural problem or any listed file that is not exactly the approved one refuses first. Then every capability is resolved by
+    /// the production target resolver in this process's own environment and compared with the manifest, and any missing, extra,
+    /// ambiguous or different launch refuses. All of it happens before a host, a directory, a ledger entry, a Git probe or a process
+    /// exists, and the entry's deadline is asked between every step.</summary>
+    public static ProductionQualificationEnvironment CreateFromManifest(
+        string? manifestPath,
+        InvocationLedger ledger,
+        string temporaryDirectory,
+        EntryDeadline deadline,
+        Func<Func<Capability, LaunchResolution>?> bindResolver)
+    {
+        var path = manifestPath ?? throw new EnvironmentRefusedException("ApprovedLaunchesRequired");
+        var (approved, refusal) = ApprovedLaunchManifest.Load(path);
+        if (approved is null)
+        {
+            throw new EnvironmentRefusedException(refusal ?? "ApprovedLaunchesInvalid");
+        }
+
+        if (deadline.IsExpired)
+        {
+            throw new OperationCanceledException("The entry deadline elapsed.");
+        }
+
+        var resolve = bindResolver() ?? throw new EnvironmentRefusedException(LaunchContextCheck.ResolverUnavailableCode);
+        if (LaunchContextCheck.Refusal(approved, resolve, () => deadline.IsExpired) is { } mismatch)
+        {
+            throw new EnvironmentRefusedException(mismatch);
+        }
+
+        return CreateEnvironment(
+            ledger,
+            QualificationLimits.Production,
+            temporaryDirectory,
+            approved,
+            (root, launcherDirectory) => facts => new LaunchTargetJudge(root, launcherDirectory).Judge(facts),
+            deadline: deadline);
     }
 
     public static ProductionQualificationEnvironment CreateEnvironment(
