@@ -121,25 +121,44 @@ executable identities, QP-R4 typed status projection); the correction is returne
 
 | Lot | Authorization identity | Exclusive directory (under the OS temp directory) | Opt-in |
 | --- | --- | --- | --- |
-| A: two `claude auth status` observations | `owner-qualification-profile-01-lot-a-two-claude-auth-status-observations` | `devalcopilot-qualification-profile-01-lot-a-ledger` | `--run-claude-auth-status-comparison --claude-executable <absolute path> --claude-sha256 <digest>` and `DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM=qualification-profile-01-two-claude-auth-status-observations` |
+| A: two `claude auth status` observations after the owner's login | `owner-qualification-profile-01-lot-a-post-login` | `devalcopilot-qualification-profile-01-lot-a-post-login-ledger` | `--run-claude-auth-status-after-login --claude-executable <absolute path> --claude-sha256 <digest>` and `DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM=qualification-profile-01-two-claude-auth-status-observations-after-login` |
 | B: one Planner and one CriticalReviewer | `owner-qualification-profile-01-lot-b-one-planner-one-critical-reviewer` | `devalcopilot-qualification-profile-01-lot-b-ledger` | `--run-qualification-profile-01-exchange --approved-launches <absolute path of the owner's approved-launch manifest>` (nothing else) and `DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM=qualification-profile-01-one-codex-planner-and-one-claude-critical-review` |
 
 Each directory is created by its own lot and holds that authorization's durable slot files only. The launcher never names, reads,
 enumerates, resets or archives the earlier ledger directory, except to refuse it at construction; no argument or switch selects an
-authorization or a directory, and the earlier session flag and phrase are no longer recognized. Every slot (each process start and
+authorization or a directory, and the earlier session flag and phrase are no longer recognized. The original lot A opt-in (flag
+`--run-claude-auth-status-comparison`, authorization `owner-qualification-profile-01-lot-a-two-claude-auth-status-observations`,
+directory `devalcopilot-qualification-profile-01-lot-a-ledger`, phrase `qualification-profile-01-two-claude-auth-status-observations`)
+is retired the same way: its flag is refused with a fixed message and either phrase before any directory, ledger or process exists,
+its phrase no longer confirms the post-login entry, and a ledger path whose leaf name is its directory is refused with no file
+access. Its ledger and evidence are preserved and are never opened, reset, archived or migrated. The post-login entry also refuses,
+with a fixed message and exit 2 and before it enumerates markers or creates anything, a ledger destination that is itself a junction,
+symbolic link or other reparse point (judged from its own attributes, never followed, so an alias to the retired ledger can no longer
+read as "spent"); it checks the destination first thing in the bounded worker (before the binary verification), again immediately
+before the first marker enumeration and before saving any summary, so an alias that appears mid-run gets no slot and no summary file,
+whether the report is the normal one or the outer-deadline verdict. No metadata read of the destination runs on the caller: a held
+read cannot keep the entry past its bound, and each read in the worker is followed by a clock decision, so a late release after the
+bound enumerates, starts and consumes nothing. The
+check covers the destination itself, not its ancestors, and is a decision point, not a lock. Every slot (each process start and
 each of the two role allowances) is one file created exclusively and flushed **before** its process or POST. Any existing slot makes
 the lot spent: there is no restart, refund, archive or rearm, and a second entry starts nothing. The earlier phrase, the other lot's
 phrase and the other lot's flag are each refused.
 
-### Lot A: two status observations (proposed entry)
+### Lot A: two status observations after login (proposed entry; QUALIFICATION-A-POST-LOGIN-01)
+
+The original lot A completed both observations with `BothLoggedOut` and consumed its two slots (planner/owner statement; not
+re-read here). The owner then reported a successful Claude Code login. This entry is the one fixed replacement: the same comparison
+implementation, identity checks, ordinary and production-filtered environments, at most two serial starts and 120-second bound, and
+the same closed summary (`statusSchemaVersion` 1, whose `authorization` field now names the post-login authorization), under a fresh
+authorization, directory, flag and phrase. Preparing it ran nothing real; running it needs its own owner decision.
 
 Run by the owner in an **ordinary Windows terminal** (a helper started inside an executor does not establish equivalence with it):
 
 ```powershell
 $env:DOTNET_ADD_GLOBAL_TOOLS_TO_PATH = 'false'; $env:DOTNET_GENERATE_ASPNET_CERTIFICATE = 'false'
 dotnet build tests\DevalCopilot.Api.IntegrationTests\ManualQualification\Launcher\ManualQualification.csproj -warnaserror -p:UseSharedCompilation=false -m:1
-$env:DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM = 'qualification-profile-01-two-claude-auth-status-observations'
-& .\tests\DevalCopilot.Api.IntegrationTests\ManualQualification\Launcher\bin\Debug\net10.0\ManualQualification.exe --run-claude-auth-status-comparison --claude-executable '<owner-approved absolute path of claude.exe>' --claude-sha256 '<64 hex digits>'
+$env:DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM = 'qualification-profile-01-two-claude-auth-status-observations-after-login'
+& .\tests\DevalCopilot.Api.IntegrationTests\ManualQualification\Launcher\bin\Debug\net10.0\ManualQualification.exe --run-claude-auth-status-after-login --claude-executable '<owner-approved absolute path of claude.exe>' --claude-sha256 '<64 hex digits>'
 Remove-Item Env:\DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM
 ```
 
@@ -188,7 +207,8 @@ Remove-Item Env:\DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM
   supports preparing B; ordinary authenticated with filtered logged out is a context discrepancy to review before B; both logged out
   stops (owner-managed prerequisite); the reverse discrepancy, unknown, malformed, timeout or incomplete I/O stops with no second
   comparison. The sequence stops at the first observation that is not coherent.
-- **Exit codes.** 0 both authenticated and root removed; 2 refused (opt-in, argument or binary identity; nothing created); 3 spent;
+- **Exit codes.** 0 both authenticated and root removed; 2 refused (opt-in, argument, retired original flag or ledger, or binary
+  identity or an aliased ledger destination; nothing created); 3 spent;
   5 any other completed or stopped observation; 7 unexpected; 8 outer deadline; 9 the observations completed and were printed but the
   summary could not be persisted (see the summary paragraph below).
 

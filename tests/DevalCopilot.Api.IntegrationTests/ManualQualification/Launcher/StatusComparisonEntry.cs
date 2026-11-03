@@ -18,7 +18,14 @@ namespace DevalCopilot.Api.IntegrationTests.ManualQualification;
 /// </summary>
 public static class StatusComparisonEntry
 {
-    public const string LedgerDirectoryName = "devalcopilot-qualification-profile-01-lot-a-ledger";
+    public const string LedgerDirectoryName = "devalcopilot-qualification-profile-01-lot-a-post-login-ledger";
+
+    /// <summary>The directory of the original lot A authorization's two consumed slots and its summary. Named only so that it can be
+    /// refused: this entry never reads, enumerates, resets, archives or migrates it.</summary>
+    public const string RetiredLedgerDirectoryName = "devalcopilot-qualification-profile-01-lot-a-ledger";
+
+    private const string AliasRefusal = "Refused: the post-login ledger destination is a junction or other alias; it is never followed.";
+
     public const int RefusedExitCode = 2;
     public const int SpentExitCode = 3;
     public const int NotAuthenticatedExitCode = 5;
@@ -36,9 +43,20 @@ public static class StatusComparisonEntry
         Func<IProcessExecutionAdapter> createAdapter,
         TextWriter output,
         TextWriter error,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Func<string, bool>? inspectLedger = null)
     {
+        // The only filesystem metadata read of the destination: production uses IsAliasedLedger; an owned double may hold it.
+        var isAliased = inspectLedger ?? IsAliasedLedger;
         var deadline = EntryDeadline.Start(limits.Outer);
+        if (arguments.Count > 0 && arguments[0] == StatusComparisonOptIn.RetiredFlag)
+        {
+            await deadline.EmitAsync(() => error.WriteLineAsync(
+                $"Refused: {StatusComparisonOptIn.RetiredFlag} is retired; its two slots were consumed. The post-login entry is "
+                + $"{StatusComparisonOptIn.Flag}."));
+            return RefusedExitCode;
+        }
+
         if (StatusComparisonOptIn.TryParse(arguments, readVariable) is not { } identity)
         {
             await deadline.EmitAsync(() => error.WriteLineAsync(
@@ -48,16 +66,23 @@ public static class StatusComparisonEntry
             return RefusedExitCode;
         }
 
+        if (IsRetiredLedger(ledgerDirectory))
+        {
+            await deadline.EmitAsync(() => error.WriteLineAsync(
+                "Refused: the retired ledger of the original lot A authorization is never used."));
+            return RefusedExitCode;
+        }
+
         var sessionId = Guid.NewGuid().ToString("N");
         var progress = new Progress();
         var preparing = Task.Run(() => PrepareAndObserveAsync(
             identity, sessionId, progress, deadline, ordinaryEnvironment, buildFilteredEnvironment, ledgerDirectory,
-            temporaryDirectory, limits, createAdapter, cancellationToken));
+            temporaryDirectory, limits, createAdapter, isAliased, cancellationToken));
         try
         {
             if (!await deadline.WithinAsync(preparing))
             {
-                return await ExpireAsync(deadline, sessionId, progress, ledgerDirectory, output, error, reportInFlight: false);
+                return await ExpireAsync(deadline, sessionId, progress, ledgerDirectory, isAliased, output, error, reportInFlight: false);
             }
 
             var outcome = await preparing;
@@ -69,7 +94,7 @@ public static class StatusComparisonEntry
 
             if (!deadline.TryClaimReport())
             {
-                return await ExpireAsync(deadline, sessionId, progress, ledgerDirectory, output, error, reportInFlight: false);
+                return await ExpireAsync(deadline, sessionId, progress, ledgerDirectory, isAliased, output, error, reportInFlight: false);
             }
 
             // Print, then commit, then persist: a summary is never persisted after the deadline decided otherwise, and a sink call
@@ -85,7 +110,7 @@ public static class StatusComparisonEntry
                     return (ExitCode: outcome.ExitCode, Committed: false);
                 }
 
-                var persisted = await SummaryPersistence.SaveAsync(ledgerDirectory, $"status-summary-{sessionId}.json", outcome.Summary!);
+                var persisted = await SaveSummaryAsync(ledgerDirectory, isAliased, $"status-summary-{sessionId}.json", outcome.Summary!);
                 if (!persisted)
                 {
                     await deadline.EmitAsync(() => error.WriteLineAsync(
@@ -99,12 +124,12 @@ public static class StatusComparisonEntry
                 var finished = await closing;
                 return finished.Committed
                     ? finished.ExitCode
-                    : await ExpireAsync(deadline, sessionId, progress, ledgerDirectory, output, error, reportInFlight: true);
+                    : await ExpireAsync(deadline, sessionId, progress, ledgerDirectory, isAliased, output, error, reportInFlight: true);
             }
 
             if (deadline.TryClaimExpiry(out _))
             {
-                return await ExpireAsync(deadline, sessionId, progress, ledgerDirectory, output, error, reportInFlight: true);
+                return await ExpireAsync(deadline, sessionId, progress, ledgerDirectory, isAliased, output, error, reportInFlight: true);
             }
 
             if (await EntryDeadline.WithinAsync(closing, deadline.HardRemaining))
@@ -137,8 +162,22 @@ public static class StatusComparisonEntry
         string temporaryDirectory,
         StatusLimits limits,
         Func<IProcessExecutionAdapter> createAdapter,
+        Func<string, bool> isAliased,
         CancellationToken cancellationToken)
     {
+        // Every metadata read of the destination runs here, inside the bounded worker, so a held read cannot hold the caller. Each one
+        // is followed by a clock decision before anything can use its answer: after the bound nothing is enumerated, consumed or started.
+        var aliased = isAliased(ledgerDirectory);
+        if (deadline.IsExpired)
+        {
+            return Expired();
+        }
+
+        if (aliased)
+        {
+            return Refused(AliasRefusal, RefusedExitCode);
+        }
+
         var (claudePath, pinned) = identity;
         var (facts, refusal) = await ClaudeBinaryVerifier.VerifyAsync(claudePath, pinned, cancellationToken);
         if (facts is null)
@@ -147,6 +186,17 @@ public static class StatusComparisonEntry
         }
 
         progress.Binary = facts;
+        aliased = isAliased(ledgerDirectory);
+        if (deadline.IsExpired)
+        {
+            return Expired();
+        }
+
+        if (aliased)
+        {
+            return Refused(AliasRefusal, RefusedExitCode);
+        }
+
         var counters = new AdmissionLedger(ledgerDirectory, ClaudeStatusSummary.Authorization, TimeProvider.System);
         if (counters.AnyConsumed())
         {
@@ -196,6 +246,36 @@ public static class StatusComparisonEntry
         return new Outcome(summary, null, run.Decision == ClaudeStatusDecision.BothAuthenticated && cleanup.Removed ? 0 : NotAuthenticatedExitCode);
     }
 
+    private static bool IsRetiredLedger(string ledgerDirectory) =>
+        string.Equals(
+            Path.GetFileName(Path.TrimEndingDirectorySeparator(ledgerDirectory)),
+            RetiredLedgerDirectoryName,
+            StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>A junction, symbolic link or other reparse point at the destination is judged from its own attributes, never followed:
+    /// it could lead to another authorization's ledger. A destination whose attributes cannot be read is not trusted either. The check
+    /// covers the destination itself, not its ancestors, and is a decision point immediately before each use, not a lock.</summary>
+    private static bool IsAliasedLedger(string ledgerDirectory)
+    {
+        try
+        {
+            return File.GetAttributes(Path.TrimEndingDirectorySeparator(ledgerDirectory)).HasFlag(FileAttributes.ReparsePoint);
+        }
+        catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException)
+        {
+            return false;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            return true;
+        }
+    }
+
+    /// <summary>The summary is saved only to a destination that is still not an alias; otherwise nothing is created and the save is
+    /// reported as not persisted, which the normal path turns into the attention exit.</summary>
+    private static Task<bool> SaveSummaryAsync(string ledgerDirectory, Func<string, bool> isAliased, string fileName, string text) =>
+        isAliased(ledgerDirectory) ? Task.FromResult(false) : SummaryPersistence.SaveAsync(ledgerDirectory, fileName, text);
+
     private static Outcome Refused(string text, int exitCode) => new(null, text, exitCode);
 
     private static Outcome Expired() => new(null, null, OuterDeadlineExitCode);
@@ -227,6 +307,7 @@ public static class StatusComparisonEntry
         string sessionId,
         Progress progress,
         string ledgerDirectory,
+        Func<string, bool> isAliased,
         TextWriter output,
         TextWriter error,
         bool reportInFlight)
@@ -248,7 +329,7 @@ public static class StatusComparisonEntry
             admission,
             CleanupReport.Preserved("OuterDeadlineExceeded"),
             []);
-        var emissions = new List<Task<bool>> { deadline.EmitAsync(() => SummaryPersistence.SaveAsync(ledgerDirectory, $"status-summary-{sessionId}.json", expired)) };
+        var emissions = new List<Task<bool>> { deadline.EmitAsync(() => SaveSummaryAsync(ledgerDirectory, isAliased, $"status-summary-{sessionId}.json", expired)) };
         emissions.Add(
             reportInFlight
                 ? deadline.EmitAsync(() => error.WriteLineAsync(

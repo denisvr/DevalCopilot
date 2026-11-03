@@ -27,11 +27,18 @@ public sealed class EntryDeadlineTests
     [Fact]
     public void The_reserve_is_inside_the_budget_so_the_work_is_decided_before_the_stated_end()
     {
-        var deadline = EntryDeadline.Start(TimeSpan.FromMilliseconds(400), TimeSpan.FromMilliseconds(300));
+        var reserve = TimeSpan.FromMilliseconds(1500);
+        var deadline = EntryDeadline.Start(TimeSpan.FromSeconds(2), reserve);
 
-        Assert.True(deadline.HardRemaining > deadline.Remaining);
-        Assert.True(deadline.HardRemaining - deadline.Remaining <= TimeSpan.FromMilliseconds(300));
-        Thread.Sleep(150);
+        // The two reads are never simultaneous. Reading the shorter work window first and the whole budget second makes the difference
+        // reserve minus the gap between the reads, so it can never exceed the reserve however slow a read is (reading them in the
+        // other order adds the gap to the reserve, which is not a stable bound).
+        var work = deadline.Remaining;
+        var whole = deadline.HardRemaining;
+        Assert.True(whole - work <= reserve);
+        Assert.True(whole > work);
+        Assert.True(work > TimeSpan.Zero);
+        Thread.Sleep(600);
         Assert.True(deadline.IsExpired);
         Assert.True(deadline.HardRemaining > TimeSpan.Zero);
         Assert.Equal(TimeSpan.FromSeconds(5), EntryDeadline.ReserveFor(TimeSpan.FromMinutes(35)));

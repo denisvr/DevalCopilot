@@ -1,6 +1,109 @@
 # Planner/reviewer handoff
 
-## Current decision: QUALIFICATION-PROFILE-01 review 7 accepted for exact-content publication
+## Current decision: QUALIFICATION-A-POST-LOGIN-01 review 3 accepted for exact-content publication
+
+Review preflight confirmed `main`, HEAD, local origin/main and live
+origin/main at `79e6b8f22347711261042a60ffd02600e6542099`, an empty index,
+nine modified tracked paths and no untracked paths.
+
+**PAL-R2 closed.** Initial and pre-enumeration metadata checks run in bounded
+preparation. Each checks expiry before using its answer. The held-check tests
+return exit 8 and show no process, slot or root after release. PAL-R1 remains
+accepted at its documented destination and point-in-time scope. PAL-V1 remains
+closed.
+
+Independent launcher and test builds passed with zero warnings or errors.
+Five focused classes passed 97/97 in an isolated test temp directory, including
+the held-read, alias, deadline, persistence and finalization cases. Evidence
+is in ignored `logs/planner-review/qualification-a-post-login-01-review-03/`.
+Retain the executor's 315/315 and the earlier results at their recorded scopes,
+including the unresolved Lot B teardown failure from review 2.
+
+The separate exact-content GO identifies the approved parent, tree and nine
+paths. After publication, verify the live ref and published content
+independently. The real post-login comparison requires a separate concrete
+owner approval. Lot B remains pending.
+
+## Review 2: correction 1 assessed
+
+The review preflight confirmed `main`, HEAD, local origin/main and live
+origin/main at `79e6b8f22347711261042a60ffd02600e6542099`, an empty index,
+nine modified tracked paths and no untracked paths.
+
+- **PAL-R1 alias behavior accepted at the destination check scope.** The
+  correction refuses a junction to the retired ledger before enumerating its
+  markers and checks the destination before normal and expiry saves. All five
+  new regression cases pass independently. This covers the destination itself
+  at the time of each check. It does not prove ancestor identity or exclude
+  concurrent path replacement between the check and use.
+- **PAL-R2 P2 open for the bounded caller.** The new initial call to
+  `IsAliasedLedger` in `RunAsync` performs synchronous `File.GetAttributes`
+  before the preparation task is started and the waiter can observe expiry.
+  This makes the caller wait for filesystem I/O on the very path whose outer
+  bound was previously independent of blocking preparation. This is a source
+  finding. Keep destination metadata work inside the bounded worker or
+  emission paths, with the check before marker enumeration and summary writes
+  retained. Verify a held initial metadata check cannot prevent bounded return
+  or allow late preparation to start anything.
+- **PAL-V1 closed.** The reserve test samples the work window before the whole
+  window and retains its work-expired/outer-open check. The independent run
+  passed it. Keep the historical executor failure and the baseline reproduction.
+
+Independent builds passed with zero warnings/errors. The same focused suite
+in an isolated test temp directory returned 311/312. All post-login entry and
+reserve cases passed. The sole failure was unchanged Lot B test
+`LauncherOuterDeadlineTests.A_synchronous_first_snapshot_inside_the_session_cannot_hold_the_entry_past_its_bound`,
+whose teardown could not delete a summary file that was still open. This
+review has not isolated the cause on a baseline build. Preserve both the
+executor's 312/312 and this outcome. Evidence is in ignored
+`logs/planner-review/qualification-a-post-login-01-review-02/`.
+
+Correction 2 is authorized offline in the same executor chat, limited to the
+bounded metadata check and its focused evidence. The unrelated teardown
+failure grants no Lot B change. Real execution and publication remain pending.
+
+## Review 1: first return assessed
+
+The first Lot A completed with BothLoggedOut and consumed both process slots.
+The owner subsequently reported successful Claude Code login. The post-login
+comparison needs its own one-shot authorization. Lot B remains pending.
+
+Review preflight verified `main`, HEAD, local origin/main and live origin/main
+at `79e6b8f22347711261042a60ffd02600e6542099`. The executor returned seven
+modified tracked paths, with an empty index and no untracked files. The
+reviewer's handoff update adds one tracked modification.
+
+- **PAL-R1, P2 open.** The new fixed opt-in, distinct authorization and ledger
+  name, retirement of the original flag and two-start envelope are in scope.
+  The retired ledger guard compares only the last path segment. If the new
+  ledger path is a junction to the retired one, `AnyConsumed` enumerates the
+  target before the alias check in slot admission. The independent control
+  used a junction and a fabricated original marker. It returned spent (exit 3)
+  rather than refusing the alias (exit 2). The expiry path also passes the
+  unvalidated destination to summary persistence. Guard the post-login
+  destination before enumerating markers or creating any summary, including
+  an expiry summary. Reject aliases without following them, and keep the
+  existing deadline and normal-path reporting guarantees. Keep this correction
+  local to Lot A.
+- **PAL-V1, baseline test defect established.** The independent test and launcher
+  builds passed with zero warnings/errors. All 307 existing affected cases
+  passed in the reviewer context, plus one failing reviewer control. The
+  executor's 306/307 remains recorded. The deadline test and its implementation
+  match the published commit. A standalone control compiling that commit's
+  EntryDeadline and using the exact consecutive-read expression exceeded
+  300 ms in 42 of 128 samples. The two clock reads can explain the failure.
+  Correct the unstable assertion in the same offline patch while retaining
+  the checks that work expires before the outer budget. Avoid broad reruns.
+
+Evidence is in ignored `logs/planner-review/qualification-a-post-login-01-review-01/`,
+including the build logs, review TRX, exact junction control and published
+deadline control. The reviewer removed the temporary test source. The
+controls used owned doubles and fabricated records.
+
+Correction 1 is authorized offline in the same post-login executor chat.
+Real execution and publication remain pending.
+
+## Previous decision: QUALIFICATION-PROFILE-01 review 7 accepted for exact-content publication
 
 Planner selection, 2026-11-02: prioritize a supported, diagnosable first real
 Codex Planner / Claude CriticalReviewer exchange. The complete scope,

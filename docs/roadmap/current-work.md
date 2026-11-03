@@ -6,7 +6,168 @@ was prepared ([recovery](development-workflow.md#recovery)). Git and code
 prevail; compare branch, `HEAD`, `origin/main` and staged/unstaged/untracked
 state first.
 
-## Active slice: QUALIFICATION-PROFILE-01 offline preparation of the two-lot real-provider qualification (first return plus correction 1 after review 1 NO-GO; returned for review; not authorized for execution)
+## Active slice: QUALIFICATION-A-POST-LOGIN-01 offline preparation of one fixed post-login lot A entry (first return plus corrections 1 and 2 after reviews 1 and 2 NO-GO; returned for review; not authorized for execution)
+
+This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review
+decision. This record alone grants no execution or publication authority: any real comparison, provider call or publication needs its
+own decision, and nothing is committed or pushed.
+
+**Delivery phase: first return of the Claude executor chat's offline preparation (2026-11-03).** Preflight (verified once before
+editing): branch `main`; `HEAD`, local `origin/main` and a live `git ls-remote origin refs/heads/main` read all
+`79e6b8f22347711261042a60ffd02600e6542099`; clean tree. Only `tests/` (launcher and its tests), the playbook and this file changed; no
+`src/` file, Lot B, production adapter, provider contract, authentication policy or discovery behavior changed, and nothing real was
+run (no `claude.exe`, provider, account, login, ledger or evidence directory was started, read or inspected).
+
+### What changed
+
+- **One new fixed lot A entry**, using the existing comparison implementation unchanged: flag `--run-claude-auth-status-after-login`,
+  authorization `owner-qualification-profile-01-lot-a-post-login`, ledger directory
+  `devalcopilot-qualification-profile-01-lot-a-post-login-ledger`, confirmation phrase
+  `qualification-profile-01-two-claude-auth-status-observations-after-login`
+  (`StatusComparisonOptIn`, `ClaudeStatusSummary.Authorization`, `StatusComparisonEntry.LedgerDirectoryName`). The exact executable
+  identity checks, the ordinary and production-filtered environments, at most two serial starts, the 120-second outer bound, the
+  admission gate and the closed summary (`statusSchemaVersion` 1; only its `authorization` value differs) are untouched.
+- **The original lot A opt-in is retired.** `StatusComparisonOptIn.RetiredFlag` and `StatusComparisonEntry.RetiredLedgerDirectoryName`
+  name the original flag and directory only to refuse them. The program routes the retired flag to the same entry, which prints a fixed
+  refusal (exit 2) before any directory, ledger, binary read or process exists; the original phrase no longer confirms the new entry
+  (it is not the new phrase), and a ledger path whose leaf name is the retired directory is refused with no file access. The retired
+  ledger and its evidence are never opened, reset, archived or migrated.
+- **Playbook** updated: the identity table, the retirement paragraph, the lot A section (with its history as stated by the owner and
+  planner, not re-read here), the entry command and the exit-code line.
+
+### Validation (fresh; fabricated inputs and owned doubles only)
+
+- `dotnet build tests/DevalCopilot.Api.IntegrationTests/ManualQualification/Launcher/ManualQualification.csproj -warnaserror
+  -p:UseSharedCompilation=false -m:1`: 0 warnings, 0 errors. `dotnet build tests/DevalCopilot.Api.IntegrationTests -warnaserror
+  --no-restore -p:UseSharedCompilation=false -m:1`: 0 warnings, 0 errors (`DOTNET_ADD_GLOBAL_TOOLS_TO_PATH=false`,
+  `DOTNET_GENERATE_ASPNET_CERTIFICATE=false`). `dotnet format --verify-no-changes` over the two changed folders: exit 0.
+- Affected filter (`StatusComparisonEntryTests`, `FreshAuthorizationTests`, `CheckedPersistenceTests`, `ClaudeStatusRunnerTests`,
+  `ClaudeStatusProjectorTests`, `QualificationOptInTests`, `AdmissionLedgerTests`, `ProcessAdmissionSessionTests`,
+  `TerminalAdmissionTests`, `Profile01InventoryTests`, `EntryDeadlineTests`, `LauncherOuterDeadlineTests`,
+  `WholeEntryFinalizationTests`, `ProductionClaudeEnvironmentTests`): 307 tests, **306 passed, 1 failed**; the failure is
+  `EntryDeadlineTests.The_reserve_is_inside_the_budget_so_the_work_is_decided_before_the_stated_end` (see the finding below).
+- New tests prove: the new constants and their distinctness from the retired ones; the retired flag is refused with either phrase
+  before any directory, ledger or process, and `TryParse` returns null; the new flag with the retired phrase is refused; a ledger path
+  named as the retired directory (with and without a trailing separator) is refused and not created; the new entry, run beside a
+  fabricated retired directory holding two consumed slots, runs to exit 0, writes only inside its own ledger and leaves the sibling's
+  files, timestamps and bytes unchanged. The existing tests (now over the new constants) still cover a second entry (exit 3, nothing
+  started, no rearm), the single-consumed-slot rule, the exact arguments, the binary identity gate, the closed summary, the outer
+  deadline and unproven-verdict rules.
+- Not run, by design: any real provider or `claude.exe`, the rest of `Features.ManualQualification`, Architecture.Tests, the frontend
+  or journeys (launcher and tests only).
+
+### Finding for Codex
+
+1. **A timing flake in an untouched test.** `EntryDeadlineTests.The_reserve_is_inside_the_budget_so_the_work_is_decided_before_the_stated_end`
+   failed in 3 of 9 runs, alone and in the filter; neither it nor `EntryDeadline` changed. Its second assertion compares
+   `HardRemaining - Remaining` (two separate clock reads) with an exact 300 ms reserve and so fails on read jitter. Reported, not fixed
+   here (outside this slice); no baseline checkout comparison was run.
+
+### Git state
+
+The diff is unstaged, uncommitted and unpushed: five modified tracked files under `tests/DevalCopilot.Api.IntegrationTests`
+(`ManualQualification/Launcher`: `ClaudeStatusSummary`, `ManualQualificationProgram`, `StatusComparisonEntry`, `StatusComparisonOptIn`;
+`Features/ManualQualification/StatusComparisonEntryTests`), the playbook and this file. No next slice is selected.
+
+### Correction 1 (planner review 1 NO-GO: PAL-R1 and PAL-V1; returned for review, not accepted)
+
+Authorized by the planner's review in [planner-handoff.md](planner-handoff.md) for this same slice and executor chat; real execution,
+publication and Lot B stay pending. Preflight verified once before editing: branch `main`; `HEAD`, local `origin/main` and a live
+`git ls-remote origin refs/heads/main` all `79e6b8f22347711261042a60ffd02600e6542099`; an empty index; eight modified tracked paths
+(the seven returned plus the planner-owned handoff, which was not edited) and no untracked file. The first return above, including its
+306/307 result and the flake finding, is preserved as recorded and the reviewer's baseline reproduction of PAL-V1 is not rewritten.
+
+- **PAL-R1 (alias at the post-login ledger destination).** `StatusComparisonEntry` now judges the destination from its own attributes
+  (`IsAliasedLedger`: reparse point, never followed; unreadable attributes are not trusted; a missing path is not an alias). It refuses
+  an aliased destination with a fixed message and exit 2 as the first step after the opt-in and retired-name checks, so a junction to a
+  fabricated retired ledger is no longer enumerated and reported spent (exit 3). The destination is checked again immediately before
+  `AnyConsumed` (after the binary verification) and immediately before every summary save through a local `SaveSummaryAsync`, which
+  covers the normal report and the outer-deadline verdict; an alias appearing mid-run gets no summary file (the normal path then ends in
+  its existing not-persisted attention handling, a more specific non-success exit being kept) and, through the unchanged
+  `AdmissionLedger` alias check, no further slot. Only Lot A's entry changed: `AdmissionLedger`, `SummaryPersistence` and Lot B are
+  untouched, and the valid-path flow, deadlines and reporting are unchanged (the existing tests over them pass unmodified). Limits: the
+  check covers the destination itself, not its ancestors, and is a decision point before each use, not a lock.
+- **Regressions (owned fixtures; a real NTFS junction made with `mklink /J` in the test's own temporary root, never the real ledger).**
+  A junction to a fabricated retired ledger is refused as an alias (exit 2, not "spent"), nothing created and the target's files,
+  timestamps and bytes unchanged; a junction to another directory is refused and its target stays empty; a destination swapped for a
+  junction during the first observation gets no second slot and no report file, with the target unchanged; one swapped during an
+  outer-deadline run (exit 8) gets no expiry summary, with the target unchanged; and a plain valid destination persists exactly as
+  before. Mutation check: with the alias guard disabled the four alias regressions fail and the plain-path control passes; the source
+  was restored byte-identical (SHA-256 verified).
+- **PAL-V1 (unstable deadline assertion).** `EntryDeadlineTests.The_reserve_is_inside_the_budget_so_the_work_is_decided_before_the_stated_end`
+  read `HardRemaining` first and `Remaining` second, so `HardRemaining - Remaining` was the reserve plus the gap between the two reads
+  and could exceed it. It now reads `Remaining` first and `HardRemaining` second (a difference of the reserve minus the gap, never
+  above the reserve), over a 2 s budget with a 1.5 s reserve, and keeps the checks that the work window is open, that the work expires
+  (`IsExpired` after 600 ms, inside a 500 ms work window) while the whole budget is not yet exhausted, and the `ReserveFor` assertions.
+  `EntryDeadline` itself is unchanged.
+
+### Correction 1 validation (context: the Claude executor chat's own Windows shell; 2026-11-03)
+
+- `dotnet build .../Launcher/ManualQualification.csproj -warnaserror -p:UseSharedCompilation=false -m:1` and `dotnet build
+  tests/DevalCopilot.Api.IntegrationTests -warnaserror --no-restore -p:UseSharedCompilation=false -m:1`: 0 warnings, 0 errors each.
+- The same affected filter as the first return (14 classes): **312 tests, 312 passed, 0 failed** (307 before plus five new; the earlier
+  first-return failure was the PAL-V1 assertion). `EntryDeadlineTests` alone: 12 consecutive runs, 12 passed (it failed in 3 of 9 runs
+  before). `dotnet format --verify-no-changes` over the two changed folders: exit 0.
+- During development the first run of the new junction tests failed in fixture teardown (the shared base class's recursive delete
+  refuses a junction); the test class now removes its own junctions first. That run left four fixture folders under the temporary
+  directory, which were inspected (no reparse points left) and removed; two older `devalcopilot-xunit-ledger-*` folders from 2026-11-02
+  predate this work and were left alone.
+- Not run, by design: the rest of `Features.ManualQualification`, Architecture.Tests, any real provider or `claude.exe`, the frontend or
+  journeys.
+
+### Correction 1 Git state
+
+Unstaged, uncommitted and unpushed: the first return's paths plus `EntryDeadlineTests.cs`, with the planner-owned
+`docs/roadmap/planner-handoff.md` preserved unedited. No next slice is selected.
+
+### Correction 2 (planner review 2 NO-GO: PAL-R2 open; PAL-R1 accepted at the destination-check scope, PAL-V1 closed; returned for review, not accepted)
+
+Authorized by the planner's review in [planner-handoff.md](planner-handoff.md) for this same slice and executor chat, limited to the
+bounded metadata check and its focused evidence; real execution, publication and Lot B stay pending. Preflight verified once before
+editing: branch `main`; `HEAD`, local `origin/main` and a live `git ls-remote origin refs/heads/main` all
+`79e6b8f22347711261042a60ffd02600e6542099`; an empty index; nine modified tracked paths and no untracked file. The planner-owned
+handoff was not edited (SHA-256 `ec3edd5b...ecef1` before and after). Correction 1's accepted alias fixes and reserve test are retained
+unchanged. Only `StatusComparisonEntry.cs` and the entry tests changed in code; Lot B and production code did not.
+
+- **PAL-R2 (a held initial metadata check held the caller).** The first `IsAliasedLedger` call ran synchronously in `RunAsync` before
+  the preparation task started, so `File.GetAttributes` on a stalled path kept the caller from ever observing the bound. It now runs
+  first in the bounded worker (`PrepareAndObserveAsync`), before the binary verification, where the waiter's expiry decision is
+  independent of it; its refusal reaches the caller as the same fixed alias refusal (exit 2, nothing created). Every metadata read in
+  the worker (the initial one and the one before the first marker enumeration) is immediately followed by a clock decision before its
+  answer is used, so a read released after the bound returns the unproven verdict path and enumerates, creates an adapter, starts a
+  process or consumes a slot for nothing; the summary-save checks remain inside the emission paths, which the deadline already bounds.
+  The metadata read is reached through one optional trailing parameter (`inspectLedger`, default the production check) so an owned
+  double can hold it; no production caller passes it, and `AdmissionLedger`, `SummaryPersistence`, Lot B and `src/` are untouched.
+- **Regressions.** A held check numbered 1 (initial) or 2 (before enumeration) with a 400 ms outer bound: the entry returns the exit 8
+  verdict promptly (well under 3 s) with both observations `NotStarted`; after the held check is released and given 700 ms, the adapter
+  factory was never called, no request, no `admission-*.start` slot and no owned root exist, and at most the one unproven verdict file
+  was saved. The release answers "not an alias", the answer that would let a late continuation proceed. A control with a never-reached
+  hold proves a normal run is unchanged (exit 0, two requests, the printed summary equals the saved copy).
+- **Mutation checks (source hashed before and restored byte-identical after each).** Reinstating the synchronous initial check in
+  `RunAsync` fails the hold-1 case (the caller waits out the 30 s hold); neutralizing the worker's expiry decisions fails both cases
+  (the late continuation calls the adapter factory). A first attempt at the second mutation did not compile (CS0162) and its test run
+  reused the first mutation's binary, so it was discarded and redone with a non-foldable condition.
+
+### Correction 2 validation (context: the Claude executor chat's own Windows shell, with `TMP`/`TEMP` pointed at fresh empty folders under the session scratchpad; 2026-11-03)
+
+- Both builds with `-warnaserror` (launcher and `tests/DevalCopilot.Api.IntegrationTests`): 0 warnings, 0 errors.
+- The same 14-class affected filter: **315 tests, 315 passed, 0 failed** (312 plus three new), run twice (once before and once after the
+  mutation checks). The entry and deadline classes alone: five more runs, 62 of 62 each. `dotnet format --verify-no-changes` over the two
+  changed folders: exit 0. The isolated roots held only the SDK's own scratch files afterward.
+- **Retained results.** The first return's 306/307 (the PAL-V1 flake) and Correction 1's 312/312 stand as recorded; the reviewer's
+  independent isolated run returned 311/312 with the sole failure in the unchanged Lot B test
+  `LauncherOuterDeadlineTests.A_synchronous_first_snapshot_inside_the_session_cannot_hold_the_entry_past_its_bound` (teardown could not
+  delete a still-open summary file; its cause was not isolated on a baseline). This chat did **not** reproduce it in two isolated runs,
+  so it is neither explained nor dismissed here; it grants no Lot B change.
+- Not run, by design: the rest of `Features.ManualQualification`, Architecture.Tests, any real provider or `claude.exe`, the frontend
+  or journeys.
+
+### Correction 2 Git state
+
+Unstaged, uncommitted and unpushed: the same nine modified tracked paths as at the start (no new file); the planner-owned
+`docs/roadmap/planner-handoff.md` is preserved unedited. No next slice is selected.
+
+## Previous slice (published as 79e6b8f; historical record): QUALIFICATION-PROFILE-01 offline preparation of the two-lot real-provider qualification (first return plus correction 1 after review 1 NO-GO; returned for review; not authorized for execution)
 
 This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review
 decision and [real-provider-qualification-plan.md](real-provider-qualification-plan.md) for the proposed contract. This record alone

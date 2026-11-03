@@ -11,9 +11,14 @@ namespace DevalCopilot.Api.IntegrationTests.Features.ManualQualification;
 /// closed summary, the bounds and the cleanup rule. No real provider, binary, environment or account is involved.</summary>
 public sealed class StatusComparisonEntryTests : QualificationTestBase
 {
+    // The original lot A entry's phrase and authorization, built here only to prove that they are refused or distinct.
+    private const string RetiredPhrase = "qualification-profile-01-two-claude-auth-status-observations";
+    private const string RetiredAuthorization = "owner-qualification-profile-01-lot-a-two-claude-auth-status-observations";
+
     private static readonly Dictionary<string, string> Ordinary = new() { ["USERPROFILE"] = "home", ["ANTHROPIC_API_KEY"] = "sk-secret" };
     private static readonly Dictionary<string, string> Filtered = new() { ["USERPROFILE"] = "home", ["SystemRoot"] = "root" };
 
+    private readonly List<string> _junctions = [];
     private readonly string _bin;
     private readonly string _claude;
     private readonly string _digest;
@@ -41,12 +46,14 @@ public sealed class StatusComparisonEntryTests : QualificationTestBase
         Func<IProcessExecutionAdapter> adapter,
         Func<string, string?>? readVariable = null,
         Func<Dictionary<string, string>?>? filtered = null,
-        StatusLimits? limits = null)
+        StatusLimits? limits = null,
+        string? ledger = null,
+        Func<string, bool>? inspectLedger = null)
     {
         using var output = new StringWriter();
         using var error = new StringWriter();
         var exit = await StatusComparisonEntry.RunAsync(
-            arguments, readVariable ?? Confirmed, Ordinary, filtered ?? (() => Filtered), _ledger, Path.GetTempPath(), limits ?? Quick, adapter, output, error, CancellationToken.None);
+            arguments, readVariable ?? Confirmed, Ordinary, filtered ?? (() => Filtered), ledger ?? _ledger, Path.GetTempPath(), limits ?? Quick, adapter, output, error, CancellationToken.None, inspectLedger);
         return (exit, output.ToString(), error.ToString());
     }
 
@@ -159,7 +166,8 @@ public sealed class StatusComparisonEntryTests : QualificationTestBase
     [InlineData("yes")]
     [InlineData("one-codex-planner-and-one-claude-critical-review")]
     [InlineData(QualificationOptIn.ConfirmationPhrase)]
-    public async Task A_missing_or_foreign_confirmation_is_refused_including_the_other_lots_phrase(string? phrase)
+    [InlineData(RetiredPhrase)]
+    public async Task A_missing_or_foreign_confirmation_is_refused_including_the_other_lots_and_the_retired_phrase(string? phrase)
     {
         var created = 0;
 
@@ -181,6 +189,324 @@ public sealed class StatusComparisonEntryTests : QualificationTestBase
         Assert.NotEqual(QualificationOptIn.Flag, StatusComparisonOptIn.Flag);
         Assert.NotEqual(QualificationOptIn.ConfirmationPhrase, StatusComparisonOptIn.ConfirmationPhrase);
     }
+
+    [Fact]
+    public void The_post_login_entry_has_its_own_flag_phrase_authorization_and_ledger_distinct_from_the_retired_original()
+    {
+        Assert.Equal("--run-claude-auth-status-after-login", StatusComparisonOptIn.Flag);
+        Assert.Equal("qualification-profile-01-two-claude-auth-status-observations-after-login", StatusComparisonOptIn.ConfirmationPhrase);
+        Assert.Equal("owner-qualification-profile-01-lot-a-post-login", ClaudeStatusSummary.Authorization);
+        Assert.Equal("devalcopilot-qualification-profile-01-lot-a-post-login-ledger", StatusComparisonEntry.LedgerDirectoryName);
+        Assert.NotEqual(StatusComparisonOptIn.RetiredFlag, StatusComparisonOptIn.Flag);
+        Assert.NotEqual(RetiredPhrase, StatusComparisonOptIn.ConfirmationPhrase);
+        Assert.NotEqual(RetiredAuthorization, ClaudeStatusSummary.Authorization);
+        Assert.NotEqual(StatusComparisonEntry.RetiredLedgerDirectoryName, StatusComparisonEntry.LedgerDirectoryName);
+        Assert.Equal("--run-claude-auth-status-comparison", StatusComparisonOptIn.RetiredFlag);
+        Assert.Equal("devalcopilot-qualification-profile-01-lot-a-ledger", StatusComparisonEntry.RetiredLedgerDirectoryName);
+    }
+
+    [Theory]
+    [InlineData(RetiredPhrase)]
+    [InlineData(StatusComparisonOptIn.ConfirmationPhrase)]
+    public async Task The_retired_original_flag_is_refused_with_either_phrase_before_any_directory_ledger_or_process(string phrase)
+    {
+        var created = 0;
+        string[] arguments = [StatusComparisonOptIn.RetiredFlag, StatusComparisonOptIn.ExecutableOption, _claude, StatusComparisonOptIn.Sha256Option, _digest];
+
+        var (exit, output, error) = await RunAsync(
+            arguments,
+            () => { created++; return new ScriptedStatusAdapter(); },
+            name => name == QualificationOptIn.ConfirmationVariable ? phrase : null);
+
+        Assert.Equal(StatusComparisonEntry.RefusedExitCode, exit);
+        Assert.Equal(0, created);
+        Assert.Equal(string.Empty, output);
+        Assert.Contains("retired", error, StringComparison.Ordinal);
+        Assert.False(Directory.Exists(_ledger));
+        Assert.Null(StatusComparisonOptIn.TryParse(arguments, name => phrase));
+    }
+
+    [Fact]
+    public async Task The_new_flag_with_the_retired_phrase_is_refused_before_any_directory_ledger_or_process()
+    {
+        var created = 0;
+
+        var (exit, _, _) = await RunAsync(
+            Arguments(),
+            () => { created++; return new ScriptedStatusAdapter(); },
+            name => name == QualificationOptIn.ConfirmationVariable ? RetiredPhrase : null);
+
+        Assert.Equal(StatusComparisonEntry.RefusedExitCode, exit);
+        Assert.Equal(0, created);
+        Assert.False(Directory.Exists(_ledger));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_ledger_pointed_at_the_retired_original_directory_is_refused_with_no_file_access(bool trailingSeparator)
+    {
+        var retired = Path.Combine(LedgerDirectory, StatusComparisonEntry.RetiredLedgerDirectoryName);
+        var created = 0;
+
+        var (exit, output, error) = await RunAsync(
+            Arguments(),
+            () => { created++; return new ScriptedStatusAdapter(); },
+            ledger: retired + (trailingSeparator ? Path.DirectorySeparatorChar : string.Empty));
+
+        Assert.Equal(StatusComparisonEntry.RefusedExitCode, exit);
+        Assert.Equal(0, created);
+        Assert.Equal(string.Empty, output);
+        Assert.Contains("retired ledger", error, StringComparison.Ordinal);
+        Assert.False(Directory.Exists(retired));
+    }
+
+    [Fact]
+    public async Task The_post_login_entry_uses_only_its_own_ledger_and_leaves_a_spent_retired_ledger_untouched()
+    {
+        var retired = Directory.CreateDirectory(Path.Combine(LedgerDirectory, StatusComparisonEntry.RetiredLedgerDirectoryName)).FullName;
+        File.WriteAllText(Path.Combine(retired, "admission-claude.status.ordinary-1.start"), $"{{\"authorization\":\"{RetiredAuthorization}\"}}");
+        File.WriteAllText(Path.Combine(retired, "admission-claude.status.filtered-1.start"), $"{{\"authorization\":\"{RetiredAuthorization}\"}}");
+        File.WriteAllText(Path.Combine(retired, "status-summary-original.json"), "{\"decision\":\"BothLoggedOut\"}");
+        var snapshot = Snapshot(retired);
+        var adapter = new ScriptedStatusAdapter(ScriptedStatusAdapter.Authenticated(), ScriptedStatusAdapter.Authenticated());
+
+        var (exit, output, _) = await RunAsync(Arguments(), () => adapter);
+
+        Assert.Equal(0, exit);
+        Assert.Equal(2, adapter.Requests.Count);
+        Assert.Equal(snapshot, Snapshot(retired));
+        using var summary = JsonDocument.Parse(output);
+        Assert.Equal(ClaudeStatusSummary.Authorization, summary.RootElement.GetProperty("authorization").GetString());
+        Assert.Equal(2, Directory.GetFiles(_ledger, "admission-claude.status.*.start").Length);
+        Assert.Single(Directory.GetFiles(_ledger, "status-summary-*.json"));
+        Assert.Equal(
+            new[] { "bin", StatusComparisonEntry.RetiredLedgerDirectoryName, "lot-a" },
+            Directory.GetDirectories(LedgerDirectory).Select(directory => Path.GetFileName(directory)).Order(StringComparer.Ordinal));
+    }
+
+    // PAL-R1: a junction or other alias at the ledger destination is refused without being followed -------------------------------
+
+    private string FabricatedRetiredLedger()
+    {
+        var retired = Directory.CreateDirectory(Path.Combine(LedgerDirectory, "fabricated-original", StatusComparisonEntry.RetiredLedgerDirectoryName)).FullName;
+        File.WriteAllText(Path.Combine(retired, "admission-claude.status.ordinary-1.start"), $"{{\"authorization\":\"{RetiredAuthorization}\"}}");
+        File.WriteAllText(Path.Combine(retired, "admission-claude.status.filtered-1.start"), $"{{\"authorization\":\"{RetiredAuthorization}\"}}");
+        File.WriteAllText(Path.Combine(retired, "status-summary-original.json"), "{\"decision\":\"BothLoggedOut\"}");
+        return retired;
+    }
+
+    public override void Dispose()
+    {
+        // A recursive delete of the fixture root refuses a junction inside it: remove each junction itself (never its target) first.
+        foreach (var link in _junctions.Where(Directory.Exists))
+        {
+            Directory.Delete(link, recursive: false);
+        }
+
+        base.Dispose();
+    }
+
+    private void CreateJunction(string link, string target)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(link)!);
+        var start = new System.Diagnostics.ProcessStartInfo("cmd.exe") { UseShellExecute = false, CreateNoWindow = true };
+        foreach (var argument in new[] { "/c", "mklink", "/J", link, target })
+        {
+            start.ArgumentList.Add(argument);
+        }
+
+        using var process = System.Diagnostics.Process.Start(start)!;
+        process.WaitForExit();
+        _junctions.Add(link);
+        Assert.Equal(0, process.ExitCode);
+        Assert.True(File.GetAttributes(link).HasFlag(FileAttributes.ReparsePoint));
+    }
+
+    [Fact]
+    public async Task A_junction_to_a_fabricated_retired_ledger_is_refused_as_an_alias_not_reported_spent_and_stays_untouched()
+    {
+        var retired = FabricatedRetiredLedger();
+        var link = Path.Combine(LedgerDirectory, "alias", "post-login-ledger");
+        CreateJunction(link, retired);
+        var snapshot = Snapshot(retired);
+        var created = 0;
+
+        var (exit, output, error) = await RunAsync(Arguments(), () => { created++; return new ScriptedStatusAdapter(); }, ledger: link);
+
+        Assert.Equal(StatusComparisonEntry.RefusedExitCode, exit);
+        Assert.Equal(0, created);
+        Assert.Equal(string.Empty, output);
+        Assert.Contains("junction or other alias", error, StringComparison.Ordinal);
+        Assert.DoesNotContain("spent", error, StringComparison.Ordinal);
+        Assert.Equal(snapshot, Snapshot(retired));
+    }
+
+    [Fact]
+    public async Task A_junction_to_any_other_directory_is_refused_and_nothing_is_created_in_the_target()
+    {
+        var target = Directory.CreateDirectory(Path.Combine(LedgerDirectory, "elsewhere")).FullName;
+        var link = Path.Combine(LedgerDirectory, "alias", "post-login-ledger");
+        CreateJunction(link, target);
+        var created = 0;
+
+        var (exit, output, _) = await RunAsync(Arguments(), () => { created++; return new ScriptedStatusAdapter(); }, ledger: link);
+
+        Assert.Equal(StatusComparisonEntry.RefusedExitCode, exit);
+        Assert.Equal(0, created);
+        Assert.Equal(string.Empty, output);
+        Assert.Empty(Directory.GetFileSystemEntries(target));
+    }
+
+    [Fact]
+    public async Task A_destination_that_becomes_a_junction_during_the_run_gets_no_slot_and_no_normal_report_file()
+    {
+        var retired = FabricatedRetiredLedger();
+        var snapshot = Snapshot(retired);
+        var adapter = new ScriptedStatusAdapter(
+            _ =>
+            {
+                Directory.Delete(_ledger, recursive: true);
+                CreateJunction(_ledger, retired);
+                return Task.FromResult(ScriptedStatusAdapter.Result(ProcessExecutionOutcome.Exited, 0, "{\"loggedIn\":true,\"authMethod\":\"claude.ai\"}"));
+            },
+            ScriptedStatusAdapter.Authenticated());
+        var before = StatusRoots();
+
+        var (exit, output, _) = await RunAsync(Arguments(), () => adapter);
+
+        // The second slot was refused by the aliased destination, so the observations are not both authenticated (exit 5, never 0),
+        // the printed summary stands, and nothing was written into the aliased target.
+        Assert.Equal(StatusComparisonEntry.NotAuthenticatedExitCode, exit);
+        Assert.Single(adapter.Requests);
+        Assert.False(string.IsNullOrWhiteSpace(output));
+        Assert.Equal(snapshot, Snapshot(retired));
+        RemoveNewRoots(before);
+    }
+
+    [Fact]
+    public async Task A_destination_that_becomes_a_junction_before_the_expiry_report_gets_no_expiry_summary_file()
+    {
+        var retired = FabricatedRetiredLedger();
+        var snapshot = Snapshot(retired);
+        var adapter = new ScriptedStatusAdapter(async _ =>
+        {
+            Directory.Delete(_ledger, recursive: true);
+            CreateJunction(_ledger, retired);
+            await Task.Delay(TimeSpan.FromSeconds(2));
+            return ScriptedStatusAdapter.Result(ProcessExecutionOutcome.Exited, 0, "{\"loggedIn\":true}");
+        });
+        var limits = new StatusLimits(TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30), TimeSpan.FromMilliseconds(800));
+        var before = StatusRoots();
+
+        var (exit, output, _) = await RunAsync(Arguments(), () => adapter, limits: limits);
+
+        Assert.Equal(StatusComparisonEntry.OuterDeadlineExitCode, exit);
+        using var summary = JsonDocument.Parse(output);
+        Assert.Equal("OuterDeadlineExceeded", summary.RootElement.GetProperty("stopCode").GetString());
+        await Task.Delay(TimeSpan.FromMilliseconds(300));
+        Assert.Equal(snapshot, Snapshot(retired));
+        RemoveNewRoots(before);
+    }
+
+    // PAL-R2: the destination metadata check runs inside the bounded worker --------------------------------------------------------
+
+    /// <summary>An owned double of the metadata check: the call numbered <paramref name="holdCall"/> signals that it was entered and then
+    /// blocks until released; every call answers "not an alias", the answer that would let a late continuation proceed.</summary>
+    private sealed class HeldInspector(int holdCall) : IDisposable
+    {
+        private int _calls;
+
+        public ManualResetEventSlim Entered { get; } = new();
+
+        public ManualResetEventSlim Released { get; } = new();
+
+        public bool Inspect(string path)
+        {
+            if (Interlocked.Increment(ref _calls) == holdCall)
+            {
+                Entered.Set();
+                Released.Wait(TimeSpan.FromSeconds(30));
+            }
+
+            return false;
+        }
+
+        public void Dispose()
+        {
+            Released.Set();
+            Entered.Dispose();
+            Released.Dispose();
+        }
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public async Task A_held_destination_check_cannot_hold_the_entry_and_its_late_release_starts_nothing_and_consumes_no_slot(int holdCall)
+    {
+        var before = StatusRoots();
+        var adapter = new ScriptedStatusAdapter(ScriptedStatusAdapter.Authenticated(), ScriptedStatusAdapter.Authenticated());
+        var created = 0;
+        var limits = new StatusLimits(TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2), TimeSpan.FromMilliseconds(400));
+        using var held = new HeldInspector(holdCall);
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+
+        var (exit, output, _) = await RunAsync(
+            Arguments(), () => { created++; return adapter; }, limits: limits, inspectLedger: held.Inspect);
+
+        Assert.Equal(StatusComparisonEntry.OuterDeadlineExitCode, exit);
+        Assert.True(clock.Elapsed < Promptly);
+        Assert.True(held.Entered.IsSet);
+        Assert.Equal(0, created);
+        using (var summary = JsonDocument.Parse(output))
+        {
+            Assert.Equal("OuterDeadlineExceeded", summary.RootElement.GetProperty("stopCode").GetString());
+            Assert.Equal("NotStarted", summary.RootElement.GetProperty("observations")[0].GetProperty("physical").GetString());
+            Assert.Equal("NotStarted", summary.RootElement.GetProperty("observations")[1].GetProperty("physical").GetString());
+        }
+
+        held.Released.Set();
+        await Task.Delay(TimeSpan.FromMilliseconds(700));
+
+        // The late continuation found the deadline expired: no adapter, process, slot or root, and only the one unproven verdict file.
+        Assert.Equal(0, created);
+        Assert.Empty(adapter.Requests);
+        Assert.Empty(Directory.Exists(_ledger) ? Directory.GetFiles(_ledger, "admission-*.start") : []);
+        Assert.Equal(before, StatusRoots());
+        Assert.True((Directory.Exists(_ledger) ? Directory.GetFiles(_ledger, "status-summary-*.json") : []).Length <= 1);
+    }
+
+    [Fact]
+    public async Task A_held_destination_check_does_not_change_a_normal_run_once_it_is_not_held()
+    {
+        var adapter = new ScriptedStatusAdapter(ScriptedStatusAdapter.Authenticated(), ScriptedStatusAdapter.Authenticated());
+        using var held = new HeldInspector(holdCall: int.MaxValue);
+
+        var (exit, output, _) = await RunAsync(Arguments(), () => adapter, inspectLedger: held.Inspect);
+
+        Assert.Equal(0, exit);
+        Assert.Equal(2, adapter.Requests.Count);
+        Assert.Equal(output.Trim(), File.ReadAllText(Assert.Single(Directory.GetFiles(_ledger, "status-summary-*.json"))).Trim());
+    }
+
+    [Fact]
+    public async Task A_plain_valid_destination_still_runs_and_persists_exactly_as_before()
+    {
+        var adapter = new ScriptedStatusAdapter(ScriptedStatusAdapter.Authenticated(), ScriptedStatusAdapter.Authenticated());
+
+        var (exit, output, _) = await RunAsync(Arguments(), () => adapter);
+
+        Assert.Equal(0, exit);
+        Assert.Equal(output.Trim(), File.ReadAllText(Assert.Single(Directory.GetFiles(_ledger, "status-summary-*.json"))).Trim());
+        Assert.False(File.GetAttributes(_ledger).HasFlag(FileAttributes.ReparsePoint));
+    }
+
+    private static string[] Snapshot(string directory) =>
+        [.. Directory.EnumerateFileSystemEntries(directory, "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal)
+            .Select(entry => File.Exists(entry)
+                ? $"{Path.GetRelativePath(directory, entry)}|{File.GetLastWriteTimeUtc(entry):O}|{Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(entry)))}"
+                : $"{Path.GetRelativePath(directory, entry)}|directory")];
 
     [Theory]
     [InlineData("digest")]

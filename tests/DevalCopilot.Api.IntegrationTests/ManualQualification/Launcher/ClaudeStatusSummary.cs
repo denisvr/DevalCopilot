@@ -12,7 +12,7 @@ namespace DevalCopilot.Api.IntegrationTests.ManualQualification;
 public static partial class ClaudeStatusSummary
 {
     public const int SchemaVersion = 1;
-    public const string Authorization = "owner-qualification-profile-01-lot-a-two-claude-auth-status-observations";
+    public const string Authorization = "owner-qualification-profile-01-lot-a-post-login";
 
     public static string Render(
         string sessionId,

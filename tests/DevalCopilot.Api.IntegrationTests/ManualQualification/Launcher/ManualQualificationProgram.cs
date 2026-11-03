@@ -5,9 +5,10 @@ namespace DevalCopilot.Api.IntegrationTests.ManualQualification;
 
 /// <summary>
 /// The explicit, manual entry point of QUALIFICATION-PROFILE-01. Exactly two opt-ins exist, each with its own flag, confirmation
-/// phrase, authorization and allowance directory: lot A (two <c>claude auth status</c> observations of the owner-approved binary) and
-/// lot B (one Codex Planner and one Claude CriticalReviewer exchange through the production host). It is never part of a test run.
-/// Without an exact opt-in it does nothing: no host, no provider, no directory.
+/// phrase, authorization and allowance directory: lot A after login (two <c>claude auth status</c> observations of the owner-approved
+/// binary; the original lot A flag is retired and refused) and lot B (one Codex Planner and one Claude CriticalReviewer exchange
+/// through the production host). It is never part of a test run. Without an exact opt-in it does nothing: no host, no provider, no
+/// directory.
 /// </summary>
 public static class ManualQualificationProgram
 {
@@ -20,7 +21,7 @@ public static class ManualQualificationProgram
             cancellation.Cancel();
         };
 
-        if (args.Length > 0 && args[0] == StatusComparisonOptIn.Flag)
+        if (args.Length > 0 && args[0] is StatusComparisonOptIn.Flag or StatusComparisonOptIn.RetiredFlag)
         {
             return await StatusComparisonEntry.RunAsync(
                 args,
