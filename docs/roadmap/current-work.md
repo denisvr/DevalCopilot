@@ -6,7 +6,97 @@ was prepared ([recovery](development-workflow.md#recovery)). Git and code
 prevail; compare branch, `HEAD`, `origin/main` and staged/unstaged/untracked
 state first.
 
-## Active slice: QUALIFICATION-B-CONTEXT-01 offline preparation of one fixed context-bound lot B entry (first return; returned for review; not authorized for execution)
+## Active slice: CODEX-WINDOWS-ROOT-01 Windows SystemRoot for every shared Codex role launch and one fixed successor lot B entry (first return; returned for review; offline only; not authorized for execution)
+
+This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the decision and
+scope. This record alone grants no execution or publication authority: any real session, provider call or publication needs its own
+decision, and nothing is committed or pushed.
+
+**Delivery phase: first return of a new Claude executor chat (2026-11-03).** Preflight (verified once before editing): branch `main`;
+`HEAD`, local `origin/main` and a live `git ls-remote origin main` all `f979b5889eed3febc8a79b4b83ae7270e5e4a85b`; an empty index; no
+untracked path; the only working change was the planner-owned `docs/roadmap/planner-handoff.md` (diff stat 41 insertions, 1 deletion),
+which this chat did not edit. Nothing real was run: no provider, `codex`, `claude`, account, login, network request or owner manifest;
+the spent first and context-bound lot B ledgers and the roots those runs retained were never opened, enumerated, reset or migrated.
+
+### What changed
+
+- **Production (one behavior).** `CodexProcessInvoker` now calls `WindowsProcessSystemRoot.TryAdd(..., requiresSystemRoot: true, ...)`
+  for every launch, so a Windows direct native Codex launch carries exactly `SystemRoot` beside the unchanged `USERPROFILE`/`CODEX_HOME`
+  entries, exactly as a Node-script launch already did. The value still comes only from the existing policy (the parent of
+  `Environment.SystemDirectory`, lexically validated). A value that cannot be derived returns the invoker's existing closed `Failed`
+  before the sealed manifest is read, the scratch directory, schema or sink paths exist, or any process is dispatched. Non-Windows
+  launches never evaluate the reader and keep the two-variable map. `EnvironmentInputs.NodeScript` was renamed `SystemRoot` (an internal
+  record member used only positionally). Not touched: the allowlist otherwise, discovery, the Codex App Server session, Claude (print
+  builder and discovery), every role argument and the launch-component and model/effort revalidation. Both XML comments that described the
+  old Node-only scope were corrected.
+- **Provider contract.** [Windows native Codex role launch](../architecture/agent-collaboration-provider-contracts.md#windows-native-codex-role-launch)
+  is a new subsection that explicitly **replaces the former direct-native rule for the shared Codex invoker only**; the Node-hosted
+  section's applicability and "Unchanged" bullets now point to it, so the old sentence cannot be read as still applying to this invoker.
+  It records the transport control and its limits. The historical records elsewhere (earlier slices below, the playbook's account of the
+  spent sessions) are unchanged.
+- **Successor lot B entry** (`QualificationOptIn`, `InvocationLedger`): flag `--run-qualification-profile-01-windows-root-exchange`,
+  phrase `qualification-profile-01-one-windows-root-codex-planner-and-claude-reviewer`, authorization
+  `owner-qualification-profile-01-lot-b-windows-root`, ledger `devalcopilot-qualification-profile-01-lot-b-windows-root-ledger`. The
+  context-bound opt-in is retired exactly as the first one was: `RetiredContextBoundFlag` is refused with the same fixed message (naming
+  the successor flag) and exit 2 before any environment, directory, ledger or process exists (`LauncherEntry` now tests
+  `QualificationOptIn.IsRetiredFlagArgument`, which covers both retired flags), its phrase no longer confirms the new entry, and
+  `RetiredContextBoundDirectoryName` joins the construction guard (case-insensitive, trailing separator tolerated, no file access). The
+  context check, runtime admission, the 179-start inventory, the two-role sequence, the 35-minute bound, the alias refusal and the
+  inventory itself are unchanged (the reviewed Codex role vector already admits `SystemRoot` among its environment names). Each session's
+  owned root has a fresh random name, so no retained root is reachable. Lot A is untouched.
+- **Playbook**: identity table row, a retirement paragraph for the context-bound opt-in (preserving its ledger, evidence and the empty
+  WAL sidecar by name), the Lot B heading, command and rationale, and the ledger bullet.
+
+### Validation
+
+Context: this chat's Windows shell, with `TEMP`/`TMP` pointed at an isolated empty directory under the user's temp folder for every
+test run.
+
+- **Builds.** `dotnet build .../Launcher/ManualQualification.csproj -warnaserror -p:UseSharedCompilation=false -p:SkipNSwag=True -m:1`:
+  0 warnings, 0 errors; the Infrastructure and Api integration test projects built through `dotnet test`.
+- **Codex invoker and its wrappers** (`CodexProcessInvokerEnvironmentTests`, the four Codex adapter test classes,
+  `WindowsProcessSystemRootTests`, `CodexAppServerSession*`, `ClaudeProcessEnvironmentTests`, `ToolDiscoveryAdapterTests`,
+  `AgentProcessEvidenceAdapterTests`): 239 passed. New or changed proofs, with owned doubles and fabricated system directories only: a
+  native Windows launch gets `SystemRoot` plus exactly the admitted profile entries and no script prefix; native with no profile entries
+  carries `SystemRoot` alone; an unusable, control-character or throwing reader refuses **both** launch kinds before dispatch and
+  creates no scratch directory or sink, with no leaked detail; a native refusal happens before an (deliberately deleted) sealed manifest
+  would be read (the reader runs exactly once); cancellation propagates for both kinds; the native launch contract is otherwise
+  unchanged; Node-script and **both** off-Windows launch kinds keep the original map and never evaluate the reader. Two older assertions
+  that pinned the replaced rule (the planning allowlist count and the verification-diagnosis direct launch) now expect `SystemRoot` on
+  Windows only.
+- **Launcher.** `QualificationOptInTests` and `FreshAuthorizationTests` pin the successor identity exactly, prove both retired flags and
+  both retired phrases are never granted, that each retired flag is refused with the fixed message with no environment, directory or
+  ledger (with and without a manifest argument and under every phrase), and that both retired ledger leaf names are refused at
+  construction (case, trailing separator).
+- **Affected rehearsal and the whole family** (`--filter FullyQualifiedName~Features.ManualQualification`, which includes
+  `Profile01RehearsalTests` through the production host with the native fixture `codex.exe` double, which now receives `SystemRoot` in
+  its real child environment): **839 tests**, including the new launcher cases. The first full run had
+  one failure, `CheckedPersistenceTests.Lot_a_keeps_its_non_success_exit_and_a_persisted_summary_still_returns_zero` (finding 1), which
+  passed on its own, with and without the isolated temp location; the second full run on the unchanged sources passed 839 of 839.
+- **Hygiene.** `dotnet format --verify-no-changes --include <the 11 changed C# files>` against both test projects: clean. `git diff
+  --check` clean; byte scans of every changed file other than the planner handoff: 0 CR, 0 NUL, no trailing whitespace, final newline,
+  and `current-work.md` keeps the 544 non-ASCII bytes it has at `HEAD`. The planner handoff diff stat is unchanged (41/1).
+- Not run, by design: any real provider; the rest of the solution; frontend and journeys; mutation harness (the change is a one-argument
+  switch whose reversal fails the native tests above directly).
+
+### Findings, challenges and limits for Codex
+
+1. **The Lot A `CheckedPersistenceTests` timing flake is the one already reported in the previous record** (exit 5 under the 2 s scripted
+   deadline in a full parallel run; it passed alone, isolated or not). Lot A is outside this slice and unchanged.
+2. **Evidence limit of the repair.** The only evidence is the planner's anonymous `curl` control (DNS failed in the direct Codex
+   allowlist, recovered with `SystemRoot`). It does not show that the Codex client works with `SystemRoot` alone, that nothing else is
+   missing, or that the account is authorized; the 403 responses are transport only. A real Lot B remains a separate decision.
+3. **No new inventory requirement.** The runtime admission only checks that role environment names are within the allowed set, so it
+   does not insist on `SystemRoot`. I left that unchanged as instructed; the production invoker is what guarantees it.
+4. **Retired-flag message wording** is reused verbatim ("its allowance and process slots were consumed") for the context-bound entry,
+   whose Planner allowance and process slots were consumed by that run according to the handoff, not re-observed here.
+
+### Git state
+
+Unstaged, uncommitted and unpushed on `main` (`HEAD` `f979b58`), plus the planner-owned `docs/roadmap/planner-handoff.md`, unedited. No
+new files. No next slice is selected; real execution and publication remain pending.
+
+## Previous slice (published as f979b58; historical record): QUALIFICATION-B-CONTEXT-01 offline preparation of one fixed context-bound lot B entry (first return; returned for review; not authorized for execution)
 
 This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the decision and
 scope. This record alone grants no execution or publication authority: any real session, provider call or publication needs its own

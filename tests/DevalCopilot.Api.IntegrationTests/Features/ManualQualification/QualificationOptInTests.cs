@@ -38,23 +38,41 @@ public sealed class QualificationOptInTests : QualificationTestBase
         Assert.False(QualificationOptIn.IsGranted([QualificationOptIn.Flag.ToUpperInvariant()], Confirmed));
     }
 
-    // The first lot B phrase, kept here only to prove that it is refused: its allowance and process slots were consumed.
+    // The retired phrases, kept here only to prove that they are refused: the first lot B entry's allowance and process slots were
+    // consumed, and the context-bound entry's authorization was spent by one native Codex Planner exit.
     private const string RetiredPhrase = "qualification-profile-01-one-codex-planner-and-one-claude-critical-review";
+    private const string RetiredContextBoundPhrase = "qualification-profile-01-one-context-bound-codex-planner-and-claude-reviewer";
 
     [Fact]
-    public void The_replacement_authorization_has_exactly_the_approved_flag_phrase_and_ledger_identity()
+    public void The_successor_authorization_has_exactly_the_approved_flag_phrase_authorization_and_ledger_identity()
     {
-        Assert.Equal("--run-qualification-profile-01-context-bound-exchange", QualificationOptIn.Flag);
-        Assert.Equal("qualification-profile-01-one-context-bound-codex-planner-and-claude-reviewer", QualificationOptIn.ConfirmationPhrase);
-        Assert.Equal("owner-qualification-profile-01-lot-b-context-bound", InvocationLedger.Authorization);
-        Assert.Equal("devalcopilot-qualification-profile-01-lot-b-context-bound-ledger", InvocationLedger.DirectoryName);
+        Assert.Equal("--run-qualification-profile-01-windows-root-exchange", QualificationOptIn.Flag);
+        Assert.Equal("qualification-profile-01-one-windows-root-codex-planner-and-claude-reviewer", QualificationOptIn.ConfirmationPhrase);
+        Assert.Equal("owner-qualification-profile-01-lot-b-windows-root", InvocationLedger.Authorization);
+        Assert.Equal("devalcopilot-qualification-profile-01-lot-b-windows-root-ledger", InvocationLedger.DirectoryName);
+    }
+
+    [Fact]
+    public void The_retired_context_bound_identity_is_still_named_exactly_so_that_it_can_be_refused()
+    {
+        Assert.Equal("--run-qualification-profile-01-context-bound-exchange", QualificationOptIn.RetiredContextBoundFlag);
+        Assert.Equal(
+            "devalcopilot-qualification-profile-01-lot-b-context-bound-ledger", InvocationLedger.RetiredContextBoundDirectoryName);
+        Assert.NotEqual(QualificationOptIn.RetiredContextBoundFlag, QualificationOptIn.Flag);
+        Assert.NotEqual(RetiredContextBoundPhrase, QualificationOptIn.ConfirmationPhrase);
+        Assert.NotEqual("owner-qualification-profile-01-lot-b-context-bound", InvocationLedger.Authorization);
+        Assert.NotEqual(InvocationLedger.RetiredContextBoundDirectoryName, InvocationLedger.DirectoryName);
+        Assert.NotEqual(InvocationLedger.RetiredDirectoryName, InvocationLedger.DirectoryName);
     }
 
     [Theory]
     [InlineData(QualificationOptIn.RetiredFlag, QualificationOptIn.ConfirmationPhrase)]
     [InlineData(QualificationOptIn.RetiredFlag, RetiredPhrase)]
     [InlineData(QualificationOptIn.Flag, RetiredPhrase)]
-    public void The_retired_first_lot_b_opt_in_is_never_granted(string flag, string phrase)
+    [InlineData(QualificationOptIn.RetiredContextBoundFlag, QualificationOptIn.ConfirmationPhrase)]
+    [InlineData(QualificationOptIn.RetiredContextBoundFlag, RetiredContextBoundPhrase)]
+    [InlineData(QualificationOptIn.Flag, RetiredContextBoundPhrase)]
+    public void The_retired_lot_b_opt_ins_are_never_granted(string flag, string phrase)
     {
         string? Read(string name) => name == QualificationOptIn.ConfirmationVariable ? phrase : null;
 
@@ -65,17 +83,21 @@ public sealed class QualificationOptInTests : QualificationTestBase
     }
 
     [Theory]
-    [InlineData(QualificationOptIn.ConfirmationPhrase)]
-    [InlineData(RetiredPhrase)]
-    [InlineData(null)]
-    public async Task The_retired_flag_is_refused_with_a_fixed_message_before_any_environment_directory_or_ledger_entry(string? phrase)
+    [InlineData(QualificationOptIn.RetiredFlag, QualificationOptIn.ConfirmationPhrase)]
+    [InlineData(QualificationOptIn.RetiredFlag, RetiredPhrase)]
+    [InlineData(QualificationOptIn.RetiredFlag, null)]
+    [InlineData(QualificationOptIn.RetiredContextBoundFlag, QualificationOptIn.ConfirmationPhrase)]
+    [InlineData(QualificationOptIn.RetiredContextBoundFlag, RetiredContextBoundPhrase)]
+    [InlineData(QualificationOptIn.RetiredContextBoundFlag, null)]
+    public async Task A_retired_flag_is_refused_with_a_fixed_message_before_any_environment_directory_or_ledger_entry(
+        string retiredFlag, string? phrase)
     {
         var created = 0;
         using var output = new StringWriter();
         using var error = new StringWriter();
 
         var exitCode = await LauncherEntry.RunAsync(
-            [QualificationOptIn.RetiredFlag, ApprovedLaunchManifest.Option, @"C:\owner\approved.json"],
+            [retiredFlag, ApprovedLaunchManifest.Option, @"C:\owner\approved.json"],
             name => name == QualificationOptIn.ConfirmationVariable ? phrase : null,
             Ledger,
             Tiny,
@@ -89,7 +111,7 @@ public sealed class QualificationOptInTests : QualificationTestBase
         Assert.False(Directory.Exists(LedgerDirectory));
         Assert.Equal(string.Empty, output.ToString());
         Assert.Equal(
-            $"Refused: {QualificationOptIn.RetiredFlag} is retired; its allowance and process slots were consumed. "
+            $"Refused: {retiredFlag} is retired; its allowance and process slots were consumed. "
             + $"The replacement entry is {QualificationOptIn.Flag}.{Environment.NewLine}",
             error.ToString());
     }

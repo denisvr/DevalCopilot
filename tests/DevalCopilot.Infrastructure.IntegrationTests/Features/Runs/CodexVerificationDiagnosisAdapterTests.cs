@@ -77,7 +77,13 @@ public sealed class CodexVerificationDiagnosisAdapterTests : IDisposable
         ];
         Assert.Equal(expectedArguments, fake.CapturedRequest!.Arguments.ToArray());
         Assert.Equal(executablePath, fake.CapturedRequest.ExecutablePath);
-        Assert.DoesNotContain("SystemRoot", fake.CapturedRequest.EnvironmentVariables.Keys);
+        // The shared invoker now requires SystemRoot for a direct native launch on Windows only.
+        Assert.Equal(OperatingSystem.IsWindows(), fake.CapturedRequest.EnvironmentVariables.ContainsKey("SystemRoot"));
+        if (OperatingSystem.IsWindows())
+        {
+            var expectedSystemRoot = Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(Environment.SystemDirectory));
+            Assert.Equal(expectedSystemRoot, fake.CapturedRequest.EnvironmentVariables["SystemRoot"]);
+        }
     }
 
     [WindowsPlatformFact]

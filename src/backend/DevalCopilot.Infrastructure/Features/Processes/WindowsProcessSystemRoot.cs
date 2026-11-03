@@ -7,9 +7,11 @@ namespace DevalCopilot.Infrastructure.Features.Processes;
 /// <c>SystemRoot</c> under an otherwise-empty environment. Each caller decides applicability from
 /// its own launch contract, never from an executable's name or extension: Node aborts at startup
 /// without it, so a request that starts the Node runtime — a NodeScript launch, or the native probe
-/// of the explicit Node capability — requires it (capability discovery, the Codex invocation
-/// contract and the Codex App Server session), and the Claude <c>--print</c> invocations require it
-/// through <c>Runs.ClaudeProcessEnvironment</c>. Shared so those callers cannot drift apart.
+/// of the explicit Node capability — requires it (capability discovery and the Codex App Server
+/// session), and the Claude <c>--print</c> invocations require it through
+/// <c>Runs.ClaudeProcessEnvironment</c>. The shared Codex role invocation requires it for every
+/// Windows launch, script or direct native executable, because a controlled HTTPS probe under the
+/// direct allowlist failed name resolution until it was added. Shared so those callers cannot drift apart.
 /// The value is derived only from the parent of the managed system directory
 /// (<c>Environment.SystemDirectory</c>, backed by <c>GetSystemDirectoryW</c>) — never read from
 /// the ambient <c>SystemRoot</c>/<c>windir</c> variables, hardcoded, searched for or taken from

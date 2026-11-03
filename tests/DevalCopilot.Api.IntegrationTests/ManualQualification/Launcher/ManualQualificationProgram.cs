@@ -7,8 +7,8 @@ namespace DevalCopilot.Api.IntegrationTests.ManualQualification;
 /// The explicit, manual entry point of QUALIFICATION-PROFILE-01. Exactly two opt-ins exist, each with its own flag, confirmation
 /// phrase, authorization and allowance directory: lot A after login (two <c>claude auth status</c> observations of the owner-approved
 /// binary; the original lot A flag is retired and refused) and lot B (one Codex Planner and one Claude CriticalReviewer exchange
-/// through the production host, bound to the launch context its approved-launch manifest was prepared for; the first lot B flag is
-/// retired and refused). It is never part of a test run. Without an exact opt-in it does nothing: no host, no provider, no
+/// through the production host, bound to the launch context its approved-launch manifest was prepared for, with the Windows root
+/// prerequisite carried by every Codex launch; the first and the context-bound lot B flags are retired and refused). It is never part of a test run. Without an exact opt-in it does nothing: no host, no provider, no
 /// directory.
 /// </summary>
 public static class ManualQualificationProgram

@@ -98,34 +98,51 @@ public sealed class CodexProcessInvokerEnvironmentTests : IDisposable
         Assert.Equal("SystemRoot", entry.Key);
     }
 
-    [Fact]
-    public async Task A_native_launch_on_windows_keeps_its_original_map_and_never_evaluates_the_reader()
+    [WindowsPlatformFact]
+    public async Task A_native_launch_on_windows_gets_SystemRoot_plus_exactly_the_admitted_profile_entries_and_no_script_prefix()
     {
         var invocation = await PrepareAsync(nodeScript: false);
         var fake = new FakeProcessExecutionAdapter();
-        var evaluations = 0;
-        var inputs = new CodexProcessInvoker.EnvironmentInputs(
-            Variables(FabricatedProfile, FabricatedCodexHome),
-            new(true, () =>
-            {
-                evaluations++;
-                throw new InvalidOperationException(SensitiveMarker);
-            }));
 
-        var outcome = await CodexProcessInvoker.InvokeAsync(fake, _artifactStore, invocation.Request, inputs, CancellationToken.None);
+        var outcome = await CodexProcessInvoker.InvokeAsync(
+            fake, _artifactStore, invocation.Request, Inputs(FabricatedProfile, FabricatedCodexHome, @"C:\FabricatedOs\System32"),
+            CancellationToken.None);
 
         Assert.True(outcome.Succeeded);
-        Assert.Equal(0, evaluations);
-        var environment = Assert.Single(fake.Requests).EnvironmentVariables;
+        var executionRequest = Assert.Single(fake.Requests);
         Assert.Equal(
-            new Dictionary<string, string> { ["USERPROFILE"] = FabricatedProfile, ["CODEX_HOME"] = FabricatedCodexHome },
-            environment.ToDictionary(pair => pair.Key, pair => pair.Value));
+            new Dictionary<string, string>
+            {
+                ["USERPROFILE"] = FabricatedProfile,
+                ["CODEX_HOME"] = FabricatedCodexHome,
+                ["SystemRoot"] = @"C:\FabricatedOs",
+            },
+            executionRequest.EnvironmentVariables.ToDictionary(pair => pair.Key, pair => pair.Value));
+        Assert.Equal(invocation.NodePath, executionRequest.ExecutablePath);
+        Assert.Equal("exec", executionRequest.Arguments[0]);
+        Assert.DoesNotContain(@"FabricatedOs", outcome.ToString(), StringComparison.Ordinal);
     }
 
-    [Fact]
-    public async Task A_node_script_launch_off_windows_keeps_its_original_map_and_never_evaluates_the_reader()
+    [WindowsPlatformFact]
+    public async Task A_native_launch_with_no_profile_entries_carries_SystemRoot_alone()
     {
-        var invocation = await PrepareAsync(nodeScript: true);
+        var invocation = await PrepareAsync(nodeScript: false);
+        var fake = new FakeProcessExecutionAdapter();
+
+        await CodexProcessInvoker.InvokeAsync(
+            fake, _artifactStore, invocation.Request, Inputs(null, string.Empty, @"C:\FabricatedOs\System32"), CancellationToken.None);
+
+        var entry = Assert.Single(Assert.Single(fake.Requests).EnvironmentVariables);
+        Assert.Equal("SystemRoot", entry.Key);
+        Assert.Equal(@"C:\FabricatedOs", entry.Value);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task A_launch_off_windows_keeps_its_original_map_and_never_evaluates_the_reader(bool nodeScript)
+    {
+        var invocation = await PrepareAsync(nodeScript);
         var fake = new FakeProcessExecutionAdapter();
         var evaluations = 0;
         var inputs = new CodexProcessInvoker.EnvironmentInputs(
@@ -157,53 +174,108 @@ public sealed class CodexProcessInvokerEnvironmentTests : IDisposable
     [InlineData(@"C:\Wind|ows\System32")]
     public async Task An_unusable_system_directory_refuses_before_dispatch_and_creates_no_invocation_artifact(string? systemDirectory)
     {
-        var invocation = await PrepareAsync(nodeScript: true);
-        var fake = new FakeProcessExecutionAdapter();
+        foreach (var nodeScript in new[] { true, false })
+        {
+            var invocation = await PrepareAsync(nodeScript);
+            var fake = new FakeProcessExecutionAdapter();
 
-        var outcome = await CodexProcessInvoker.InvokeAsync(
-            fake, _artifactStore, invocation.Request, Inputs(FabricatedProfile, FabricatedCodexHome, systemDirectory),
-            CancellationToken.None);
+            var outcome = await CodexProcessInvoker.InvokeAsync(
+                fake, _artifactStore, invocation.Request, Inputs(FabricatedProfile, FabricatedCodexHome, systemDirectory),
+                CancellationToken.None);
 
-        AssertClosedFailureWithNothingCreated(outcome, fake, invocation);
+            AssertClosedFailureWithNothingCreated(outcome, fake, invocation);
+        }
     }
 
     [WindowsPlatformFact]
     public async Task A_control_character_system_directory_refuses_before_dispatch()
     {
-        var invocation = await PrepareAsync(nodeScript: true);
-        var fake = new FakeProcessExecutionAdapter();
+        foreach (var nodeScript in new[] { true, false })
+        {
+            var invocation = await PrepareAsync(nodeScript);
+            var fake = new FakeProcessExecutionAdapter();
 
-        var outcome = await CodexProcessInvoker.InvokeAsync(
-            fake, _artifactStore, invocation.Request,
-            Inputs(FabricatedProfile, FabricatedCodexHome, @"C:\Win" + (char)0 + @"dows\System32"), CancellationToken.None);
+            var outcome = await CodexProcessInvoker.InvokeAsync(
+                fake, _artifactStore, invocation.Request,
+                Inputs(FabricatedProfile, FabricatedCodexHome, @"C:\Win" + (char)0 + @"dows\System32"), CancellationToken.None);
 
-        AssertClosedFailureWithNothingCreated(outcome, fake, invocation);
+            AssertClosedFailureWithNothingCreated(outcome, fake, invocation);
+        }
     }
 
     [WindowsPlatformFact]
     public async Task A_throwing_reader_refuses_before_dispatch_without_leaking_its_failure()
     {
-        var invocation = await PrepareAsync(nodeScript: true);
-        var fake = new FakeProcessExecutionAdapter();
-        var inputs = new CodexProcessInvoker.EnvironmentInputs(
-            Variables(FabricatedProfile, FabricatedCodexHome),
-            new(true, () => throw new InvalidOperationException(SensitiveMarker)));
+        foreach (var nodeScript in new[] { true, false })
+        {
+            var invocation = await PrepareAsync(nodeScript);
+            var fake = new FakeProcessExecutionAdapter();
+            var inputs = new CodexProcessInvoker.EnvironmentInputs(
+                Variables(FabricatedProfile, FabricatedCodexHome),
+                new(true, () => throw new InvalidOperationException(SensitiveMarker)));
 
-        var outcome = await CodexProcessInvoker.InvokeAsync(fake, _artifactStore, invocation.Request, inputs, CancellationToken.None);
+            var outcome = await CodexProcessInvoker.InvokeAsync(fake, _artifactStore, invocation.Request, inputs, CancellationToken.None);
 
-        AssertClosedFailureWithNothingCreated(outcome, fake, invocation);
-        Assert.DoesNotContain(SensitiveMarker, outcome.ToString(), StringComparison.Ordinal);
+            AssertClosedFailureWithNothingCreated(outcome, fake, invocation);
+            Assert.DoesNotContain(SensitiveMarker, outcome.ToString(), StringComparison.Ordinal);
+        }
     }
 
     [WindowsPlatformFact]
-    public async Task Cancellation_of_a_windows_node_script_invocation_still_propagates()
+    public async Task A_native_refusal_happens_before_the_sealed_manifest_is_read_even_when_it_is_unreadable()
     {
-        var invocation = await PrepareAsync(nodeScript: true);
-        var fake = new FakeProcessExecutionAdapter { ThrowOnExecute = new OperationCanceledException() };
+        var invocation = await PrepareAsync(nodeScript: false);
+        var sealedManifest = Path.Combine(_artifactRoot, invocation.Request.ContextManifestRelativeStoragePath);
+        Assert.True(File.Exists(sealedManifest));
+        File.Delete(sealedManifest);
+        var fake = new FakeProcessExecutionAdapter();
+        var evaluations = 0;
+        var inputs = new CodexProcessInvoker.EnvironmentInputs(
+            Variables(FabricatedProfile, null), new(true, () => { evaluations++; return null; }));
 
-        await Assert.ThrowsAsync<OperationCanceledException>(() => CodexProcessInvoker.InvokeAsync(
+        var outcome = await CodexProcessInvoker.InvokeAsync(fake, _artifactStore, invocation.Request, inputs, CancellationToken.None);
+
+        // The unreadable manifest would also yield a closed failure, so the reader being evaluated first proves the environment
+        // gate precedes the manifest read, scratch creation, sink requests and dispatch.
+        Assert.Equal(1, evaluations);
+        AssertClosedFailureWithNothingCreated(outcome, fake, invocation);
+    }
+
+    [WindowsPlatformFact]
+    public async Task Cancellation_of_a_windows_invocation_still_propagates_for_both_launch_kinds()
+    {
+        foreach (var nodeScript in new[] { true, false })
+        {
+            var invocation = await PrepareAsync(nodeScript);
+            var fake = new FakeProcessExecutionAdapter { ThrowOnExecute = new OperationCanceledException() };
+
+            await Assert.ThrowsAsync<OperationCanceledException>(() => CodexProcessInvoker.InvokeAsync(
+                fake, _artifactStore, invocation.Request, Inputs(FabricatedProfile, null, @"C:\FabricatedOs\System32"),
+                CancellationToken.None));
+        }
+    }
+
+    [WindowsPlatformFact]
+    public async Task The_launch_contract_is_otherwise_unchanged_for_a_windows_native_launch()
+    {
+        var invocation = await PrepareAsync(nodeScript: false);
+        var fake = new FakeProcessExecutionAdapter();
+
+        await CodexProcessInvoker.InvokeAsync(
             fake, _artifactStore, invocation.Request, Inputs(FabricatedProfile, null, @"C:\FabricatedOs\System32"),
-            CancellationToken.None));
+            CancellationToken.None);
+
+        var executionRequest = Assert.Single(fake.Requests);
+        Assert.Equal(invocation.NodePath, executionRequest.ExecutablePath);
+        Assert.Equal(_workspacePath, executionRequest.WorkingDirectory);
+        Assert.Equal(_workspacePath, executionRequest.ApprovedRoot);
+        Assert.Equal(TimeSpan.FromSeconds(30), executionRequest.Timeout);
+        Assert.Equal(65536, executionRequest.MaxBytesPerStream);
+        Assert.Equal(131072, executionRequest.MaxTotalCapturedBytes);
+        Assert.Equal("manifest content", Encoding.UTF8.GetString(executionRequest.StandardInput!));
+        Assert.Equal(["exec", "--json", "--output-schema"], executionRequest.Arguments.Take(3).ToArray());
+        Assert.Equal("-", executionRequest.Arguments[^1]);
+        Assert.DoesNotContain("--dangerously-bypass-approvals-and-sandbox", executionRequest.Arguments);
     }
 
     [WindowsPlatformFact]

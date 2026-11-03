@@ -1,6 +1,81 @@
 # Planner/reviewer handoff
 
-## Current decision: QUALIFICATION-B-CONTEXT-01 accepted for exact-content publication
+## Current decision: CODEX-WINDOWS-ROOT-01 accepted for exact-content publication
+
+Review 1 confirmed `main`, HEAD, local origin/main and live origin/main at
+`f979b5889eed3febc8a79b4b83ae7270e5e4a85b`. The index was empty with
+15 modified tracked paths and no untracked paths.
+
+Accept the shared invoker change. Direct native Windows role launches get
+the same derived SystemRoot prerequisite as Node script launches, with an
+early closed refusal if it cannot be derived. The controlled tests prove
+the exact environment, refusal order and non-Windows behavior. The
+qualification inventory still permits SystemRoot by name. The production
+invoker is the guarantee that it is present. No discovery or App Server
+scope extension is selected. The provider contract records the changed
+native rule and the curl control's evidence limit.
+
+Accept the fixed successor opt-in and separation from the two spent Lot B
+ledgers. The reused retirement message does not distinguish a role
+allowance from process slots. In the first Lot B only Git slots were
+observed. In the context-bound Lot B the Planner allowance was consumed
+and the Reviewer allowance was unused. Use the closed evidence for that
+distinction.
+
+Independent builds of the launcher and both affected test projects passed
+with zero warnings and errors. In isolated test temp storage the reviewer
+passed 239/239 invoker, adapter and related tests and 68/68 launcher and
+rehearsal tests. The rehearsal used owned provider doubles and its
+disclosed local-tool boundary. Evidence is in ignored
+`logs/planner-review/codex-windows-root-01-review-01/`. Retain both of the
+executor's full-family outcomes, including the Lot A failure and the
+839/839 pass. This review does not establish that failure's exact cause.
+
+The separate GO covers only the exact 15 reviewed paths and tree.
+Independently verify publication before preparing the real run request.
+The successor Lot B is pending a distinct owner execution decision.
+
+## Offline preparation decision and evidence
+
+The published baseline is clean `main` at
+`f979b5889eed3febc8a79b4b83ae7270e5e4a85b`. The planner verified the prior
+publication against its parent, tree, 20 approved paths and live main.
+
+The context-bound Lot B resolved all seven pinned launch identities and
+admitted every request. One direct native Codex Planner process exited 1
+after 13 seconds with complete I/O and no proposal. The Claude reviewer
+was not invoked. The host stopped, source and worktree checks passed, and
+the root was preserved because descendant shutdown was unproven. That
+authorization is spent. Preserve its ledger and evidence, including the
+empty SQLite WAL sidecar created during the initial read-only inspection.
+
+The authorized sealed stdout and stderr hashes matched. The closed
+projection records WebSocket reconnects, fallback to HTTP, and a request
+send failure against the ChatGPT service. No raw provider text was kept.
+An anonymous HTTPS control with the same Windows curl executable reached
+chatgpt.com in the ordinary environment (HTTP 403), failed name resolution
+in the direct Codex environment (curl 6), and reached the server again
+when only SystemRoot was added (HTTP 403). The 403 responses establish
+transport, not service authorization. This control establishes a missing
+OS prerequisite for the probe and supports the narrowly scoped repair.
+It does not establish the Codex client's exact internal cause or that a
+future model invocation succeeds.
+
+Prepare the repair offline in the shared Codex role invoker. On Windows
+derive and add only SystemRoot with the existing WindowsProcessSystemRoot
+policy for native and script launches. Refuse if it cannot be derived
+before scratch, sinks, or dispatch. Keep discovery and the Codex App
+Server session at their existing scopes. Update the provider contract
+documentation explicitly because its prior direct-native rule is replaced
+for the shared role invoker only.
+
+Prepare one fixed successor Lot B authorization for a future separately
+approved run, reusing the existing context and runtime admission gates.
+Retire the spent context-bound opt-in without opening, migrating or
+rearming its ledger. Keep Lot A unchanged. Real execution and publication
+remain pending.
+
+## QUALIFICATION-B-CONTEXT-01 accepted for exact-content publication
 
 Review 1 confirmed `main`, HEAD, local origin/main and live origin/main at
 `646b62e7d2f6bcec12c568c60858b38bab8131e1`. The index was empty, with

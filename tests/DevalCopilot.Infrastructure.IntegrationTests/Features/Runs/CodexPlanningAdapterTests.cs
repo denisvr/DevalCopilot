@@ -619,15 +619,19 @@ public sealed class CodexPlanningAdapterTests : IDisposable
             Assert.False(environment.ContainsKey("PATH"));
             Assert.Equal(@"C:\fake-codex-home-for-tests", environment["CODEX_HOME"]);
 
+            // A native Windows launch additionally carries exactly SystemRoot; other hosts keep the two-entry allowlist.
+            var systemRootEntries = OperatingSystem.IsWindows() ? 1 : 0;
+            Assert.Equal(OperatingSystem.IsWindows(), environment.ContainsKey("SystemRoot"));
+
             var expectedUserProfile = Environment.GetEnvironmentVariable("USERPROFILE");
             if (!string.IsNullOrEmpty(expectedUserProfile))
             {
                 Assert.Equal(expectedUserProfile, environment["USERPROFILE"]);
-                Assert.Equal(2, environment.Count);
+                Assert.Equal(2 + systemRootEntries, environment.Count);
             }
             else
             {
-                Assert.Single(environment);
+                Assert.Equal(1 + systemRootEntries, environment.Count);
             }
 
             // The result is a closed record of enums/booleans/an optional session id string —

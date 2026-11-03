@@ -73,7 +73,7 @@ internal static class CodexProcessInvoker
     /// <summary>The ambient reads the invocation's environment depends on, injectable so its control
     /// flow is testable without touching real process variables or the real system directory.</summary>
     internal readonly record struct EnvironmentInputs(
-        Func<string, string?> ReadVariable, WindowsProcessSystemRoot.Inputs NodeScript)
+        Func<string, string?> ReadVariable, WindowsProcessSystemRoot.Inputs SystemRoot)
     {
         internal static EnvironmentInputs Current { get; } =
             new(System.Environment.GetEnvironmentVariable, WindowsProcessSystemRoot.Inputs.Current);
@@ -120,11 +120,13 @@ internal static class CodexProcessInvoker
         }
 
         var environment = BuildEnvironmentAllowlist(environmentInputs.ReadVariable);
-        if (!WindowsProcessSystemRoot.TryAdd(environment, request.LaunchScriptPath is not null, environmentInputs.NodeScript))
+        // Every Windows launch of this invoker, Node-hosted script and direct native executable alike,
+        // requires the OS prerequisite; a non-Windows launch is never touched and never evaluates the reader.
+        if (!WindowsProcessSystemRoot.TryAdd(environment, requiresSystemRoot: true, environmentInputs.SystemRoot))
         {
-            // The Windows prerequisite for a Node launch could not be derived: refused before the
-            // manifest is read, any scratch/schema/output artifact exists, or a process starts —
-            // never retried with the smaller map.
+            // The Windows prerequisite could not be derived: refused before the manifest is read,
+            // any scratch/schema/output artifact exists, or a process starts — never retried with
+            // the smaller map.
             return Outcome.Failed;
         }
 
@@ -288,8 +290,9 @@ internal static class CodexProcessInvoker
     /// authentication — never PATH, a provider token, or an arbitrary environment entry.
     /// <c>CODEX_HOME</c> is forwarded only when this host process already has one set;
     /// <c>USERPROFILE</c> is always forwarded so Codex can locate its default configuration
-    /// directory when <c>CODEX_HOME</c> is not set. A Windows Node-hosted launch additionally gets
-    /// exactly <c>SystemRoot</c> from <see cref="WindowsProcessSystemRoot"/>.
+    /// directory when <c>CODEX_HOME</c> is not set. Every Windows launch, a Node-hosted script and a
+    /// direct native executable alike, additionally gets exactly <c>SystemRoot</c> from
+    /// <see cref="WindowsProcessSystemRoot"/>.
     /// </summary>
     private static Dictionary<string, string> BuildEnvironmentAllowlist(Func<string, string?> readVariable)
     {

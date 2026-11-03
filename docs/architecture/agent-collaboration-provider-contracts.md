@@ -70,14 +70,18 @@ explicit allowlist:
     executable named `node.exe` does not receive it and every other native capability keeps its
     empty environment;
   - a non-null `LaunchScriptPath` in the shared Codex invocation, which serves Planning,
-    ImplementationReview, ChallengeResolution and VerificationDiagnosis;
+    ImplementationReview, ChallengeResolution and VerificationDiagnosis (see the
+    [native Codex role launch](#windows-native-codex-role-launch) amendment below, which extends
+    this invoker to a direct native launch);
   - a non-null script path in the shared Codex App Server session, which serves the model-catalog,
     account-allowance and account-usage-guard observations.
 
-  A direct native Codex launch, any other native request (including native Claude version
-  discovery) and every non-Windows request keep their existing environment exactly and never
-  evaluate the system-directory reader. No role or adapter copies the rule; the Claude print-mode
-  invocations use the same policy through their own builder
+  A direct native Codex launch **in the App Server session or in capability discovery**, any other
+  native request (including native Claude version discovery) and every non-Windows request keep
+  their existing environment exactly and never evaluate the system-directory reader. The shared
+  Codex invocation is the one exception: its former statement that a direct native launch keeps its
+  environment is **replaced for that invoker only** by the amendment below. No role or adapter
+  copies the rule; the Claude print-mode invocations use the same policy through their own builder
   ([below](#windows-claude-print-mode-launch-environment)).
 - **Value.** Exactly one entry, `SystemRoot`, is added: the parent directory of
   `Environment.SystemDirectory`, the managed getter backed by `GetSystemDirectoryW`. The ambient
@@ -101,7 +105,8 @@ explicit allowlist:
 - **Unchanged.** The Codex invocation and the App Server session still forward an existing
   nonempty `USERPROFILE` and `CODEX_HOME` unchanged (null and empty are omitted, whitespace is
   neither trimmed nor rejected) and nothing else, plus `SystemRoot` on a Windows script-hosted
-  launch; the native Node probe carries `SystemRoot` alone. The session's argument order
+  launch (and, for the Codex invocation only, on a Windows direct native launch as well, per the
+  amendment below); the native Node probe carries `SystemRoot` alone. The session's argument order
   (script prefix when present, then `app-server` and `--stdio`), redirection, no-shell setting,
   duplex JSON-RPC handshake and exchange, bounds, stderr draining, cancellation and owned-process
   cleanup are unchanged. `PATH`, `NODE_OPTIONS`, tokens, proxy, certificate, temp and every other
@@ -120,6 +125,50 @@ new App Server environment tests capture the prepared process start information 
 handled start failure, so they launch no child. They prove request construction, refusal and
 fixture behavior only. None establishes provider or production-host compatibility,
 authentication or qualification.
+
+### Windows native Codex role launch
+
+The context-bound lot B session of QUALIFICATION-PROFILE-01 resolved every pinned launch identity and
+admitted every request, then ended with one direct native Codex Planner process exiting 1 after 13
+seconds with complete I/O and no proposal; the Claude reviewer was never invoked. The authorized
+sealed streams hashed as expected, and a closed projection recorded WebSocket reconnects, a
+fallback to HTTP and a request-send failure against the ChatGPT service (no raw provider text was
+kept). A separate anonymous HTTPS control with the same Windows `curl` executable reached
+`chatgpt.com` in the ordinary environment (HTTP 403), failed name resolution in the direct Codex
+allowlist environment (curl error 6) and reached the server again when only `SystemRoot` was added
+(HTTP 403). The 403 responses establish transport, not service authorization. This amendment
+therefore **replaces the former direct-native rule for the shared Codex invoker only**:
+
+- **Applicability.** `CodexProcessInvoker` requires `SystemRoot` for **every** Windows launch it
+  makes, a Node-hosted script and a direct native executable alike, through the same
+  `WindowsProcessSystemRoot` policy (its caller now passes `requiresSystemRoot` unconditionally).
+  The decision follows the host operating system and this invoker's contract, never the executable's
+  name, extension or path. It serves Planning, ImplementationReview, ChallengeResolution and
+  VerificationDiagnosis.
+- **Value, validation and refusal.** Unchanged from above: the parent of
+  `Environment.SystemDirectory`, validated lexically only. A Windows invocation whose value cannot
+  be resolved or validated, including a throwing reader, returns the invoker's existing closed
+  `Failed` result with no process evidence **before** the sealed context manifest is read, the
+  scratch directory, schema or any output sink path is created or requested, and before any
+  process dispatch. There is no retry or launch with the smaller map, no value or exception detail
+  leaves the policy, and cancellation still propagates.
+- **Map.** An existing nonempty `USERPROFILE` and `CODEX_HOME` are forwarded unchanged (null and
+  empty omitted, whitespace neither trimmed nor rejected), plus `SystemRoot` on Windows, and nothing
+  else. A non-Windows launch keeps the two-variable allowlist and never evaluates the
+  system-directory reader.
+- **Unchanged.** The Codex App Server session, capability discovery (including the native probe of
+  the explicit Node capability), native Claude `--version` discovery, the Claude print-mode
+  builder, the launch-target revalidation, every `exec` argument and role argument, the model and
+  effort handling, stdin, timeout, capture limits and outcome mapping. `PATH`, `NODE_OPTIONS`,
+  tokens, proxy, certificate, temp and every other ambient entry stay excluded.
+
+Evidence limits: the control was an anonymous HTTPS request from `curl`, not a Codex invocation. It
+shows that name resolution failed without the OS prerequisite and recovered with it, which supports
+this narrowly scoped repair; it does not establish the Codex client's exact internal cause, that
+`SystemRoot` alone suffices or is minimal, that no other prerequisite is missing, authentication,
+service access, or that a later model invocation succeeds. The controlled tests use owned process
+doubles and fabricated profile values and system directories, so they prove environment
+construction, refusal ordering and unchanged arguments only.
 
 ### Windows Claude print-mode launch environment
 

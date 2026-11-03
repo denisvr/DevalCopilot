@@ -48,9 +48,9 @@ public static class LauncherEntry
         var deadline = limits.Outer is { } outer ? EntryDeadline.Start(outer) : EntryDeadline.Unbounded();
         if (!QualificationOptIn.IsGranted(arguments, readEnvironment))
         {
-            var retired = arguments.Count > 0 && string.Equals(arguments[0], QualificationOptIn.RetiredFlag, StringComparison.Ordinal);
+            var retired = QualificationOptIn.IsRetiredFlagArgument(arguments);
             await deadline.EmitAsync(() => error.WriteLineAsync(retired
-                ? $"Refused: {QualificationOptIn.RetiredFlag} is retired; its allowance and process slots were consumed. The "
+                ? $"Refused: {arguments[0]} is retired; its allowance and process slots were consumed. The "
                     + $"replacement entry is {QualificationOptIn.Flag}."
                 : $"Refused: this launcher runs only with the argument {QualificationOptIn.Flag} and "
                     + $"{QualificationOptIn.ConfirmationVariable} set to the documented confirmation phrase."));
