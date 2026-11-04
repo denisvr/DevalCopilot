@@ -136,6 +136,27 @@ in the dialogue companion.
 Moved to [Structured output failure](agent-collaboration-dialogue.md#structured-output-failure)
 in the dialogue companion.
 
+### Proposal content guidance
+
+Every Codex planning manifest, the ordinary one and the one manual format-repair form, carries one fixed host-authored member,
+`proposalContentGuidance` (`ProposalContentGuidance.Text`), placed immediately after `expectedProposalSchema` and before the
+untrusted project instruction section and any human instruction. It tells the provider which literals the Domain content policy
+refuses in a Proposal's summary and five text fields, and how to say the same idea in other words (for example, "runtime context" or
+"target platform" for the surrounding setup of a program, "authentication details" for sign-in handling, "protected values" for
+confidential material, and a repository-relative path with forward slashes instead of a drive path).
+
+- **One vocabulary.** The literal list is `CollaborationMessageContentPolicy.BlockedMarkers`, the same list the filter reads, and the
+  guidance renders it in that order; the rest of the text never repeats a blocked literal. A test pins the eight literals, the
+  rendering and the absence of any literal elsewhere in the text, so adding a marker changes the guidance with it.
+- **Fixed and bounded.** The host renders the text from fixed policy data. No run data, objective, human text, provider output or earlier
+  failure detail ever enters it, and it is byte-identical in every planning manifest. It is part of the manifest and counts toward
+  the unchanged 32 KiB manifest ceiling and the existing whole-text omission order of the project instruction section.
+- **Nothing relaxed.** The expected schema, the parser, the content filter, the secret protections and the role arguments are
+  unchanged. A response that contains a blocked literal in any field is still refused whole (`InvalidStructuredOutput`), the host
+  never rewrites a provider answer, and there is no automatic retry; the one manual format repair keeps its existing rules and only
+  carries the same guidance. Manifests and attempts sealed before this change are historical records and are not rewritten.
+- **Limit.** It is an instruction, not a guarantee: it cannot show that a provider will follow it.
+
 ## Context assembly
 
 Moved to [Context assembly](agent-collaboration-context.md#context-assembly)

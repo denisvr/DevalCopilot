@@ -86,8 +86,32 @@ public sealed class FreshAuthorizationTests : QualificationTestBase
         Assert.NotEqual(
             InvocationLedger.RetiredContextBoundDirectoryName, Path.GetFileName(InvocationLedger.CreateDefault().LedgerDirectory));
         Assert.NotEqual("owner-qualification-profile-01-lot-b-context-bound", InvocationLedger.Authorization);
-        Assert.Equal("owner-qualification-profile-01-lot-b-windows-root", InvocationLedger.Authorization);
-        Assert.Equal("devalcopilot-qualification-profile-01-lot-b-windows-root-ledger", Path.GetFileName(
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void A_ledger_pointed_at_the_spent_windows_root_directory_is_refused_at_construction_with_no_file_access(
+        bool trailingSeparator)
+    {
+        var path = Path.Combine(LedgerDirectory, InvocationLedger.RetiredWindowsRootDirectoryName)
+            + (trailingSeparator ? Path.DirectorySeparatorChar : string.Empty);
+
+        Assert.Throws<ArgumentException>(() => new InvocationLedger(path, TimeProvider.System));
+        Assert.Throws<ArgumentException>(() => new InvocationLedger(path.ToUpperInvariant(), TimeProvider.System));
+        Assert.False(Directory.Exists(LedgerDirectory));
+    }
+
+    [Fact]
+    public void The_successor_ledger_is_a_different_directory_and_authorization_from_the_spent_windows_root_one()
+    {
+        Assert.Equal("devalcopilot-qualification-profile-01-lot-b-windows-root-ledger", InvocationLedger.RetiredWindowsRootDirectoryName);
+        Assert.NotEqual(InvocationLedger.RetiredWindowsRootDirectoryName, InvocationLedger.DirectoryName);
+        Assert.NotEqual(
+            InvocationLedger.RetiredWindowsRootDirectoryName, Path.GetFileName(InvocationLedger.CreateDefault().LedgerDirectory));
+        Assert.NotEqual("owner-qualification-profile-01-lot-b-windows-root", InvocationLedger.Authorization);
+        Assert.Equal("owner-qualification-profile-01-lot-b-proposal-guidance", InvocationLedger.Authorization);
+        Assert.Equal("devalcopilot-qualification-profile-01-lot-b-proposal-guidance-ledger", Path.GetFileName(
             InvocationLedger.CreateDefault().LedgerDirectory));
     }
 

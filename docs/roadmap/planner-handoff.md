@@ -1,6 +1,71 @@
 # Planner/reviewer handoff
 
-## Current decision: CODEX-WINDOWS-ROOT-01 accepted for exact-content publication
+## Current decision: CODEX-PROPOSAL-GUIDANCE-01 accepted for exact-content publication
+
+Review 1 confirmed `main`, HEAD, local origin/main and live origin/main at
+`831cc1de9aab67f42984441db6cf9493dcd810d6`. The index was empty, with
+11 modified tracked paths and three untracked paths.
+
+Accept the fixed guidance in both planning manifest forms. It is rendered
+from the same eight-literal vocabulary the Domain filter reads. The compiled
+list exposes a read-only collection. The filter retains its rejection
+semantics, and the schema, parser and role arguments stay as reviewed.
+Fabricated controls show that the existing marker is still refused and a
+safe paraphrase is accepted verbatim. The guidance precedes the untrusted
+instruction boundary and remains inside the existing manifest budget. It
+does not establish that a real provider follows it.
+
+Accept the successor Lot B opt-in and the retirement guards. The planner
+clarified the protocol wording to describe guidance rendered from fixed data.
+Independent builds of the launcher and three test projects passed with zero
+warnings and errors. In short isolated temp storage, 94/94 Domain, 345/345
+Application and 99/99 API and launcher cases passed, including the affected
+composition rehearsal with owned provider doubles. Evidence is in ignored
+`logs/planner-review/codex-proposal-guidance-01-review-01/`. Retain the
+executor's passing evidence and its earlier Git exit 128 failures in the
+deep temp directory. Their exact cause was not isolated.
+
+The separate GO covers only the exact 14 reviewed paths and tree.
+Independently verify publication before preparing the real run decision.
+The prior evidence and Defender action remain preserved.
+
+## Offline preparation decision and evidence
+
+The published baseline is `831cc1de9aab67f42984441db6cf9493dcd810d6` on
+`main`, independently verified against the approved parent, tree, 15 paths
+and live origin/main.
+
+The Windows-root Lot B passed launch identity and process admission. Its
+one native Codex Planner exited 0 with complete I/O and a sealed final
+response. The application returned InvalidStructuredOutput and persisted
+no proposal. The Claude Reviewer did not run. Source and worktree checks
+passed, and the root was retained because descendant shutdown was unproven.
+The Windows-root authorization is spent.
+
+The authorized final-response inspection verified length and hash. The
+JSON object contained all six expected string fields, with no extra,
+duplicate, blank or over-limit fields. The existing content filter
+matched the literal marker `environment` in `verificationPlan`. The
+published parser refused the response. No response text is retained here.
+Defender flagged the PowerShell command line used by the initial
+diagnostic. Preserve the Defender action. That diagnostic routine remains
+stopped and is outside the next work.
+
+Prepare a small offline correction. Give ordinary and manual format-repair
+Codex planning manifests a fixed host-authored instruction aligned with
+the existing Proposal content policy. Put it beside the schema and before
+the untrusted instruction boundary. Use the same existing marker
+vocabulary for the policy and guidance. Include safe paraphrasing of
+ordinary concepts so a provider can avoid blocked literals. Do not relax
+the filter, modify the schema, rewrite provider output or change another
+role. Historic manifests and attempts remain as recorded.
+
+Prepare one fixed successor Lot B entry and retire the spent Windows-root
+opt-in alongside the earlier ones. Preserve prior ledgers and roots.
+Tests use fabricated proposals and owned doubles. Real execution and
+publication require separate decisions.
+
+## CODEX-WINDOWS-ROOT-01 accepted for exact-content publication
 
 Review 1 confirmed `main`, HEAD, local origin/main and live origin/main at
 `f979b5889eed3febc8a79b4b83ae7270e5e4a85b`. The index was empty with

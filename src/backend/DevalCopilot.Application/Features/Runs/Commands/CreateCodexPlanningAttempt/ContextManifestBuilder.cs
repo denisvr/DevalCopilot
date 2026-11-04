@@ -59,8 +59,8 @@ internal static class ContextManifestBuilder
         ProjectInstructionContextManifest.Rendering instructions,
         bool formatRepair)
     {
-        // Insertion order is the serialized order; the ordinary document is byte-identical to the
-        // former anonymous-type form, and the repair notice is appended only for a repair.
+        // Insertion order is the serialized order. The fixed content guidance sits beside the schema, before the untrusted
+        // instruction section, in both the ordinary and the repair document; the repair notice is appended only for a repair.
         var document = new Dictionary<string, object?>
         {
             ["protocolVersion"] = CollaborationMessage.ProtocolVersionOne,
@@ -71,6 +71,7 @@ internal static class ContextManifestBuilder
             ["checkpointFingerprintSha256"] = checkpointFingerprintSha256,
             ["expectedMessageType"] = nameof(CollaborationMessageType.Proposal),
             ["expectedProposalSchema"] = CodexProposalOutputSchema.BuildSchemaDocument(),
+            [ProposalContentGuidance.Member] = ProposalContentGuidance.Text,
             [ProjectInstructionContextManifest.BoundaryMember] = instructions.Boundary,
             [ProjectInstructionContextManifest.SectionMember] = instructions.Section,
             ["unresolvedHumanInstruction"] = unresolvedHumanInstruction,

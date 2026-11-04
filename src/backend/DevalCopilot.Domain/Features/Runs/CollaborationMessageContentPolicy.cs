@@ -11,6 +11,16 @@ public static class CollaborationMessageContentPolicy
     public const int MaximumSummaryLength = 600;
     public const int MaximumStructuredContentLength = 5000;
     private const int MaximumFieldLength = 900;
+
+    /// <summary>The literals whose appearance anywhere in a summary or structured field (compared without regard to letter
+    /// case, after trimming the value) makes the content unsafe. This is the single source of the vocabulary: the filter reads it,
+    /// and the host-authored Proposal guidance renders it, so the two cannot drift. A match is a blocked marker even when the
+    /// surrounding sentence is entirely benign.</summary>
+    public static readonly IReadOnlyList<string> BlockedMarkers =
+    [
+        ":\\", "bearer ", "credential", "password", "api_key", "api key", "secret", "environment",
+    ];
+
     /// <summary>Matches <c>docs/architecture/agent-collaboration-protocol.md</c>'s "Planning"
     /// description exactly: "a proposal with scope, sequence, risks, verification, and
     /// escalation points."</summary>
@@ -141,13 +151,14 @@ public static class CollaborationMessageContentPolicy
     private static bool LooksUnsafe(string value)
     {
         var normalized = value.AsSpan().Trim();
-        return normalized.Contains(":\\", StringComparison.Ordinal)
-            || normalized.Contains("bearer ", StringComparison.OrdinalIgnoreCase)
-            || normalized.Contains("credential", StringComparison.OrdinalIgnoreCase)
-            || normalized.Contains("password", StringComparison.OrdinalIgnoreCase)
-            || normalized.Contains("api_key", StringComparison.OrdinalIgnoreCase)
-            || normalized.Contains("api key", StringComparison.OrdinalIgnoreCase)
-            || normalized.Contains("secret", StringComparison.OrdinalIgnoreCase)
-            || normalized.Contains("environment", StringComparison.OrdinalIgnoreCase);
+        foreach (var marker in BlockedMarkers)
+        {
+            if (normalized.Contains(marker, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

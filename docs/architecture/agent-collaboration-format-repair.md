@@ -66,7 +66,9 @@ account-allowance, session, or invocation eligibility.
   `codex-planning-v1`).
 - **Manifest.** The sealed context manifest (`AgentContextManifest`, host-constructed) is the ordinary planning
   manifest for the current verified context — the run objective, project/workspace/checkpoint identities and
-  fingerprint, the unchanged expected Proposal schema, and the project instruction context of ADR-0021 captured fresh
+  fingerprint, the unchanged expected Proposal schema, the fixed `proposalContentGuidance` member that every planning
+  manifest carries beside it ([Proposal content guidance](agent-collaboration-protocol.md#proposal-content-guidance)),
+  and the project instruction context of ADR-0021 captured fresh
   at the repair's own claim, with no human instruction and no prior decisions, exactly as an ordinary claim — plus one fixed host-authored
   `formatRepairNotice` (`ContextManifestBuilder.FormatRepairNotice`): an earlier planning response failed
   structural validation, this is a fresh planning request, and exactly one Proposal satisfying the unchanged

@@ -122,7 +122,7 @@ executable identities, QP-R4 typed status projection); the correction is returne
 | Lot | Authorization identity | Exclusive directory (under the OS temp directory) | Opt-in |
 | --- | --- | --- | --- |
 | A: two `claude auth status` observations after the owner's login | `owner-qualification-profile-01-lot-a-post-login` | `devalcopilot-qualification-profile-01-lot-a-post-login-ledger` | `--run-claude-auth-status-after-login --claude-executable <absolute path> --claude-sha256 <digest>` and `DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM=qualification-profile-01-two-claude-auth-status-observations-after-login` |
-| B: one Planner and one CriticalReviewer, bound to the launch context, Windows root carried by every Codex launch | `owner-qualification-profile-01-lot-b-windows-root` | `devalcopilot-qualification-profile-01-lot-b-windows-root-ledger` | `--run-qualification-profile-01-windows-root-exchange --approved-launches <absolute path of the owner's approved-launch manifest>` (nothing else) and `DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM=qualification-profile-01-one-windows-root-codex-planner-and-claude-reviewer` |
+| B: one Planner and one CriticalReviewer, bound to the launch context, Windows root carried by every Codex launch, fixed Proposal content guidance in the planning manifest | `owner-qualification-profile-01-lot-b-proposal-guidance` | `devalcopilot-qualification-profile-01-lot-b-proposal-guidance-ledger` | `--run-qualification-profile-01-proposal-guidance-exchange --approved-launches <absolute path of the owner's approved-launch manifest>` (nothing else) and `DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM=qualification-profile-01-one-proposal-guidance-codex-planner-and-claude-reviewer` |
 
 Each directory is created by its own lot and holds that authorization's durable slot files only. The launcher never names, reads,
 enumerates, resets or archives the earlier ledger directory, except to refuse it at construction; no argument or switch selects an
@@ -150,7 +150,17 @@ environment, directory, ledger or process exists, its phrase no longer confirms 
 its directory (compared case-insensitively, with or without a trailing separator) is refused at construction with no file access. That
 ledger, its evidence (including the empty SQLite WAL sidecar created by an earlier read-only inspection) and the retained root are never
 read, enumerated, reset, archived, migrated or cleaned by the launcher, and each session's owned root has a fresh random name, so no
-retained root is reachable from the successor entry. The successor lot B entry refuses a ledger destination that is a
+retained root is reachable from the successor entry. The Windows-root lot B opt-in (flag
+`--run-qualification-profile-01-windows-root-exchange`, authorization `owner-qualification-profile-01-lot-b-windows-root`, directory
+`devalcopilot-qualification-profile-01-lot-b-windows-root-ledger`, phrase
+`qualification-profile-01-one-windows-root-codex-planner-and-claude-reviewer`) is retired the same way. It passed launch identity and
+process admission, and its one native Codex Planner exited 0 with complete I/O and a sealed final response; the application returned
+`InvalidStructuredOutput` and persisted no proposal, the Claude reviewer was never invoked, and the root was retained because
+descendant shutdown was unproven. Its authorization is spent. Its flag is refused with the same fixed message (naming the successor
+flag) and exit 2 before any environment, directory, ledger or process exists, its phrase no longer confirms the successor entry, and a
+ledger path whose leaf name is its directory (case-insensitive, with or without a trailing separator) is refused at construction with
+no file access. That ledger, its evidence, the sealed response and the retained root are never read, enumerated, reset, archived,
+migrated or cleaned by the launcher. The successor lot B entry refuses a ledger destination that is a
 reparse point the same way as the post-login entry (below): as its first step inside the bounded worker (fixed code
 `Refused: LedgerDestinationAliased.`, exit 2, nothing created), again before the session enumerates any marker, and before every summary
 save, including the outer-deadline verdict; each read of the destination runs in the worker or an emission, never on the deadline
@@ -235,24 +245,28 @@ Remove-Item Env:\DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM
   5 any other completed or stopped observation; 7 unexpected; 8 outer deadline; 9 the observations completed and were printed but the
   summary could not be persisted (see the summary paragraph below).
 
-### Lot B: one read-only exchange, bound to the launch context, Windows root on every Codex launch (proposed entry; CODEX-WINDOWS-ROOT-01)
+### Lot B: one read-only exchange, bound to the launch context, Windows root on every Codex launch, fixed Proposal content guidance (proposed entry; CODEX-PROPOSAL-GUIDANCE-01)
 
-The first and the context-bound lot B entries are spent (see the retirement paragraph above). This entry is their one fixed
-successor: the same exchange, the same process inventory, role vectors, deadlines and evidence rules, and the same **launch-context
-check** described below in bounded preparation, plus one production repair it carries: the shared Codex role invoker now adds exactly
-`SystemRoot` to the child environment of **every** Windows Codex launch, a direct native executable included (see
-[Windows native Codex role launch](../architecture/agent-collaboration-provider-contracts.md#windows-native-codex-role-launch)). The
-reviewed Codex role vector already admits the environment names `USERPROFILE`, `CODEX_HOME` and `SystemRoot`, so the process inventory,
-the 179-start ceiling and the two-role sequence are unchanged. The repair rests on an anonymous transport control (a `curl` request
-that failed name resolution in the direct Codex allowlist and succeeded again with only `SystemRoot` added), not on a successful Codex
-invocation: it does not show that the Codex client then works, that `SystemRoot` is sufficient, or that the account is authorized. It
-is prepared offline only and not authorized for execution.
+The first, the context-bound and the Windows-root lot B entries are spent (see the retirement paragraph above). This entry is their
+one fixed successor: the same exchange, the same process inventory, role vectors, deadlines and evidence rules, the same
+**launch-context check** described below in bounded preparation and the same Windows `SystemRoot` carried by every Codex launch
+(see [Windows native Codex role launch](../architecture/agent-collaboration-provider-contracts.md#windows-native-codex-role-launch)),
+plus one production repair it carries: the Codex planning manifest, ordinary and manual format-repair alike, now holds a fixed
+host-authored `proposalContentGuidance` member beside `expectedProposalSchema` and before the untrusted instruction section (see
+[Proposal content guidance](../architecture/agent-collaboration-protocol.md#proposal-content-guidance)). It lists the literals the
+existing Domain content policy refuses, rendered from that policy's one marker list, and explains how to say the same idea in other
+words. Nothing was relaxed: the schema, the parser and the filter are unchanged, a response that still contains a blocked literal is
+refused whole, no model output is rewritten and no retry is added. The reviewed Codex role vector, the 179-start ceiling and the
+two-role sequence are unchanged. The Windows-root run showed the problem it answers: the Planner's sealed response had all six
+fields within the structural limits and was refused only because `verificationPlan` contained the marker `environment`. The guidance
+is an instruction to a provider, not evidence that the provider will follow it, and a real exchange stays a separate decision. It is
+prepared offline only and not authorized for execution.
 
 ```powershell
 $env:DOTNET_ADD_GLOBAL_TOOLS_TO_PATH = 'false'; $env:DOTNET_GENERATE_ASPNET_CERTIFICATE = 'false'
 dotnet build tests\DevalCopilot.Api.IntegrationTests\ManualQualification\Launcher\ManualQualification.csproj -warnaserror -p:UseSharedCompilation=false -m:1
-$env:DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM = 'qualification-profile-01-one-windows-root-codex-planner-and-claude-reviewer'
-& .\tests\DevalCopilot.Api.IntegrationTests\ManualQualification\Launcher\bin\Debug\net10.0\ManualQualification.exe --run-qualification-profile-01-windows-root-exchange --approved-launches '<absolute path of the owner-prepared approved-launch manifest>'
+$env:DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM = 'qualification-profile-01-one-proposal-guidance-codex-planner-and-claude-reviewer'
+& .\tests\DevalCopilot.Api.IntegrationTests\ManualQualification\Launcher\bin\Debug\net10.0\ManualQualification.exe --run-qualification-profile-01-proposal-guidance-exchange --approved-launches '<absolute path of the owner-prepared approved-launch manifest>'
 Remove-Item Env:\DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM
 ```
 
@@ -486,7 +500,7 @@ The launcher is a separate executable, `ManualQualification` (source under
 - Each allowance is consumed, durably, **before** its single POST. A timeout, an ambiguous or refused answer, a crash, a restart
   or a second launch never makes it spendable again. The reviewer allowance can be taken only by the session that holds the
   planner allowance, and only after one coherent recorded Proposal and an unchanged source.
-- The ledger of the current authorization is the directory `devalcopilot-qualification-profile-01-lot-b-windows-root-ledger` directly under the OS
+- The ledger of the current authorization is the directory `devalcopilot-qualification-profile-01-lot-b-proposal-guidance-ledger` directly under the OS
   temp directory (one `planner.allowance` and one `reviewer.allowance` file, created exclusively and never rewritten, beside the
   durable process slots of [QUALIFICATION-PROFILE-01](#qualification-profile-01-prepared-offline-not-authorized-for-execution)). If any
   allowance or process slot exists, the launcher starts nothing. The earlier authorizations' directory is never named, read, reset or

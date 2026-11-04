@@ -6,7 +6,101 @@ was prepared ([recovery](development-workflow.md#recovery)). Git and code
 prevail; compare branch, `HEAD`, `origin/main` and staged/unstaged/untracked
 state first.
 
-## Active slice: CODEX-WINDOWS-ROOT-01 Windows SystemRoot for every shared Codex role launch and one fixed successor lot B entry (first return; returned for review; offline only; not authorized for execution)
+## Active slice: CODEX-PROPOSAL-GUIDANCE-01 fixed Proposal content guidance in Codex planning manifests and one fixed successor lot B entry (first return; returned for review; offline only; not authorized for execution)
+
+This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the decision and
+scope. This record alone grants no execution or publication authority: any real session, provider call or publication needs its own
+decision, and nothing is committed or pushed.
+
+**Delivery phase: first return of a new Claude executor chat (2026-11-04).** Preflight (verified once before editing): branch `main`;
+`HEAD`, local `origin/main` and a live `git ls-remote origin refs/heads/main` all `831cc1de9aab67f42984441db6cf9493dcd810d6`; an empty
+index; no untracked path; the only working change was the planner-owned `docs/roadmap/planner-handoff.md` (diff stat 37 insertions, 1
+deletion), which this chat did not edit and whose diff stat is unchanged. Nothing real was run: no provider, `codex`, `claude`,
+account, login, network request or owner manifest; the sealed response of the Windows-root run, its database, ledger and retained root
+were never opened, enumerated, reset or migrated, and the Defender-flagged diagnostic routine was not touched or re-run.
+
+### What changed
+
+- **Domain (one vocabulary).** `CollaborationMessageContentPolicy.BlockedMarkers` is a new public read-only list of the eight existing
+  literals, in their existing order (a drive-letter colon-backslash, `bearer ` with its space, `credential`, `password`, `api_key`,
+  `api key`, `secret`, `environment`). `LooksUnsafe` now iterates that list case-insensitively; the old chain used ordinal comparison for
+  the one marker with no letters, which is the same result. Nothing else in the policy, the bounds or the schema changed.
+- **Application (the guidance).** New `ProposalContentGuidance` (`Features/Runs`, internal): the manifest member name
+  `proposalContentGuidance` and one fixed `Text`. The text renders the policy's list (`BlockedLiteralList`), says that the whole response
+  is rejected when the summary or any of the five text fields contains one of them in any letter case, tells the provider to re-read
+  every field (`verificationPlan` and `risks` especially), gives paraphrases of benign concepts (runtime context, target platform, host
+  setup, configuration or settings; authentication details, sign-in handling or access-token handling; protected values or sensitive
+  configuration; a repository-relative path with forward slashes or a named role instead of a drive path), forbids spelling a blocked
+  literal in pieces, with separators, in another encoding or in a quotation, and forbids describing the rules in the Proposal. Outside the
+  one rendered list it contains no blocked literal. It carries no run data, human text, provider output or failure detail.
+- **Manifest.** `ContextManifestBuilder.Serialize` inserts the member immediately after `expectedProposalSchema` and before
+  `projectInstructionContextBoundary` (so before the untrusted instruction section and `unresolvedHumanInstruction`), for both
+  `Build` and `BuildFormatRepair`. The repair notice is still appended last and only for a repair. The 32 KiB ceiling, the instruction
+  section budget, the whole-text omission order, the schema, the parser, the filter and every role argument are unchanged. No parser
+  rewrite, no new retry. Historic manifests and attempts are untouched.
+- **Successor Lot B entry** (`QualificationOptIn`, `InvocationLedger`): flag `--run-qualification-profile-01-proposal-guidance-exchange`,
+  phrase `qualification-profile-01-one-proposal-guidance-codex-planner-and-claude-reviewer`, authorization
+  `owner-qualification-profile-01-lot-b-proposal-guidance`, ledger `devalcopilot-qualification-profile-01-lot-b-proposal-guidance-ledger`.
+  The Windows-root opt-in is retired exactly like the two earlier ones: `RetiredWindowsRootFlag` joins `IsRetiredFlagArgument` (so
+  `LauncherEntry` refuses it with the existing fixed message naming the successor flag, exit 2, before any environment, directory, ledger
+  or process), its phrase no longer confirms the new entry, and `RetiredWindowsRootDirectoryName` joins the construction guard
+  (case-insensitive, trailing separator tolerated, no file access). The context check, `SystemRoot` behavior, runtime admission, the
+  179-start inventory, the 35-minute bound and the two-role sequence are unchanged; Lot A is untouched.
+- **Documentation.** New "Proposal content guidance" section in the protocol document, a pointer in the format-repair manifest bullet,
+  and the playbook (identity table row, a Windows-root retirement paragraph that records the run's outcome without any response text,
+  the Lot B heading, rationale, command and ledger bullet).
+
+### Validation
+
+Context: this chat's Windows shell. Every test run used an isolated empty directory for `TEMP`/`TMP`. A first full run with that
+directory deep inside this session's scratchpad folder gave 10 failures, all in launcher rehearsal tests that start real `git` (exit
+128 or `UnexpectedInvalidOperationException`; finding 2); the identical tests and the whole set passed with a directory directly under
+the user's temp folder, which is what the numbers below are from.
+
+- **Builds.** `dotnet build .../Launcher/ManualQualification.csproj -warnaserror -p:UseSharedCompilation=false -p:SkipNSwag=True -m:1`: 0
+  warnings, 0 errors. The Application, Domain and Api integration test projects built through `dotnet build`/`dotnet test`.
+- **Policy and parser.** Domain `CollaborationMessage*` filter: 94 passed, including the new `CollaborationMessageContentPolicyTests`
+  (the eight literals pinned exactly, each refused in any case as a summary and in each of the five fields, benign paraphrases accepted).
+  Application filter (`ProposalContentGuidance`, `CodexFinalResponseParser`, `ProjectInstructionContext`, `CreateCodexPlanning`,
+  `RecordAgentAttemptResult`): 345 passed. New proofs, all with fabricated proposals: a response with each blocked literal in each field
+  is refused whole; the same response with the concept paraphrased is accepted and returned verbatim; a fabricated `verificationPlan` with
+  the bare marker `environment` is refused and its safe rewrite passes unchanged; a blocked literal in the summary is refused and other
+  text is returned as written; the guidance lists exactly the policy's literals and repeats none elsewhere; it is byte-identical across
+  the ordinary, human-instruction and repair manifests, sits between `expectedProposalSchema` and `projectInstructionContextBoundary`,
+  leaves the schema and the remaining member order as before, and the repair keeps its notice. The existing forms tests (every manifest
+  form, the 32 KiB fitting, the injection cases) pass unchanged.
+- **Launcher.** `QualificationOptInTests` and `FreshAuthorizationTests` pin the successor identity, the retired Windows-root identity,
+  that its flag and phrase are never granted, that its flag is refused with the fixed message and no environment, directory or ledger
+  (with and without a manifest argument and under each phrase), and that its ledger leaf is refused at construction (case, trailing
+  separator).
+- **Affected rehearsal and the whole family.** `FullyQualifiedName~Features.ManualQualification|ProjectInstructionContext|PlanningRepair|
+  FormatRepair` against the Api integration project (production host, native fixture `codex.exe` double): 889 passed. Also
+  `ProviderFixtureContract`: 215 passed; Architecture tests: 232 passed.
+- **Hygiene.** `dotnet format --verify-no-changes --include <the 9 changed or new C# files>` against the three test projects printed
+  nothing (clean); `git diff --check` clean; byte scans of every changed or new file other than the planner handoff: 0 CR, 0 NUL.
+- Not run, by design: any real provider; the rest of the solution; frontend and journeys; the mutation harness (reversing the member
+  insertion, the marker list or the retirement fails the placement, vocabulary and retired-flag tests directly).
+
+### Findings, challenges and limits for Codex
+
+1. **The guidance is an instruction, not a control.** It cannot show that a provider will follow it; a response that still contains a
+   blocked literal is refused whole exactly as before, and a real Lot B stays a separate decision. The evidence for the failure mode is
+   the planner's closed finding (all six fields, within limits, refused on the literal `environment` in `verificationPlan`).
+2. **Test-location sensitivity (not caused by this change).** The launcher rehearsal tests that start real `git` failed when `TEMP` was
+   a long path inside this session's scratchpad and passed on the same sources under a short directory in the user's temp folder.
+   Whoever runs them should use a short isolated directory; I did not investigate the root cause.
+3. **Planning repair notice position.** The planning manifest appends `formatRepairNotice` at the end, unlike the other three stages
+   (before the untrusted boundary). Left as is: moving it would change a recorded manifest shape outside this slice.
+4. **Trailing-space marker.** `bearer ` ends with a space, so a sentence-final `bearer` does not match it. The guidance renders the
+   literal quoted, trailing space included; the filter was not changed.
+
+### Git state
+
+Unstaged, uncommitted and unpushed on `main` (`HEAD` `831cc1d`): ten modified tracked files plus the planner-owned
+`docs/roadmap/planner-handoff.md` (unedited) and three new untracked files (`ProposalContentGuidance.cs` and its two test files). No
+next slice is selected; real execution and publication remain pending.
+
+## Previous slice (published as 831cc1d; historical record): CODEX-WINDOWS-ROOT-01 Windows SystemRoot for every shared Codex role launch and one fixed successor lot B entry (first return; returned for review; offline only; not authorized for execution)
 
 This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the decision and
 scope. This record alone grants no execution or publication authority: any real session, provider call or publication needs its own
