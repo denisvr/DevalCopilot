@@ -1,93 +1,65 @@
 {
   "type": "object",
-  "oneOf": [
-    {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "decision",
-        "summary",
-        "rationale"
+  "description": "Exactly one review decision. For decision accept, include rationale and omit challenges. For decision challenge, include challenges and omit rationale.",
+  "additionalProperties": false,
+  "required": [
+    "decision",
+    "summary"
+  ],
+  "properties": {
+    "decision": {
+      "type": "string",
+      "enum": [
+        "accept",
+        "challenge"
       ],
-      "properties": {
-        "decision": {
-          "type": "string",
-          "const": "accept"
-        },
-        "summary": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 600
-        },
-        "rationale": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 900
-        }
-      }
+      "description": "accept approves the reviewed proposal; challenge disputes it."
     },
-    {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "decision",
-        "summary",
-        "challenges"
-      ],
-      "properties": {
-        "decision": {
-          "type": "string",
-          "const": "challenge"
-        },
-        "summary": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 600
-        },
-        "challenges": {
-          "type": "array",
-          "minItems": 1,
-          "maxItems": 5,
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "summary",
-              "disputedItem",
-              "materialImpact",
-              "reasoning",
-              "alternativeOrQuestion"
-            ],
-            "properties": {
-              "summary": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 600
-              },
-              "disputedItem": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 900
-              },
-              "materialImpact": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 900
-              },
-              "reasoning": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 900
-              },
-              "alternativeOrQuestion": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 900
-              }
-            }
+    "summary": {
+      "type": "string",
+      "description": "Plain-text summary of the decision, 1 to 600 characters."
+    },
+    "rationale": {
+      "type": "string",
+      "description": "Plain-text reasoning, 1 to 900 characters. Required when decision is accept; must be omitted when decision is challenge."
+    },
+    "challenges": {
+      "type": "array",
+      "minItems": 1,
+      "description": "1 to 5 challenges. Required when decision is challenge; must be omitted when decision is accept.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "summary",
+          "disputedItem",
+          "materialImpact",
+          "reasoning",
+          "alternativeOrQuestion"
+        ],
+        "properties": {
+          "summary": {
+            "type": "string",
+            "description": "Plain text, 1 to 600 characters."
+          },
+          "disputedItem": {
+            "type": "string",
+            "description": "Plain text, 1 to 900 characters."
+          },
+          "materialImpact": {
+            "type": "string",
+            "description": "Plain text, 1 to 900 characters."
+          },
+          "reasoning": {
+            "type": "string",
+            "description": "Plain text, 1 to 900 characters."
+          },
+          "alternativeOrQuestion": {
+            "type": "string",
+            "description": "Plain text, 1 to 900 characters."
           }
         }
       }
     }
-  ]
+  }
 }

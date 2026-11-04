@@ -6,5 +6,5 @@ namespace DevalCopilot.Api.IntegrationTests.ManualQualification;
 public static class QualificationContracts
 {
     public const string PlannerAdapter = "codex-planning-v1";
-    public const string ReviewerAdapter = "claude-critical-review-v2";
+    public const string ReviewerAdapter = "claude-critical-review-v3";
 }

@@ -31,11 +31,13 @@ internal static class ClaudeCriticalReviewContextManifestBuilder
 
     /// <summary>The fixed, host-authored reminder carried by a format-repair manifest — the only
     /// repair-specific content. Never the source response, a parser detail, an artifact path, an
-    /// attempt identity, or human text; it frames the result as a fresh review, not a correction.</summary>
+    /// attempt identity, or human text; it frames the result as a fresh review, not a correction.
+    /// The repair always runs under the current contract and schema, which an earlier (v1 or v2)
+    /// source attempt may not have been given, so it names the schema in this request as current.</summary>
     public const string FormatRepairNotice =
         "An earlier critical-review response for this proposal failed structural validation. "
         + "This is a fresh review request: return exactly one response that satisfies the "
-        + "unchanged expectedOutputSchema.";
+        + "current expectedOutputSchema in this request, which may differ from the schema the earlier attempt was given.";
 
     public static string Build(
         Guid projectId,

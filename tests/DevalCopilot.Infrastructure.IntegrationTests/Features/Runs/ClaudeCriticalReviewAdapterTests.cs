@@ -238,6 +238,73 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
     }
 
     [Fact]
+    public async Task The_json_schema_argument_is_the_flat_closed_transport_schema_without_any_union_keyword()
+    {
+        var runId = Guid.NewGuid();
+        var attemptId = Guid.NewGuid();
+        var manifest = await SeedSealedManifestAsync(runId, attemptId, "manifest content");
+        var executablePath = CreateLaunchFile("fake-claude-transport-schema.exe");
+        var fake = new FakeProcessExecutionAdapter();
+        var adapter = new ClaudeCriticalReviewAdapter(fake, _artifactStore);
+
+        await adapter.InvokeAsync(
+            new CriticalReviewInvocationRequest(
+                runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
+                executablePath, TimeSpan.FromSeconds(30), 65536, 131072,
+                AdapterContractVersion: ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion),
+            CancellationToken.None);
+
+        var arguments = fake.CapturedRequest!.Arguments.ToArray();
+        var schemaText = arguments[Array.IndexOf(arguments, "--json-schema") + 1];
+        Assert.Equal(JsonSerializer.Serialize(ClaudeCriticalReviewOutputSchema.BuildSchemaDocument()), schemaText);
+        foreach (var keyword in new[] { "oneOf", "anyOf", "allOf", "minLength", "maxLength", "maxItems" })
+        {
+            Assert.DoesNotContain($"\"{keyword}\"", schemaText, StringComparison.Ordinal);
+        }
+
+        using var schema = JsonDocument.Parse(schemaText);
+        var root = schema.RootElement;
+        Assert.Equal("object", root.GetProperty("type").GetString());
+        Assert.False(root.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(["decision", "summary"], root.GetProperty("required").EnumerateArray().Select(item => item.GetString()!).ToArray());
+        Assert.Equal(["accept", "challenge"], root.GetProperty("properties").GetProperty("decision").GetProperty("enum")
+            .EnumerateArray().Select(item => item.GetString()!).ToArray());
+        Assert.True(root.GetProperty("properties").TryGetProperty("rationale", out _));
+        Assert.True(root.GetProperty("properties").TryGetProperty("challenges", out _));
+    }
+
+    [Theory]
+    [InlineData("claude-critical-review-v1")]
+    [InlineData("claude-critical-review-v2")]
+    [InlineData("claude-critical-review-v0")]
+    [InlineData("claude-critical-review-v4")]
+    [InlineData("codex-planning-v1")]
+    [InlineData("")]
+    [InlineData(null)]
+    public async Task A_historical_unknown_or_missing_contract_version_is_refused_before_any_manifest_read_sink_or_process(string? version)
+    {
+        var runId = Guid.NewGuid();
+        var attemptId = Guid.NewGuid();
+        var manifest = await SeedSealedManifestAsync(runId, attemptId, "manifest content");
+        var executablePath = CreateLaunchFile("fake-claude-historical-version.exe");
+        var fake = new FakeProcessExecutionAdapter();
+        var adapter = new ClaudeCriticalReviewAdapter(fake, _artifactStore);
+
+        var result = await adapter.InvokeAsync(
+            new CriticalReviewInvocationRequest(
+                runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
+                executablePath, TimeSpan.FromSeconds(30), 65536, 131072, AdapterContractVersion: version),
+            CancellationToken.None);
+
+        Assert.Equal(CriticalReviewInvocationOutcome.Failed, result.Outcome);
+        Assert.Equal(AgentInvocationDiagnostic.InvocationUnavailable, result.Diagnostic);
+        Assert.Null(fake.CapturedRequest);
+        Assert.False(File.Exists(_artifactStore.GetPartialPath(runId, attemptId, ArtifactPurpose.AgentFinalResponse)));
+        Assert.False(File.Exists(_artifactStore.GetPartialPath(runId, attemptId, ArtifactPurpose.AgentStandardOutput)));
+        Assert.False(File.Exists(_artifactStore.GetPartialPath(runId, attemptId, ArtifactPurpose.AgentStandardError)));
+    }
+
+    [Fact]
     public async Task A_context_manifest_relative_path_that_escapes_the_artifact_root_fails_closed_without_ever_invoking_a_process()
     {
         var runId = Guid.NewGuid();

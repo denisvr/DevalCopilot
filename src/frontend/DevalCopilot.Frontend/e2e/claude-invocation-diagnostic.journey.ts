@@ -113,7 +113,7 @@ test('the Claude invocation diagnostic journey: a reported authentication error 
     AgentOutcome: 'ProviderInvocationFailed',
     AgentProcessOutcome: 'Exited',
     AgentProcessExitCode: 1,
-    AgentAdapterContractVersion: 'claude-critical-review-v2',
+    AgentAdapterContractVersion: 'claude-critical-review-v3',
     AgentInvocationDiagnostic: 'AuthenticationRequired',
     AgentInvocationDiagnosticVersion: 'agent-invocation-diagnostic-v1',
     AgentStandardOutputCompletion: 'Complete',

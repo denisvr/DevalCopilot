@@ -222,7 +222,7 @@ containing prompt text, repository content, or a credential:
 --print
 --input-format text
 --output-format json
---json-schema <inline JSON Schema for the Acceptance/Challenge union>
+--json-schema <inline flat closed JSON Schema for the review decision (see below)>
 --safe-mode
 --restricted
 --disable-slash-commands
@@ -241,10 +241,42 @@ containing prompt text, repository content, or a credential:
   stdin; the CLI's own embedded strings confirm a bounded stdin-wait and UTF-8 stdin handling.
 - **Structured output**: `--output-format json` wraps the result in one JSON envelope on stdout
   and `--json-schema` constrains the provider's documented `structured_output` object to this
-  slice's fixed Acceptance/Challenge schema. Unlike Codex, Claude's print mode has no file-based
-  final-response flag — the adapter re-serializes that object and writes it to the same sealed
-  final-response artifact Codex's CLI writes directly, so every later parsing/recording step is
-  identical between both providers. The narrative `result` text is never read as the response.
+  slice's fixed review-decision transport schema (next bullet). Unlike Codex, Claude's print mode
+  has no file-based final-response flag — the adapter re-serializes that object and writes it to
+  the same sealed final-response artifact Codex's CLI writes directly, so every later
+  parsing/recording step is identical between both providers. The narrative `result` text is never
+  read as the response.
+- **Transport schema (`claude-critical-review-v3`).** The first real Lot B reviewer request was
+  rejected with HTTP 400 because the schema carried a root `oneOf`, which the Claude tool input
+  schema does not accept (root `oneOf`, `anyOf` and `allOf` are refused); the tool input also
+  does not accept `minLength`, `maxLength` or `maxItems`. The one schema
+  (`ClaudeCriticalReviewOutputSchema`) is therefore a single flat, closed object with none of
+  those keywords at any depth: `decision` (enum `accept`, `challenge`) and `summary` are
+  required; `rationale` and `challenges` (`minItems` 1, items of exactly `summary`,
+  `disputedItem`, `materialImpact`, `reasoning`, `alternativeOrQuestion`) are optional in the
+  schema, with no extra properties. The bounds (summary and challenge summary 1 to 600
+  characters, every other text 1 to 900 characters, 1 to 5 challenges) are stated in the
+  `description` text only, mirroring the Domain policy. That `rationale` belongs only to
+  `accept` and `challenges` only to `challenge` is likewise stated in the root and member
+  `description` text and is not a schema rule: the transport schema lets a mixed, incomplete,
+  empty-text, overlong or more-than-five-challenge payload through.
+  `ClaudeCriticalReviewResponseParser` and `CollaborationMessageContentPolicy` still require the
+  exact payload keys of each form, refuse a mixed, incomplete, unknown, duplicated, overlong or
+  unsafe response whole, and are the only enforcement of the union and of the content rules. The
+  same document is the `--json-schema` argument and the `expectedOutputSchema` of both the
+  ordinary and the format-repair manifest; the envelope, role restrictions, arguments and
+  dialogue protocol are unchanged. Offline tests prove that parity, both valid forms and the
+  refusals; they cannot establish that a live request passes the provider's own validation.
+- **Contract versions.** New critical-review attempts and repairs are claimed as
+  `claude-critical-review-v3`. The adapter refuses a v1 or v2 attempt (or any other or missing
+  version) with `InvocationUnavailable` before it reads the manifest, requests a sink or starts a
+  process; a historical attempt is never upgraded or redispatched. Historical v1 and v2 attempts
+  stay classifiable and keep the configured-fact disclosure, and remain eligible sources of the
+  one manual format repair under the unchanged outcome, clean-exit, lineage and single-attempt
+  rules; that repair runs under v3 and the current schema (see
+  [format repair](agent-collaboration-format-repair.md)). The HTTP 400 failure (a provider-reported
+  error with a non-zero exit and no review) is not `InvalidStructuredOutput` and does not
+  satisfy those criteria.
 - **Fully isolated from local customizations and indirect execution**: `--tools ""` and
   `--strict-mcp-config` alone disable built-in tools and non-declared MCP servers, but the
   installed CLI's own `--help` proves neither one disables hooks, plugins, skills, CLAUDE.md

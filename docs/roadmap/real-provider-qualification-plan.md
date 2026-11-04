@@ -124,7 +124,9 @@ The B fixture retains `maximumAgentAttempts=2` and
 `maximumAgentInvocationMinutes=20`. Pin the actual CLI identities, selected
 model/default policy, permission profiles and contract versions at review.
 The current expected role contracts are `codex-planning-v1` and
-`claude-critical-review-v2`; the latter retains its complete restrictions and
+`claude-critical-review-v3` (the flat transport schema of CLAUDE-REVIEW-SCHEMA-01; v2 was the contract when this plan was
+written, see the [ADR-0072 extension](../decisions/0072-adopt-one-windows-execution-profile.md#narrow-extension-criticalreviewer-contract-v3-transport-schema));
+the latter retains its complete restrictions and
 `max-turns=1`. No model-catalog call is hidden in setup.
 
 These bounds limit host-issued invocations and reserved time. They do not

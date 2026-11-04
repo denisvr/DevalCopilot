@@ -39,19 +39,35 @@ public sealed class QualificationOptInTests : QualificationTestBase
     }
 
     // The retired phrases, kept here only to prove that they are refused: the first lot B entry's allowance and process slots were
-    // consumed, and the context-bound and Windows-root entries' authorizations were each spent by one native Codex Planner exit.
+    // consumed, the context-bound and Windows-root entries' authorizations were each spent by one native Codex Planner exit, and the
+    // proposal-guidance entry's two allowances were used (one accepted Proposal, then a reviewer exit with no review).
     private const string RetiredPhrase = "qualification-profile-01-one-codex-planner-and-one-claude-critical-review";
     private const string RetiredContextBoundPhrase = "qualification-profile-01-one-context-bound-codex-planner-and-claude-reviewer";
     private const string RetiredWindowsRootPhrase = "qualification-profile-01-one-windows-root-codex-planner-and-claude-reviewer";
+    private const string RetiredProposalGuidancePhrase =
+        "qualification-profile-01-one-proposal-guidance-codex-planner-and-claude-reviewer";
 
     [Fact]
     public void The_successor_authorization_has_exactly_the_approved_flag_phrase_authorization_and_ledger_identity()
     {
-        Assert.Equal("--run-qualification-profile-01-proposal-guidance-exchange", QualificationOptIn.Flag);
+        Assert.Equal("--run-qualification-profile-01-review-schema-exchange", QualificationOptIn.Flag);
         Assert.Equal(
-            "qualification-profile-01-one-proposal-guidance-codex-planner-and-claude-reviewer", QualificationOptIn.ConfirmationPhrase);
-        Assert.Equal("owner-qualification-profile-01-lot-b-proposal-guidance", InvocationLedger.Authorization);
-        Assert.Equal("devalcopilot-qualification-profile-01-lot-b-proposal-guidance-ledger", InvocationLedger.DirectoryName);
+            "qualification-profile-01-one-review-schema-codex-planner-and-claude-reviewer", QualificationOptIn.ConfirmationPhrase);
+        Assert.Equal("owner-qualification-profile-01-lot-b-review-schema", InvocationLedger.Authorization);
+        Assert.Equal("devalcopilot-qualification-profile-01-lot-b-review-schema-ledger", InvocationLedger.DirectoryName);
+    }
+
+    [Fact]
+    public void The_retired_proposal_guidance_identity_is_still_named_exactly_so_that_it_can_be_refused()
+    {
+        Assert.Equal("--run-qualification-profile-01-proposal-guidance-exchange", QualificationOptIn.RetiredProposalGuidanceFlag);
+        Assert.Equal(
+            "devalcopilot-qualification-profile-01-lot-b-proposal-guidance-ledger",
+            InvocationLedger.RetiredProposalGuidanceDirectoryName);
+        Assert.NotEqual(QualificationOptIn.RetiredProposalGuidanceFlag, QualificationOptIn.Flag);
+        Assert.NotEqual(RetiredProposalGuidancePhrase, QualificationOptIn.ConfirmationPhrase);
+        Assert.NotEqual("owner-qualification-profile-01-lot-b-proposal-guidance", InvocationLedger.Authorization);
+        Assert.NotEqual(InvocationLedger.RetiredProposalGuidanceDirectoryName, InvocationLedger.DirectoryName);
     }
 
     [Fact]
@@ -89,6 +105,9 @@ public sealed class QualificationOptInTests : QualificationTestBase
     [InlineData(QualificationOptIn.RetiredWindowsRootFlag, QualificationOptIn.ConfirmationPhrase)]
     [InlineData(QualificationOptIn.RetiredWindowsRootFlag, RetiredWindowsRootPhrase)]
     [InlineData(QualificationOptIn.Flag, RetiredWindowsRootPhrase)]
+    [InlineData(QualificationOptIn.RetiredProposalGuidanceFlag, QualificationOptIn.ConfirmationPhrase)]
+    [InlineData(QualificationOptIn.RetiredProposalGuidanceFlag, RetiredProposalGuidancePhrase)]
+    [InlineData(QualificationOptIn.Flag, RetiredProposalGuidancePhrase)]
     public void The_retired_lot_b_opt_ins_are_never_granted(string flag, string phrase)
     {
         string? Read(string name) => name == QualificationOptIn.ConfirmationVariable ? phrase : null;
@@ -109,6 +128,9 @@ public sealed class QualificationOptInTests : QualificationTestBase
     [InlineData(QualificationOptIn.RetiredWindowsRootFlag, QualificationOptIn.ConfirmationPhrase)]
     [InlineData(QualificationOptIn.RetiredWindowsRootFlag, RetiredWindowsRootPhrase)]
     [InlineData(QualificationOptIn.RetiredWindowsRootFlag, null)]
+    [InlineData(QualificationOptIn.RetiredProposalGuidanceFlag, QualificationOptIn.ConfirmationPhrase)]
+    [InlineData(QualificationOptIn.RetiredProposalGuidanceFlag, RetiredProposalGuidancePhrase)]
+    [InlineData(QualificationOptIn.RetiredProposalGuidanceFlag, null)]
     public async Task A_retired_flag_is_refused_with_a_fixed_message_before_any_environment_directory_or_ledger_entry(
         string retiredFlag, string? phrase)
     {

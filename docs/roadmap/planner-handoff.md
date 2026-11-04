@@ -1,6 +1,128 @@
 # Planner/reviewer handoff
 
-## Current decision: CODEX-PROPOSAL-GUIDANCE-01 accepted for exact-content publication
+## Current decision: CLAUDE-REVIEW-SCHEMA-01 review 2, GO for exact-content publication
+
+Verified `main`, HEAD, local `origin/main` and the live ref at
+`241bbb2ca181445267d1d51c390b484aea0b0dca`. The index was empty, with 29
+modified tracked paths (including this record) and one untracked test.
+
+- **CRS-R1, closed.** The CLI, both manifest forms and the fixture share
+  the flat v3 schema. The three unsupported bounds are absent at every
+  depth, `minItems: 1` remains, and the existing host parser and Domain
+  policy enforce the original union and limits. Confirmed the parser and
+  policy are byte-unchanged from HEAD. The historical version boundary and
+  successor Lot B retirement and admission scope remain as reviewed.
+- **CRS-D1, closed.** The ADR-0072 extension preserves the original decision.
+  The provider, repair, cockpit and qualification records reflect the v3
+  boundary and historical status behavior.
+- **CRS-V1, validation accepted.** The corrected API matrix passed 1310/1310
+  and none of the three earlier failures recurred. Retain 1301/1304 and
+  76/76 as separate evidence. The earlier failures remain unexplained and
+  the conditional baseline comparison was unnecessary in this round.
+
+Independent review rebuilt the affected Application and Infrastructure test
+projects and passed 139/139 focused schema, parser and repair cases and
+53/53 adapter cases. The initial restricted test run aborted because the
+runner could not connect to its test host. The rerun with local test-host
+communication succeeded. The executor's logs also record 227/227 fixture
+and 232/232 architecture cases.
+
+Implementation and review-correction still pass bounded schemas to the
+Claude CLI. Record their compatibility as unverified for separate review.
+The CriticalReviewer correction covers only its own request and the fixed
+Lot B successor. The reviewed fixture and doubles cannot establish live
+provider acceptance. This GO covers only the 30 approved paths and the
+exact tree in the publication instruction. Real execution requires a
+separate owner decision after independent publication verification.
+
+## CLAUDE-REVIEW-SCHEMA-01 review 1, NO-GO
+
+Verified `main`, HEAD, local `origin/main` and the live ref at
+`241bbb2ca181445267d1d51c390b484aea0b0dca`. The index was empty, with
+26 modified tracked paths (including this planner record) and one new test.
+
+- **CRS-R1, open.** The v3 schema removes the root union but still sends
+  `minLength`, `maxLength` and `maxItems` to Claude. The [Anthropic structured
+  output limits](https://platform.claude.com/docs/en/build-with-claude/structured-outputs#json-schema-limitations)
+  exclude string length keywords and array constraints beyond `minItems` of
+  zero or one. The adapter serializes this document directly into the CLI
+  argument. No evidence establishes that the CLI strips these keywords. Keep
+  the limits in the descriptions and the existing host validator. Keep
+  `minItems: 1`. Cover absence of the unsupported keywords at every schema
+  depth and preserve the manifest, CLI and fixture parity checks. Keep the
+  parser controls for blank, overlong, oversized, mixed and unsafe payloads.
+- **CRS-D1, open.** Record the narrow v3 extension in ADR-0072 with a link
+  to the current provider contract. Preserve the original decision text.
+  Reconcile the current contract lines in the qualification plan and the
+  cockpit's CriticalReviewer facts, which recognize v1, v2 and v3 for
+  disclosure. The executor's engineering-context correction and the fixture
+  version update are in scope. The extension changes the transport contract
+  within the existing architecture.
+- **CRS-V1, evidence retained.** The executor's API matrix was 1301/1304;
+  the three affected classes passed 76/76 alone. Logs confirm an unexpected
+  Lot A exit, a file still open during Lot B teardown, and a Lot A test that
+  observed empty output and a file still open during teardown. These are
+  separate from the schema compatibility finding. Keep the results and
+  rerun the affected API matrix once after the correction. If a failure
+  repeats, compare its class or coupled filter against the exact baseline in
+  a separate checkout under equivalent conditions. Preserve unexplained
+  failures for review. Changes to Lot A or shared deadline behavior require
+  separate scope.
+
+The version boundary, historical repair-source policy and fixed successor
+identities match the selected scope on inspection. No publication or real
+run is authorized. Return the same slice for review after correction.
+
+## Selection: CLAUDE-REVIEW-SCHEMA-01 for offline preparation
+
+Baseline verified on 2026-11-04. Branch `main`, HEAD, local `origin/main`
+and the live ref all equal `241bbb2ca181445267d1d51c390b484aea0b0dca`.
+The index and working tree were clean before this planner entry.
+
+The Proposal-guidance Lot B used both role allowances. Codex produced one
+accepted Proposal. The Claude CriticalReviewer exited 1 with complete I/O,
+`ProviderReportedError` and no review. The verified sealed stdout reported
+HTTP 400 and a tool input schema restriction on root `oneOf`, `anyOf` and
+`allOf`. Stderr was empty and both hashes matched. The application's
+CriticalReviewer schema has root `oneOf`. The retained root and spent ledger
+remain evidence. The failed attempt is outside the manual format-repair gate.
+
+Use a closed, flat object for the Claude CLI schema and for the ordinary and
+format-repair manifests. Require `decision` and `summary`, enumerate `accept`
+and `challenge`, and describe the existing exclusive branch rules for the
+optional `rationale` and `challenges` properties. Describe the existing
+bounds in the schema. Keep the exact semantic union and all content and
+length checks in the current parser and Domain policy. The emitted payload
+keys, envelope reader, role restrictions and dialogue protocol remain the
+same. The transport schema cannot establish that a live request will pass.
+
+Version new CriticalReviewer attempts and repairs as
+`claude-critical-review-v3`. Reject earlier versions at dispatch without
+upgrading them or starting a process. Keep historical v1 and v2 attempts
+classifiable and preserve their existing eligibility as format-repair sources
+under the exact current outcome, clean-exit and lineage checks. A new repair
+requests the current schema. Preserve the historical attempts and manifests.
+
+Prepare one offline Lot B successor with the following fixed identities.
+Retire the proposal-guidance flag, phrase and ledger alongside the older
+entries. Do not inspect old ledgers or roots. Keep the launch context, two
+roles, deadline, admission inventory and process ceilings. Lot A is outside
+this slice.
+
+- Flag `--run-qualification-profile-01-review-schema-exchange`
+- Confirmation `qualification-profile-01-one-review-schema-codex-planner-and-claude-reviewer`
+- Authorization `owner-qualification-profile-01-lot-b-review-schema`
+- Ledger leaf `devalcopilot-qualification-profile-01-lot-b-review-schema-ledger`
+
+Use offline tests to prove CLI and manifest schema parity, both accepted
+forms, rejection of mixed, incomplete and unsafe payloads, historical
+version behavior, retired-entry refusal and production composition with
+owned provider doubles. Update the provider contract, format-repair note,
+qualification playbook and implementation record. Return for review with
+no staging, commit or push. A real Lot B still requires a separate owner
+decision after independent publication verification.
+
+## CODEX-PROPOSAL-GUIDANCE-01 accepted for exact-content publication
 
 Review 1 confirmed `main`, HEAD, local origin/main and live origin/main at
 `831cc1de9aab67f42984441db6cf9493dcd810d6`. The index was empty, with

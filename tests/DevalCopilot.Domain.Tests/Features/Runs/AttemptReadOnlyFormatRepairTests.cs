@@ -6,8 +6,8 @@ namespace DevalCopilot.Domain.Tests.Features.Runs;
 /// <summary>
 /// The Domain rule of the one manual format repair for the three read-only stages beyond the Planner
 /// (CriticalReviewer, Resolver, CodeReviewer): the repair claim is an ordinary read-only attempt of its role plus
-/// one immutable source link, and a source is eligible only in the path's exact failed, clean-exit, current-v1
-/// shape. The Planner's own rule is separate and unchanged.
+/// one immutable source link, and a source is eligible only in the path's exact failed, clean-exit, current-contract
+/// shape (a CriticalReviewer source may also be a historical v1 or v2 attempt). The Planner's own rule is separate and unchanged.
 /// </summary>
 public sealed class AttemptReadOnlyFormatRepairTests
 {
@@ -94,7 +94,7 @@ public sealed class AttemptReadOnlyFormatRepairTests
     {
         var expected = contract switch
         {
-            AgentResponseContract.CriticalReview => "claude-critical-review-v2",
+            AgentResponseContract.CriticalReview => "claude-critical-review-v3",
             AgentResponseContract.ChallengeResolution => "codex-challenge-resolution-v1",
             _ => "codex-implementation-review-v1",
         };
@@ -181,6 +181,90 @@ public sealed class AttemptReadOnlyFormatRepairTests
 
         Assert.Equal(AgentOutcome.SourceChanged, source.AgentOutcome);
         Assert.False(ReadOnlyFormatRepairPolicy.IsEligibleSource(source, contract));
+    }
+
+    private static void SetAdapterVersion(Attempt attempt, string? version) =>
+        typeof(Attempt).GetProperty(nameof(Attempt.AgentAdapterContractVersion))!.SetValue(attempt, version);
+
+    [Theory]
+    [InlineData("claude-critical-review-v1", true)]
+    [InlineData("claude-critical-review-v2", true)]
+    [InlineData("claude-critical-review-v3", true)]
+    [InlineData("claude-critical-review-v0", false)]
+    [InlineData("claude-critical-review-v4", false)]
+    [InlineData("codex-planning-v1", false)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    public void A_critical_review_source_is_eligible_under_the_current_or_a_historical_contract_only(string? version, bool expected)
+    {
+        var source = InvalidOutput(AgentResponseContract.CriticalReview);
+        SetAdapterVersion(source, version);
+
+        Assert.Equal(expected, ReadOnlyFormatRepairPolicy.IsEligibleSource(source, AgentResponseContract.CriticalReview));
+        Assert.Equal(expected, ReadOnlyFormatRepairPolicy.HasRepairableSourceTuple(source, AgentResponseContract.CriticalReview));
+    }
+
+    [Theory]
+    [InlineData("claude-critical-review-v1")]
+    [InlineData("claude-critical-review-v2")]
+    public void A_historical_critical_review_attempt_never_carries_the_exact_current_tuple_and_a_repair_never_uses_it(string version)
+    {
+        var historical = Claim(AgentResponseContract.CriticalReview, Guid.NewGuid());
+        SetAdapterVersion(historical, version);
+
+        Assert.False(ReadOnlyFormatRepairPolicy.HasExactTuple(historical, AgentResponseContract.CriticalReview));
+        Assert.Equal(
+            "claude-critical-review-v3", ReadOnlyFormatRepairPolicy.ExpectedTuple(AgentResponseContract.CriticalReview)!.Value.AdapterContractVersion);
+        Assert.Equal("claude-critical-review-v3", Claim(AgentResponseContract.CriticalReview, Guid.NewGuid()).AgentAdapterContractVersion);
+    }
+
+    [Theory]
+    [InlineData("claude-critical-review-v1", true)]
+    [InlineData("claude-critical-review-v2", true)]
+    [InlineData("claude-critical-review-v3", true)]
+    [InlineData("claude-critical-review-v0", false)]
+    [InlineData("claude-critical-review-v4", false)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    public void Only_the_current_and_the_two_historical_critical_review_versions_are_known(string? version, bool expected)
+    {
+        Assert.Equal(expected, ReadOnlyFormatRepairPolicy.IsKnownCriticalReviewVersion(version));
+        Assert.Equal("claude-critical-review-v1", ReadOnlyFormatRepairPolicy.HistoricalCriticalReviewAdapterContractVersionV1);
+        Assert.Equal("claude-critical-review-v2", ReadOnlyFormatRepairPolicy.HistoricalCriticalReviewAdapterContractVersionV2);
+        Assert.Equal("claude-critical-review-v3", ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion);
+    }
+
+    [Theory]
+    [InlineData(AgentResponseContract.ChallengeResolution, "claude-critical-review-v1")]
+    [InlineData(AgentResponseContract.ChallengeResolution, "claude-critical-review-v2")]
+    [InlineData(AgentResponseContract.ImplementationReview, "claude-critical-review-v1")]
+    [InlineData(AgentResponseContract.ImplementationReview, "claude-critical-review-v2")]
+    public void A_historical_critical_review_version_never_makes_another_stage_eligible(AgentResponseContract contract, string version)
+    {
+        var source = InvalidOutput(contract);
+        SetAdapterVersion(source, version);
+
+        Assert.False(ReadOnlyFormatRepairPolicy.IsEligibleSource(source, contract));
+    }
+
+    [Theory]
+    [InlineData("claude-critical-review-v1")]
+    [InlineData("claude-critical-review-v2")]
+    [InlineData("claude-critical-review-v3")]
+    public void A_provider_reported_error_with_a_non_zero_exit_is_not_a_repair_source_under_any_critical_review_version(string version)
+    {
+        var observed = Claim(AgentResponseContract.CriticalReview);
+        observed.MarkAgentDispatched(Now);
+        observed.CompleteAgent(
+            AgentOutcome.ProviderInvocationFailed,
+            Fingerprint,
+            Now,
+            AgentProcessExecutionEvidence.Create(
+                ProcessOutcome.Exited, 1, TimeSpan.FromMilliseconds(900),
+                DevalCopilot.Domain.Features.Processes.ProcessIoCompletion.CompleteWithInput));
+        SetAdapterVersion(observed, version);
+
+        Assert.False(ReadOnlyFormatRepairPolicy.IsEligibleSource(observed, AgentResponseContract.CriticalReview));
     }
 
     [Fact]

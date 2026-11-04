@@ -53,13 +53,13 @@ namespace DevalCopilot.Infrastructure.Features.Runs;
 /// revalidated here.
 ///
 /// Unlike Codex, Claude's print-mode CLI has no file-based final-response flag. ADR-0072 (contract
-/// <c>claude-critical-review-v2</c>): the documented single JSON envelope on stdout carries the schema-bound
+/// <c>claude-critical-review-v3</c>): the documented single JSON envelope on stdout carries the schema-bound
 /// value in its <c>structured_output</c> field. The shared <see cref="ClaudeResultEnvelope"/> classifies the
 /// process result and returns that object only for semantic success, never the narrative <c>result</c> text;
 /// this adapter writes it to the same <see cref="ArtifactPurpose.AgentFinalResponse"/> sink Codex's own CLI
 /// writes to directly, so sealing, schema parsing and recording stay identical between both providers. Every
 /// failure carries one closed <see cref="AgentInvocationDiagnostic"/>. Only the current contract is
-/// dispatched: an attempt claimed under the historical v1 contract fails closed before any process starts.
+/// dispatched: an attempt claimed under a historical v1 or v2 contract fails closed before any process starts.
 /// </summary>
 public sealed class ClaudeCriticalReviewAdapter(IProcessExecutionAdapter processExecutionAdapter, IArtifactStore artifactStore)
     : ICriticalReviewAdapter
@@ -84,7 +84,7 @@ public sealed class ClaudeCriticalReviewAdapter(IProcessExecutionAdapter process
     {
         if (request.AdapterContractVersion != ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion)
         {
-            // ADR-0072: only the current contract is dispatched; a historical attempt is never upgraded or redispatched.
+            // Only the current contract is dispatched; a historical (v1 or v2) attempt is never upgraded or redispatched.
             return Failed(AgentInvocationDiagnostic.InvocationUnavailable);
         }
 

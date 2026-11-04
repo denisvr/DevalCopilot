@@ -112,11 +112,13 @@ attempt has no repair.
   and satisfy `ReadOnlyFormatRepairPolicy.IsEligibleSource` for the path's own response contract: an Agent attempt
   with status `Failed` and outcome exactly `InvalidStructuredOutput`, dispatched and concluded, with
   host-measured process evidence proving a clean exit, the path's exact provider, role, response contract,
-  expected message type, protocol `1.0`, `ReadOnly` permission profile, and current known v1 adapter contract
-  (`claude-critical-review-v1`, `codex-challenge-resolution-v1`, `codex-implementation-review-v1`; since
-  [ADR-0072](../decisions/0072-adopt-one-windows-execution-profile.md) a Claude source may be the historical
-  `claude-critical-review-v1` or the current `claude-critical-review-v2`, and its repair is claimed and dispatched
-  under the current version), and a
+  expected message type, protocol `1.0`, `ReadOnly` permission profile, and current known adapter contract
+  (`claude-critical-review-v3`, `codex-challenge-resolution-v1`, `codex-implementation-review-v1`; a Claude
+  CriticalReviewer source may also be the historical `claude-critical-review-v1`
+  ([ADR-0072](../decisions/0072-adopt-one-windows-execution-profile.md)) or `claude-critical-review-v2`, and its
+  repair is always claimed and dispatched under the current version and its flat transport schema; the historical
+  attempt, its manifest and its evidence are never changed, and a v1 or v2 attempt is never dispatched; the observed
+  HTTP 400 reviewer failure, a provider-reported error with a non-zero exit, is not a source), and a
   well-formed assignment snapshot; otherwise 409 `agent_attempts.repair_source_ineligible`. It must carry no
   `AgentRepairSourceAttemptId` itself (`agent_attempts.repair_of_repair_forbidden`), have produced **no durable
   collaboration message** (a source that recorded a semantic result did not fail structurally), have no existing
@@ -181,8 +183,9 @@ attempt has no repair.
   manifest is preserved and `attempts.persistence_unresolved` is reported.
 - **Manifest.** The sealed manifest is the ordinary role manifest for the current verified context plus one fixed,
   host-authored `formatRepairNotice` member, placed immediately before `untrustedEvidenceBoundary` so it stays in the
-  trusted part of the document; the unchanged expected schema and the untrusted-evidence boundary remain. The
-  notices are
+  trusted part of the document; the expected schema of the role and the untrusted-evidence boundary remain (the
+  critical-review repair always carries the current flat transport schema, and its notice says that the schema in the
+  request is current and may differ from the one an earlier v1 or v2 attempt was given). The notices are
   `ClaudeCriticalReviewContextManifestBuilder.FormatRepairNotice` (critical review),
   `ChallengeResolutionContextManifestBuilder.FormatRepairNotice` (challenge resolution), and
   `CodeReviewContextManifestBuilder.FormatRepairNotice` (both the initial and the correction-evidence form): an

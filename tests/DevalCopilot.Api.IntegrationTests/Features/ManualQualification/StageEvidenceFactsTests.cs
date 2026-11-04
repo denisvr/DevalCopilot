@@ -36,7 +36,8 @@ public sealed class StageEvidenceFactsTests : QualificationTestBase
     [Theory]
     [InlineData("")]
     [InlineData("claude-critical-review-v1")]
-    [InlineData("claude-critical-review-v3")]
+    [InlineData("claude-critical-review-v2")]
+    [InlineData("claude-critical-review-v4")]
     [InlineData("codex-planning-v1")]
     public void A_missing_historical_or_foreign_reviewer_contract_never_qualifies(string version)
     {
@@ -48,7 +49,7 @@ public sealed class StageEvidenceFactsTests : QualificationTestBase
     [Theory]
     [InlineData("")]
     [InlineData("codex-planning-v2")]
-    [InlineData("claude-critical-review-v2")]
+    [InlineData("claude-critical-review-v3")]
     public void A_missing_or_foreign_planner_contract_never_qualifies(string version)
     {
         var reading = Planner() with { AdapterContractVersion = version };
@@ -145,7 +146,7 @@ public sealed class StageEvidenceFactsTests : QualificationTestBase
         Assert.Equal(1, environment.Count("submit.Reviewer"));
         using var summary = JsonDocument.Parse(SafeSummary.Render(report, []));
         var reviewer = summary.RootElement.GetProperty("reviewer");
-        Assert.Equal("claude-critical-review-v2", reviewer.GetProperty("adapterContractVersion").GetString());
+        Assert.Equal("claude-critical-review-v3", reviewer.GetProperty("adapterContractVersion").GetString());
         Assert.True(reviewer.GetProperty("ioCompletion").GetProperty("requiredComplete").GetBoolean());
         Assert.Equal("Complete", reviewer.GetProperty("ioCompletion").GetProperty("standardOutput").GetString());
         var diagnostic = reviewer.GetProperty("invocationDiagnostic");

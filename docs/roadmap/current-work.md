@@ -6,7 +6,139 @@ was prepared ([recovery](development-workflow.md#recovery)). Git and code
 prevail; compare branch, `HEAD`, `origin/main` and staged/unstaged/untracked
 state first.
 
-## Active slice: CODEX-PROPOSAL-GUIDANCE-01 fixed Proposal content guidance in Codex planning manifests and one fixed successor lot B entry (first return; returned for review; offline only; not authorized for execution)
+## Active slice: CLAUDE-REVIEW-SCHEMA-01 flat closed transport schema and contract v3 for the Claude CriticalReviewer, and one fixed successor lot B entry (first return; returned for review; offline only; not authorized for execution)
+
+This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the decision and
+scope. This record alone grants no execution or publication authority: any real session, provider call or publication needs its own
+decision, and nothing is committed or pushed.
+
+**Delivery phase: first return of a new Claude executor chat (2026-11-04).** Preflight (verified once before editing): branch `main`;
+`HEAD`, local `origin/main` and a live `git ls-remote origin refs/heads/main` all `241bbb2ca181445267d1d51c390b484aea0b0dca`; an empty
+index; no untracked path; the only working change was the planner-owned `docs/roadmap/planner-handoff.md`, which this chat did not edit.
+Nothing real was run: no provider, `codex`, `claude`, account, login, network request or owner manifest; the spent ledgers and the roots
+of earlier lots (including the proposal-guidance one) were never opened, enumerated, reset or migrated.
+
+### What changed
+
+- **One transport schema (`ClaudeCriticalReviewOutputSchema`).** The root `oneOf` is gone. The root is a closed object: `decision`
+  (enum `accept`, `challenge`) and `summary` required, `rationale` and `challenges` (items of the same five closed fields as before)
+  optional, no extra properties. The exclusivity of the two optional members and the bounds are in the root and member `description`
+  text, built from the same constants (as first returned the schema also carried `minLength`, `maxLength` and `maxItems`; removed by
+  correction 1 below). The same `BuildSchemaDocument()` feeds the `--json-schema` argument and the
+  `expectedOutputSchema` of the ordinary and the repair manifest, so the three cannot diverge. The parser, the payload keys, the content
+  policy, the envelope, the role arguments and the permissions are untouched; exclusivity and every content rule remain only there.
+- **Contract `claude-critical-review-v3`.** `ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion` is v3 for new reviews and
+  repairs; `HistoricalCriticalReviewAdapterContractVersionV1` is kept and `...V2` is added. `HasRepairableSourceTuple` and
+  `IsKnownCriticalReviewVersion` accept v1, v2 and v3, so historical attempts stay classifiable (status configured facts) and remain
+  eligible repair sources under the unchanged `Failed` / `InvalidStructuredOutput` / clean-exit / lineage / single-repair rules;
+  `HasExactTuple` still requires v3, and the repair claim records v3. `ClaudeCriticalReviewAdapter` already refused any other version
+  first (`InvocationUnavailable`, before the manifest read, any sink or process), so v1 and v2 dispatch is refused with no new code.
+  The observed HTTP 400 attempt (exit 1, `ProviderInvocationFailed`) is not a repair source.
+- **Repair notice.** `ClaudeCriticalReviewContextManifestBuilder.FormatRepairNotice` no longer says "unchanged expectedOutputSchema"; it
+  says the schema in the request is current and may differ from the one the earlier attempt was given. The other three stages' notices
+  are untouched.
+- **Fixture copy.** `ProviderFixture/Schemas/CriticalReview.schema.json` is the fixture's own fixed copy of the new schema (the journey
+  double compares structurally, descriptions included); `claude-invocation-diagnostic.journey.ts` expects v3.
+- **Successor Lot B entry** (`QualificationOptIn`, `InvocationLedger`, `QualificationContracts`): flag
+  `--run-qualification-profile-01-review-schema-exchange`, phrase
+  `qualification-profile-01-one-review-schema-codex-planner-and-claude-reviewer`, authorization
+  `owner-qualification-profile-01-lot-b-review-schema`, ledger `devalcopilot-qualification-profile-01-lot-b-review-schema-ledger`. The
+  proposal-guidance flag is retired (`RetiredProposalGuidanceFlag` joins `IsRetiredFlagArgument`: fixed refusal naming the successor,
+  exit 2, before any environment, directory, ledger or process), its phrase no longer confirms, and its ledger leaf joins the
+  construction guard. The launch-context binding, two-role sequence, admission, 179-start ceiling and 35-minute bound and Lot A are
+  unchanged; the pinned reviewer adapter is v3.
+- **Documentation.** Provider contract (transport schema and contract versions), format-repair note (v1/v2/v3 sources, notice),
+  qualification playbook (identity table, retirement paragraph without any response text, Lot B section, command, ledger bullet, pinned
+  contracts) and one line in `docs/engineering-context.md`.
+
+### Validation
+
+Context: this chat's Windows shell, isolated short `TEMP`/`TMP` under the user's temp folder, `-p:UseSharedCompilation=false
+-p:SkipNSwag=True -m:1`, logs in ignored `logs/executor/claude-review-schema-01/` (`final/` is the one final matrix; earlier focused runs
+sit beside it).
+
+- **Parity and shapes first.** New `ClaudeCriticalReviewTransportSchemaTests` (Application): flat closed root, required set, enum, no
+  union keyword anywhere, bounds and exclusivity text, both valid forms satisfy the real schema (small evaluator of its keywords) and
+  parse, mixed / incomplete / unknown / unsafe / overlong payloads refused by the parser (and a test showing that the flat schema alone
+  lets a mixed or incomplete payload through, so the parser is the only gate). Manifest tests: ordinary and repair `expectedOutputSchema`
+  equal the serialized document; adapter test: the `--json-schema` argument equals it and has no union keyword; `ProviderFixtureContract`:
+  the real adapter schema equals the fixture copy in any property order, weakened variants and the retired root union are refused.
+- **Versions.** Domain tests for v1/v2/v3/unknown eligibility, exact-tuple, known versions and a provider-reported non-zero exit under
+  each version; Application: v1 and v2 failed sources produce a v3 repair with the current schema, status still discloses configured
+  facts for v1 and v2; adapter: v1, v2, v0, v4, foreign, empty and null versions refused with no process, manifest read or sink.
+- **Entry.** Opt-in and fresh-authorization tests pin the successor identity, the retired proposal-guidance identity, that its flag and
+  phrase are never granted, the fixed refusal, and the construction guard (case, trailing separator).
+- **Final matrix (`final/`).** Launcher build `-warnaserror`: 0 warnings, 0 errors. Domain 209/209. Application 442/442. Infrastructure
+  279/279. Api (ProviderFixtureContract, `Features.ManualQualification` with provider doubles, critical-review creation/status/request,
+  supervision and repair-replay hosted classes, instruction and untracked delivery): 1301/1304. Architecture 232/232.
+- **Three Api failures, disclosed.** In that one parallel run `CheckedPersistenceTests.Lot_a_keeps_its_non_success_exit_and_a_persisted_summary_still_returns_zero`
+  (exit 5 instead of 0), `LauncherOuterDeadlineTests.A_synchronous_first_snapshot_inside_the_session_cannot_hold_the_entry_past_its_bound`
+  (teardown: summary file in use) and `StatusComparisonEntryTests.A_blocking_filtered_map_preparation_is_inside_the_bound_and_nothing_starts_after_it`
+  (empty summary read, then file in use) failed. All three are Lot A or entry-deadline tests with held files and none touches the
+  changed code; the first and second match the planner's recorded intermittent failures. Rerun alone, the three classes passed 76/76
+  (`final/api-rerun-three-classes.txt`). I did not isolate their cause or run a baseline; treat them as unexplained intermittent
+  results, not as proven unrelated.
+- **Hygiene.** `dotnet format --verify-no-changes --include <the 19 changed or new C# files>` clean for every project; `git diff
+  --check` clean; no CR or NUL byte in any changed or new file other than the planner handoff.
+- Not run, by design: any real provider; the rest of the solution; frontend and journeys (the journey literal was only updated); the
+  mutation harness.
+
+### Findings, challenges and limits for Codex
+
+1. **The schema is a description, not a control.** A mixed or incomplete payload satisfies it; only the parser refuses it. Whether the
+   provider accepts this flat schema (descriptions, enum, bounds) is unproven offline, and a real Lot B is a separate decision.
+2. **ADR-0072 and older text name v2.** ADR-0072 (accepted, unedited) says new attempts are `claude-critical-review-v2`, and
+   `real-provider-qualification-plan.md` and `run-cockpit-specification.md` still name v2/v1. I changed none of them; this is a
+   version bump inside the ADR's design, so I did not add a superseding ADR. Planner to decide whether an addendum is wanted.
+3. **Repair notice wording is a manifest change.** It affects only new critical-review repair manifests; historical manifests are unchanged.
+4. **Intermittent Lot A / deadline tests** (above) were not investigated.
+
+### Correction 1 (same executor chat; offline; findings CRS-R1, CRS-D1, CRS-V1)
+
+Preflight: `main`, `HEAD`, local `origin/main` and a live `git ls-remote` all `241bbb2ca181445267d1d51c390b484aea0b0dca`; empty index; 26
+modified tracked files and one untracked test file; the planner's `planner-handoff.md` edits (88 insertions, 1 deletion) preserved and
+unedited. No provider, account, network call, prior ledger or retained evidence was touched.
+
+- **CRS-R1 (closed here, for review).** `minLength`, `maxLength` and `maxItems` are gone from the whole v3 schema (root, `summary`,
+  `rationale`, `challenges`, each item field); `minItems: 1`, the descriptions of the bounds (1 to 600 for summaries, 1 to 900 for other
+  text, 1 to 5 challenges) and the exclusivity text stay. Contract v3, historical v1/v2 handling and the successor Lot B identities are
+  unchanged. The fixture copy has the same shape. Tests: the three keywords are absent at every depth of the schema (Application), of
+  the `--json-schema` argument (adapter), of the ordinary, repair and historical-source repair manifests (each also equal to the
+  serialized document) and of the real adapter schema checked by `ProviderFixtureContract`, which also refuses a schema that
+  reintroduces any of them (six cases) and no longer has a widened-bound variant for this contract (there is nothing to widen). The
+  parser still refuses, with the schema accepting their shape: empty and blank text in every accept and challenge field, summaries over
+  600 and other text over 900 characters (accept, each challenge field, the challenge-set summary), 6, 7 and 20 challenges, an empty
+  challenge set (also outside the schema by `minItems`), and the earlier mixed, incomplete and unsafe payloads. One and five challenges
+  still parse.
+- **CRS-D1 (closed here, for review).** ADR-0072 keeps its decision text and gains a status link and the section "Narrow extension:
+  CriticalReviewer contract v3 (transport schema)"; it links the provider contract. The qualification plan names v3 and links that
+  section. The cockpit specification now says the CriticalReviewer status recognizes v1, v2 and v3 for the configured facts and that new
+  claims are v3. The provider contract, playbook, format-repair note and engineering context (v3 line from the first return) match; the
+  browser journey fixture version was already v3.
+- **CRS-V1.** Original results retained unchanged: Api matrix 1301/1304 and, for the three failing classes alone, 76/76 (above). In this order
+  (logs in `logs/executor/claude-review-schema-01/correction1/`): focused Application schema, parser, creation, repair, status
+  and format-repair filter 296/296; adapter class 53/53; `ProviderFixtureContract` 227/227; then the affected Api matrix once (same
+  filter as the original run): launcher build `-warnaserror` 0 warnings, 0 errors, **1310/1310** (the original 1304 plus one actual-schema fixture test and six reintroduction
+  cases, minus the removed bound variant). Architecture 232/232 after the documentation edits; Domain and Infrastructure
+  were not rerun (their inputs did not change since the first return's 209/209 and 279/279). `dotnet format --verify-no-changes` clean
+  for the 19 changed or new C# files (it first flagged one single-line dictionary initializer in the new test, which I reformatted and
+  re-verified); `git diff --check` clean; no CR or NUL byte in any changed or new file except the planner handoff.
+- **What the comparison establishes.** None of the three earlier failures recurred in this run, so the exact-baseline checkout comparison
+  was not performed (it was conditional on a recurrence). The three failures therefore remain unexplained intermittent results of one
+  parallel run: not reproduced by the isolated rerun, not by this run, and not compared with a baseline. Nothing establishes that they
+  are unrelated to, or caused by, this slice. Lot A and shared deadline behavior stay outside it.
+- **Limit still open.** `ImplementationReport` and `ReviewCorrection` (also Claude `--json-schema` roles) and the Codex schemas still
+  carry `minLength`/`maxLength`/`maxItems`. I did not change them: the finding names only the v3 CriticalReviewer schema and the
+  evidence that the tool input rejects these keywords concerns that request. If the same restriction applies to the other Claude roles,
+  they need their own slice.
+
+### Git state
+
+Unstaged, uncommitted and unpushed on `main` (`HEAD` `241bbb2`): 29 modified tracked files including the planner-owned
+`docs/roadmap/planner-handoff.md` (unedited) and one new untracked file (`ClaudeCriticalReviewTransportSchemaTests.cs`). No next slice
+is selected; real execution and publication remain pending.
+
+## Previous slice (published as 241bbb2; historical record): CODEX-PROPOSAL-GUIDANCE-01 fixed Proposal content guidance in Codex planning manifests and one fixed successor lot B entry (first return; returned for review; offline only; not authorized for execution)
 
 This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the decision and
 scope. This record alone grants no execution or publication authority: any real session, provider call or publication needs its own

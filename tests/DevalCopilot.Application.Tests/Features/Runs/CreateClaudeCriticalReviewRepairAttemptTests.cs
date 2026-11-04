@@ -39,6 +39,14 @@ public sealed class CreateClaudeCriticalReviewRepairAttemptTests : IAsyncLifetim
 
     private static string Code<T>(Result<T> result) => Assert.Single(result.Errors).Code;
 
+    private static void AssertNoUnsupportedKeyword(string schemaText)
+    {
+        foreach (var keyword in new[] { "minLength", "maxLength", "maxItems", "oneOf", "anyOf", "allOf" })
+        {
+            Assert.DoesNotContain($"\"{keyword}\"", schemaText, StringComparison.Ordinal);
+        }
+    }
+
     private async Task AssertRefusedBeforeAnyExternalWorkAsync(
         Result<CreateClaudeCriticalReviewAttemptCommandResult> result,
         string expectedCode,
@@ -79,7 +87,7 @@ public sealed class CreateClaudeCriticalReviewRepairAttemptTests : IAsyncLifetim
         Assert.Equal(AgentRole.CriticalReviewer, repair.AgentRole);
         Assert.Equal(AgentResponseContract.CriticalReview, repair.AgentResponseContract);
         Assert.Equal(AgentPermissionProfile.ReadOnly, repair.AgentPermissionProfile);
-        Assert.Equal("claude-critical-review-v2", repair.AgentAdapterContractVersion);
+        Assert.Equal("claude-critical-review-v3", repair.AgentAdapterContractVersion);
         Assert.Equal(scene.Workspace.Id, repair.AgentGitWorkspaceId);
         Assert.Equal(scene.Checkpoint.Id, repair.AgentGitCheckpointId);
         Assert.Equal(source.AgentBudgetSlot + 1, repair.AgentBudgetSlot);
@@ -152,6 +160,13 @@ public sealed class CreateClaudeCriticalReviewRepairAttemptTests : IAsyncLifetim
         };
         Assert.Equal(ordinaryMembers, withoutNotice);
 
+        // The schema is the one transport schema the CLI argument carries, with no root union.
+        Assert.Equal(
+            JsonSerializer.Serialize(ClaudeCriticalReviewOutputSchema.BuildSchemaDocument()),
+            repairManifest.RootElement.GetProperty("expectedOutputSchema").GetRawText());
+        Assert.False(repairManifest.RootElement.GetProperty("expectedOutputSchema").TryGetProperty("oneOf", out _));
+        AssertNoUnsupportedKeyword(repairManifest.RootElement.GetProperty("expectedOutputSchema").GetRawText());
+
         // The unchanged schema and boundary are present; nothing about the source leaks into the manifest.
         Assert.Equal("CriticalReview", repairManifest.RootElement.GetProperty("expectedResponseContract").GetString());
         Assert.Contains("untrusted evidence", repairManifest.RootElement.GetProperty("untrustedEvidenceBoundary").GetString());
@@ -176,7 +191,45 @@ public sealed class CreateClaudeCriticalReviewRepairAttemptTests : IAsyncLifetim
         Assert.Null(result.Value.RepairSourceAttemptId);
         await using var verify = _fixture.CreateContext();
         Assert.Null((await verify.Attempts.SingleAsync(a => a.Id == result.Value.AttemptId)).AgentRepairSourceAttemptId);
-        Assert.DoesNotContain("formatRepairNotice", store.ReadManifest(scene.Run.Id, result.Value.AttemptId));
+        var ordinaryManifest = store.ReadManifest(scene.Run.Id, result.Value.AttemptId);
+        Assert.DoesNotContain("formatRepairNotice", ordinaryManifest);
+        Assert.Equal("claude-critical-review-v3", (await verify.Attempts.SingleAsync(a => a.Id == result.Value.AttemptId)).AgentAdapterContractVersion);
+
+        // The ordinary manifest carries the same transport schema as the repair manifest and the CLI argument, with no root union.
+        using var manifest = JsonDocument.Parse(ordinaryManifest);
+        Assert.Equal(
+            JsonSerializer.Serialize(ClaudeCriticalReviewOutputSchema.BuildSchemaDocument()),
+            manifest.RootElement.GetProperty("expectedOutputSchema").GetRawText());
+        Assert.False(manifest.RootElement.GetProperty("expectedOutputSchema").TryGetProperty("oneOf", out _));
+        AssertNoUnsupportedKeyword(manifest.RootElement.GetProperty("expectedOutputSchema").GetRawText());
+    }
+
+    [Theory]
+    [InlineData("claude-critical-review-v1")]
+    [InlineData("claude-critical-review-v2")]
+    public async Task A_historical_v1_or_v2_failed_source_is_still_repairable_and_the_repair_runs_under_the_current_contract_and_schema(
+        string historicalVersion)
+    {
+        var scene = await RepairTestScene.CreateAsync(_fixture);
+        var (source, _) = scene.AddCriticalReviewSource();
+        await scene.SaveAsync();
+        await scene.CorruptAsync(source.Id, $"AgentAdapterContractVersion = '{historicalVersion}'");
+        var store = new RepairArtifactStore();
+
+        var result = await NewHandler(scene.Db, RepairEvidenceReader.Matching(RepairTestScene.Fingerprint), store)
+            .HandleAsync(CreateClaudeCriticalReviewAttemptCommand.ForRepair(scene.Run.Id, source.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.IsFailure ? Code(result) : null);
+        await using var verify = _fixture.CreateContext();
+        var repair = await verify.Attempts.SingleAsync(a => a.Id == result.Value.AttemptId);
+        Assert.Equal("claude-critical-review-v3", repair.AgentAdapterContractVersion);
+        var persistedSource = await verify.Attempts.SingleAsync(a => a.Id == source.Id);
+        Assert.Equal(historicalVersion, persistedSource.AgentAdapterContractVersion);
+        using var manifest = JsonDocument.Parse(store.ReadManifest(scene.Run.Id, result.Value.AttemptId));
+        Assert.Equal(
+            JsonSerializer.Serialize(ClaudeCriticalReviewOutputSchema.BuildSchemaDocument()),
+            manifest.RootElement.GetProperty("expectedOutputSchema").GetRawText());
+        AssertNoUnsupportedKeyword(manifest.RootElement.GetProperty("expectedOutputSchema").GetRawText());
     }
 
     [Fact]

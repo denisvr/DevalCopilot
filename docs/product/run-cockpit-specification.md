@@ -1779,12 +1779,13 @@ effective access, an MCP or complete security boundary, model or effort, or
 invocation eligibility of any kind. Each attempt claims a concrete,
 non-Unknown permission profile — `ReadOnly` for CriticalReviewer,
 `WorkspaceEditOnly` for ReviewCorrection — and a distinct, fixed adapter
-contract version (`claude-critical-review-v1` for CriticalReviewer and
-`claude-review-correction-v1` or, for every new claim, `claude-review-correction-v2` for ReviewCorrection) at claim time; all five facts are
+contract version (`claude-critical-review-v3` for every new CriticalReviewer claim, with the historical
+`claude-critical-review-v1` and `claude-critical-review-v2` also recognized by this status so their configured facts are still disclosed;
+and `claude-review-correction-v1` or, for every new claim, `claude-review-correction-v2` for ReviewCorrection) at claim time; all five facts are
 populated only when that attempt's own provider, role, response contract,
-permission profile, and adapter contract version all agree with the current,
-single supported path for that role — no attempt yet, and a valid but
-historical or mismatched assignment, both show `Unknown`/`null` here, never
+permission profile, and adapter contract version all agree with the supported path for that role
+(for a CriticalReviewer the current v3 or a recognized historical v1 or v2) — no attempt yet, and a valid but
+unrecognized or mismatched assignment, both show `Unknown`/`null` here, never
 the current adapter's configuration by assumption. An invalid or otherwise
 unparseable assignment fails the whole status closed with the existing
 `agent_attempts.invalid_assignment` error, exactly as it already does for

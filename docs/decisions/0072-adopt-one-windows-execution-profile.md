@@ -5,7 +5,9 @@ Status: Accepted (verification profile extended by
 (`windows-verification-v2`) and then by
 [ADR-0074](0074-disable-sdk-first-run-persistent-side-effects-in-the-windows-verification-profile.md):
 new executions record `windows-verification-v3`; the version-1 decision below
-stays as recorded)
+stays as recorded; the CriticalReviewer contract is extended by the
+[narrow v3 extension](#narrow-extension-criticalreviewer-contract-v3-transport-schema)
+below, and the decision text stays as recorded)
 
 ## Context
 
@@ -228,6 +230,34 @@ evidence is Blocked (CertificateValidationUnavailable), never relaxed.
   semantics are unchanged.
 - ADR-0061/ADR-0069: one additional coherent Failed tuple, only with recorded
   incomplete I/O.
+
+## Narrow extension: CriticalReviewer contract v3 (transport schema)
+
+Added by CLAUDE-REVIEW-SCHEMA-01; the decision above is unchanged and stays as
+recorded, including its statement that new CriticalReviewer attempts are claimed
+as `claude-critical-review-v2`, which was true when it was made.
+
+- A real Lot B reviewer request was rejected by the provider with HTTP 400
+  because the `--json-schema` document had a root `oneOf`; the planner's review
+  also directed that `minLength`, `maxLength` and `maxItems`, which the tool
+  input does not accept, be removed. New CriticalReviewer attempts and repairs are
+  therefore claimed as `claude-critical-review-v3`, whose one transport schema
+  is a flat, closed object with no union and none of those three keywords;
+  `minItems` and the descriptions of the bounds and of the exclusivity of
+  `rationale` and `challenges` remain.
+- Everything else of this decision still applies to v3: the documented envelope,
+  closed diagnostics, I/O completion, arguments, restrictions and the role's
+  authority. The exact union, the payload keys and every length, count and
+  content rule stay enforced only by the existing parser and Domain policy.
+- v1 and v2 are never dispatched (refused before any process); historical v1 and
+  v2 attempts stay classifiable, keep their configured-fact disclosure and remain
+  eligible sources of the one manual format repair under the unchanged outcome,
+  clean-exit, lineage and single-attempt rules; that repair runs under v3 and the
+  current schema. A provider-reported error with a non-zero exit is not a source.
+- The current wording and evidence limits (offline tests cannot show that a live
+  request passes) are in the
+  [provider contract](../architecture/agent-collaboration-provider-contracts.md#claude-code-critical-review-cli-safety-contract)
+  and the [format-repair note](../architecture/agent-collaboration-format-repair.md).
 
 ## Consequences
 

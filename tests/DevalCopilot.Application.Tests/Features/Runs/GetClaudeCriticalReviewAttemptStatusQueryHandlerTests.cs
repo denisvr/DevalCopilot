@@ -153,7 +153,7 @@ public sealed class GetClaudeCriticalReviewAttemptStatusQueryHandlerTests(Sqlite
         dbContext.AttemptInputMessages.Add(inputMessage);
         await dbContext.SaveChangesAsync(CancellationToken.None);
         await dbContext.Database.ExecuteSqlInterpolatedAsync($"""
-            UPDATE attempts SET AgentAdapterContractVersion = 'claude-critical-review-v3' WHERE Id = {attempt.Id}
+            UPDATE attempts SET AgentAdapterContractVersion = 'claude-critical-review-v4' WHERE Id = {attempt.Id}
             """);
 
         await using var readContext = fixture.CreateContext();
@@ -166,6 +166,39 @@ public sealed class GetClaudeCriticalReviewAttemptStatusQueryHandlerTests(Sqlite
         Assert.Null(result.Value.ConfiguredPermissionPrompts);
         Assert.Null(result.Value.ConfiguredResumeEligibility);
         Assert.Null(result.Value.ConfiguredBuiltInTools);
+    }
+
+    [Theory]
+    [InlineData("claude-critical-review-v1")]
+    [InlineData("claude-critical-review-v2")]
+    public async Task HandleAsync_still_reads_a_historical_v1_or_v2_attempt_and_discloses_the_same_fixed_configuration(string version)
+    {
+        await using var dbContext = fixture.CreateContext();
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
+        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Historical critical review adapter contract", Now);
+        run.Claim(Now);
+        var (attempt, inputMessage) = ClaimCriticalReviewAttempt(run.Id, 1, Now);
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.Attempts.Add(attempt);
+        dbContext.AttemptInputMessages.Add(inputMessage);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+        await dbContext.Database.ExecuteSqlInterpolatedAsync($"""
+            UPDATE attempts SET AgentAdapterContractVersion = {version} WHERE Id = {attempt.Id}
+            """);
+
+        await using var readContext = fixture.CreateContext();
+        var result = await new GetClaudeCriticalReviewAttemptStatusQueryHandler(readContext)
+            .HandleAsync(new GetClaudeCriticalReviewAttemptStatusQuery(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(result.Value.HasAttempt);
+        Assert.Equal(attempt.Id, result.Value.AttemptId);
+        Assert.Equal("plan", result.Value.ConfiguredPermissionMode);
+        Assert.Equal("Disabled", result.Value.ConfiguredSessionPersistence);
+        Assert.Equal("None", result.Value.ConfiguredPermissionPrompts);
+        Assert.Equal("Ineligible", result.Value.ConfiguredResumeEligibility);
+        Assert.Equal("None", result.Value.ConfiguredBuiltInTools);
     }
 
     [Fact]

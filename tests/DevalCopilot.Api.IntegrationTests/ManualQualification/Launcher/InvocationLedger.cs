@@ -12,8 +12,8 @@ namespace DevalCopilot.Api.IntegrationTests.ManualQualification;
 /// </summary>
 public sealed class InvocationLedger(string ledgerDirectory, TimeProvider clock)
 {
-    public const string DirectoryName = "devalcopilot-qualification-profile-01-lot-b-proposal-guidance-ledger";
-    public const string Authorization = "owner-qualification-profile-01-lot-b-proposal-guidance";
+    public const string DirectoryName = "devalcopilot-qualification-profile-01-lot-b-review-schema-ledger";
+    public const string Authorization = "owner-qualification-profile-01-lot-b-review-schema";
 
     /// <summary>The directory of the first lot B authorization, whose process slots were spent by a refused discovery. Named only so
     /// that it can be refused: this launcher never reads, enumerates, resets, archives or migrates it.</summary>
@@ -26,6 +26,10 @@ public sealed class InvocationLedger(string ledgerDirectory, TimeProvider clock)
     /// <summary>The directory of the Windows-root lot B authorization, spent by one native Codex Planner exit. Named only so that it
     /// can be refused: this launcher never reads, enumerates, resets, archives or migrates it.</summary>
     public const string RetiredWindowsRootDirectoryName = "devalcopilot-qualification-profile-01-lot-b-windows-root-ledger";
+
+    /// <summary>The directory of the proposal-guidance lot B authorization, whose allowances were used. Named only so that it can be
+    /// refused: this launcher never reads, enumerates, resets, archives or migrates it.</summary>
+    public const string RetiredProposalGuidanceDirectoryName = "devalcopilot-qualification-profile-01-lot-b-proposal-guidance-ledger";
 
     /// <summary>The directory of every earlier authorization's spent allowances. Named only so that it can be refused: this launcher
     /// never reads, enumerates, resets or archives it, and no path or authorization switch exists that could point back to it.</summary>
@@ -51,6 +55,7 @@ public sealed class InvocationLedger(string ledgerDirectory, TimeProvider clock)
             || string.Equals(name, RetiredDirectoryName, StringComparison.OrdinalIgnoreCase)
             || string.Equals(name, RetiredContextBoundDirectoryName, StringComparison.OrdinalIgnoreCase)
             || string.Equals(name, RetiredWindowsRootDirectoryName, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(name, RetiredProposalGuidanceDirectoryName, StringComparison.OrdinalIgnoreCase)
             ? throw new ArgumentException("The spent allowance directory of an earlier authorization is never used.", nameof(directory))
             : directory;
     }

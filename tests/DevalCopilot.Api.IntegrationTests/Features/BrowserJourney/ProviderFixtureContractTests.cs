@@ -628,6 +628,77 @@ public sealed partial class ProviderFixtureContractTests : IDisposable
         AssertNoSchemaContent(result);
     }
 
+    [Theory]
+    [InlineData("open-additional-properties")]
+    [InlineData("dropped-required")]
+    [InlineData("dropped-property")]
+    [InlineData("widened-enum")]
+    public void The_claude_double_refuses_a_weakened_critical_review_schema_before_logging(string variant)
+    {
+        var supplied = Mutate(variant, ActualSchema("CriticalReview"), ActualSchema("ImplementationReport"));
+
+        var result = RunClaudeWithSchema("CriticalReview", supplied);
+
+        Assert.Equal(Unsupported, result.ExitCode);
+        Assert.False(File.Exists(Path.Combine(_root, "fixture", "invocations.jsonl")));
+        AssertNoSchemaContent(result);
+    }
+
+    [Fact]
+    public void The_actual_critical_review_schema_carries_no_length_or_maximum_keyword_at_any_depth_and_the_double_agrees()
+    {
+        var actual = ActualSchema("CriticalReview");
+
+        Assert.False(ContainsKeyword(JsonNode.Parse(actual)!, ["minLength", "maxLength", "maxItems"]));
+        Assert.Equal(actual, JsonSerializer.Serialize(ClaudeCriticalReviewOutputSchema.BuildSchemaDocument()));
+        Assert.Equal(0, RunClaudeWithSchema("CriticalReview", actual).ExitCode);
+    }
+
+    [Theory]
+    [InlineData("/properties/summary", "minLength", 1)]
+    [InlineData("/properties/summary", "maxLength", 600)]
+    [InlineData("/properties/rationale", "maxLength", 900)]
+    [InlineData("/properties/challenges", "maxItems", 5)]
+    [InlineData("/properties/challenges/items/properties/reasoning", "minLength", 1)]
+    [InlineData("/properties/challenges/items/properties/reasoning", "maxLength", 900)]
+    public void The_claude_double_refuses_a_critical_review_schema_that_reintroduces_a_keyword_the_tool_input_rejects(
+        string pointer, string keyword, int value)
+    {
+        var schema = JsonNode.Parse(ActualSchema("CriticalReview"))!;
+        var target = schema;
+        foreach (var segment in pointer.Split('/', StringSplitOptions.RemoveEmptyEntries))
+        {
+            target = target[segment]!;
+        }
+
+        target[keyword] = value;
+
+        var result = RunClaudeWithSchema("CriticalReview", schema.ToJsonString());
+
+        Assert.Equal(Unsupported, result.ExitCode);
+        Assert.False(File.Exists(Path.Combine(_root, "fixture", "invocations.jsonl")));
+        AssertNoSchemaContent(result);
+    }
+
+    private static bool ContainsKeyword(JsonNode node, string[] keywords) => node switch
+    {
+        JsonObject value => value.Any(property => keywords.Contains(property.Key) || (property.Value is not null && ContainsKeyword(property.Value, keywords))),
+        JsonArray value => value.Any(item => item is not null && ContainsKeyword(item, keywords)),
+        _ => false,
+    };
+
+    [Fact]
+    public void The_claude_double_refuses_the_retired_root_union_critical_review_schema()
+    {
+        const string rootUnion = """{"type":"object","oneOf":[{"type":"object"},{"type":"object"}]}""";
+
+        var result = RunClaudeWithSchema("CriticalReview", rootUnion);
+
+        Assert.Equal(Unsupported, result.ExitCode);
+        Assert.False(File.Exists(Path.Combine(_root, "fixture", "invocations.jsonl")));
+        AssertNoSchemaContent(result);
+    }
+
     [Fact]
     public void A_missing_or_directory_schema_file_is_refused_by_the_codex_double()
     {

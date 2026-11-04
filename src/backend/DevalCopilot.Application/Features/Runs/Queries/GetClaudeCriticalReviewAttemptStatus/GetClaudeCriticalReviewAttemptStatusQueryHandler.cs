@@ -12,7 +12,7 @@ public sealed class GetClaudeCriticalReviewAttemptStatusQueryHandler(IDevalCopil
     : IQueryHandler<GetClaudeCriticalReviewAttemptStatusQuery, Result<ClaudeCriticalReviewAttemptStatusQueryResult>>
 {
     // Mirrors the ClaudeCriticalReviewAdapter.s own fixed CLI arguments — fixed configuration facts, never a provider-observed
-    // result and never invocation eligibility. Both the current and the historical v1 contract (ADR-0072) pass these same
+    // result and never invocation eligibility. The current and every historical v1 and v2 contract pass these same
     // permission, session, prompt, resume and tool arguments.
     private const string ConfiguredClaudeCriticalReviewerPermissionMode = "plan";
     private const string ConfiguredClaudeCriticalReviewerSessionPersistence = "Disabled";
