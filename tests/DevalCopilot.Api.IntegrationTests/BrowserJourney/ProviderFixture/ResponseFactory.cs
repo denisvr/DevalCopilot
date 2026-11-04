@@ -53,6 +53,32 @@ public static class ResponseFactory
         }),
     });
 
+    /// <summary>The critical review of the Planner root with two distinct Challenges in one response, served only to the offline
+    /// challenge-set qualification rehearsal. Its two concerns reuse the texts of the two ordinary reviews, which the content policy
+    /// already accepts.</summary>
+    public static string TwoChallenges() => Serialize(new JsonObject
+    {
+        ["decision"] = "challenge",
+        ["summary"] = "The root plan duplicates the calculation and leaves the operand order unspecified.",
+        ["challenges"] = new JsonArray(
+            new JsonObject
+            {
+                ["summary"] = "The lookup table duplicates the arithmetic.",
+                ["disputedItem"] = "Step one creates a second file for the total.",
+                ["materialImpact"] = "A second source of truth would drift from the real total.",
+                ["reasoning"] = "The total is already computed in the Feature file, so a table only adds a place to be wrong.",
+                ["alternativeOrQuestion"] = "Implement the calculation in the Feature file instead.",
+            },
+            new JsonObject
+            {
+                ["summary"] = "The plan never says whether operand order matters.",
+                ["disputedItem"] = "The step says only that Total returns the sum of its operands.",
+                ["materialImpact"] = "An implementer cannot tell whether reordering the operands is an acceptable edit.",
+                ["reasoning"] = "Integer addition does not depend on operand order, so the plan should say so and keep the edit to one statement.",
+                ["alternativeOrQuestion"] = "State that either operand order is acceptable and that only the return statement changes.",
+            }),
+    });
+
     /// <summary>The critical review of the Planner root that accepts it, served only to the local execution cycle journey's repository so
     /// the root becomes an explicitly Accepted plan.</summary>
     public static string AcceptRoot() => Serialize(new JsonObject

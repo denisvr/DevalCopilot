@@ -86,18 +86,18 @@ public sealed class SafeSummaryTests : QualificationTestBase
         Assert.Equal(RefusedSummary, text);
     }
 
-    private const string RefusedSummary = "{\"schemaVersion\":3,\"result\":\"Failed\",\"code\":\"SummaryRefused\"}";
+    private const string RefusedSummary = "{\"schemaVersion\":4,\"result\":\"Failed\",\"code\":\"SummaryRefused\"}";
 
     [Fact]
-    public async Task Schema_three_keeps_each_stage_counts_and_its_performed_agreeing_comparison()
+    public async Task Schema_four_lists_each_stage_message_with_its_comparisons_beside_the_counts()
     {
         var report = await RunAsync(new ScriptedEnvironment());
 
         using var summary = JsonDocument.Parse(SafeSummary.Render(report, NoForbiddenValues));
         var root = summary.RootElement;
 
-        Assert.Equal(3, SafeSummary.SchemaVersion);
-        Assert.Equal(3, root.GetProperty("schemaVersion").GetInt32());
+        Assert.Equal(4, SafeSummary.SchemaVersion);
+        Assert.Equal(4, root.GetProperty("schemaVersion").GetInt32());
         Assert.Equal("Qualified", root.GetProperty("result").GetString());
         foreach (var (name, attempts) in new[] { ("planner", 1), ("reviewer", 2) })
         {
@@ -107,6 +107,13 @@ public sealed class SafeSummaryTests : QualificationTestBase
             Assert.Equal(1, stage.GetProperty("messageCount").GetInt32());
             Assert.Equal("Agrees", stage.GetProperty("evidenceRouteComparison").GetString());
             Assert.True(stage.GetProperty("evidenceRouteAgrees").GetBoolean());
+            Assert.Equal("Agrees", stage.GetProperty("messageSetComparison").GetString());
+            Assert.False(stage.GetProperty("messagesTruncated").GetBoolean());
+            var message = Assert.Single(stage.GetProperty("messages").EnumerateArray());
+            Assert.True(message.GetProperty("belongsToAcceptedAttempt").GetBoolean());
+            Assert.Equal("Agrees", message.GetProperty("evidenceRouteComparison").GetString());
+            Assert.Equal("Agrees", message.GetProperty("persistedMetadataComparison").GetString());
+            Assert.Equal("ProviderObserved", message.GetProperty("provenance").GetString());
         }
     }
 
@@ -124,13 +131,8 @@ public sealed class SafeSummaryTests : QualificationTestBase
                 ExitCode = 1,
                 DurationMilliseconds = 129,
                 MessageCount = 0,
-                MessageId = null,
-                MessageType = null,
-                InReplyToMessageId = null,
-                MessageAttemptId = null,
-                MessageActor = null,
-                MessageProvenance = null,
-                EvidenceRouteComparison = EvidenceRouteComparisonStatus.NotAttempted,
+                Messages = [],
+                MessageSetComparison = EvidenceRouteComparisonStatus.Agrees,
             };
 
         var report = await RunAsync(environment);
@@ -146,7 +148,11 @@ public sealed class SafeSummaryTests : QualificationTestBase
         Assert.Equal("NotAttempted", reviewer.GetProperty("evidenceRouteComparison").GetString());
         Assert.False(reviewer.GetProperty("evidenceRouteAgrees").GetBoolean());
         Assert.Equal(1, reviewer.GetProperty("process").GetProperty("exitCode").GetInt32());
-        Assert.Equal(JsonValueKind.Null, reviewer.GetProperty("message").GetProperty("id").ValueKind);
+        Assert.Equal(JsonValueKind.Array, reviewer.GetProperty("messages").ValueKind);
+        Assert.Equal(0, reviewer.GetProperty("messages").GetArrayLength());
+        Assert.False(reviewer.GetProperty("messagesTruncated").GetBoolean());
+        // The timeline was enumerated and empty, and no row is stored: the empty sets were compared and agree.
+        Assert.Equal("Agrees", reviewer.GetProperty("messageSetComparison").GetString());
         Assert.Equal("Agrees", summary.RootElement.GetProperty("planner").GetProperty("evidenceRouteComparison").GetString());
         var allowance = summary.RootElement.GetProperty("allowances").GetProperty("reviewer");
         Assert.Equal("ExecutionObserved", allowance.GetProperty("invocationState").GetString());
@@ -162,9 +168,8 @@ public sealed class SafeSummaryTests : QualificationTestBase
             Status = "Running",
             Outcome = null,
             MessageCount = null,
-            MessageId = null,
-            MessageType = null,
-            EvidenceRouteComparison = EvidenceRouteComparisonStatus.NotAttempted,
+            Messages = [],
+            MessageSetComparison = EvidenceRouteComparisonStatus.NotAttempted,
         };
 
         var report = await RunAsync(environment);
@@ -173,6 +178,8 @@ public sealed class SafeSummaryTests : QualificationTestBase
         var planner = summary.RootElement.GetProperty("planner");
         Assert.Equal("PlannerDeadlineBeforeTerminal", report.Code);
         Assert.Equal(JsonValueKind.Null, planner.GetProperty("messageCount").ValueKind);
+        Assert.Equal(JsonValueKind.Null, planner.GetProperty("messages").ValueKind);
+        Assert.Equal(JsonValueKind.Null, planner.GetProperty("messagesTruncated").ValueKind);
         Assert.Equal("NotAttempted", planner.GetProperty("evidenceRouteComparison").GetString());
         Assert.Equal(JsonValueKind.Null, summary.RootElement.GetProperty("reviewer").ValueKind);
     }
@@ -184,12 +191,13 @@ public sealed class SafeSummaryTests : QualificationTestBase
         int messageCount, EvidenceRouteComparisonStatus comparison, bool selected)
     {
         var environment = new ScriptedEnvironment();
-        environment.OnRead = (_, _) => QualificationReadings.Planner(environment.PlannerAttemptId, environment.ProposalMessageId)
-            with
+        environment.OnRead = (_, _) =>
         {
-            MessageCount = messageCount,
-            MessageId = selected ? environment.ProposalMessageId : null,
-            EvidenceRouteComparison = comparison,
+            var proposal = QualificationReadings.Planner(environment.PlannerAttemptId, environment.ProposalMessageId);
+            var second = proposal.Messages[0] with { Id = Guid.NewGuid(), EvidenceRouteComparison = EvidenceRouteComparisonStatus.NotAttempted };
+            return selected
+                ? proposal.EditEach(message => message with { EvidenceRouteComparison = comparison })
+                : proposal with { MessageCount = messageCount, Messages = [.. proposal.Messages, second] };
         };
 
         var report = await RunAsync(environment);
@@ -198,25 +206,52 @@ public sealed class SafeSummaryTests : QualificationTestBase
         var planner = summary.RootElement.GetProperty("planner");
         Assert.Equal(selected ? "PlannerEvidenceRouteDisagrees" : "PlannerMessageNotRecorded", report.Code);
         Assert.Equal(messageCount, planner.GetProperty("messageCount").GetInt32());
+        Assert.Equal(messageCount, planner.GetProperty("messages").GetArrayLength());
         Assert.Equal(comparison.ToString(), planner.GetProperty("evidenceRouteComparison").GetString());
         Assert.False(planner.GetProperty("evidenceRouteAgrees").GetBoolean());
     }
 
     public static TheoryData<string, Func<StageReading, StageReading>> UnobservableReadings => new()
     {
-        { "undefined comparison", reading => reading with { EvidenceRouteComparison = (EvidenceRouteComparisonStatus)7 } },
+        {
+            "undefined message evidence comparison",
+            reading => reading.EditEach(message => message with { EvidenceRouteComparison = (EvidenceRouteComparisonStatus)7 })
+        },
+        {
+            "undefined stored row comparison",
+            reading => reading.EditEach(message => message with { PersistedMetadataComparison = (EvidenceRouteComparisonStatus)7 })
+        },
+        { "undefined set comparison", reading => reading with { MessageSetComparison = (EvidenceRouteComparisonStatus)7 } },
         { "negative attempts", reading => reading with { AttemptsInRun = -1 } },
         { "negative dispatched attempts", reading => reading with { DispatchedAttemptsInRun = -1 } },
         { "negative message count", reading => reading with { MessageCount = -1 } },
-        { "agreement without messages", reading => reading with { MessageCount = 0, MessageId = null } },
-        { "agreement with two messages", reading => reading with { MessageCount = 2 } },
-        { "agreement without an enumerated count", reading => reading with { MessageCount = null } },
-        { "agreement without a selected message", reading => reading with { MessageId = null } },
+        { "messages listed beside a zero count", reading => reading with { MessageCount = 0 } },
+        { "two counted but one listed", reading => reading with { MessageCount = 2 } },
+        { "messages listed without an enumerated count", reading => reading with { MessageCount = null } },
+        { "a count without its list", reading => reading with { Messages = [] } },
+        { "a message without an identity", reading => reading.EditEach(message => message with { Id = Guid.Empty }) },
         {
-            "disagreement without messages",
+            "an enumerated count whose set comparison was never made",
+            reading => reading with { MessageSetComparison = EvidenceRouteComparisonStatus.NotAttempted }
+        },
+        {
+            "an observed zero whose set comparison was never made",
+            reading => reading.WithoutMessages() with { MessageSetComparison = EvidenceRouteComparisonStatus.NotAttempted }
+        },
+        {
+            "a set comparison performed without an enumerated count",
+            reading => reading.WithUnenumeratedMessages() with { MessageSetComparison = EvidenceRouteComparisonStatus.Agrees }
+        },
+        {
+            "evidence requested for an outcome that expects none",
+            reading => reading with { Outcome = "ProviderInvocationFailed" }
+        },
+        {
+            "evidence requested beyond the bound of the role",
             reading => reading with
             {
-                MessageCount = 0, MessageId = null, EvidenceRouteComparison = EvidenceRouteComparisonStatus.Disagrees,
+                MessageCount = 6,
+                Messages = [.. Enumerable.Range(0, 6).Select(_ => reading.Messages[0] with { Id = Guid.NewGuid() })],
             }
         },
     };
@@ -251,7 +286,7 @@ public sealed class SafeSummaryTests : QualificationTestBase
         {
             AttemptsInRun = -1,
             MessageCount = -1,
-            EvidenceRouteComparison = (EvidenceRouteComparisonStatus)9,
+            MessageSetComparison = (EvidenceRouteComparisonStatus)9,
         };
 
         using var summary = JsonDocument.Parse(SafeSummary.Render(report, NoForbiddenValues));

@@ -1,4 +1,7 @@
+using System.Net;
+using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using DevalCopilot.Api.IntegrationTests.BrowserJourney.Host;
 using DevalCopilot.Api.IntegrationTests.BrowserJourney.ProviderFixture;
 using DevalCopilot.Api.IntegrationTests.ManualQualification;
@@ -53,6 +56,206 @@ public sealed class Profile01RehearsalTests : QualificationTestBase
         using var rehearsal = await RehearseAsync();
 
         Assert.True(rehearsal.Report.Qualified, rehearsal.Summary);
+        AssertReviewedInventory(rehearsal);
+    }
+
+    [Fact]
+    public async Task One_claude_response_that_persists_two_challenges_is_verified_as_a_set_through_both_evidence_routes()
+    {
+        using var rehearsal = await RehearseAsync(
+            objective: FixtureRepository.Objective + " " + ManifestInfo.ReportedTwoChallengesMarker);
+
+        Assert.True(rehearsal.Report.Qualified, rehearsal.Summary);
+        Assert.Equal("Challenge", rehearsal.Report.Verdict);
+        var proposal = rehearsal.Report.Planner!.SoleMessage!.Id;
+        var reviewer = rehearsal.Report.Reviewer!;
+        Assert.Equal("Challenged", reviewer.Outcome);
+        Assert.Equal(2, reviewer.MessageCount);
+        Assert.Equal(2, reviewer.Messages.Count);
+        Assert.Equal(2, reviewer.Messages.Select(message => message.Id).Distinct().Count());
+        Assert.All(reviewer.Messages, message =>
+        {
+            Assert.Equal("Challenge", message.Type);
+            Assert.Equal(proposal, message.InReplyToMessageId);
+            Assert.Equal(reviewer.AttemptId, message.AttemptId);
+            Assert.Equal("ClaudeCode.CriticalReviewer", message.Actor);
+            Assert.Equal("ProviderObserved", message.Provenance);
+            Assert.Equal(EvidenceRouteComparisonStatus.Agrees, message.EvidenceRouteComparison);
+            Assert.Equal(EvidenceRouteComparisonStatus.Agrees, message.PersistedMetadataComparison);
+        });
+        Assert.Equal(EvidenceRouteComparisonStatus.Agrees, reviewer.MessageSetComparison);
+        Assert.True(reviewer.AttemptEvidenceRouteAgrees);
+        Assert.True(reviewer.StatusRouteAgrees);
+        Assert.Equal([proposal], reviewer.InputMessageIds);
+
+        // One start per role and the reviewed inventory: the two messages cost no process of their own.
+        Assert.Equal(1, rehearsal.Report.Admission.Admitted["role.codex.exec"]);
+        Assert.Equal(1, rehearsal.Report.Admission.Admitted["role.claude.print"]);
+        AssertReviewedInventory(rehearsal);
+        using var summary = JsonDocument.Parse(rehearsal.Summary);
+        Assert.Equal(4, summary.RootElement.GetProperty("schemaVersion").GetInt32());
+        var listed = summary.RootElement.GetProperty("reviewer").GetProperty("messages").EnumerateArray().ToArray();
+        Assert.Equal(2, listed.Length);
+        Assert.All(listed, message => Assert.Equal("Agrees", message.GetProperty("evidenceRouteComparison").GetString()));
+        Assert.Equal("Agrees", summary.RootElement.GetProperty("reviewer").GetProperty("messageSetComparison").GetString());
+        Assert.DoesNotContain("duplicates the arithmetic", rehearsal.Summary, StringComparison.Ordinal);
+    }
+
+    private static readonly string TwoChallengesObjective = FixtureRepository.Objective + " " + ManifestInfo.ReportedTwoChallengesMarker;
+
+    [Fact]
+    public async Task A_failing_later_reply_ends_the_review_with_a_closed_failure_and_asks_for_nothing_more()
+    {
+        var routes = new RouteHandler(before: (_, ordinal) => ordinal == 3 ? new HttpResponseMessage(HttpStatusCode.InternalServerError) : null);
+
+        using var rehearsal = await RehearseAsync(objective: TwoChallengesObjective, handler: () => routes);
+
+        Assert.Equal(QualificationResult.Failed, rehearsal.Report.Result);
+        Assert.Equal("ReviewerEvidenceRouteUnavailable", rehearsal.Report.Code);
+        // The Proposal, the first Challenge, and the second Challenge whose request failed: three requests for the whole session.
+        Assert.Equal(3, routes.MessageEvidenceRequests.Count);
+        Assert.Equal(3, routes.MessageEvidenceRequests.Distinct().Count());
+        var reviewer = rehearsal.Report.Reviewer!;
+        Assert.Equal(2, reviewer.MessageCount);
+        Assert.Equal(
+            [EvidenceRouteComparisonStatus.Agrees, EvidenceRouteComparisonStatus.Unavailable],
+            reviewer.Messages.Select(message => message.EvidenceRouteComparison));
+        Assert.Equal(EvidenceRouteComparisonStatus.Unavailable, reviewer.EvidenceRouteComparison);
+        Assert.Equal(1, rehearsal.Report.Admission.Admitted["role.claude.print"]);
+        Assert.Equal(0, rehearsal.Report.Admission.TotalRefused);
+        using var summary = JsonDocument.Parse(rehearsal.Summary);
+        var listed = summary.RootElement.GetProperty("reviewer").GetProperty("messages").EnumerateArray().ToArray();
+        Assert.Equal("Agrees", listed[0].GetProperty("evidenceRouteComparison").GetString());
+        Assert.Equal("Unavailable", listed[1].GetProperty("evidenceRouteComparison").GetString());
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task A_retried_read_of_the_review_stage_never_restarts_the_message_evidence_requests(bool laterReplyFails)
+    {
+        var routes = new RouteHandler(
+            before: (_, ordinal) => laterReplyFails && ordinal == 3 ? new HttpResponseMessage(HttpStatusCode.InternalServerError) : null);
+        ForcedRetryEnvironment? retrying = null;
+
+        using var rehearsal = await RehearseAsync(
+            objective: TwoChallengesObjective,
+            handler: () => routes,
+            decorate: inner => retrying = new ForcedRetryEnvironment(inner, AllowanceRole.Reviewer));
+
+        // The first terminal read of the review failed after its requests; the session read it again, and the second read asked for nothing.
+        Assert.True(retrying!.ReviewReads >= 2, "The review stage was not read again.");
+        Assert.Equal(3, routes.MessageEvidenceRequests.Count);
+        Assert.Equal(3, routes.MessageEvidenceRequests.Distinct().Count());
+        if (laterReplyFails)
+        {
+            Assert.Equal("ReviewerEvidenceRouteUnavailable", rehearsal.Report.Code);
+        }
+        else
+        {
+            Assert.True(rehearsal.Report.Qualified, rehearsal.Summary);
+            Assert.Equal(2, rehearsal.Report.Reviewer!.Messages.Count);
+        }
+
+        Assert.Equal(1, rehearsal.Report.Admission.Admitted["role.claude.print"]);
+    }
+
+    [Theory]
+    [InlineData("inputMessagesStatus", "Invalid")]
+    [InlineData("inputMessagesStatus", "Empty")]
+    [InlineData("inputMessagesOmitted", true)]
+    [InlineData("inputMessageTotalCount", 2)]
+    public async Task A_malformed_input_envelope_on_a_later_reply_whose_listed_ids_match_is_a_disagreement(string member, object value)
+    {
+        var routes = new RouteHandler(
+            after: (request, ordinal, response) => ordinal == 3
+                ? RewriteJsonAsync(response, node => node[member] = Scalar(value))
+                : Task.FromResult(response));
+
+        using var rehearsal = await RehearseAsync(objective: TwoChallengesObjective, handler: () => routes);
+
+        Assert.Equal(QualificationResult.Failed, rehearsal.Report.Result);
+        Assert.Equal("ReviewerEvidenceRouteDisagrees", rehearsal.Report.Code);
+        var reviewer = rehearsal.Report.Reviewer!;
+        Assert.Equal(
+            [EvidenceRouteComparisonStatus.Agrees, EvidenceRouteComparisonStatus.Disagrees],
+            reviewer.Messages.Select(message => message.EvidenceRouteComparison));
+        Assert.Equal([rehearsal.Report.Planner!.SoleMessage!.Id], reviewer.InputMessageIds);
+        Assert.Equal(3, routes.MessageEvidenceRequests.Count);
+    }
+
+    [Fact]
+    public async Task A_planner_message_evidence_without_a_coherent_empty_envelope_stops_the_session_before_the_review()
+    {
+        var routes = new RouteHandler(
+            after: (_, ordinal, response) => ordinal == 1
+                ? RewriteJsonAsync(response, node => node["inputMessagesStatus"] = "Recorded")
+                : Task.FromResult(response));
+
+        using var rehearsal = await RehearseAsync(handler: () => routes);
+
+        Assert.Equal(QualificationResult.Failed, rehearsal.Report.Result);
+        Assert.Equal("PlannerEvidenceRouteDisagrees", rehearsal.Report.Code);
+        Assert.False(Ledger.IsConsumed(AllowanceRole.Reviewer));
+        Assert.Single(routes.MessageEvidenceRequests);
+    }
+
+    [Fact]
+    public async Task An_observed_empty_timeline_beside_stored_replies_is_a_disagreement_not_an_unattempted_comparison()
+    {
+        var routes = new RouteHandler(
+            after: (request, _, response) => request.RequestUri!.AbsolutePath.EndsWith("/collaboration-timeline", StringComparison.Ordinal)
+                ? RewriteJsonAsync(response, node =>
+                {
+                    var kept = node.AsArray().Where(entry => entry!["type"]!.GetValue<string>() != "Challenge").Select(entry => entry!.DeepClone()).ToArray();
+                    var array = node.AsArray();
+                    array.Clear();
+                    foreach (var entry in kept)
+                    {
+                        array.Add(entry);
+                    }
+                })
+                : Task.FromResult(response));
+
+        using var rehearsal = await RehearseAsync(objective: TwoChallengesObjective, handler: () => routes);
+
+        Assert.Equal(QualificationResult.Failed, rehearsal.Report.Result);
+        Assert.Equal("ReviewerMessageNotRecorded", rehearsal.Report.Code);
+        var reviewer = rehearsal.Report.Reviewer!;
+        Assert.Equal(0, reviewer.MessageCount);
+        Assert.Empty(reviewer.Messages);
+        Assert.Equal(EvidenceRouteComparisonStatus.Disagrees, reviewer.MessageSetComparison);
+        Assert.Single(routes.MessageEvidenceRequests);
+        using var summary = JsonDocument.Parse(rehearsal.Summary);
+        var stage = summary.RootElement.GetProperty("reviewer");
+        Assert.Equal(0, stage.GetProperty("messageCount").GetInt32());
+        Assert.Equal(0, stage.GetProperty("messages").GetArrayLength());
+        Assert.Equal("Disagrees", stage.GetProperty("messageSetComparison").GetString());
+        Assert.False(stage.GetProperty("lineage").GetProperty("repliesToThePersistedProposal").GetBoolean());
+    }
+
+    private static JsonNode Scalar(object value) => value switch
+    {
+        string text => JsonValue.Create(text),
+        bool flag => JsonValue.Create(flag),
+        int number => JsonValue.Create(number),
+        _ => throw new ArgumentOutOfRangeException(nameof(value)),
+    };
+
+    private static async Task<HttpResponseMessage> RewriteJsonAsync(HttpResponseMessage response, Action<JsonNode> edit)
+    {
+        var node = JsonNode.Parse(await response.Content.ReadAsStringAsync())!;
+        edit(node);
+        var rewritten = new HttpResponseMessage(response.StatusCode)
+        {
+            Content = new StringContent(node.ToJsonString(), Encoding.UTF8, "application/json"),
+        };
+        response.Dispose();
+        return rewritten;
+    }
+
+    private static void AssertReviewedInventory(Rehearsal rehearsal)
+    {
         var facts = rehearsal.Report.Admission;
         Assert.Equal(0, facts.TotalRefused);
         foreach (var (name, count) in ResolvedCounts)
@@ -90,7 +293,7 @@ public sealed class Profile01RehearsalTests : QualificationTestBase
             Assert.Null(reading.InvocationDiagnosticCategory);
         });
         using var summary = JsonDocument.Parse(rehearsal.Summary);
-        Assert.Equal(3, summary.RootElement.GetProperty("schemaVersion").GetInt32());
+        Assert.Equal(4, summary.RootElement.GetProperty("schemaVersion").GetInt32());
         Assert.Equal(InvocationLedger.Authorization, summary.RootElement.GetProperty("authorization").GetString());
         Assert.True(summary.RootElement.GetProperty("reviewer").GetProperty("ioCompletion").GetProperty("requiredComplete").GetBoolean());
         Assert.Equal(0, summary.RootElement.GetProperty("processAdmission").GetProperty("totalRefused").GetInt32());
@@ -107,7 +310,7 @@ public sealed class Profile01RehearsalTests : QualificationTestBase
         var reviewer = rehearsal.Report.Reviewer!;
         Assert.Equal(QualificationContracts.ReviewerAdapter, reviewer.AdapterContractVersion);
         Assert.Equal(0, reviewer.MessageCount);
-        Assert.Null(reviewer.MessageId);
+        Assert.Empty(reviewer.Messages);
         Assert.Equal("Exited", reviewer.ProcessOutcome);
         Assert.Equal(1, reviewer.ExitCode);
         Assert.True(reviewer.RequiredIoComplete);
@@ -173,6 +376,101 @@ public sealed class Profile01RehearsalTests : QualificationTestBase
         Assert.Equal(QualificationResult.SessionSpent, second.Report.Result);
         Assert.Equal(0, second.Report.Admission.TotalAdmitted);
         Assert.Equal(rootsBefore, Directory.GetDirectories(Path.GetTempPath(), OwnedRootGuard.RootPrefix + "manual-*"));
+    }
+
+    /// <summary>Observes the host routes the real reader calls and, for the rehearsal only, answers or rewrites some of them. The
+    /// ordinal counts the message-evidence requests of the whole session, in order: the Proposal first, then the replies.</summary>
+    private sealed class RouteHandler(
+        Func<HttpRequestMessage, int, HttpResponseMessage?>? before = null,
+        Func<HttpRequestMessage, int, HttpResponseMessage, Task<HttpResponseMessage>>? after = null) : DelegatingHandler(new HttpClientHandler())
+    {
+        private readonly List<string> _messageEvidence = [];
+
+        public IReadOnlyList<string> MessageEvidenceRequests
+        {
+            get
+            {
+                lock (_messageEvidence)
+                {
+                    return [.. _messageEvidence];
+                }
+            }
+        }
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var path = request.RequestUri!.AbsolutePath;
+            var ordinal = 0;
+            if (path.Contains("/collaboration-messages/", StringComparison.Ordinal) && path.EndsWith("/evidence", StringComparison.Ordinal))
+            {
+                lock (_messageEvidence)
+                {
+                    _messageEvidence.Add(path);
+                    ordinal = _messageEvidence.Count;
+                }
+            }
+
+            if (before?.Invoke(request, ordinal) is { } answered)
+            {
+                return answered;
+            }
+
+            var response = await base.SendAsync(request, cancellationToken);
+            return after is null ? response : await after(request, ordinal, response);
+        }
+    }
+
+    /// <summary>Makes the first terminal read of one role fail after the reader finished it, as any later failure of a poll would, so
+    /// the session reads that stage again. It forwards everything else unchanged and never disposes the real environment.</summary>
+    private sealed class ForcedRetryEnvironment(IQualificationEnvironment inner, AllowanceRole role) : IQualificationEnvironment
+    {
+        private bool _failed;
+
+        public int ReviewReads { get; private set; }
+
+        public IReadOnlyList<string> ForbiddenFragments => inner.ForbiddenFragments;
+
+        public ProcessAdmissionFacts AdmissionFacts => inner.AdmissionFacts;
+
+        public Task PrepareFixtureAsync(CancellationToken cancellationToken) => inner.PrepareFixtureAsync(cancellationToken);
+
+        public SourceSnapshot SnapshotSource() => inner.SnapshotSource();
+
+        public Task StartHostAsync(CancellationToken cancellationToken) => inner.StartHostAsync(cancellationToken);
+
+        public Task<TargetJudgement> ObserveTargetsAsync(TimeSpan bound, CancellationToken cancellationToken) =>
+            inner.ObserveTargetsAsync(bound, cancellationToken);
+
+        public Task<SetupFacts> RegisterAndPrepareAsync(CancellationToken cancellationToken) => inner.RegisterAndPrepareAsync(cancellationToken);
+
+        public SourceSnapshot SnapshotWorkspace() => inner.SnapshotWorkspace();
+
+        public Task<SubmissionResult> SubmitAsync(AllowanceRole submitted, Guid? proposalMessageId, CancellationToken cancellationToken) =>
+            inner.SubmitAsync(submitted, proposalMessageId, cancellationToken);
+
+        public async Task<StageReading> ReadStageAsync(AllowanceRole read, CancellationToken cancellationToken)
+        {
+            var reading = await inner.ReadStageAsync(read, cancellationToken);
+            if (read != role)
+            {
+                return reading;
+            }
+
+            ReviewReads++;
+            if (reading.IsTerminal && !_failed)
+            {
+                _failed = true;
+                throw new InvalidOperationException("A forced failure after a complete read.");
+            }
+
+            return reading;
+        }
+
+        public Task<ShutdownReport> StopHostAsync(CancellationToken cancellationToken) => inner.StopHostAsync(cancellationToken);
+
+        public CleanupReport CleanUp() => inner.CleanUp();
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
     private sealed class DoubleGitVersion(GitVersionObservation observation) : IGitVersionObserver
@@ -315,7 +613,9 @@ public sealed class Profile01RehearsalTests : QualificationTestBase
         IReadOnlyCollection<string>? withoutClasses = null,
         bool neverPin = false,
         Func<ApprovedLaunchSet, ApprovedLaunchSet>? approval = null,
-        IGitVersionObserver? gitVersions = null)
+        IGitVersionObserver? gitVersions = null,
+        Func<HttpMessageHandler>? handler = null,
+        Func<IQualificationEnvironment, IQualificationEnvironment>? decorate = null)
     {
         var originalPath = Environment.GetEnvironmentVariable("PATH");
         var table = new ScriptedProcessTable([Explorer, Launcher], [Explorer, Launcher]);
@@ -343,14 +643,16 @@ public sealed class Profile01RehearsalTests : QualificationTestBase
             admission,
             neverPin ? null : judged,
             objective,
-            gitVersions);
+            gitVersions,
+            handler);
 
         QualificationReport report;
         try
         {
             await using (environment)
             {
-                report = await new QualificationSession(Ledger, environment, RehearsalLimits, "profile01-rehearsal")
+                report = await new QualificationSession(
+                        Ledger, decorate is null ? environment : decorate(environment), RehearsalLimits, "profile01-rehearsal")
                     .RunAsync(CancellationToken.None);
             }
         }

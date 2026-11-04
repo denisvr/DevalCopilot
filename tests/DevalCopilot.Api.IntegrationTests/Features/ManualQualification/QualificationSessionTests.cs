@@ -151,9 +151,8 @@ public sealed class QualificationSessionTests : QualificationTestBase
             Status = "Running",
             Outcome = null,
             MessageCount = null,
-            MessageId = null,
-            MessageType = null,
-            EvidenceRouteComparison = EvidenceRouteComparisonStatus.NotAttempted,
+            Messages = [],
+            MessageSetComparison = EvidenceRouteComparisonStatus.NotAttempted,
         };
 
         var report = await RunAsync(environment);
@@ -190,9 +189,8 @@ public sealed class QualificationSessionTests : QualificationTestBase
             Status = status,
             Outcome = outcome,
             MessageCount = 0,
-            MessageId = null,
-            MessageType = null,
-            EvidenceRouteComparison = EvidenceRouteComparisonStatus.NotAttempted,
+            Messages = [],
+            MessageSetComparison = EvidenceRouteComparisonStatus.Agrees,
         };
 
         var report = await RunAsync(environment);
@@ -292,12 +290,12 @@ public sealed class QualificationSessionTests : QualificationTestBase
             var good = QualificationReadings.Reviewer(environment.ReviewerAttemptId, environment.ReplyMessageId, environment.ProposalMessageId);
             return defect switch
             {
-                "reply-to-another-message" => good with { InReplyToMessageId = other },
+                "reply-to-another-message" => good.EditEach(message => message with { InReplyToMessageId = other }),
                 "input-is-not-the-proposal" => good with { InputMessageIds = [other] },
                 "review-targets-another-proposal" => good with { ReviewedProposalMessageId = other },
                 "sealed-input-names-another-proposal" => good with { ManifestProposalMessageId = other },
                 "reply-is-from-the-wrong-provider" => good with { Provider = "Codex" },
-                "reply-type-does-not-match-outcome" => good with { MessageType = "Acceptance" },
+                "reply-type-does-not-match-outcome" => good.EditEach(message => message with { Type = "Acceptance" }),
                 _ => good with { InputMessageIds = [environment.ProposalMessageId, other] },
             };
         };
@@ -323,7 +321,7 @@ public sealed class QualificationSessionTests : QualificationTestBase
 
         Assert.Equal("ReviewerSubmissionAmbiguous", report.Code);
         Assert.Equal(1, environment.Count("submit.Reviewer"));
-        Assert.Equal("Proposal", report.Planner!.MessageType);
+        Assert.Equal("Proposal", report.Planner!.SoleMessage!.Type);
         Assert.True(Ledger.IsConsumed(AllowanceRole.Reviewer));
     }
 

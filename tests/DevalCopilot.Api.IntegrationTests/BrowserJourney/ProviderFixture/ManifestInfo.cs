@@ -41,6 +41,15 @@ public sealed class ManifestInfo
     /// </summary>
     public const string ReportedAuthenticationErrorMarker = "CONVENTIONS-OF-claude-diagnostic-source";
 
+    /// <summary>
+    /// The marker of the one offline qualification rehearsal (the challenge-set lot B entry) whose critical review is answered with two
+    /// Challenges in one response, so that a single attempt persists a set. It travels in the objective, which the sealed manifest carries;
+    /// every other journey's and rehearsal's manifests never carry it, so their Claude behavior is unchanged.
+    /// </summary>
+    public const string ReportedTwoChallengesMarker = "REHEARSAL-OF-claude-two-challenges";
+
+    public bool ReportsTwoChallenges => Raw.Contains(ReportedTwoChallengesMarker, StringComparison.Ordinal);
+
     public bool IsLocalCycle =>
         Raw.Contains(LocalCycleMarker, StringComparison.Ordinal) || Raw.Contains(LocalReleaseQueuedMarker, StringComparison.Ordinal);
 

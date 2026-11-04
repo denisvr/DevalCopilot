@@ -110,8 +110,8 @@ public sealed class FreshAuthorizationTests : QualificationTestBase
         Assert.NotEqual(
             InvocationLedger.RetiredWindowsRootDirectoryName, Path.GetFileName(InvocationLedger.CreateDefault().LedgerDirectory));
         Assert.NotEqual("owner-qualification-profile-01-lot-b-windows-root", InvocationLedger.Authorization);
-        Assert.Equal("owner-qualification-profile-01-lot-b-review-schema", InvocationLedger.Authorization);
-        Assert.Equal("devalcopilot-qualification-profile-01-lot-b-review-schema-ledger", Path.GetFileName(
+        Assert.Equal("owner-qualification-profile-01-lot-b-challenge-set", InvocationLedger.Authorization);
+        Assert.Equal("devalcopilot-qualification-profile-01-lot-b-challenge-set-ledger", Path.GetFileName(
             InvocationLedger.CreateDefault().LedgerDirectory));
     }
 
@@ -139,6 +139,32 @@ public sealed class FreshAuthorizationTests : QualificationTestBase
         Assert.NotEqual(
             InvocationLedger.RetiredProposalGuidanceDirectoryName, Path.GetFileName(InvocationLedger.CreateDefault().LedgerDirectory));
         Assert.NotEqual("owner-qualification-profile-01-lot-b-proposal-guidance", InvocationLedger.Authorization);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void A_ledger_pointed_at_the_spent_review_schema_directory_is_refused_at_construction_with_no_file_access(
+        bool trailingSeparator)
+    {
+        var path = Path.Combine(LedgerDirectory, InvocationLedger.RetiredReviewSchemaDirectoryName)
+            + (trailingSeparator ? Path.DirectorySeparatorChar : string.Empty);
+
+        Assert.Throws<ArgumentException>(() => new InvocationLedger(path, TimeProvider.System));
+        Assert.Throws<ArgumentException>(() => new InvocationLedger(path.ToUpperInvariant(), TimeProvider.System));
+        Assert.False(Directory.Exists(LedgerDirectory));
+    }
+
+    [Fact]
+    public void The_successor_ledger_is_a_different_directory_and_authorization_from_the_spent_review_schema_one()
+    {
+        Assert.Equal(
+            "devalcopilot-qualification-profile-01-lot-b-review-schema-ledger",
+            InvocationLedger.RetiredReviewSchemaDirectoryName);
+        Assert.NotEqual(InvocationLedger.RetiredReviewSchemaDirectoryName, InvocationLedger.DirectoryName);
+        Assert.NotEqual(
+            InvocationLedger.RetiredReviewSchemaDirectoryName, Path.GetFileName(InvocationLedger.CreateDefault().LedgerDirectory));
+        Assert.NotEqual("owner-qualification-profile-01-lot-b-review-schema", InvocationLedger.Authorization);
     }
 
     [Fact]

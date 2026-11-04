@@ -34,9 +34,8 @@ public sealed class InvocationEvidenceTests : QualificationTestBase
             ExitCode = null,
             DurationMilliseconds = null,
             MessageCount = 0,
-            EvidenceRouteComparison = EvidenceRouteComparisonStatus.NotAttempted,
-            MessageId = null,
-            MessageType = null,
+            Messages = [],
+            MessageSetComparison = EvidenceRouteComparisonStatus.Agrees,
         }));
 
         Assert.True(planner.GetProperty("consumedBeforePost").GetBoolean());
@@ -56,9 +55,8 @@ public sealed class InvocationEvidenceTests : QualificationTestBase
             ProcessOutcome = null,
             ExitCode = null,
             MessageCount = null,
-            EvidenceRouteComparison = EvidenceRouteComparisonStatus.NotAttempted,
-            MessageId = null,
-            MessageType = null,
+            Messages = [],
+            MessageSetComparison = EvidenceRouteComparisonStatus.NotAttempted,
         }));
 
         Assert.False(planner.GetProperty("executionObserved").GetBoolean());
@@ -80,9 +78,8 @@ public sealed class InvocationEvidenceTests : QualificationTestBase
             ProcessOutcome = outcome,
             ExitCode = exitCode,
             MessageCount = 0,
-            EvidenceRouteComparison = EvidenceRouteComparisonStatus.NotAttempted,
-            MessageId = null,
-            MessageType = null,
+            Messages = [],
+            MessageSetComparison = EvidenceRouteComparisonStatus.Agrees,
         }));
 
         Assert.Equal(observed, planner.GetProperty("executionObserved").GetBoolean());
@@ -139,9 +136,8 @@ public sealed class InvocationEvidenceTests : QualificationTestBase
             ProcessOutcome = null,
             ExitCode = null,
             MessageCount = 0,
-            EvidenceRouteComparison = EvidenceRouteComparisonStatus.NotAttempted,
-            MessageId = null,
-            MessageType = null,
+            Messages = [],
+            MessageSetComparison = EvidenceRouteComparisonStatus.Agrees,
         }));
 
         Assert.False(planner.GetProperty("executionObserved").GetBoolean());
@@ -175,9 +171,8 @@ public sealed class InvocationEvidenceTests : QualificationTestBase
             ProcessOutcome = null,
             ExitCode = null,
             MessageCount = 0,
-            EvidenceRouteComparison = EvidenceRouteComparisonStatus.NotAttempted,
-            MessageId = null,
-            MessageType = null,
+            Messages = [],
+            MessageSetComparison = EvidenceRouteComparisonStatus.Agrees,
         });
 
         var report = await RunAsync(environment);

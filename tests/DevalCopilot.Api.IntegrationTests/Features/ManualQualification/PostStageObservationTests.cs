@@ -31,9 +31,8 @@ public sealed class PostStageObservationTests : QualificationTestBase
             Status = "Failed",
             Outcome = "InvalidStructuredOutput",
             MessageCount = 0,
-            MessageId = null,
-            MessageType = null,
-            EvidenceRouteComparison = EvidenceRouteComparisonStatus.NotAttempted,
+            Messages = [],
+            MessageSetComparison = EvidenceRouteComparisonStatus.Agrees,
         };
 
     [Fact]
@@ -65,8 +64,8 @@ public sealed class PostStageObservationTests : QualificationTestBase
                 Status = "Failed",
                 Outcome = "ProviderInvocationFailed",
                 MessageCount = 0,
-                MessageId = null,
-                EvidenceRouteComparison = EvidenceRouteComparisonStatus.NotAttempted,
+                Messages = [],
+                MessageSetComparison = EvidenceRouteComparisonStatus.Agrees,
             };
 
         var report = await RunAsync(environment);
@@ -113,9 +112,8 @@ public sealed class PostStageObservationTests : QualificationTestBase
             Status = "Running",
             Outcome = null,
             MessageCount = null,
-            MessageId = null,
-            MessageType = null,
-            EvidenceRouteComparison = EvidenceRouteComparisonStatus.NotAttempted,
+            Messages = [],
+            MessageSetComparison = EvidenceRouteComparisonStatus.NotAttempted,
         };
 
         var report = await RunAsync(environment);

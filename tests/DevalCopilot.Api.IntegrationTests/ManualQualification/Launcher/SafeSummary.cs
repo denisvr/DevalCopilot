@@ -8,16 +8,22 @@ namespace DevalCopilot.Api.IntegrationTests.ManualQualification;
 /// The only text a session prints or keeps. It is composed field by field from closed names, numbers, flags, plain version tokens
 /// and opaque identities, so a path, a credential, a provider output, a manifest or an account identity has no way in. As a last
 /// guard the finished text is refused, and replaced by a fixed minimal verdict, if it carries a drive path or any forbidden value.
-/// Schema 3 adds each available stage's recorded adapter contract version, its recorded I/O completion facts with the derived
-/// required-completion flag, its closed invocation diagnostic with its vocabulary version, the closed attempt-evidence route
-/// comparison (read even when no message exists) and the closed process-admission counts. Schema 2 added each available stage's
-/// run attempt counts, its nullable produced-message count and its closed evidence-route comparison state; a stage reading that
-/// could not have been observed (an undefined state, a negative count, or a performed comparison without one known selected
-/// message) is refused the same way. Schema 1 and 2 summaries are historical and never read or rewritten.
+/// Schema 4 replaces the single message member of a stage with the bounded list of the produced messages the timeline listed for the
+/// accepted attempt (at most <see cref="StageMessageBounds.MaximumListed"/>): per message its opaque identity, closed type, reply
+/// target, author, provenance, whether it belongs to the accepted attempt and its two closed comparisons (the public message-evidence
+/// route and the stored message row), beside the stage's complete message count and the closed comparison of the complete distinct
+/// identity set with the stored rows. The count and the list are null when the timeline was never enumerated, which is never the same
+/// as an observed zero with an empty list. A stage reading that could not have been observed (an undefined state, a negative count,
+/// a list that does not match its count and the listing cap, or a comparison performed beyond the evidence bound of its role and
+/// outcome) is refused the same way. Schema 3 added each available stage's recorded adapter contract version, its recorded I/O
+/// completion facts with the derived required-completion flag, its closed invocation diagnostic with its vocabulary version, the
+/// closed attempt-evidence route comparison (read even when no message exists) and the closed process-admission counts. Schema 2
+/// added each available stage's run attempt counts, its nullable produced-message count and its closed evidence-route comparison
+/// state. Schema 1, 2 and 3 summaries are historical and never read or rewritten.
 /// </summary>
 public static partial class SafeSummary
 {
-    public const int SchemaVersion = 3;
+    public const int SchemaVersion = 4;
 
     public static string Render(QualificationReport report, IReadOnlyList<string> forbiddenFragments)
     {
@@ -72,7 +78,7 @@ public static partial class SafeSummary
             return true;
         }
 
-        if (!Enum.IsDefined(reading.EvidenceRouteComparison)
+        if (!Enum.IsDefined(reading.MessageSetComparison)
             || !Enum.IsDefined(reading.AttemptEvidenceRouteComparison)
             || reading.AttemptsInRun < 0
             || reading.DispatchedAttemptsInRun < 0
@@ -81,8 +87,17 @@ public static partial class SafeSummary
             return false;
         }
 
-        return reading.EvidenceRouteComparison == EvidenceRouteComparisonStatus.NotAttempted
-            || (reading.MessageCount == 1 && reading.MessageId is not null);
+        // A list can exist only for an enumerated count, holds exactly the messages that count and the listing cap allow, and each of
+        // its comparisons is a defined one made for a known message; the evidence route was asked for no more than the bound allows.
+        // The set comparison is made whenever the timeline was enumerated (an observed empty timeline included) and only then.
+        var expectedListed = Math.Min(reading.MessageCount ?? 0, StageMessageBounds.MaximumListed);
+        var compared = reading.Messages.Count(message => message.EvidenceRouteComparison != EvidenceRouteComparisonStatus.NotAttempted);
+        return reading.Messages.Count == expectedListed
+            && (reading.MessageCount is null) == (reading.MessageSetComparison == EvidenceRouteComparisonStatus.NotAttempted)
+            && compared <= StageMessageBounds.Maximum(reading.Role, reading.Outcome)
+            && reading.Messages.All(message => message.Id != Guid.Empty
+                && Enum.IsDefined(message.EvidenceRouteComparison)
+                && Enum.IsDefined(message.PersistedMetadataComparison));
     }
 
     private static string Compose(QualificationReport report)
@@ -101,7 +116,10 @@ public static partial class SafeSummary
             WriteAllowances(writer, report);
             WriteAdmission(writer, report.Admission);
             WriteStage(writer, "planner", report.Planner, null, report.PlannerAcceptedAttemptId);
-            var proposal = report.Planner?.MessageId;
+            // The Proposal of the lineage claims is the sole message of the planner attempt the planner POST was accepted for.
+            var proposal = report.Planner is { } planner && planner.AttemptId == report.PlannerAcceptedAttemptId
+                ? planner.SoleMessage?.Id
+                : null;
             WriteStage(writer, "reviewer", report.Reviewer, proposal, report.ReviewerAcceptedAttemptId);
             writer.WriteStartObject("source");
             writer.WriteNumber("checks", report.SourceChecks);
@@ -217,17 +235,15 @@ public static partial class SafeSummary
         WriteNullable(writer, "version", reading.InvocationDiagnosticVersion);
         writer.WriteEndObject();
         WriteNullable(writer, "messageCount", reading.MessageCount);
-        writer.WriteStartObject("message");
-        WriteNullable(writer, "id", reading.MessageId);
-        WriteNullable(writer, "type", reading.MessageType);
-        WriteNullable(writer, "inReplyTo", reading.InReplyToMessageId);
-        WriteNullable(writer, "actor", reading.MessageActor);
-        WriteNullable(writer, "provenance", reading.MessageProvenance);
-        writer.WriteEndObject();
+        WriteMessages(writer, reading, acceptedAttemptId);
         writer.WriteStartObject("lineage");
         writer.WriteNumber("recordedInputs", reading.InputMessageIds.Count);
         var bound = proposalMessageId is not null;
-        writer.WriteBoolean("repliesToThePersistedProposal", bound && reading.InReplyToMessageId == proposalMessageId);
+        // A claim about the whole set needs the whole set: an observed, non-empty and untruncated listing, every reply answering it.
+        var completeListing = reading.MessageCount is > 0 && reading.Messages.Count == reading.MessageCount;
+        writer.WriteBoolean(
+            "repliesToThePersistedProposal",
+            bound && completeListing && reading.Messages.All(message => message.InReplyToMessageId == proposalMessageId));
         writer.WriteBoolean(
             "inputIsExactlyThatProposal",
             bound && reading.InputMessageIds.SequenceEqual([proposalMessageId!.Value]));
@@ -249,6 +265,39 @@ public static partial class SafeSummary
         writer.WriteBoolean("attemptEvidenceRouteAgrees", reading.AttemptEvidenceRouteAgrees);
         writer.WriteString("attemptEvidenceRouteComparison", reading.AttemptEvidenceRouteComparison.ToString());
         writer.WriteEndObject();
+    }
+
+    /// <summary>The bounded message list. Null (not an empty array) when the timeline was never enumerated, so that an unobserved
+    /// count is never read as an observed zero; an observed zero is an empty array.</summary>
+    private static void WriteMessages(Utf8JsonWriter writer, StageReading reading, Guid? acceptedAttemptId)
+    {
+        if (reading.MessageCount is not { } count)
+        {
+            writer.WriteNull("messages");
+            writer.WriteNull("messagesTruncated");
+            writer.WriteString("messageSetComparison", reading.MessageSetComparison.ToString());
+            return;
+        }
+
+        writer.WriteStartArray("messages");
+        foreach (var message in reading.Messages)
+        {
+            writer.WriteStartObject();
+            writer.WriteString("id", message.Id);
+            WriteNullable(writer, "type", message.Type);
+            WriteNullable(writer, "inReplyTo", message.InReplyToMessageId);
+            WriteNullable(writer, "actor", message.Actor);
+            WriteNullable(writer, "provenance", message.Provenance);
+            // Against the attempt the POST was accepted for, never against the attempt that happened to be observed.
+            writer.WriteBoolean("belongsToAcceptedAttempt", acceptedAttemptId is not null && message.AttemptId == acceptedAttemptId);
+            writer.WriteString("evidenceRouteComparison", message.EvidenceRouteComparison.ToString());
+            writer.WriteString("persistedMetadataComparison", message.PersistedMetadataComparison.ToString());
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
+        writer.WriteBoolean("messagesTruncated", count > reading.Messages.Count);
+        writer.WriteString("messageSetComparison", reading.MessageSetComparison.ToString());
     }
 
     private static void WriteAdmission(Utf8JsonWriter writer, ProcessAdmissionFacts facts)

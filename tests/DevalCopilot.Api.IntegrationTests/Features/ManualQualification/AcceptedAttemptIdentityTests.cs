@@ -54,9 +54,8 @@ public sealed class AcceptedAttemptIdentityTests : QualificationTestBase
             Status = "Running",
             Outcome = null,
             MessageCount = null,
-            MessageId = null,
-            MessageType = null,
-            EvidenceRouteComparison = EvidenceRouteComparisonStatus.NotAttempted,
+            Messages = [],
+            MessageSetComparison = EvidenceRouteComparisonStatus.NotAttempted,
         };
 
         var report = await RunAsync(environment);

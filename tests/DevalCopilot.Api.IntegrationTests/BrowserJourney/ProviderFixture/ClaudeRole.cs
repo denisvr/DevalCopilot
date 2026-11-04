@@ -57,7 +57,8 @@ public static class ClaudeRole
                 fields["planMarker"] = reviewedMarker;
                 // Only the local execution cycle journey's repository has its root accepted (ADR-0060 arms an explicitly Accepted plan).
                 response = reviewedMarker == ManifestInfo.RootPlanMarker
-                    ? (manifest.IsLocalCycle ? ResponseFactory.AcceptRoot() : ResponseFactory.Challenge())
+                    ? (manifest.IsLocalCycle ? ResponseFactory.AcceptRoot()
+                        : manifest.ReportsTwoChallenges ? ResponseFactory.TwoChallenges() : ResponseFactory.Challenge())
                     : ResponseFactory.SecondChallenge();
                 break;
             case ("ImplementationReport", ClosedArguments.ClaudeProfile.Mutating):

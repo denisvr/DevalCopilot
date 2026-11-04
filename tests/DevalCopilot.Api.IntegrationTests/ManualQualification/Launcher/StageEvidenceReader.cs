@@ -10,7 +10,9 @@ namespace DevalCopilot.Api.IntegrationTests.ManualQualification;
 /// <summary>
 /// Builds one <see cref="StageReading"/> from the public status, timeline and message-evidence routes, supplemented by read-only
 /// queries of the disposable rows and the sealed artifacts under the owned artifact root. It writes nothing, executes nothing, and
-/// keeps no content: a manifest or artifact is read only to compare its length, its hash and three named members.
+/// keeps no content: a manifest or artifact is read only to compare its length, its hash and three named members. The reader is used
+/// by one session, one read at a time, and remembers for each role what it asked of the message-evidence route (see
+/// <see cref="MessageEvidenceMemory"/>), so that the ceiling of requests holds for the whole stage however often it is read again.
 /// </summary>
 public sealed class StageEvidenceReader(
     IServiceProvider services,
@@ -18,6 +20,8 @@ public sealed class StageEvidenceReader(
     string artifactRoot,
     string objective)
 {
+    private readonly Dictionary<AllowanceRole, MessageEvidenceMemory> _evidenceRequests = [];
+
     public async Task<StageReading> ReadAsync(AllowanceRole role, Guid runId, CancellationToken cancellationToken)
     {
         var (provider, agentRole, contract) = role == AllowanceRole.Planner
@@ -69,7 +73,7 @@ public sealed class StageEvidenceReader(
         };
         return stored.Status == AttemptStatus.Running
             ? reading
-            : await CompleteAsync(reading, stored, db, provider, agentRole, contract, runId, cancellationToken);
+            : await CompleteAsync(reading, stored, db, role, provider, agentRole, contract, runId, cancellationToken);
     }
 
     private async Task<(Guid? AttemptId, string? Status, string? Outcome, Guid? ReviewedProposal)> ReadRouteAsync(
@@ -91,6 +95,7 @@ public sealed class StageEvidenceReader(
         StageReading reading,
         Attempt stored,
         DevalCopilotDbContext db,
+        AllowanceRole role,
         AgentProvider provider,
         AgentRole agentRole,
         string contract,
@@ -101,25 +106,89 @@ public sealed class StageEvidenceReader(
         reading = reading with { AttemptEvidenceRouteComparison = CompareAttemptEvidence(attemptEvidence, stored, reading) };
         var timeline = await api.GetTimelineAsync(runId, cancellationToken);
         var produced = timeline.Where(message => message.AttemptId == stored.Id).ToArray();
-        var message = produced.Length == 1 ? produced[0] : null;
         var inputs = await db.AttemptInputMessages.AsNoTracking()
             .Where(input => input.AttemptId == stored.Id).OrderBy(input => input.Sequence)
             .Select(input => input.CollaborationMessageId).ToListAsync(cancellationToken);
-        var comparison = EvidenceRouteComparisonStatus.NotAttempted;
-        if (message is not null)
+        var rows = (await db.CollaborationMessages.AsNoTracking()
+                .Where(row => row.RunId == runId && row.AttemptId == stored.Id)
+                .Select(row => new
+                {
+                    row.Id,
+                    row.Type,
+                    row.InReplyToMessageId,
+                    row.ActorKind,
+                    row.ActorAgentProvider,
+                    row.ActorAgentRole,
+                    row.Provenance,
+                })
+                .ToListAsync(cancellationToken))
+            .Select(row => new StoredMessage(
+                row.Id,
+                row.Type.ToString(),
+                row.InReplyToMessageId,
+                row.ActorKind.ToString(),
+                $"{row.ActorAgentProvider}.{row.ActorAgentRole}",
+                row.Provenance.ToString()))
+            .ToList();
+
+        // Evidence is requested for at most the number of messages the role and recorded outcome allow, in timeline order and one
+        // request each, across every read of the stage, so an unexpected set or a repeated read can never make the reader call the
+        // route an unbounded number of times. A message beyond that bound, or of an outcome that expects none, stays not attempted and
+        // its set is rejected by the verifier.
+        var evidenceBound = StageMessageBounds.Maximum(agentRole.ToString(), reading.Outcome);
+        // The comparison facts of this read are observed before any reply is looked at, so a drift is latched even when the timeline
+        // lists nothing or the ceiling is zero; it is never undone by a later read that returns to the first facts.
+        if (!_evidenceRequests.TryGetValue(role, out var memory))
         {
-            var evidence = await api.GetMessageEvidenceAsync(runId, message.Id, cancellationToken);
-            var evidenceAgrees = evidence.EvidenceStatus == "HasEvidence"
-                && evidence.AttemptId == stored.Id
-                && evidence.AgentProvider == provider.ToString()
-                && evidence.AgentRole == agentRole.ToString()
-                && evidence.AgentOutcome == reading.Outcome
-                && evidence.ProcessExecution is { } process
-                && process.Outcome == reading.ProcessOutcome
-                && process.ExitCode == reading.ExitCode
-                && evidence.InputMessages.Select(input => input.CollaborationMessageId).SequenceEqual(inputs);
-            comparison = evidenceAgrees ? EvidenceRouteComparisonStatus.Agrees : EvidenceRouteComparisonStatus.Disagrees;
+            memory = _evidenceRequests[role] = new MessageEvidenceMemory();
         }
+
+        var facts = MessageEvidenceFacts.Create(
+            stored.Id,
+            provider.ToString(),
+            agentRole.ToString(),
+            reading.Outcome,
+            reading.ProcessOutcome,
+            reading.ExitCode,
+            ExpectedEnvelope(role),
+            inputs);
+        memory.Observe(facts);
+        var listed = new List<StageMessage>();
+        foreach (var (message, position) in produced.Take(StageMessageBounds.MaximumListed).Select((item, index) => (item, index)))
+        {
+            var comparison = position < evidenceBound
+                ? await memory.ResolveAsync(
+                    message.Id,
+                    facts,
+                    evidenceBound,
+                    () => CompareMessageEvidenceAsync(
+                        role, runId, message.Id, stored, reading, provider, agentRole, inputs, cancellationToken))
+                : EvidenceRouteComparisonStatus.NotAttempted;
+            var row = rows.FirstOrDefault(candidate => candidate.Id == message.Id);
+            var persistedAgrees = row is not null
+                && row.Type == message.Type
+                && row.InReplyToMessageId == message.InReplyToMessageId
+                && row.ActorKind == message.Actor.Kind
+                && row.Actor == $"{message.Actor.Provider}.{message.Actor.Role}"
+                && row.Provenance == message.Provenance;
+            listed.Add(new StageMessage(
+                message.Id,
+                message.Type,
+                message.InReplyToMessageId,
+                message.AttemptId,
+                $"{message.Actor.Provider}.{message.Actor.Role}",
+                message.Provenance,
+                comparison,
+                persistedAgrees ? EvidenceRouteComparisonStatus.Agrees : EvidenceRouteComparisonStatus.Disagrees));
+        }
+
+        var timelineIds = produced.Select(message => message.Id).ToArray();
+        // The timeline was enumerated, so the comparison is always made: an observed empty timeline beside stored replies disagrees.
+        var setComparison = timelineIds.Distinct().Count() == timelineIds.Length
+            && timelineIds.Length == rows.Count
+            && timelineIds.ToHashSet().SetEquals(rows.Select(row => row.Id))
+            ? EvidenceRouteComparisonStatus.Agrees
+            : EvidenceRouteComparisonStatus.Disagrees;
 
         var artifacts = await db.Artifacts.AsNoTracking()
             .Where(artifact => artifact.AttemptId == stored.Id).ToListAsync(cancellationToken);
@@ -132,13 +201,8 @@ public sealed class StageEvidenceReader(
         return reading with
         {
             MessageCount = produced.Length,
-            MessageId = message?.Id,
-            MessageType = message?.Type,
-            InReplyToMessageId = message?.InReplyToMessageId,
-            MessageAttemptId = message?.AttemptId,
-            MessageActor = message is null ? null : $"{message.Actor.Provider}.{message.Actor.Role}",
-            MessageProvenance = message?.Provenance,
-            EvidenceRouteComparison = comparison,
+            Messages = listed,
+            MessageSetComparison = setComparison,
             InputMessageIds = inputs,
             ManifestPresent = manifestIsTheAttemptsOwn,
             ManifestBytesAgree = manifestBytes is not null,
@@ -149,6 +213,43 @@ public sealed class StageEvidenceReader(
             ArtifactsAgreeing = artifacts.Count(artifact => ReadSealedBytes(artifact) is not null),
         };
     }
+
+    private static string ExpectedEnvelope(AllowanceRole role) => role == AllowanceRole.Planner ? "Empty" : "Recorded";
+
+    /// <summary>One request of the public message-evidence route, compared with the stored attempt on provider, role, outcome,
+    /// process and the complete recorded input envelope: its status (empty for the Planner, recorded for the reviewer), that nothing is
+    /// omitted, its total count and the exact ordered identities. Any difference, and an evidence status other than a recorded
+    /// one, is a disagreement.</summary>
+    private async Task<EvidenceRouteComparisonStatus> CompareMessageEvidenceAsync(
+        AllowanceRole role,
+        Guid runId,
+        Guid messageId,
+        Attempt stored,
+        StageReading reading,
+        AgentProvider provider,
+        AgentRole agentRole,
+        IReadOnlyList<Guid> inputs,
+        CancellationToken cancellationToken)
+    {
+        var evidence = await api.GetMessageEvidenceAsync(runId, messageId, cancellationToken);
+        var expectedEnvelope = ExpectedEnvelope(role);
+        var evidenceAgrees = evidence.EvidenceStatus == "HasEvidence"
+            && evidence.AttemptId == stored.Id
+            && evidence.AgentProvider == provider.ToString()
+            && evidence.AgentRole == agentRole.ToString()
+            && evidence.AgentOutcome == reading.Outcome
+            && evidence.ProcessExecution is { } process
+            && process.Outcome == reading.ProcessOutcome
+            && process.ExitCode == reading.ExitCode
+            && evidence.InputMessagesStatus == expectedEnvelope
+            && !evidence.InputMessagesOmitted
+            && evidence.InputMessageTotalCount == inputs.Count
+            && evidence.InputMessages.Select(input => input.CollaborationMessageId).SequenceEqual(inputs);
+        return evidenceAgrees ? EvidenceRouteComparisonStatus.Agrees : EvidenceRouteComparisonStatus.Disagrees;
+    }
+
+    private sealed record StoredMessage(
+        Guid Id, string Type, Guid? InReplyToMessageId, string ActorKind, string Actor, string Provenance);
 
     private static AgentInvocationDiagnosticFact Diagnostic(Attempt stored) => AgentInvocationDiagnosticFact.ForAttempt(stored);
 

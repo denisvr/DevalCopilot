@@ -122,7 +122,7 @@ executable identities, QP-R4 typed status projection); the correction is returne
 | Lot | Authorization identity | Exclusive directory (under the OS temp directory) | Opt-in |
 | --- | --- | --- | --- |
 | A: two `claude auth status` observations after the owner's login | `owner-qualification-profile-01-lot-a-post-login` | `devalcopilot-qualification-profile-01-lot-a-post-login-ledger` | `--run-claude-auth-status-after-login --claude-executable <absolute path> --claude-sha256 <digest>` and `DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM=qualification-profile-01-two-claude-auth-status-observations-after-login` |
-| B: one Planner and one CriticalReviewer, bound to the launch context, Windows root carried by every Codex launch, fixed Proposal content guidance in the planning manifest, flat transport schema for the Claude reviewer | `owner-qualification-profile-01-lot-b-review-schema` | `devalcopilot-qualification-profile-01-lot-b-review-schema-ledger` | `--run-qualification-profile-01-review-schema-exchange --approved-launches <absolute path of the owner's approved-launch manifest>` (nothing else) and `DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM=qualification-profile-01-one-review-schema-codex-planner-and-claude-reviewer` |
+| B: one Planner and one CriticalReviewer, bound to the launch context, Windows root carried by every Codex launch, fixed Proposal content guidance in the planning manifest, flat transport schema for the Claude reviewer, verification of a CriticalReviewer attempt's complete reply set | `owner-qualification-profile-01-lot-b-challenge-set` | `devalcopilot-qualification-profile-01-lot-b-challenge-set-ledger` | `--run-qualification-profile-01-challenge-set-exchange --approved-launches <absolute path of the owner's approved-launch manifest>` (nothing else) and `DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM=qualification-profile-01-one-challenge-set-codex-planner-and-claude-reviewer` |
 
 Each directory is created by its own lot and holds that authorization's durable slot files only. The launcher never names, reads,
 enumerates, resets or archives the earlier ledger directory, except to refuse it at construction; no argument or switch selects an
@@ -171,7 +171,19 @@ attempt is outside the manual format-repair gate (a provider-reported error with
 authorization is spent. Its flag is refused with the same fixed message (naming the successor flag) and exit 2 before any environment,
 directory, ledger or process exists, its phrase no longer confirms the successor entry, and a ledger path whose leaf name is its
 directory (case-insensitive, with or without a trailing separator) is refused at construction with no file access. That ledger, its
-evidence and the retained root are never read, enumerated, reset, archived, migrated or cleaned by the launcher. The successor lot B
+evidence and the retained root are never read, enumerated, reset, archived, migrated or cleaned by the launcher. The review-schema lot B
+opt-in (flag `--run-qualification-profile-01-review-schema-exchange`, authorization
+`owner-qualification-profile-01-lot-b-review-schema`, directory `devalcopilot-qualification-profile-01-lot-b-review-schema-ledger`,
+phrase `qualification-profile-01-one-review-schema-codex-planner-and-claude-reviewer`) is retired the same way. Both of its role
+allowances were used: the Codex Planner produced one accepted Proposal, and the Claude v3 CriticalReviewer exited 0 with complete I/O
+and a completed `Challenged` outcome, and the timeline listed two messages for that attempt. The launcher's verifier accepted only a
+single message: it projected neither of them, never queried either message-evidence route and returned `ReviewerMessageNotRecorded`
+(exit 5). The sealed input named the exact Proposal, the repository stayed unchanged, and the owned root was retained because
+descendant shutdown was unproven. Its authorization is spent. Its flag is refused with the same fixed message (naming the successor
+flag) and exit 2 before any environment, directory, ledger or process exists, its phrase no longer confirms the successor entry, and a
+ledger path whose leaf name is its directory (case-insensitive, with or without a trailing separator) is refused at construction with
+no file access. That ledger, its summary, its evidence and the retained root are never read, enumerated, reset, archived, migrated or
+cleaned by the launcher; its summary stays a historical schema-3 record. The successor lot B
 entry refuses a ledger destination that is a
 reparse point the same way as the post-login entry (below): as its first step inside the bounded worker (fixed code
 `Refused: LedgerDestinationAliased.`, exit 2, nothing created), again before the session enumerates any marker, and before every summary
@@ -257,15 +269,16 @@ Remove-Item Env:\DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM
   5 any other completed or stopped observation; 7 unexpected; 8 outer deadline; 9 the observations completed and were printed but the
   summary could not be persisted (see the summary paragraph below).
 
-### Lot B: one read-only exchange, bound to the launch context, Windows root on every Codex launch, fixed Proposal content guidance, flat Claude review schema (proposed entry; CLAUDE-REVIEW-SCHEMA-01)
+### Lot B: one read-only exchange, bound to the launch context, Windows root on every Codex launch, fixed Proposal content guidance, flat Claude review schema, complete reply-set verification (proposed entry; QUALIFICATION-B-CHALLENGE-SET-01)
 
-The first, the context-bound, the Windows-root and the proposal-guidance lot B entries are spent (see the retirement paragraph
-above). This entry is their one fixed successor: the same exchange, the same process inventory, role vectors, deadlines and evidence
+The first, the context-bound, the Windows-root, the proposal-guidance and the review-schema lot B entries are spent (see the
+retirement paragraph above). This entry is their one fixed successor: the same exchange, the same process inventory, role vectors, deadlines and evidence
 rules, the same **launch-context check** described below in bounded preparation, the same Windows `SystemRoot` carried by every Codex
 launch (see [Windows native Codex role launch](../architecture/agent-collaboration-provider-contracts.md#windows-native-codex-role-launch))
 and the same fixed `proposalContentGuidance` member in the Codex planning manifest (see
-[Proposal content guidance](../architecture/agent-collaboration-protocol.md#proposal-content-guidance)), plus one production repair it
-carries: the Claude CriticalReviewer now uses contract `claude-critical-review-v3`, whose one transport schema is a flat, closed object
+[Proposal content guidance](../architecture/agent-collaboration-protocol.md#proposal-content-guidance)), the same
+`claude-critical-review-v3` flat transport schema, and one launcher correction of its own: the verifier now checks a CriticalReviewer
+attempt's **complete reply set** (below). The Claude CriticalReviewer uses contract `claude-critical-review-v3`, whose one transport schema is a flat, closed object
 (`decision` and `summary` required, `decision` enumerated as `accept` or `challenge`, `rationale` and `challenges` optional in the
 schema, `minItems` 1 kept, and no `minLength`, `maxLength` or `maxItems` anywhere) with the branch exclusivity and the current bounds
 described in the property text only, because the previous root `oneOf` was rejected by the provider with HTTP 400 and the tool input
@@ -278,11 +291,37 @@ the problem it answers. The schema is a transport description: offline tests can
 exchange stays a separate decision. The 179-start ceiling, the 35-minute bound and the two-role sequence are unchanged. It is prepared
 offline only and not authorized for execution.
 
+**Complete reply set.** One Planner attempt still requires exactly one Proposal. One CriticalReviewer attempt requires, according to
+its recorded outcome, either exactly one Acceptance (`Accepted`) or one to five Challenges (`Challenged`, the schema's own maximum);
+any other outcome expects none. The reader takes the complete list of timeline messages of the accepted attempt and compares its
+distinct identity set with the stored message rows of that attempt (type, author, provenance, reply and attempt must agree row by row).
+For every reply the verifier then requires the expected type, the author `ClaudeCode.CriticalReviewer` with `ProviderObserved`
+provenance, a reply to the exact persisted Proposal, and an agreeing public message-evidence comparison (provider, role, outcome, process
+and recorded inputs). It rejects, with a closed code and before any later check, a missing or unenumerated set (`MessageNotRecorded`),
+an excess (`UnexpectedMessageCount`), a repeated identity (`DuplicateMessage`), a set that differs from the stored rows
+(`MessageSetMismatch`), mixed types (`MixedReplySet`), a wrong type, lineage or author, a reply of another attempt, and any reply whose
+evidence disagrees or was never requested (`EvidenceRouteDisagrees`), including every reply after the first, or whose evidence request
+failed (`EvidenceRouteUnavailable`, unless another reply is already known to disagree). Each message-evidence response is also checked
+for its complete input envelope: the status (`Empty` for the Planner, `Recorded` for the reviewer), that nothing is omitted, the total
+count and the exact ordered identities, so a malformed envelope on any reply whose listed identities otherwise match is a
+disagreement. The attempt-evidence, sealed-input, source and shutdown controls are unchanged. The message-evidence route is requested
+at most once per reply and, **for the whole stage**, at most as many times as the role and outcome allow (1 for a Proposal or an
+Acceptance, 5 for Challenges, none otherwise), inside the existing stage and entry deadlines. The reader counts a request before it
+is sent and remembers each result by message identity, including a failure or a cancellation, so a poll or a retry after any failure
+reuses them and never starts the list again. A remembered result is bound to the attempt and to the closed facts it was compared
+against (provider, role, outcome, process outcome, exit code, the expected envelope and the complete ordered recorded input
+identities); a read that observes other facts latches the drift for the stage: no remembered agreement is ever reused again, not even if the first
+facts return, it is reported as a disagreement, and nothing more is asked (the facts are observed before any reply is looked at, so
+an empty listing or a zero ceiling cannot hide a drift); after the first failed request the stage asks for nothing more, the failed reply is
+`Unavailable` and the later ones `NotAttempted`, and the verdict is a closed failure rather than a retry. The offline rehearsal on the production
+host persists two Challenges from one owned Claude double response and shows both evidence routes agree with one start per role and
+the reviewed admission inventory; it is not a provider result.
+
 ```powershell
 $env:DOTNET_ADD_GLOBAL_TOOLS_TO_PATH = 'false'; $env:DOTNET_GENERATE_ASPNET_CERTIFICATE = 'false'
 dotnet build tests\DevalCopilot.Api.IntegrationTests\ManualQualification\Launcher\ManualQualification.csproj -warnaserror -p:UseSharedCompilation=false -m:1
-$env:DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM = 'qualification-profile-01-one-review-schema-codex-planner-and-claude-reviewer'
-& .\tests\DevalCopilot.Api.IntegrationTests\ManualQualification\Launcher\bin\Debug\net10.0\ManualQualification.exe --run-qualification-profile-01-review-schema-exchange --approved-launches '<absolute path of the owner-prepared approved-launch manifest>'
+$env:DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM = 'qualification-profile-01-one-challenge-set-codex-planner-and-claude-reviewer'
+& .\tests\DevalCopilot.Api.IntegrationTests\ManualQualification\Launcher\bin\Debug\net10.0\ManualQualification.exe --run-qualification-profile-01-challenge-set-exchange --approved-launches '<absolute path of the owner-prepared approved-launch manifest>'
 Remove-Item Env:\DEVALCOPILOT_MANUAL_QUALIFICATION_CONFIRM
 ```
 
@@ -473,8 +512,9 @@ closed diagnostic. Writes: two allowance files, at most 179 slot files, one `sum
 owned `devalcopilot-e2e-manual-*` root under the temp directory.
 
 **Acceptance and stop actions.** A stage qualifies only for the accepted attempt, with the pinned contract version, a clean exit 0,
-explicitly complete required I/O (both outputs complete and input delivered), a coherent role response, exactly one attributed
-message, exact ordered inputs and reply identity, agreeing protected evidence and sealed length and hash comparisons. A missing or
+explicitly complete required I/O (both outputs complete and input delivered), a coherent role response, its complete attributed
+reply set (exactly one Proposal for the Planner; exactly one Acceptance or one to five Challenges for the CriticalReviewer, each
+verified), exact ordered inputs and reply identity, agreeing protected evidence for every reply and sealed length and hash comparisons. A missing or
 foreign attempt, a historical or missing contract version, or absent I/O facts fails. On a failed Claude invocation the recorded
 closed diagnostic and its version are reported; an unknown or generic diagnosis is a valid failure report, never retried or
 relabelled. Source and worktree are compared after every submitted stage and after shutdown (unreadable is unproven). The first
@@ -516,7 +556,7 @@ The launcher is a separate executable, `ManualQualification` (source under
 - Each allowance is consumed, durably, **before** its single POST. A timeout, an ambiguous or refused answer, a crash, a restart
   or a second launch never makes it spendable again. The reviewer allowance can be taken only by the session that holds the
   planner allowance, and only after one coherent recorded Proposal and an unchanged source.
-- The ledger of the current authorization is the directory `devalcopilot-qualification-profile-01-lot-b-review-schema-ledger` directly under the OS
+- The ledger of the current authorization is the directory `devalcopilot-qualification-profile-01-lot-b-challenge-set-ledger` directly under the OS
   temp directory (one `planner.allowance` and one `reviewer.allowance` file, created exclusively and never rewritten, beside the
   durable process slots of [QUALIFICATION-PROFILE-01](#qualification-profile-01-prepared-offline-not-authorized-for-execution)). If any
   allowance or process slot exists, the launcher starts nothing. The earlier authorizations' directory is never named, read, reset or
@@ -628,8 +668,8 @@ recorded input and sealed manifest name that Proposal, sealed byte and hash agre
 cleanup facts. It never carries a user or executable path, a provider session identifier, a credential, a manifest or any
 provider output.
 
-The exchange summary is now `schemaVersion` 3 (described after this paragraph); schema 2, the previous version, is described here and
-every schema-1 and schema-2 field is kept in schema 3. For each available stage it adds `attemptsInRun` and `dispatchedAttemptsInRun` (the
+The exchange summary is now `schemaVersion` 4 (described after the schema 3 paragraph); schema 2 is described here and every schema-1,
+schema-2 and schema-3 field except the schema-3 single `message` member is kept in schema 4. For each available stage it adds `attemptsInRun` and `dispatchedAttemptsInRun` (the
 run's attempt rows and those with a dispatch marker when the stage was read), `messageCount` and `evidenceRouteComparison`, and
 keeps every schema-1 field, including the derived `evidenceRouteAgrees` boolean. `messageCount` is `null` when the timeline was
 not enumerated (a still running attempt) and otherwise the actual number of messages the accepted attempt produced: 0, 1 or
@@ -649,14 +689,32 @@ not reported. Schema 2 reports only what the host recorded; it adds no provider 
 `attemptEvidenceRouteAgrees` with `attemptEvidenceRouteComparison`, read through the attempt-evidence route whether or not the attempt
 produced a message. A failed attempt with no message therefore still reports these facts. A top-level `processAdmission` section
 reports the closed counts of admitted starts per class and refused requests per closed code and, if the gate closed, its first reason
-(`closedBy`), never a path or an argument. The fixed
-refusal now carries `schemaVersion` 3, and the outer-deadline verdict (exit 8) carries only the identity, the admission counts and the
-unproven shutdown and cleanup facts. A summary is created exclusively and never overwrites another; schema-1 and schema-2 summaries
-are never read or rewritten. Lot A prints its own independent closed summary (`statusSchemaVersion` 1).
+(`closedBy`), never a path or an argument. A
+summary is created exclusively and never overwrites another; schema-1, schema-2 and schema-3 summaries are never read or rewritten.
+
+**Schema 4 (QUALIFICATION-B-CHALLENGE-SET-01).** The single `message` member of a stage is replaced by the bounded set of the
+produced messages the timeline listed for the accepted attempt. `messageCount` is the complete number the timeline listed, or `null`
+when the timeline was never enumerated, which is never the same as an observed `0`; `messages` is `null` in the first case and an
+array (empty for an observed zero) in the second, at most six entries (the five Challenges a review may record, plus one so that an
+excess is visible), and `messagesTruncated` says whether the count exceeds the list. Each entry carries only the opaque `id`, the closed
+`type`, `inReplyTo`, `actor` and `provenance`, `belongsToAcceptedAttempt` (against the attempt the POST was accepted for, never the attempt that happened to be observed), `evidenceRouteComparison` (the public message-evidence route
+for that reply: `NotAttempted`, `Agrees`, `Disagrees` or `Unavailable` (the request failed), requested only inside the role and outcome
+bound and the stage ceiling) and
+`persistedMetadataComparison` (the stored row agrees with the timeline entry). `messageSetComparison` is the comparison of the complete
+distinct timeline identity set with the stored rows. It is made whenever the timeline was enumerated, so an observed empty timeline beside
+stored replies is `Disagrees` (and an empty timeline beside no stored row `Agrees`), and it is `NotAttempted` only when the count was
+never observed. The stage-level `evidenceRouteComparison` and `evidenceRouteAgrees` stay and are
+derived from the messages (agreement only when at least one reply was listed and every one agreed). `lineage.repliesToThePersistedProposal`
+is true only for a complete, non-empty, untruncated listing in which every reply answers the Proposal of the accepted Planner attempt, so a
+truncated prefix that all answers it makes no whole-set claim. A stage whose list does not match its count and the listing cap, whose
+comparison was performed beyond the evidence bound of its role and outcome, or that holds an undefined state or an empty identity
+replaces the whole text with the fixed refusal, which now carries `schemaVersion` 4; the outer-deadline verdict (exit 8) carries only the
+identity, the admission counts and the unproven shutdown and cleanup facts. The summary adds no message text, structured content or
+provider output. Lot A prints its own independent closed summary (`statusSchemaVersion` 1).
 
 | Exit | Meaning |
 | ---- | ------- |
-| 0 | Qualified: one Proposal and one Acceptance or Challenge replying to it, every control satisfied. |
+| 0 | Qualified: one Proposal and one Acceptance, or a complete set of one to five Challenges, replying to it, every control satisfied. |
 | 2 | Refused: the opt-in is missing or inexact (the retired first lot B flag included), the approved-launch manifest is missing or invalid, the launch context does not match it (`Refused: LaunchContext...`), or the ledger destination is an alias (`LedgerDestinationAliased`). Nothing started. |
 | 3 | The ledger shows a spent allowance. Nothing started. |
 | 4 | Blocked before any allowance was spent (readiness, targets, setup, source change during setup). |

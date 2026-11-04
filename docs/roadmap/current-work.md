@@ -6,7 +6,238 @@ was prepared ([recovery](development-workflow.md#recovery)). Git and code
 prevail; compare branch, `HEAD`, `origin/main` and staged/unstaged/untracked
 state first.
 
-## Active slice: CLAUDE-REVIEW-SCHEMA-01 flat closed transport schema and contract v3 for the Claude CriticalReviewer, and one fixed successor lot B entry (first return; returned for review; offline only; not authorized for execution)
+## Active slice: QUALIFICATION-B-CHALLENGE-SET-01 complete reply-set verification, safe summary schema 4 and one fixed successor lot B entry (first return; returned for review; offline only; not authorized for execution)
+
+This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the decision and
+scope. This record alone grants no execution or publication authority: any real session, provider call or publication needs its own
+decision, and nothing is committed or pushed.
+
+**Delivery phase: first return of a Claude executor chat (2026-11-04).** Preflight (verified once before editing): branch `main`;
+`HEAD`, local `origin/main` and a live `git ls-remote origin refs/heads/main` all `793a4a53b7a030d9f83df3e9c34110369ea8cf26`; an empty
+index; no untracked path; the only working change was the planner-owned `docs/roadmap/planner-handoff.md` (44 insertions, 1 deletion),
+which this chat did not edit. Nothing real was run: no provider, `codex`, `claude`, account, login, network request or owner manifest;
+the spent ledgers, summaries and retained roots of earlier lots (including the review-schema one) were never opened, enumerated, reset
+or migrated. Product code and Lot A are untouched.
+
+### What changed
+
+- **Complete reply set instead of a singleton.** `StageReading` no longer carries one message. It carries `MessageCount` (the complete
+  number the timeline listed for the accepted attempt, `null` when never enumerated), `Messages` (new `StageMessage`: opaque id, closed
+  type, reply target, attempt, author, provenance and two closed comparisons, at most `StageMessageBounds.MaximumListed` = 6 entries)
+  and `MessageSetComparison`. `EvidenceRouteComparison` and `EvidenceRouteAgrees` are now derived from the messages (agreement only
+  when at least one reply is listed and every one agrees), so they cannot contradict them. The planner's proposal for the review is
+  `SoleMessage` (exactly one listed and counted).
+- **Bound by role and outcome (`StageMessageBounds.Maximum`).** Planner `Proposed` 1; CriticalReviewer `Accepted` 1; `Challenged` 5
+  (`ClaudeCriticalReviewOutputSchema.MaximumChallenges`, the schema's own constant); every other role or outcome 0. The reader asks the
+  public message-evidence route for at most that many messages, in timeline order, one request each, inside the existing stage and
+  entry deadlines; a message beyond it stays `NotAttempted` and the verifier rejects the set.
+- **Reader (`StageEvidenceReader`).** It lists the timeline messages of the accepted attempt, reads the stored message rows of that
+  attempt (type, reply, actor kind, provider and role, provenance) and compares the complete distinct identity set with them
+  (`MessageSetComparison`, `Disagrees` also for a repeated identity). Each listed message gets its own message-evidence comparison
+  (unchanged criteria: provider, role, outcome, process, exit code, recorded inputs) and its own stored-row comparison.
+- **Verifier (`StageVerifier`).** The Planner path still needs exactly one Proposal (any other count stays `MessageNotRecorded`). A
+  review needs, in this order after the unchanged common, outcome, process and reviewed-Proposal checks: a count (`MessageNotRecorded`
+  for none or unobserved, `UnexpectedMessageCount` for an excess), a listing equal to that count whose every message belongs to the
+  accepted attempt (`MessageNotRecorded`), no repeated identity (`DuplicateMessage`), the set and every stored row agreeing
+  (`MessageSetMismatch`), a single type (`MixedReplySet`), the type the outcome names (`ReplyNotRecorded`), a reply to the exact
+  Proposal (`ReplyLineageMismatch`), author `ClaudeCode.CriticalReviewer` with `ProviderObserved` (`ReplyAuthorMismatch`), the
+  recorded inputs (`InputSetMismatch`), an agreeing evidence comparison for **every** reply (`EvidenceRouteDisagrees`, also when one
+  was never requested) and then the unchanged sealed-input checks and sealed Proposal. The attempt-evidence, sealed-input, source,
+  shutdown and process-admission controls are unchanged. A qualified review records the verdict of its first reply
+  (`Acceptance` or `Challenge`).
+- **Safe summary schema 4 (`SafeSummary`).** The single `message` member is replaced by `messages` (null when the timeline was never
+  enumerated, an array otherwise, empty for an observed zero), `messagesTruncated` (null or boolean) and `messageSetComparison`, beside
+  the unchanged nullable `messageCount`. Each entry has only `id`, `type`, `inReplyTo`, `actor`, `provenance`,
+  `belongsToAcceptedAttempt`, `evidenceRouteComparison` and `persistedMetadataComparison`. The stage-level comparison fields stay,
+  derived. `lineage.repliesToThePersistedProposal` is true only when every listed reply answers the Proposal. A stage that cannot have
+  been observed (list not equal to `min(count, 6)`, an undefined comparison, an empty identity, a comparison performed beyond the
+  evidence bound of its role and outcome, or a set comparison without an enumerated non-empty set) is refused with the fixed text,
+  which now carries schema 4. Schema 1, 2 and 3 summaries are historical and untouched.
+- **Successor lot B entry** (`QualificationOptIn`, `InvocationLedger`): flag
+  `--run-qualification-profile-01-challenge-set-exchange`, phrase
+  `qualification-profile-01-one-challenge-set-codex-planner-and-claude-reviewer`, authorization
+  `owner-qualification-profile-01-lot-b-challenge-set`, ledger leaf `devalcopilot-qualification-profile-01-lot-b-challenge-set-ledger`.
+  The review-schema flag is retired (`RetiredReviewSchemaFlag` joins `IsRetiredFlagArgument`: the fixed refusal naming the successor,
+  exit 2, before any environment, directory, ledger or process), its phrase no longer confirms, and its ledger leaf
+  (`RetiredReviewSchemaDirectoryName`) joins the construction guard. The launch-context check, the one invocation per role, the 179-start
+  ceiling, the 35-minute bound and Lot A are unchanged.
+- **Owned double.** One new marker, `ManifestInfo.ReportedTwoChallengesMarker`, carried in the objective, makes the Claude double answer the
+  Planner root with two Challenges in one response (`ResponseFactory.TwoChallenges`, built from the two texts the ordinary and second
+  review already use). Every other journey and rehearsal is unchanged.
+- **Documentation.** Playbook: identity table, review-schema retirement paragraph (no response text), Lot B heading, the complete
+  reply-set paragraph, command, ledger bullet, acceptance paragraph, summary schema 4 and exit 0. This record. No ADR or product contract
+  changed: the correction is inside the launcher.
+
+### Validation
+
+Context: this chat's Windows shell, isolated short `TEMP`/`TMP`, `-p:UseSharedCompilation=false -p:SkipNSwag=True -m:1`, all results
+from the one final build of this diff.
+
+- **Build.** `DevalCopilot.Api.IntegrationTests` (which compiles the launcher sources) and the launcher project: `-warnaserror`, 0
+  warnings, 0 errors.
+- **Focused, first.** The classes StageVerifier, ChallengeSetSession (new), SafeSummary, StageEvidenceFacts, QualificationOptIn,
+  FreshAuthorization, QualificationSession, InvocationEvidence, PostStageObservation, AcceptedAttemptIdentity and ProcessAdmissionSession:
+  320/320. The production-host rehearsal class (`Profile01Rehearsal`) with `ChallengeSetSession`: 33/33.
+- **Coverage of the request.** An Acceptance, 1, 2 and 5 Challenges qualify with one start per role. Rejected, each with its closed
+  code, at the verifier and again through the session: 6 and 20 Challenges, two Acceptances, an observed zero, an unobserved count, a list
+  shorter or longer than the count, a reply of another attempt or of none, a repeated identity, a set that differs from the stored rows,
+  a stored row that disagrees, mixed types, only wrong-typed replies, a second or third reply to another message or with another author
+  or provenance, a second reply whose evidence disagrees and a last reply whose evidence was never requested, wrong recorded inputs and
+  another sealed Proposal. The summary tests pin the bounded list, the explicit truncation, null against an observed zero, each reply's
+  own comparison and the schema-4 refusals. The opt-in and fresh-authorization tests pin the successor identities, the retired
+  review-schema flag, phrase and leaf (never granted, fixed refusal, construction guard in both cases and with a trailing separator).
+- **Production-host rehearsal.** `One_claude_response_that_persists_two_challenges_is_verified_as_a_set_through_both_evidence_routes`:
+  the owned Claude double answers once with two Challenges; the production host persists two distinct messages replying to the persisted
+  Proposal; the real reader lists both, each message-evidence and stored-row comparison agrees, the set equals the stored rows, the
+  attempt-evidence and status routes agree, the session qualifies with verdict `Challenge`, `role.codex.exec` and `role.claude.print`
+  were admitted once each, the same reviewed inventory assertions as the ordinary rehearsal hold (no refusal, resolved per-class counts)
+  and the summary carries two `Agrees` entries and no challenge text. The two messages cost no process of their own.
+- **ProviderFixtureContract (the fixture changed): 227/227.**
+- **Affected suite once (`Features.ManualQualification`, after the focused runs): 936/937.** One failure,
+  `LauncherOuterDeadlineTests.A_synchronous_first_snapshot_inside_the_session_cannot_hold_the_entry_past_its_bound`: a teardown
+  `IOException` (the summary file in use) while deleting the test's ledger directory, the same failure the previous slice recorded as an
+  intermittent one. Rerun alone, that class passed 8/8. I did not investigate its cause or compare a baseline; it is an entry-deadline
+  test with a held file that does not exercise the changed code, but that is a judgement, not a proof.
+- **Hygiene.** `dotnet format --verify-no-changes` on the changed and new C# files: clean for the three projects that compile them;
+  `git diff --check` clean; no CR or NUL byte in any changed or new file other than the planner handoff.
+- Not run, by design: any real provider; Lot A; the rest of the solution; frontend and journeys (the fixture's only change is one new
+  marker no journey uses, and `ProviderFixtureContract` passed); the mutation harness.
+
+### Findings, challenges and limits for Codex
+
+1. **The reading model changed shape.** The singleton `Message*` members of `StageReading` are gone, so ten existing
+   ManualQualification test files were edited mechanically (an unenumerated or empty set is now `Messages = []` with the count, and a reply
+   edit goes through `EditEach` or `EditAt`). Their assertions and closed codes are unchanged, except that a Planner with two messages
+   still reports `MessageNotRecorded` and the review-side excess is the new `UnexpectedMessageCount`.
+2. **The summary is schema 4.** Anything that reads the old `message` member of a schema-3 summary would no longer find it in a new
+   one. No such reader exists in the repository; the historical summaries were not touched.
+3. **A stored row is read in addition to the public routes.** The set comparison reads the disposable database read-only, as the reader
+   already did for inputs and artifacts. It is a launcher control, not a product contract.
+4. **Retained-listing cap.** `MaximumListed` = 6 is one above the largest valid set so that an excess shows; the count is always carried in
+   full and the truncation is explicit. A different cap is a one-constant change.
+5. **A real run is a separate decision.** The flat schema is accepted by the provider only if a real exchange shows it, and the successor
+   entry needs the owner's authorization after publication verification.
+6. **The same intermittent teardown failure** as the previous slice recurred once in the one suite run and not on the class rerun.
+
+### Correction 1 (same executor chat; offline only; findings QBC-R1, QBC-R2, QBC-R3)
+
+Preflight: `main`, `HEAD`, local `origin/main` and a live `git ls-remote` all `793a4a53b7a030d9f83df3e9c34110369ea8cf26`; an empty
+index; 26 modified tracked paths and three untracked files, as expected; the planner's `planner-handoff.md` edits preserved and
+unedited. No provider, account, network call, prior ledger or retained evidence was touched; product code, Lot A and the shared
+deadline policy are unchanged.
+
+- **QBC-R1 (closed here, for review).** The reader let a failure of a later message-evidence request propagate, so the session's
+  bounded read retries (up to three consecutive failures) restarted the list from the first reply: up to three times the ceiling.
+  Now `StageEvidenceReader` keeps, for each role, a count of requests (incremented before the request is sent), the result of each by
+  message identity and a failed flag. A remembered result is returned without a request; a request is made only below the ceiling of
+  the role and outcome (1, 1 or 5) and before any failure; a failed request, or a cancelled one (still propagated, so the caller's
+  deadline is unchanged), is remembered as the new closed comparison `Unavailable` and stops every further request of the stage, the
+  later replies staying `NotAttempted`. The verifier reports it as `EvidenceRouteUnavailable` (unless another reply is already known
+  to disagree, which keeps `EvidenceRouteDisagrees`); the summary lists it per reply. Polling, deadlines and the outcome-based
+  evidence bound are unchanged. Tests, on the production host through a new rehearsal-only HTTP handler seam
+  (`ProductionQualificationEnvironment` and `QualificationApiClient` take an optional handler; the launcher never supplies one): a
+  failing second Challenge ends in `ReviewerEvidenceRouteUnavailable` after exactly three message-evidence requests for the session
+  (Proposal, first Challenge, failed second Challenge); and a forced failure after the first terminal read of the review, so that
+  the session reads the stage again, adds no request in either the failing or the passing case (still three, and the passing case
+  qualifies with both Challenges). A mutant that removes the memory and the ceiling guard fails both retry cases (5 requests instead
+  of 3); the file was restored byte-for-byte (hash checked) and its build rerun.
+- **QBC-R2 (closed here, for review).** `belongsToAcceptedAttempt` was compared with the observed attempt; it now compares each message
+  with the attempt the stage's POST was accepted for (false without one). `repliesToThePersistedProposal` is true only for a complete,
+  non-empty, untruncated listing in which every reply answers the Proposal, and the Proposal is bound to the Planner attempt the POST
+  was accepted for. The set comparison is made whenever the timeline was enumerated: an observed empty timeline beside stored replies
+  is `Disagrees` (and beside no rows `Agrees`), `NotAttempted` only when the count was never observed, and the summary refuses a
+  stage that breaks that pairing. Controls: a foreign observed attempt (no message belongs, `attemptIdMatchesAccepted` false), a
+  truncated prefix of 6 of 7 whose every reply answers the Proposal (claim false) against the same complete listing (claim true), and
+  an empty timeline with stored replies both as a scripted reading and through the real reader (the host's timeline response
+  rewritten to omit the Challenges: count 0, empty list, `Disagrees`, `ReviewerMessageNotRecorded`, one evidence request in the whole
+  session, summary distinguishing it from the never-enumerated case).
+- **QBC-R3 (closed here, for review).** Each message-evidence response is now also compared on `InputMessagesStatus` (`Empty` for the
+  Planner, `Recorded` for the reviewer), `InputMessagesOmitted` (false), `InputMessageTotalCount` (the stored count) and the exact
+  ordered identities. Controls through the real reader: the second reply's envelope rewritten with status `Invalid`, status `Empty`,
+  `omitted` true or a total of 2 while its listed identities stay equal to the stored ones: `ReviewerEvidenceRouteDisagrees`, the first
+  reply `Agrees`, the second `Disagrees`; and a Planner response claiming `Recorded` stops the session before any review allowance.
+- **Validation (this correction, order as requested).** Build `-warnaserror`: 0 warnings, 0 errors. Focused verifier, session,
+  summary, reading, opt-in and client classes: 349/349; the production-host rehearsal class: 23/23 (the original 10 rehearsals plus the
+  new ones). The affected `Features.ManualQualification` matrix, once: **954/954** (the earlier 936/937 plus this correction's new
+  tests). The teardown failure of the first return (`LauncherOuterDeadlineTests.A_synchronous_first_snapshot_...`) did not recur, so
+  the exact-baseline comparison was not performed; the first return's **936/937 and the isolated 8/8 stay recorded above as separate
+  evidence** and their causes remain uninvestigated. `ProviderFixtureContract` was not rerun: the fixture is unchanged in this
+  correction (its 227/227 stands for the first return's fixture change). `dotnet format --verify-no-changes` on the changed and new
+  files: clean; `git diff --check` clean; no CR or NUL byte in any changed or new file except the planner handoff.
+- **Unchanged by design.** The positive two-Challenge rehearsal, the successor identities, the retired entries, the process inventory
+  and admission counts (the new rehearsals assert one `role.claude.print` and no refusal), the one invocation per role and the sealed,
+  source and shutdown controls.
+
+### Correction 2 (same executor chat; offline only; finding QBC-R4)
+
+Preflight: `main`, `HEAD`, local `origin/main` and a live `git ls-remote` all `793a4a53b7a030d9f83df3e9c34110369ea8cf26`; an empty
+index; 29 modified tracked paths and three untracked files, as expected; the planner's `planner-handoff.md` edits preserved and
+unedited. No provider, ledger, retained evidence, product code or Lot A was touched.
+
+- **QBC-R4 (closed here, for review).** The remembered message-evidence result of correction 1 was keyed by message identity only, so
+  a retry whose fresh reading differed (another attempt, outcome, process facts or ordered inputs) could reuse a stale agreement. The
+  memory is now the separate class `MessageEvidenceMemory`, and each remembered result carries the `MessageEvidenceFacts` it was
+  compared against: the attempt, provider, role, outcome, process outcome, exit code, the envelope kind the role expects and the
+  complete ordered recorded input identities (an ordered key, so a reordering or a different set is a different fact). A fresh read
+  with other facts than any remembered result closes the stage at once, whichever message is asked about first: a remembered
+  agreement becomes `Disagrees` (a remembered failure, disagreement or unavailable result keeps its own result), a message never asked
+  about is `NotAttempted`, and **no further request is issued**. Unchanged facts reuse every result with the same request count.
+  The stage-wide ceiling, the stop after a failure, and the propagation of a cancellation (remembered as `Unavailable`) are
+  unchanged, as are polling and the deadlines. The reader only builds the facts and delegates.
+- **Proof, and its limit.** `MessageEvidenceMemoryTests` (15 cases): an unchanged retry keeps both agreements with 2 requests; each
+  of a different attempt, outcome, process outcome, exit code, missing exit code, envelope, other inputs, an added input and a removed
+  input turns the agreements into `Disagrees` with no request, no request for a new message and the original facts still seeing their
+  own agreement; changed facts met first on a message never asked before still close the stage; the ordered input key distinguishes
+  order; the ceiling (5 of 7, unchanged on a repeated read), the stop after a failure over three reads (2 requests in all) and the
+  cancellation behavior hold. A compiling mutant (the facts comparison and the pre-scan disabled) failed 10 of the 15; the file was
+  restored byte-for-byte (hash checked) and rebuilt. The first mutant attempt did not compile (a warning treated as an error) and its
+  run used stale binaries; it was discarded and not counted. The unchanged retry through the **real reader and session** is the
+  correction-1 rehearsal (a forced failure after the first terminal read, then the second read): still three message-evidence requests,
+  and the passing case qualifies. I did not drive changed facts through the real reader: they come from the disposable database, and no host route changes them during a session, so forcing it would mean editing the attempt or input rows directly and bypassing the production invariants, which I did not do. A changed-facts retry is therefore proven at the memory class, which the reader uses unchanged and feeds with facts built from the fresh reading; the resulting `Disagrees` is mapped to `EvidenceRouteDisagrees` by the verifier tests.
+- **Validation (this correction, order as requested).** Build `-warnaserror`: 0 warnings, 0 errors. Focused memory, verifier,
+  session, summary, reading, opt-in, fresh-authorization and production-host rehearsal classes: 324/324 (the rehearsal class included,
+  with its QBC-R1 to R3 controls and the successor identities). The affected `Features.ManualQualification` matrix, once:
+  **969/969**. The results of the earlier rounds remain recorded above and are not replaced: first return 936/937 with the isolated 8/8,
+  correction 1 954/954. `ProviderFixtureContract` was not rerun (the fixture is unchanged). `dotnet format --verify-no-changes` on
+  the changed and new files: clean; `git diff --check` clean; no CR or NUL byte in any changed or new file except the planner handoff.
+
+### Correction 3 (same executor chat; offline only; findings QBC-R4 reopened and QBC-S1)
+
+Preflight: `main`, `HEAD`, local `origin/main` and a live `git ls-remote` all `793a4a53b7a030d9f83df3e9c34110369ea8cf26`; an empty
+index; 29 modified tracked paths and five untracked files, as expected; the planner's `planner-handoff.md` edits preserved and
+unedited. No provider, ledger, retained evidence, product code or Lot A was touched.
+
+- **QBC-R4 (reopened and closed here, for review).** Correction 2 compared the facts of a read only against remembered results, so a
+  read that returned to the original facts after a changed one could reuse the earlier agreement, and a drift seen by a read with an
+  empty listing or a zero ceiling was never noticed. `MessageEvidenceMemory` now has `Observe(facts)`: the first read sets a baseline,
+  and any later read (or remembered result) whose facts differ latches `Drifted` for the stage, which never clears. After the latch no
+  remembered agreement is reused, original facts included (it becomes `Disagrees`), a message never asked about is `NotAttempted`, and
+  no request is issued. The reader builds the facts and calls `Observe` once per terminal read **before** iterating the replies, so
+  it also runs when the timeline lists nothing or the ceiling is zero; `ResolveAsync` observes too. Unchanged: stable retries (same
+  request count), remembered failures, disagreements and unavailable results keeping their results (also after the original facts
+  return), the cancellation behavior and the stage-wide ceiling.
+- **QBC-S1 (closed here).** `MessageEvidenceFacts` is now in its own file, `MessageEvidenceFacts.cs`; one top-level type per file.
+- **Controls** (`MessageEvidenceMemoryTests`, now 19): original, changed, original (both later reads `Disagrees`, still 2 requests, a
+  new message `NotAttempted`); a drift observed by a read that resolves no reply and by a zero-ceiling read, then a return to the
+  original facts (agreement not reused, nothing requested, 1 request in all); a drift seen before any reply was asked about; observing
+  the same facts again never drifts and keeps the stable retry; earlier results kept after a return. A compiling mutant (the baseline
+  comparison and the latched-drift condition disabled) failed 13 of the 19; the file was restored byte-for-byte (hash checked) and
+  rebuilt; the build of the mutant was checked before its run. As in correction 2, the drift is proven at the memory class the reader
+  uses; I did not mutate the database to force it through the real reader.
+- **Validation (this correction, order as requested).** Build `-warnaserror`: 0 warnings, 0 errors. Focused memory, verifier, session,
+  summary, reading, opt-in, fresh-authorization and production-host rehearsal classes: **328/328**. The affected
+  `Features.ManualQualification` matrix, once: **973/973**. Prior executor evidence is retained, not replaced: correction 2's 324/324
+  focused and 969/969 matrix, correction 1's 954/954, and the first return's 936/937 with the isolated 8/8. `ProviderFixtureContract`
+  was not rerun (the fixture is unchanged). `dotnet format --verify-no-changes` on the changed and new files: clean; `git diff --check`
+  clean; no CR or NUL byte in any changed or new file except the planner handoff.
+
+### Git state
+
+Unstaged, uncommitted and unpushed on `main` (`HEAD` `793a4a5`): 29 modified tracked files including the planner-owned
+`docs/roadmap/planner-handoff.md` (unedited), the playbook and this record, and six new untracked files (`ChallengeSetSessionTests.cs`,
+`MessageEvidenceFacts.cs`, `MessageEvidenceMemory.cs`, `MessageEvidenceMemoryTests.cs`, `StageMessage.cs`, `StageMessageBounds.cs`). No next slice is selected; real execution and publication remain pending.
+
+## Previous slice (published as 793a4a5; historical record): CLAUDE-REVIEW-SCHEMA-01 flat closed transport schema and contract v3 for the Claude CriticalReviewer, and one fixed successor lot B entry (first return; returned for review; offline only; not authorized for execution)
 
 This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the decision and
 scope. This record alone grants no execution or publication authority: any real session, provider call or publication needs its own

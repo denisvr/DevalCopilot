@@ -119,13 +119,14 @@ public sealed class QualificationSession(
             return;
         }
 
-        var reviewer = await RunStageAsync(AllowanceRole.Reviewer, planner.MessageId, report, cancellationToken);
+        var reviewer = await RunStageAsync(AllowanceRole.Reviewer, planner.SoleMessage?.Id, report, cancellationToken);
         if (reviewer is null || Drifted(report))
         {
             return;
         }
 
-        report.Qualify(reviewer.MessageType!);
+        // A verified review is one Acceptance or a set of Challenges of a single type, so the first message names the verdict.
+        report.Qualify(reviewer.Messages[0].Type!);
     }
 
     private async Task<StageReading?> RunStageAsync(

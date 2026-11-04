@@ -129,13 +129,8 @@ public sealed class StageEvidenceFactsTests : QualificationTestBase
                 InvocationDiagnosticCategory = "AuthenticationRequired",
                 InvocationDiagnosticVersion = "agent-invocation-diagnostic-v1",
                 MessageCount = 0,
-                MessageId = null,
-                MessageType = null,
-                InReplyToMessageId = null,
-                MessageAttemptId = null,
-                MessageActor = null,
-                MessageProvenance = null,
-                EvidenceRouteComparison = EvidenceRouteComparisonStatus.NotAttempted,
+                Messages = [],
+                MessageSetComparison = EvidenceRouteComparisonStatus.Agrees,
                 AttemptEvidenceRouteComparison = EvidenceRouteComparisonStatus.Agrees,
             };
 
@@ -170,13 +165,8 @@ public sealed class StageEvidenceFactsTests : QualificationTestBase
                 ExitCode = 1,
                 InvocationDiagnosticState = "Unknown",
                 MessageCount = 0,
-                MessageId = null,
-                MessageType = null,
-                InReplyToMessageId = null,
-                MessageAttemptId = null,
-                MessageActor = null,
-                MessageProvenance = null,
-                EvidenceRouteComparison = EvidenceRouteComparisonStatus.NotAttempted,
+                Messages = [],
+                MessageSetComparison = EvidenceRouteComparisonStatus.Agrees,
             };
 
         var report = await RunAsync(environment);
@@ -206,13 +196,8 @@ public sealed class StageEvidenceFactsTests : QualificationTestBase
                 InvocationDiagnosticCategory = "CaptureDeadlineExceeded",
                 InvocationDiagnosticVersion = "agent-invocation-diagnostic-v1",
                 MessageCount = 0,
-                MessageId = null,
-                MessageType = null,
-                InReplyToMessageId = null,
-                MessageAttemptId = null,
-                MessageActor = null,
-                MessageProvenance = null,
-                EvidenceRouteComparison = EvidenceRouteComparisonStatus.NotAttempted,
+                Messages = [],
+                MessageSetComparison = EvidenceRouteComparisonStatus.Agrees,
             };
 
         var report = await RunAsync(environment);
@@ -229,7 +214,7 @@ public sealed class StageEvidenceFactsTests : QualificationTestBase
         var environment = new ScriptedEnvironment();
         environment.OnRead = (role, _) => role == AllowanceRole.Planner
             ? QualificationReadings.Planner(environment.PlannerAttemptId, environment.ProposalMessageId)
-            : QualificationReadings.Reviewer(environment.ReviewerAttemptId, environment.ReplyMessageId, environment.ProposalMessageId) with { AttemptId = Guid.NewGuid(), MessageAttemptId = null };
+            : QualificationReadings.Reviewer(environment.ReviewerAttemptId, environment.ReplyMessageId, environment.ProposalMessageId) with { AttemptId = Guid.NewGuid() };
 
         var report = await RunAsync(environment);
 
@@ -251,13 +236,8 @@ public sealed class StageEvidenceFactsTests : QualificationTestBase
                 InvocationDiagnosticCategory = "C:/Users/someone/token sk-secret",
                 InvocationDiagnosticVersion = "agent-invocation-diagnostic-v1",
                 MessageCount = 0,
-                MessageId = null,
-                MessageType = null,
-                InReplyToMessageId = null,
-                MessageAttemptId = null,
-                MessageActor = null,
-                MessageProvenance = null,
-                EvidenceRouteComparison = EvidenceRouteComparisonStatus.NotAttempted,
+                Messages = [],
+                MessageSetComparison = EvidenceRouteComparisonStatus.Agrees,
             };
 
         var report = await RunAsync(environment);

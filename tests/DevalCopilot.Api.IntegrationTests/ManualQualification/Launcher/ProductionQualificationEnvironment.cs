@@ -27,7 +27,8 @@ public sealed class ProductionQualificationEnvironment(
     ProcessAdmission? admission = null,
     JudgedTargets? judgedTargets = null,
     string? objective = null,
-    IGitVersionObserver? gitVersions = null) : IQualificationEnvironment
+    IGitVersionObserver? gitVersions = null,
+    Func<HttpMessageHandler>? createHandler = null) : IQualificationEnvironment
 {
     private const int MaximumAgentAttempts = 2;
     private const int MaximumAgentInvocationMinutes = 20;
@@ -100,7 +101,9 @@ public sealed class ProductionQualificationEnvironment(
         _watch.StartSampling(TimeSpan.FromMilliseconds(250));
         _host = new ProductionHost(_root!, api, _launchSecret, admission);
         _host.Start();
-        _api = new QualificationApiClient(api, _launchSecret, limits);
+        _api = createHandler is null
+            ? new QualificationApiClient(api, _launchSecret, limits)
+            : new QualificationApiClient(api, _launchSecret, limits, createHandler());
         return Task.CompletedTask;
     }
 

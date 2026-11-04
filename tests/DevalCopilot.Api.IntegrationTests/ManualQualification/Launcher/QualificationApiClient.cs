@@ -31,6 +31,13 @@ public sealed partial class QualificationApiClient : IDisposable
     {
     }
 
+    /// <summary>The same client over a handler an offline rehearsal supplies (to observe or fail the routes it reads). The launcher
+    /// itself never supplies one.</summary>
+    public QualificationApiClient(Uri baseAddress, string launchSecret, QualificationLimits limits, HttpMessageHandler handler)
+        : this(new HttpClient(handler, disposeHandler: true) { BaseAddress = baseAddress, Timeout = Timeout.InfiniteTimeSpan }, launchSecret, limits)
+    {
+    }
+
     /// <summary>Takes over the client, so the offline regressions can answer through a handler without a network.</summary>
     public QualificationApiClient(HttpClient http, string launchSecret, QualificationLimits limits)
     {

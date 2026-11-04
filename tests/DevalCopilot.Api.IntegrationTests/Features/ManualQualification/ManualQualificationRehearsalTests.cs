@@ -213,10 +213,10 @@ public sealed class ManualQualificationRehearsalTests(ITestOutputHelper output) 
             Assert.Equal("Challenge", report.Verdict);
             Assert.Equal("Codex", report.Planner!.Provider);
             Assert.Equal("Planner", report.Planner.Role);
-            Assert.Equal("Proposal", report.Planner.MessageType);
+            Assert.Equal("Proposal", report.Planner.SoleMessage!.Type);
             Assert.Equal("ClaudeCode", report.Reviewer!.Provider);
-            Assert.Equal(report.Planner.MessageId, report.Reviewer.InReplyToMessageId);
-            Assert.Equal([report.Planner.MessageId!.Value], report.Reviewer.InputMessageIds);
+            Assert.Equal(report.Planner.SoleMessage.Id, report.Reviewer.SoleMessage!.InReplyToMessageId);
+            Assert.Equal([report.Planner.SoleMessage.Id], report.Reviewer.InputMessageIds);
             Assert.True(report.Reviewer.ManifestBytesAgree && report.Planner.ManifestBytesAgree, summary);
             Assert.Equal(report.Planner.ArtifactCount, report.Planner.ArtifactsAgreeing);
             Assert.True(report.SourceChecks >= 3, summary);

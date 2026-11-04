@@ -77,24 +77,35 @@ public sealed record StageReading
     /// (no attempt, or a still running one). An unobserved count is never zero.</summary>
     public int? MessageCount { get; init; }
 
-    public Guid? MessageId { get; init; }
+    /// <summary>The produced messages the timeline listed for the attempt, in timeline order, at most
+    /// <see cref="StageMessageBounds.MaximumListed"/> of them. Empty whether none exist or none were enumerated; only
+    /// <see cref="MessageCount"/> tells the two apart.</summary>
+    public IReadOnlyList<StageMessage> Messages { get; init; } = [];
 
-    public string? MessageType { get; init; }
+    /// <summary>Whether the complete distinct set of the timeline's message identities for the attempt equals the set of the stored
+    /// message rows of that attempt, and with what result. It is performed whenever the timeline was enumerated, so an observed empty
+    /// timeline beside stored replies is a disagreement and an empty timeline beside no stored rows agrees; it is never attempted only
+    /// when no count was observed.</summary>
+    public EvidenceRouteComparisonStatus MessageSetComparison { get; init; }
 
-    public Guid? InReplyToMessageId { get; init; }
+    /// <summary>The only message of the attempt, or null unless the attempt has exactly one listed.</summary>
+    public StageMessage? SoleMessage => Messages.Count == 1 && MessageCount == 1 ? Messages[0] : null;
 
-    public Guid? MessageAttemptId { get; init; }
+    /// <summary>The message-evidence comparison of the whole stage, derived from its listed messages so it can never disagree with
+    /// them: agreement only when at least one message is listed and every one agrees, disagreement when any disagrees, unavailable
+    /// when none disagrees but any request failed, and otherwise not attempted.</summary>
+    public EvidenceRouteComparisonStatus EvidenceRouteComparison =>
+        Messages.Any(message => message.EvidenceRouteComparison == EvidenceRouteComparisonStatus.Disagrees)
+            ? EvidenceRouteComparisonStatus.Disagrees
+            : Messages.Any(message => message.EvidenceRouteComparison == EvidenceRouteComparisonStatus.Unavailable)
+                ? EvidenceRouteComparisonStatus.Unavailable
+                : Messages.Count > 0
+                    && Messages.All(message => message.EvidenceRouteComparison == EvidenceRouteComparisonStatus.Agrees)
+                    ? EvidenceRouteComparisonStatus.Agrees
+                    : EvidenceRouteComparisonStatus.NotAttempted;
 
-    public string? MessageActor { get; init; }
-
-    public string? MessageProvenance { get; init; }
-
-    /// <summary>Whether the public message-evidence route was compared with the stored attempt on provider, role, outcome, process
-    /// and recorded inputs, and with what result.</summary>
-    public EvidenceRouteComparisonStatus EvidenceRouteComparison { get; init; }
-
-    /// <summary>The comparison was performed and agreed; derived, so it can never disagree with <see cref="EvidenceRouteComparison"/>.
-    /// False alone does not say whether a comparison disagreed or was never attempted.</summary>
+    /// <summary>Every listed message was compared and agreed; derived. False alone does not say whether a comparison disagreed or
+    /// was never attempted.</summary>
     public bool EvidenceRouteAgrees => EvidenceRouteComparison == EvidenceRouteComparisonStatus.Agrees;
 
     public IReadOnlyList<Guid> InputMessageIds { get; init; } = [];

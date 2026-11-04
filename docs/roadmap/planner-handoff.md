@@ -1,6 +1,173 @@
 # Planner/reviewer handoff
 
-## Current decision: CLAUDE-REVIEW-SCHEMA-01 review 2, GO for exact-content publication
+## Current decision: QUALIFICATION-B-CHALLENGE-SET-01 review 4, GO for exact-content publication
+
+Verified `main`, HEAD, local `origin/main` and the live ref at
+`793a4a53b7a030d9f83df3e9c34110369ea8cf26`. The index is empty, with
+29 modified tracked paths including this record and six untracked files.
+
+Close QBC-R4. The reader observes the closed facts before the message
+loop. A stage that observes drift cannot reuse agreement or ask for more
+message evidence, including after a return to the original facts.
+Stable retries, failures, disagreements and cancellation retain their
+behavior. The memory tests prove drift at the unit boundary. The
+production composition exercises the normal and unchanged-retry paths
+with owned doubles. Close QBC-S1. The facts and memory are separate types
+in separate files. Accept QBC-R1 through QBC-R3 as previously reviewed.
+
+Independent focused build and tests passed 200/200, including the
+production-host rehearsal and the memory, verifier, session and summary
+controls. Retain the executor's 328/328 focused and 973/973 matrix
+results, the earlier matrices and the separate fixture results. The first
+return's intermittent teardown failure remains unexplained.
+
+The GO covers the 35 approved paths and the exact tree in the publication
+instruction. Real execution requires a separate owner decision after
+independent publication verification.
+
+## QUALIFICATION-B-CHALLENGE-SET-01 review 3, NO-GO
+
+Verified `main`, HEAD, local `origin/main` and the live ref at
+`793a4a53b7a030d9f83df3e9c34110369ea8cf26`. The index is empty, with
+29 modified tracked paths including this record and five untracked files.
+
+**QBC-R4 remains open.** The comparison now captures the exact facts,
+including ordered inputs, and blocks an agreement when the current
+observation differs. Drift only sets the flag that stops new requests,
+however. A later observation that reverts to the first facts can reuse
+the old agreements. The changed-facts test explicitly expects this. If a
+read fails after observing drift and the session retries, the failed
+stage can qualify. Make observed drift terminal for agreement as well as
+for requests. Observe terminal facts once per read before the message
+loop, even with an empty listing or a zero request ceiling. Preserve
+unchanged retries and the separate handling of route failure and
+cancellation. Cover the original, changed, original sequence and assert
+that it does not qualify or issue another request. Preserve prior failed
+and disagreeing results.
+
+**QBC-S1, open.** The engineering contract requires one top-level C#
+type per file. Split `MessageEvidenceFacts` and
+`MessageEvidenceMemory`, or make the facts a nested type.
+
+The ordered-facts equality and production reader wiring are accepted.
+The memory-level changed-facts control is an appropriate boundary and
+does not require editing host database rows. Retain 324/324 focused and
+969/969 matrix as executor evidence. Run the focused checks, then the
+affected ManualQualification matrix once after correction. Preserve
+QBC-R1 through QBC-R3, the unchanged fixture evidence, the successor
+identities and all authorization boundaries.
+
+## QUALIFICATION-B-CHALLENGE-SET-01 review 2, NO-GO
+
+Verified `main`, HEAD, local `origin/main` and the live ref at
+`793a4a53b7a030d9f83df3e9c34110369ea8cf26`. The index is empty, with
+29 modified tracked paths including this record and three untracked files.
+
+QBC-R1's request ceiling and failure path, QBC-R2's summary and set
+comparison, and QBC-R3's input envelope checks are accepted on inspection.
+The optional HTTP handler is confined to the qualification launcher and
+allows offline production-composition fault tests. Accept it in scope.
+
+**QBC-R4, open.** The correction remembers only the prior comparison enum
+by message ID. A retry reads the attempt and ordered input rows again, but
+returns the old agreement without checking the observation it was compared
+against. For example, a route can agree with a prior input B before a
+post-comparison read fails. A retry can see the expected Proposal A in
+the stored inputs and reuse the earlier agreement for B. The verifier can
+then combine fresh input A with route evidence that named B. Bind reused
+agreement to the same attempt and comparison facts, including the complete
+ordered inputs, or re-evaluate captured closed evidence against the fresh
+observation. Fail closed on drift and keep the stage-wide request ceiling.
+Prove stable retry success and drift refusal without another route request.
+
+Retain the executor's 349/349 focused, 23/23 composition and 954/954
+ManualQualification results, and the earlier 936/937 and isolated 8/8.
+The teardown failure did not recur and remains unexplained. Retain fixture
+evidence for the unchanged fixture. Check the focused paths first and run
+the affected ManualQualification matrix once after the correction.
+Keep the successor identities and all execution boundaries.
+
+## QUALIFICATION-B-CHALLENGE-SET-01 review 1, NO-GO
+
+Verified `main`, HEAD, local `origin/main` and the live ref at
+`793a4a53b7a030d9f83df3e9c34110369ea8cf26`. The index is empty, with
+26 modified tracked paths including this record and three untracked files.
+
+- **QBC-R1, open.** The message-evidence request ceiling is enforced per
+  read, while the stage retries a thrown read. A failed second route request
+  can cause the first request to run again. Enforce the role and outcome
+  ceiling for the stage, including errors and retries. Keep the existing
+  polling and deadlines. A failed or unavailable reply comparison must
+  fail the stage with a closed reason. Exercise the reader and session
+  together with a fault on a later reply and prove the total request count.
+- **QBC-R2, open.** Schema 4 can say a message belongs to the accepted
+  attempt by comparing it with the observed attempt even when the stage
+  identifies that observation as foreign. It can also report all replies
+  linked to the Proposal when only a truncated prefix was inspected.
+  Use the actual accepted ID and require a complete, non-empty listing
+  for a positive whole-set lineage claim. When both sets were read,
+  distinguish an empty timeline that disagrees with non-empty stored
+  rows from a comparison that was never attempted. Add focused controls
+  for these cases.
+- **QBC-R3, open.** The per-message route comparison checks the input ID
+  sequence but ignores the route's input status, omitted flag and total.
+  Require a coherent complete envelope as well as the exact IDs. A
+  Planner's legitimate empty input and a reviewer's one recorded Proposal
+  must be distinguishable from invalid, omitted or contradictory inputs.
+  Exercise a malformed envelope on a later reply.
+
+The positive two-Challenge rehearsal and the authorization rotation are
+in scope. Retain the executor's 936/937 matrix and isolated 8/8 deadline
+class results. The teardown failure is unexplained. The prior slice
+recorded the same symptom. Repeat the affected matrix once after the
+correction, and compare with the exact baseline under equivalent
+conditions if the failure recurs. Lot A, product code, shared deadline
+policy, prior ledgers and retained evidence remain outside this slice.
+
+## Selection: QUALIFICATION-B-CHALLENGE-SET-01 for offline preparation
+
+Verified clean `main`, HEAD, local `origin/main` and the live ref at
+`793a4a53b7a030d9f83df3e9c34110369ea8cf26` before this planner edit.
+
+One authorized review-schema Lot B session
+`2cb35392157b4bbaa3420c333983a9eb` produced one accepted Codex Proposal.
+The Claude v3 invocation exited zero with complete I/O and a completed
+`Challenged` outcome. The timeline listed two messages for that attempt.
+The launcher's singleton reader projected neither message and did not
+query either message-evidence route. Its verifier returned
+`ReviewerMessageNotRecorded` (exit 5). The sealed input named the exact
+Proposal. The summary could not establish per-reply evidence agreement.
+The repository stayed unchanged. Both allowances are spent, and the
+owned root was retained because descendant shutdown was unproven.
+
+Correct the qualification reader, verifier and closed summary together.
+One Planner still needs one Proposal. One CriticalReviewer attempt can
+record one Acceptance or a complete set of one to five Challenges.
+Check each reply against the exact Proposal and accepted attempt, expected
+type, author, provenance and public message-evidence route. Check the
+complete distinct ID set against the stored attempt's message metadata.
+Reject missing, excessive, duplicate, mixed or incoherent replies and any
+unproven evidence. Bound the number of evidence requests by the applicable
+role and outcome. Keep attempt-level, sealed-input and source controls.
+Version the safe summary as 4 with a bounded closed message list and
+per-message comparison facts. Retain historical summaries as recorded.
+
+Prepare one offline successor and retire the review-schema entry and
+ledger name alongside earlier entries.
+
+- Flag `--run-qualification-profile-01-challenge-set-exchange`
+- Confirmation `qualification-profile-01-one-challenge-set-codex-planner-and-claude-reviewer`
+- Authorization `owner-qualification-profile-01-lot-b-challenge-set`
+- Ledger leaf `devalcopilot-qualification-profile-01-lot-b-challenge-set-ledger`
+
+The composition rehearsal must cover multiple persisted Challenges from
+one owned Claude double response. Preserve the one Planner and one
+CriticalReviewer invocation, all process admission limits, 35-minute
+bound and the launch-context checks. Product code, Lot A and past
+evidence are outside scope. Return unstaged, uncommitted and unpushed.
+Real execution and publication require separate decisions.
+
+## CLAUDE-REVIEW-SCHEMA-01 review 2, GO for exact-content publication
 
 Verified `main`, HEAD, local `origin/main` and the live ref at
 `241bbb2ca181445267d1d51c390b484aea0b0dca`. The index was empty, with 29
