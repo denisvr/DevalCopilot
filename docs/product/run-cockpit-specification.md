@@ -3,7 +3,7 @@
 ## Status
 
 Approved MVP design baseline. The interactive reference is
-[`prototypes/cockpit-v1`](../../prototypes/cockpit-v1/index.html).
+[`docs/design/prototypes/cockpit-v1`](../design/prototypes/cockpit-v1/index.html).
 
 The prototype demonstrates intended behavior and information hierarchy. It is
 not an implementation contract for literal sample values, hard-coded provider

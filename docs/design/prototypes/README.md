@@ -2,7 +2,7 @@
 
 The approved MVP design baseline is [`cockpit-v1`](cockpit-v1/index.html). Its
 functional behavior is defined by
-[`run-cockpit-specification.md`](../docs/product/run-cockpit-specification.md).
+[`run-cockpit-specification.md`](../../product/run-cockpit-specification.md).
 
 The remaining prototypes are non-canonical design explorations. They may inform
 individual interaction ideas but must not override the approved cockpit or its
